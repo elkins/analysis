@@ -1152,7 +1152,6 @@ class AppearancePanel(GuiSettingPanel):
         if calculcationModeW:
             mode = calculcationModeW.getText()
         factorW = self.getWidget(guiNameSpaces.WidgetVarName_SDThreshValueFactor)
-
         if factorW:
             sdFactor = factorW.getValue()
         yColumnNameW = self.getWidget(guiNameSpaces.WidgetVarName_MainPlotYcolumnName)
@@ -1160,6 +1159,16 @@ class AppearancePanel(GuiSettingPanel):
             yColumnName = yColumnNameW.getText()
         else:
             return
+
+        if mode == sv.TRIMMED_MEAN and factor < 1:
+            msg = 'Factor value not allowed. Usage: select 10 for a 10% trimmed mean.'
+            showWarning('Option not available.', msg)
+            return
+        elif mode == sv.TRIMMED_MEAN and factor > 50:
+            msg = 'Factor value too large. Usage: select 10 for a 10% trimmed mean.'
+            showWarning('Option not available.', msg)
+            return
+
         if mode:
             try:
                 value = self._getThresholdValueFromBackend(columnName=yColumnName, calculationMode=mode, sdFactor=sdFactor)
