@@ -871,7 +871,7 @@ class GuiMainWindow(Shortcuts, QtWidgets.QMainWindow):
             for filename in filenames:
                 if filename.startswith('_'):
                     continue
-                elif filename.startswith('__'):
+                elif filename.startswith('_'):
                     continue
                 if filename.endswith('.py'):
                     _macroName = os.path.join(dirpath, filename)
