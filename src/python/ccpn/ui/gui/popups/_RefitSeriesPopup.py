@@ -15,7 +15,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2023-10-27 11:03:41 +0100 (Fri, October 27, 2023) $"
+__dateModified__ = "$dateModified: 2023-10-27 14:58:59 +0100 (Fri, October 27, 2023) $"
 __version__ = "$Revision: 3.2.0 $"
 #=========================================================================================
 # Created
@@ -58,7 +58,7 @@ class RefitSingularSelectedSeriesPopup(CcpnDialogMainWidget):
     FIXEDWIDTH = False
     FIXEDHEIGHT = False
 
-    def __init__(self, parent, seriesAnalysisModule, collections=None, title='Refit Singular Series Popup', **kwds):
+    def __init__(self, parent, seriesAnalysisModule, collections=None, title='Refit Singular Collection Popup', **kwds):
         super().__init__(parent, setLayout=True, windowTitle=title, **kwds)
 
         self.mainWindow = getMainWindow()
