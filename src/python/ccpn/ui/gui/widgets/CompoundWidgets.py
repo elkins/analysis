@@ -11,9 +11,9 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2023-06-15 09:09:10 -0400 (Thu, June 15, 2023) $"
-__version__ = "$Revision: 3.1.1 $"
+__modifiedBy__ = "$modifiedBy: Luca Mureddu $"
+__dateModified__ = "$dateModified: 2023-10-27 11:03:41 +0100 (Fri, October 27, 2023) $"
+__version__ = "$Revision: 3.2.0 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -1228,6 +1228,9 @@ class SpinBoxCompoundWidget(CompoundBaseWidget):
         """get the value from the SpinBox"""
         return self.spinBox.value()
 
+    def get(self):
+        return self.getValue()
+
     def setValue(self, value: float):
         """set the value in the SpinBox"""
         return self.spinBox.setValue(value if value is not None else 0)
@@ -1326,6 +1329,9 @@ class DoubleSpinBoxCompoundWidget(CompoundBaseWidget):
     def getValue(self) -> float:
         """get the value from the DoubleSpinBox"""
         return self.doubleSpinBox.value()
+
+    def get(self):
+        return self.getValue()
 
     def setValue(self, value: float):
         """set the value in the DoubleSpinBox"""
@@ -1434,6 +1440,9 @@ class ScientificSpinBoxCompoundWidget(CompoundBaseWidget):
         """get the value from the scientificSpinBox"""
         return self.scientificSpinBox.value()
 
+    def get(self):
+        return self.getValue()
+
     def setValue(self, value: float):
         """set the value in the scientificSpinBox"""
         return self.scientificSpinBox.setValue(value if value is not None else 0.0)
@@ -1464,6 +1473,9 @@ class SelectorWidget(Widget):
     def getText(self):
         """Convenience: Return selected text in Pulldown"""
         return self.pulldownList.currentText()
+
+    def get(self):
+        return self.getText()
 
     def select(self, item):
         """Convenience: Set item in Pulldown; works with text or item"""

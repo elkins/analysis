@@ -15,7 +15,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2023-10-26 09:24:54 +0100 (Thu, October 26, 2023) $"
+__dateModified__ = "$dateModified: 2023-10-27 11:03:41 +0100 (Fri, October 27, 2023) $"
 __version__ = "$Revision: 3.2.0 $"
 #=========================================================================================
 # Created
@@ -140,7 +140,7 @@ class OnePhaseDecayPlateauMinimiser(MinimiserModel):
         params = self.make_params(
                 amplitude=dict(value=np.exp(oval), min=max(data) / 2, max=max(data) * 2),
                 rate=dict(value=abs(sval)),
-                plateau=dict(value=min(data), min=min(data) / 2, max=min(data) * 2)
+                plateau=dict(value=min(data), min=None, max=min(data) * 2)
                 )
         return update_param_vals(params, self.prefix, **kwargs)
 
@@ -802,7 +802,7 @@ class SDMCalculation(CalculationModel):
 #####################################################
 FittingModels            = [
                     OnePhaseDecayModel,
-                    # OnePhaseDecayPlateauModel,
+                    OnePhaseDecayPlateauModel,
                     ExponentialDecayModel,
                     InversionRecoveryFittingModel,
                     ]

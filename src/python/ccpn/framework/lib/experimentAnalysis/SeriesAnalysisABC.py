@@ -240,7 +240,11 @@ class SeriesAnalysisABC(ABC):
         self._setMinimisedPropertyFromModels()
         return outputDataTable
 
-    def refitCollection(self, collectionPid, resetInitialParams=False, customMinimiserParamsDict=None):
+    def refitCollection(self, collectionPid,
+                        fittingModel=None,
+                        minimiserMethod=None,
+                        resetInitialParams=False,
+                        customMinimiserParamsDict=None):
         """
         Given a CollectionPid, refit the series using the options defined in the module.
         :param collectionPid: str: Ccpn collection pid for a collection which is contained in the inputDataTables and outputData.
@@ -257,15 +261,8 @@ class SeriesAnalysisABC(ABC):
         """
         resultDataTable = self.resultDataTable
         resultData = resultDataTable.data
-
-        if len(self.inputDataTables) == 1:
-            inputDataTable = self.inputDataTables[0]
-        else:
-            getLogger().warn('Refit collection is only available with one InputDataTable.')
-            return
-        inputData = inputDataTable.data
-        fittingModel = self.currentFittingModel
-        dfForCollection = inputData[inputData[sv.COLLECTIONPID] == collectionPid].copy()
+        fittingModel = fittingModel or self.currentFittingModel
+        dfForCollection = resultData[resultData[sv.COLLECTIONPID] == collectionPid].copy()
         dfForCollection.sort_values([fittingModel.xSeriesStepHeader], inplace=True)
         seriesSteps = Xs = dfForCollection[fittingModel.xSeriesStepHeader].values
         seriesValues = Ys = dfForCollection[fittingModel.ySeriesStepHeader].values
@@ -287,9 +284,9 @@ class SeriesAnalysisABC(ABC):
                 except Exception as err:
                     getLogger().warn(f'Could not make parameters for the current fitting. Ensure the format is correct. {customMinimiserParamsDict}. {err}. Fallback enabled.')
                     params = minimiser.guess(Ys, Xs)
-
-        minimiser.setMethod(fittingModel._minimiserMethod)
-        result = minimiser.fit(Ys, params, x=Xs)
+        if minimiserMethod is not None:
+            minimiser.setMethod(minimiserMethod)
+        result = minimiser.fit(Ys, params, x=Xs, method=minimiserMethod)
 
         ## write to the output data (overriding the previously results)
         for ix, row in resultDataForCollection.iterrows():

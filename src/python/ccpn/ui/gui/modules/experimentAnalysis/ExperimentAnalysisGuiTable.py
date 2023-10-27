@@ -33,7 +33,7 @@ import numpy as np
 from ccpn.ui.gui.modules.experimentAnalysis.ExperimentAnalysisGuiPanel import GuiPanel
 import ccpn.ui.gui.modules.experimentAnalysis.ExperimentAnalysisGuiNamespaces as guiNameSpaces
 from ccpn.ui.gui.widgets.table.Table import Table
-
+from ccpn.ui.gui.widgets.MessageDialog import showWarning
 
 class _NavigateTrigger(DataEnum):
     """
@@ -201,19 +201,23 @@ class _ExperimentalAnalysisTableABC(Table):
     #=========================================================================================
 
     # add edit/add parameters to meta-data table
-
     def addTableMenuOptions(self, menu):
         super().addTableMenuOptions(menu)
         editCollection = menu.addAction('Edit Collection', self._editCollection)
-        # refitCollections = menu.addAction('Refit Selected', self._refitSeletected)
-        # menu.moveActionAboveName(refitCollections, 'Export Visible Table')
-        menu.moveActionAboveName(editCollection, 'Export Visible Table')
+        refitSingular = menu.addAction('Refit Collection(s) Singular...', self._refitSeletected)
+        refitGroup = menu.addAction('Refit Collection(s) Group...')
+        refitGroup.setEnabled(False)
+        _separator = menu.insertSeparator(editCollection)
 
     def _refitSeletected(self):
         collections = self.getSelectedCollections()
-        for collection in collections:
-            self.guiModule.backendHandler.refitCollection(collection.pid)
-        self.guiModule.updateAll()
+        if len(collections)>0:
+            from ccpn.ui.gui.popups._RefitSeriesPopup import RefitSingularSelectedSeriesPopup
+            popup = RefitSingularSelectedSeriesPopup(self, seriesAnalysisModule=self.guiModule, collections=collections)
+            popup.show()
+            popup.raise_()
+        else:
+            showWarning('Cannot refit', 'Nothing selected')
 
     def _editCollection(self):
         from ccpn.ui.gui.popups.CollectionPopup import CollectionPopup

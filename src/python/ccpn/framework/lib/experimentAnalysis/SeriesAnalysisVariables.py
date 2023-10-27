@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2023-10-23 09:19:35 +0100 (Mon, October 23, 2023) $"
+__dateModified__ = "$dateModified: 2023-10-27 11:03:41 +0100 (Fri, October 27, 2023) $"
 __version__ = "$Revision: 3.2.0 $"
 #=========================================================================================
 # Created
@@ -325,6 +325,8 @@ RAISE_MODE = 'raise'
 
 MINIMISER_METHODS = {
     'leastsq': 'Levenberg-Marquardt (default)',
+    'powell': 'Powell',
+    'cg': 'Conjugate-Gradient',
     'least_squares': 'Least-Squares minimization, using Trust Region Reflective method',
     'emcee': 'Maximum likelihood via Monte-Carlo Markov Chain',
     'differential_evolution': 'differential evolution',
@@ -333,8 +335,6 @@ MINIMISER_METHODS = {
     'ampgo': 'Adaptive Memory Programming for Global Optimization',
     'nelder': 'Nelder-Mead',
     'lbfgsb': 'L-BFGS-B',
-    'powell': 'Powell',
-    'cg': 'Conjugate-Gradient',
     'newton': 'Newton-CG',
     'cobyla': 'Cobyla',
     'bfgs': 'BFGS',

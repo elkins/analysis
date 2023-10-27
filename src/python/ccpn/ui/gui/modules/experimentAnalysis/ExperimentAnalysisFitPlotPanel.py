@@ -12,7 +12,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2023-10-12 16:56:58 +0100 (Thu, October 12, 2023) $"
+__dateModified__ = "$dateModified: 2023-10-27 11:03:41 +0100 (Fri, October 27, 2023) $"
 __version__ = "$Revision: 3.2.0 $"
 #=========================================================================================
 # Created
@@ -23,30 +23,29 @@ __date__ = "$Date: 2022-05-20 12:59:02 +0100 (Fri, May 20, 2022) $"
 # Start of code
 #=========================================================================================
 
-import pyqtgraph as pg
-from ccpn.ui.gui.modules.experimentAnalysis.ExperimentAnalysisToolBars import ExperimentAnalysisPlotToolBar
+import numpy as np
+from collections import OrderedDict as od
+from ccpn.util.Common import percentage
+from ccpn.util.floatUtils import numZeros
 from ccpn.util.Logging import getLogger
+from ccpn.core.Peak import Peak
+from ccpn.core.lib.Notifiers import Notifier
+from ccpn.util.Colour import hexToRgb, rgbaRatioToHex
+import ccpn.framework.lib.experimentAnalysis.SeriesAnalysisVariables as sv
+import pyqtgraph as pg
 from pyqtgraph.graphicsItems.ROI import Handle
-from PyQt5 import QtCore, QtWidgets
+from PyQt5 import QtCore, QtGui, QtWidgets
 from ccpn.ui.gui.guiSettings import CCPNGLWIDGET_HEXBACKGROUND, CCPNGLWIDGET_LABELLING
 from ccpn.ui.gui.guiSettings import getColours
-from ccpn.util.Colour import hexToRgb, rgbaRatioToHex
 from ccpn.ui.gui.widgets.Font import getFont
 from ccpn.ui.gui.modules.experimentAnalysis.ExperimentAnalysisGuiPanel import GuiPanel
 from ccpn.ui.gui.widgets.Label import Label
-from ccpn.core.Peak import Peak
+from ccpn.ui.gui.modules.experimentAnalysis.ExperimentAnalysisToolBars import ExperimentAnalysisPlotToolBar
 from ccpn.ui.gui.widgets.ViewBox import CrossHair
-from ccpn.core.lib.Notifiers import Notifier
-import ccpn.framework.lib.experimentAnalysis.SeriesAnalysisVariables as sv
-from ccpn.util.Common import percentage
-import numpy as np
-from collections import OrderedDict as od
 from ccpn.ui.gui.widgets.Icon import Icon
-from PyQt5 import QtCore, QtGui, QtWidgets
 from ccpn.ui.gui.widgets.Menu import Menu
 from ccpn.ui.gui.widgets.CustomExportDialog import CustomExportDialog
-from ccpn.util.floatUtils import numZeros
-
+from ccpn.ui.gui.widgets.MessageDialog import showWarning, showInfo
 
 class FittingPlotToolBar(ExperimentAnalysisPlotToolBar):
 
@@ -125,9 +124,6 @@ class FitPlotPanel(GuiPanel):
         if outputData is None:
             return
 
-        ## Grab the Fitting Model, to recreate the fitted Curve from the fitting results.
-        model = backend.currentFittingModel
-
         ## Check if the current Collection pids are in the Table. If Pids not on table, return.
         dataFrame = outputData.data
         pids = [co.pid for co in self.current.collections]
@@ -138,6 +134,18 @@ class FitPlotPanel(GuiPanel):
         ## Consider only the last selected Collection.
         lastCollectionPid = filtered[sv.COLLECTIONPID].values[-1]
         filteredDf = dataFrame[dataFrame[sv.COLLECTIONPID] == lastCollectionPid]
+
+        ## Grab the Fitting Model from the dataTable and NOT from the module. The model is needed to recreate the fitted Curve from the fitting results.
+        modelName = filteredDf.modelName.values[-1]
+        fittingModelClass = backend.getFittingModelByName(modelName)
+        if fittingModelClass:
+            model = fittingModelClass()
+            isModelRestored = True
+        else:
+            showWarning('Cannot show fitting line', f'No model found with name {modelName}')
+            model = backend.currentFittingModel
+            isModelRestored = False
+            yf = None
 
         ## Grab the Pids/Objs for each spot in the scatter plot. Peaks
         peakPids = filteredDf[sv.PEAKPID].values
@@ -159,8 +167,9 @@ class FitPlotPanel(GuiPanel):
         finalPoint = max(Xs) #+ extra
 
         ## Build the fitted curve arrays
-        xf = np.linspace(initialPoint, finalPoint, 3000)
-        yf = func(xf, **fittingArgs)
+        if isModelRestored:
+            xf = np.linspace(initialPoint, finalPoint, 3000)
+            yf = func(xf, **fittingArgs)
 
         ## Grab the axes label
         seriesUnits = filteredDf[sv.SERIESUNIT].values
@@ -206,6 +215,7 @@ class FitPlotPanel(GuiPanel):
         self.rawDataScatterPlot = pg.ScatterPlotItem(spots)
         self.bindingPlot.addItem(self.rawDataScatterPlot)
         self.bindingPlot.scene().sigMouseMoved.connect(self.bindingPlot.mouseMoved)
+        self.bindingPlot.setTitle(f'Fitting Model: {modelName}')
         self.bindingPlot.zoomFull()
 
     def _isOkToPlot(self):
