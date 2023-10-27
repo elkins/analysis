@@ -12,7 +12,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2023-10-27 11:03:41 +0100 (Fri, October 27, 2023) $"
+__dateModified__ = "$dateModified: 2023-10-27 17:07:50 +0100 (Fri, October 27, 2023) $"
 __version__ = "$Revision: 3.2.0 $"
 #=========================================================================================
 # Created
@@ -115,8 +115,6 @@ class FitPlotPanel(GuiPanel):
          Get Plotting data from the Output-GUI-dataTable (getSelectedOutputDataTable)"""
 
         self.clearData()
-        if not self._isOkToPlot():
-            return
 
         backend = self.guiModule.backendHandler
         ## Get the raw data from the output DataTable if any or return
