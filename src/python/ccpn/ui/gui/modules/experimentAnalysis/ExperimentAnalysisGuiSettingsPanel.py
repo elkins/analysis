@@ -12,7 +12,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2023-10-18 16:07:32 +0100 (Wed, October 18, 2023) $"
+__dateModified__ = "$dateModified: 2023-11-01 19:29:43 +0000 (Wed, November 01, 2023) $"
 __version__ = "$Revision: 3.2.0 $"
 #=========================================================================================
 # Created
@@ -253,7 +253,7 @@ class GuiInputDataPanel(GuiSettingPanel):
               'type': compoundWidget.ButtonCompoundWidget,
               '_init': None,
               'kwds': {'labelText': guiNameSpaces.Label_SetupCollection,
-                       'text': 'Setup ...',  # this is the Button name
+                       'text': 'Create ...',  # this is the Button name
                        'hAlign': 'left',
                        'tipText': guiNameSpaces.TipText_SetupCollection,
                        'fixedWidths': SettingsWidgetFixedWidths}}),
@@ -335,7 +335,7 @@ class GuiInputDataPanel(GuiSettingPanel):
               'type': compoundWidget.ButtonCompoundWidget,
               '_init': None,
               'kwds': {'labelText': guiNameSpaces.Label_FitInput,
-                       'text': 'Fit',  # this is the Button name
+                       'text': 'Fetch and Compute',  # this is the Button name
                        'hAlign': 'left',
                        'tipText': guiNameSpaces.TipText_createOutputdataTableWidget,
                        'fixedWidths': SettingsWidgetFixedWidths}}),

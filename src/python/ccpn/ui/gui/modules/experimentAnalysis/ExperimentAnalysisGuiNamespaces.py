@@ -12,7 +12,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2023-10-18 16:07:32 +0100 (Wed, October 18, 2023) $"
+__dateModified__ = "$dateModified: 2023-11-01 19:29:43 +0000 (Wed, November 01, 2023) $"
 __version__ = "$Revision: 3.2.0 $"
 #=========================================================================================
 # Created
@@ -121,8 +121,9 @@ Label_OutputDataTable = 'Results DataTable'
 TipText_OutputDataTableSeparator = 'Results DataTable Section. Select the results DataTable to display results'
 
 WidgetVarName_FitInputData = 'FitInputData'
-Label_FitInput = 'Fit and Fetch Results Data'
-TipText_createOutputdataTableWidget = 'Fit or refit input DataTable and store outputs in a results dataTable.'
+Label_FitInput = 'Results DataTable'
+TipText_createOutputdataTableWidget = '''Fetch a results DataTable and store the computed results.
+Fetching implies creating a new DataTable if none with the given name exists in the project, or retrieving an existing DataTable and overriding previous results'''
 
 WidgetVarName_OutputDataTablesSelection = 'ResultDataTablesSelection'
 Label_SelectOutputDataTable = 'Results DataTable'
