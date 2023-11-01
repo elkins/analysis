@@ -15,7 +15,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2023-11-01 12:24:05 +0000 (Wed, November 01, 2023) $"
+__dateModified__ = "$dateModified: 2023-11-01 20:08:05 +0000 (Wed, November 01, 2023) $"
 __version__ = "$Revision: 3.2.0 $"
 #=========================================================================================
 # Created
@@ -57,7 +57,7 @@ class InversionRecoveryMinimiser(MinimiserModel):
                         DECAYstr:0.5
                       }
 
-    def __init__(self, independent_vars=['x'], prefix='', nan_policy=sv.RAISE_MODE, **kwargs):
+    def __init__(self, independent_vars=['x'], prefix='', nan_policy=sv.OMIT_MODE, **kwargs):
         kwargs.update({'prefix': prefix, 'nan_policy': nan_policy, 'independent_vars': independent_vars})
         super().__init__(InversionRecoveryMinimiser.FITTING_FUNC, **kwargs)
         self.name = self.MODELNAME
@@ -89,7 +89,7 @@ class OnePhaseDecayMinimiser(MinimiserModel):
                         RATEstr:1.5
                       }
 
-    def __init__(self, independent_vars=['x'], prefix='', nan_policy=sv.RAISE_MODE, **kwargs):
+    def __init__(self, independent_vars=['x'], prefix='', nan_policy=sv.OMIT_MODE, **kwargs):
         kwargs.update({'prefix': prefix, 'nan_policy': nan_policy, 'independent_vars': independent_vars})
         super().__init__(OnePhaseDecayMinimiser.FITTING_FUNC, **kwargs)
         self.name = self.MODELNAME
@@ -122,7 +122,7 @@ class OnePhaseDecayPlateauMinimiser(MinimiserModel):
                         PLATEAUstr:0
                       }
 
-    def __init__(self, independent_vars=['x'], prefix='', nan_policy=sv.RAISE_MODE, **kwargs):
+    def __init__(self, independent_vars=['x'], prefix='', nan_policy=sv.OMIT_MODE, **kwargs):
         kwargs.update({'prefix': prefix, 'nan_policy': nan_policy, 'independent_vars': independent_vars})
         super().__init__(OnePhaseDecayPlateauMinimiser.FITTING_FUNC, **kwargs)
         self.name = self.MODELNAME
@@ -160,7 +160,7 @@ class ExpDecayMinimiser(MinimiserModel):
                         DECAYstr:0.5
                       }
 
-    def __init__(self, independent_vars=['x'], prefix='', nan_policy=sv.RAISE_MODE, **kwargs):
+    def __init__(self, independent_vars=['x'], prefix='', nan_policy=sv.OMIT_MODE, **kwargs):
         kwargs.update({'prefix': prefix, 'nan_policy': nan_policy, 'independent_vars': independent_vars})
         super().__init__(ExpDecayMinimiser.FITTING_FUNC, **kwargs)
         self.name = self.MODELNAME

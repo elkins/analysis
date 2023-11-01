@@ -30,7 +30,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2023-10-23 09:19:35 +0100 (Mon, October 23, 2023) $"
+__dateModified__ = "$dateModified: 2023-11-01 20:08:05 +0000 (Wed, November 01, 2023) $"
 __version__ = "$Revision: 3.2.0 $"
 #=========================================================================================
 # Created
@@ -67,7 +67,7 @@ spectrometerFrequency=600.13
 ## Some Graphics Settings
 titlePdf  = 'Relaxation Exchange determination via η$_{xy/z}$ analysis'
 figureTitleFontSize = 8
-showInteractivePlot = False # True if you want the plot to popup as a new windows, to allow the zooming and panning of the figure.
+interactivePlot = False # True if you want the plot to popup as a new windows, to allow the zooming and panning of the figure.
 scatterColor = 'navy'
 scatterColorError = 'darkred'
 scatterExcludedByNOEColor = 'orange'
@@ -289,7 +289,7 @@ with PdfPages(filePath) as pdf:
     fig1 = _ploteExchangeRates(pdf)
     info(f'Report saved in {filePath}')
 
-if showInteractivePlot:
+if interactivePlot:
     plt.show()
 else:
     plt.close(fig1)
