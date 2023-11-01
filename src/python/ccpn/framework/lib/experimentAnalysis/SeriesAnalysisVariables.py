@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2023-10-27 11:03:41 +0100 (Fri, October 27, 2023) $"
+__dateModified__ = "$dateModified: 2023-11-01 12:24:05 +0000 (Wed, November 01, 2023) $"
 __version__ = "$Revision: 3.2.0 $"
 #=========================================================================================
 # Created
@@ -140,9 +140,25 @@ PLATEAU_ERR = f'{PLATEAU}{_ERR}'
 HETNOE = 'HetNoe'
 SAT = 'sat'
 UNSAT = 'unSat'
-UNSAT_OPTIONS =  [UNSAT, 'unsaturated', 'nosat', 'noNOE'] # key options to set from a spectrumGroup
-SAT_OPTIONS = [SAT,  'saturated', 'NOE']
-
+_0 = 0
+_1 = 1
+UNSAT_OPTIONS = [  int(_0),      # key options to set from a spectrumGroup
+                                    float(_0),
+                                    str(_0),
+                                    UNSAT,
+                                    'unsaturated',
+                                    'nosat',
+                                    'noNOE',
+                                    f'no{HETNOE}'
+                                  ]
+SAT_OPTIONS = [  int(_1),      # key options to set from a spectrumGroup
+                                float(_1),
+                                str(_1),
+                                SAT,
+                                'saturated',
+                                 'NOE',
+                                 HETNOE,
+                                ]
 CROSSCORRELRATIO = 'Cross-CorrelationRatio'
 INPHASE = 'in-phase'
 ANTIPHASE = 'anti-phase'

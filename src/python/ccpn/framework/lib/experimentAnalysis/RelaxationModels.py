@@ -15,7 +15,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2023-10-27 11:03:41 +0100 (Fri, October 27, 2023) $"
+__dateModified__ = "$dateModified: 2023-11-01 12:24:05 +0000 (Wed, November 01, 2023) $"
 __version__ = "$Revision: 3.2.0 $"
 #=========================================================================================
 # Created
@@ -329,7 +329,6 @@ class InversionRecoveryFittingModel(_RelaxationBaseFittingModel):
 
 class HetNoeDefs(DataEnum):
     """
-    NOT YET ENABLED. Experimental
     Definitions used for converting one of  potential variable name used to
     describe a series value for the HetNOE spectrumGroup, e.g.: 'saturated' to 1.
     Series values can be int/float or str.
@@ -446,18 +445,20 @@ class HetNoeCalculation(CalculationModel):
             error = lf.peakErrorBySNRs([satPeakSNR, unSatPeakSNR], factor=ratio, power=-2, method='sum')
 
             ##  Build the outputFrame
-            ## 1) step: add the new results to the frame
-            outputFrame.loc[collectionId, self.modelArgumentNames[0]] = ratio
-            outputFrame.loc[collectionId, self.modelArgumentNames[1]] = error
+            for i in range(2):
+                ## 1) step: add the new results to the frame
+                rowIndex = f'{collectionId}_{i}'
+                outputFrame.loc[rowIndex, self.modelArgumentNames[0]] = ratio
+                outputFrame.loc[rowIndex, self.modelArgumentNames[1]] = error
 
-            ## 2) step: add the model metadata
-            outputFrame.loc[collectionId, sv.CALCULATION_MODEL] = self.ModelName
+                ## 2) step: add the model metadata
+                outputFrame.loc[rowIndex, sv.CALCULATION_MODEL] = self.ModelName
 
-            ## 3) step: add all the other columns as the input data
-            firstRow = groupDf.iloc[0]
-            outputFrame.loc[collectionId, firstRow.index.values] = firstRow.values
-            nmrAtomNames = inputData._getAtomNamesFromGroupedByHeaders(groupDf) # join the atom names from different rows in a list
-            outputFrame.loc[collectionId, sv.NMRATOMNAMES] = nmrAtomNames[0] if len(nmrAtomNames)>0 else ''
+                ## 3) step: add all the other columns as the input data
+                firstRow = groupDf.iloc[i]
+                outputFrame.loc[rowIndex, firstRow.index.values] = firstRow.values
+                nmrAtomNames = inputData._getAtomNamesFromGroupedByHeaders(groupDf) # join the atom names from different rows in a list
+                outputFrame.loc[rowIndex, sv.NMRATOMNAMES] = nmrAtomNames[0] if len(nmrAtomNames)>0 else ''
 
         return outputFrame
 

@@ -12,7 +12,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2023-10-27 17:07:50 +0100 (Fri, October 27, 2023) $"
+__dateModified__ = "$dateModified: 2023-11-01 12:24:05 +0000 (Wed, November 01, 2023) $"
 __version__ = "$Revision: 3.2.0 $"
 #=========================================================================================
 # Created
@@ -134,6 +134,10 @@ class FitPlotPanel(GuiPanel):
         filteredDf = dataFrame[dataFrame[sv.COLLECTIONPID] == lastCollectionPid]
 
         ## Grab the Fitting Model from the dataTable and NOT from the module. The model is needed to recreate the fitted Curve from the fitting results.
+        if not sv.MODEL_NAME in filteredDf.columns:
+            self.bindingPlot.setTitle(f'Fitting not available')
+            return
+
         modelName = filteredDf.modelName.values[-1]
         fittingModelClass = backend.getFittingModelByName(modelName)
         if fittingModelClass:

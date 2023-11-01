@@ -254,6 +254,7 @@ class _ExperimentalAnalysisTableABC(Table):
         headers = []
         columnTexts = self.headerColumnMenu.columnTexts
         for columnText in columnTexts:
+            columnText = str(columnText)
             if columnText.startswith(sv.EXCLUDED_):
                 headers.append(columnText)
         self._setVisibleColumns(headers, False)
