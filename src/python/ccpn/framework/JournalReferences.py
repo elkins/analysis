@@ -17,7 +17,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2023-10-06 11:26:36 +0100 (Fri, October 06, 2023) $"
+__dateModified__ = "$dateModified: 2023-11-03 11:50:36 +0000 (Fri, November 03, 2023) $"
 __version__ = "$Revision: 3.2.0 $"
 #=========================================================================================
 # Created
@@ -32,12 +32,12 @@ from ccpn.util.traits.TraitBase import TraitBase
 from ccpn.util.traits.CcpNmrTraits import Unicode, Int, Float, Bool, List, RecursiveDict, Dict
 
 class JournalReferenceABC(TraitBase):
-    """Reference base class.
-    A class to contain and nicely format bibliography for use in the CCPN software only!
-
-    FYI, For more complex manipulation of bibliography use dedicated tools, such as "pybtex" for Python or stand-alone programs such as Mendeley, Zotero, EndNote...
+    """Journal Article Reference base class.
+    A class to contain and nicely format bibliography for its usage within the CCPN software.
+    This module is not meant to be used for writing the bibliography in journal articles!
+    For more complex manipulation of bibliography use dedicated tools, such as "pybtex" for Python or stand-alone programs such as Mendeley, Zotero, EndNote...
     See also https://github.com/citation-style-language
-    There is no reason to include a package to shorten the journal name from the full name. See https://github.com/jxhe/bib-journal-abbreviation
+    Journal names are not shortened automatically. There is not an imminent need to include a package for shortening the journal name from the full name. See https://github.com/jxhe/bib-journal-abbreviation
     """
 
     title = Unicode(allow_none=False, default_value='Title: N/A').tag(info='The Journal Article name to be referenced')
