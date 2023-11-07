@@ -15,8 +15,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2023-05-22 11:52:50 +0100 (Mon, May 22, 2023) $"
-__version__ = "$Revision: 3.1.1 $"
+__dateModified__ = "$dateModified: 2023-11-07 09:51:01 +0000 (Tue, November 07, 2023) $"
+__version__ = "$Revision: 3.2.0 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -329,6 +329,26 @@ class ETAOutputFrame(SeriesFrameBC):
 
     SERIESFRAMENAME = sv.CROSSCORRELRATIO_OUTPUT_FRAME
     SERIESFRAMETYPE = sv.CROSSCORRELRATIO_OUTPUT_FRAME
+
+class RexETAOutputFrame(SeriesFrameBC):
+
+    """
+    A TableData used to store the Data(frame) valid for the Rex via Trosy Etas analysis.
+    Note. This is created using two inputDataTables. See the "ETACalculation" Model
+
+    Mandatory Column names are:
+        ## --------- Columns definitions --------- ##
+        # Group with calculation/calculated values
+        - seriesUnit        : str,
+        - seriesStep        : float,
+        - seriesStepValue   : float,
+        - value             : float,
+        - value_err         : float,
+
+    """
+
+    SERIESFRAMENAME = sv.REXVIATROSY_OUTPUT_FRAME
+    SERIESFRAMETYPE = sv.REXVIATROSY_OUTPUT_FRAME
 
 class R2R1OutputFrame(SeriesFrameBC):
 

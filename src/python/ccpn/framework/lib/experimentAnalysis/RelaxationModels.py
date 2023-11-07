@@ -15,7 +15,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2023-11-01 20:08:05 +0000 (Wed, November 01, 2023) $"
+__dateModified__ = "$dateModified: 2023-11-07 09:51:01 +0000 (Tue, November 07, 2023) $"
 __version__ = "$Revision: 3.2.0 $"
 #=========================================================================================
 # Created
@@ -667,6 +667,159 @@ class R2R1RatesCalculation(CalculationModel):
         return outputFrame
 
 
+class RexViaTrosyCalculation(CalculationModel):
+    """
+    Calculate the Rex value through the 15N TROSY-selected Hahn-echo experiments
+    """
+    ModelName = sv.REXVIATROSY
+    Info = '''Calculate the Rex value through the 15N TROSY-selected Hahn-echo experiments.
+    This model can be used to map chemical exchange values in proteins with MW > 50 kD.
+    '''
+
+    Description = f'''Model:
+                  '''
+    References = '''
+    Mapping chemical exchange in proteins with MW > 50 kD. 2003 Jul 30;125(30):8968-9.
+    doi: 10.1021/ja035139z. 
+     '''
+    FullDescription = f'{Info}\n{Description}'
+    _disableFittingModels = True  # Don't apply any fitting models to this output frame
+    _minimisedProperty = None
+
+    @property
+    def modelArgumentNames(self):
+        """ The list of parameters as str used in the calculation model.
+            These names will appear as column headers in the output result frames. """
+        return [sv.REX, sv.REX_ERR]
+
+    @staticmethod
+    def _calculateNxyRatio(n,b, t):
+        """
+        :param n: float. peak intensity for the first experiment
+        :param b:  float. peak intensity for the second experiment
+        :param t:  float. experiment time
+        :return: float
+        """
+        nxy = (1/(2*t)) * np.log(abs(n/b))
+        return nxy
+
+    @staticmethod
+    def _calculateZRatio(c, t):
+        """
+        :param c: float. peak intensity for the third experiment
+        :param t:  float. experiment time
+        :return: float
+        """
+        z = (1/t) * np.log(abs(c/t))
+        return z
+
+    @staticmethod
+    def _calculateRexViaTrosy(r2n, r1n, nxy, z):
+        """
+        :param r2n: float. the 10% trimmed Global R2
+        :param r1n: float. r1 rate per residue
+        :param nxy: float. nxy ratio per residue
+        :param z: float. z ratio per residue
+        :return: float. Rex per residue
+        """
+        k = r2n/nxy #is this a trimmed mean?
+        rex = z - 0.5 * r1n - (k-1) * nxy
+        return rex
+
+    def calculateValues(self, inputDataTables) -> TableFrame:
+        """
+        :param inputDataTables:
+        :return: outputFrame
+        """
+        r1Data = None
+        r2Data = None
+        xyAData = None
+        xyBData = None
+        zData = None
+
+        datas = [dt.data for dt in inputDataTables]
+        for data in datas:
+            experiment = data[sv.EXPERIMENT].unique()[-1]
+            if experiment == sv.T1:
+                r1Data = data
+            if experiment == sv.T2:
+                r2Data = data
+            if experiment == sv.TROSY_XYA:
+                xyAData = data
+            if experiment == sv.TROSY_XYB:
+                xyBData = data
+            if experiment == sv.TROSY_Z:
+               zData = data
+
+        errorMess = 'Cannot compute model. Ensure the input data contains the %s experiment. '
+        if r1Data is None:
+            raise RuntimeError(errorMess % sv.T1)
+        if r2Data is None:
+            raise RuntimeError(errorMess % sv.T2)
+        if xyAData is None:
+            raise RuntimeError(errorMess % sv.TROSY_XYA)
+        if xyBData is None:
+            raise RuntimeError(errorMess % sv.TROSY_XYB)
+        if zData is None:
+            raise RuntimeError(errorMess % sv.TROSY_Z)
+
+        # get the Rates per nmrResidueCode  for each table\
+        r1df = r1Data.groupby(sv.NMRRESIDUEPID).first().reset_index()
+        r1df.set_index(sv.NMRRESIDUECODE, drop=False, inplace=True)
+        r1df.sort_index(inplace=True)
+
+        r2df = r2Data.groupby(sv.NMRRESIDUEPID).first().reset_index()
+        r2df.set_index(sv.NMRRESIDUECODE, drop=False, inplace=True)
+        r2df.sort_index(inplace=True)
+
+        suffix1 = f'_{sv.R1}'
+        suffix2 = f'_{sv.R2}'
+        merged = pd.merge(r1df, r2df, on=[sv.NMRRESIDUEPID], how='left', suffixes=(suffix1, suffix2))
+
+        rate1 = f'{sv.RATE}{suffix1}'
+        rate2 = f'{sv.RATE}{suffix2}'
+
+        r1 = merged[rate1].values
+        r2 = merged[rate2].values
+        er1 = merged[f'{sv.RATE_ERR}{suffix1}'].values
+        er2 = merged[f'{sv.RATE_ERR}{suffix2}'].values
+
+        ##  calculate the intensity ratios and errors
+
+        ##  calculate the trimmed R2
+
+        ## calculate the NXY value
+
+        ## calculate the Z value
+        ## calculate the Rex value
+
+
+        # clean up suffixes
+        merged.columns = merged.columns.str.rstrip(suffix1)
+        columnsToDrop = [c for c in merged.columns if suffix2 in c]
+        merged.drop(columns=columnsToDrop, inplace=True)
+
+        # keep these columns: MERGINGHEADERS, ROW_UID
+        # make the merged dataFrame the correct output type
+        outputFrame = R2R1OutputFrame()
+        # add the new calculated values
+        for hh in sv.MERGINGHEADERS:
+            outputFrame[hh] = merged[hh].values
+
+        outputFrame[sv.REX] = None #todo
+        outputFrame[sv.REX_ERR] = None #todo
+
+        outputFrame[sv._ROW_UID] = merged[sv._ROW_UID].values
+        outputFrame[sv.PEAKPID] = merged[sv.PEAKPID].values
+        outputFrame[sv.SERIES_STEP_X] = None
+        outputFrame[sv.SERIES_STEP_Y] = None
+        outputFrame[sv.CONSTANT_STATS_OUTPUT_TABLE_COLUMNS] = None
+        outputFrame[sv.SpectrumPropertiesHeaders] = None
+        outputFrame[sv.PeakPropertiesHeaders] = None
+        outputFrame[sv.CALCULATION_MODEL] = self.ModelName
+        return outputFrame
+
+
 #####  Reduced Spectral Density Mapping (SDM ) ####
 
 
@@ -813,7 +966,8 @@ CalculationModels = [
                     HetNoeCalculation,
                     R2R1RatesCalculation,
                     ETACalculation,
-                    SDMCalculation
+                    SDMCalculation,
+                    RexViaTrosyCalculation,
                     ]
 
 

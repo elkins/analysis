@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2023-11-01 12:24:05 +0000 (Wed, November 01, 2023) $"
+__dateModified__ = "$dateModified: 2023-11-07 09:51:01 +0000 (Tue, November 07, 2023) $"
 __version__ = "$Revision: 3.2.0 $"
 #=========================================================================================
 # Created
@@ -170,7 +170,7 @@ R2R1 = 'R2/R1'
 R2R1_ERR = f'{R2R1}{_ERR}'
 R1R2 = 'R1*R2'
 R1R2_ERR = f'{R1R2}{_ERR}'
-
+REXVIATROSY = 'RexViaTrosy'
 RSDM = 'Reduced_Spectral_Density_Mapping'
 J0 = 'J0'
 JwX = 'JwX'
@@ -213,6 +213,8 @@ SERIESANALYSISINPUTDATA     = 'SeriesAnalysisInputData'
 RELAXATION_OUTPUT_FRAME     = 'RelaxationOutputFrame'
 HetNoe_OUTPUT_FRAME         = 'HetNoeOutputFrame'
 CROSSCORRELRATIO_OUTPUT_FRAME         = 'Cross-CorrelationRatesOutputFrame'
+REXVIATROSY_OUTPUT_FRAME         = 'RexViaTrosyOutputFrame'
+
 R2R1_OUTPUT_FRAME         = 'R2R1OutputFrame'
 RSDM_OUTPUT_FRAME         = 'RSDMOutputFrame'
 CSM_OUTPUT_FRAME            = 'CSMOutputFrame'
@@ -328,6 +330,9 @@ NONE = 'None'
 T1 = 'T1'
 T2 = 'T2'
 CEST = 'CEST'
+TROSY_XYA = 'TROSY_ETAxyA'
+TROSY_XYB = 'TROSY_ETAxyB'
+TROSY_Z = 'TROSY_ETAz'
 
 EXPERIMENTS  = [USERDEFINEDEXPERIMENT, T1, T2, HETNOE]
 
