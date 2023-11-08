@@ -58,7 +58,8 @@ def plotSS(ax, x, sequence, ss_sequence, startSequenceCode=1, fontsize=10,
 
         _x = np.arange(start, last)
         y = [centerY_SS]*len(_x)
-
+        if len(_x) == 0:
+            continue
         if ss_type == 'H':
             _helix = [centerY_SS+Helix_width, centerY_SS-Helix_width]*int((len(_x)/2))
             hY = [centerY_SS] + _helix[:-1] + [centerY_SS]
@@ -67,7 +68,9 @@ def plotSS(ax, x, sequence, ss_sequence, startSequenceCode=1, fontsize=10,
             ax.plot(hX, hY, color=helixColour)
 
         elif ss_type == 'E': #sheet
+
             ax.plot(_x, y, color=sheetColour)
+
             ax.arrow(x=_x[0], y=y[0], dx=_x[-1] - _x[0],
                       dy=0, width=arrowWidth, color=sheetColour,
                       head_width=arrowHeadWidth, head_length=arrowHeadLength)
@@ -98,15 +101,15 @@ def plotSS(ax, x, sequence, ss_sequence, startSequenceCode=1, fontsize=10,
 
 
 if __name__ == '__main__':
-    ss_sequence   =  'BBBBBCCCCBBBBBBCCCCHHHHHHHHHHHHHHCCCCCBBBBCCCCCBBBBBC'
-    sequence  = 'KLILNGKTLKGETTTEAVDAATAEKVFKQYANDNGVDGEWTYDAATKTFTVTE'
+    ss_sequence   =  'CCHHHHHHHHHHHHTTSSBTTEEEHHHHHHHHHHHCTTTTTTTSCHHHHHHHHCTTCSSEEEHHHHHHHHHHHC'
+    sequence  = 'KSPEELKGIFEKYAAKEGDPNQLSKEELKLLLQTEFPSLLKGGSTLDELFEELDKNGDGEVSFEEFQLVKKISQ'
     startSequenceCode = 17
     x = np.arange(startSequenceCode, startSequenceCode+len(sequence))
     blocks = createBlocksFromSequence(ss_sequence=ss_sequence)
 
     fig = plt.figure(dpi=400)
     ax = fig.add_subplot(311)
-    axss = plotSS(ax=ax, blocks=blocks, x=x, sequence=sequence, startSequenceCode=startSequenceCode)
+    axss = plotSS(ax=ax, x=x, sequence=sequence, ss_sequence=ss_sequence, startSequenceCode=startSequenceCode)
     plt.show()
 
 

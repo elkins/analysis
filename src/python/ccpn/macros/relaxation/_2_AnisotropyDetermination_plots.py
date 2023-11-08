@@ -32,9 +32,9 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2023-11-07 14:20:12 +0000 (Tue, November 07, 2023) $"
-__version__ = "$Revision: 3.2.1 $"
+__modifiedBy__ = "$modifiedBy: Luca Mureddu $"
+__dateModified__ = "$dateModified: 2023-11-08 10:37:53 +0000 (Wed, November 08, 2023) $"
+__version__ = "$Revision: 3.2.0 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -189,8 +189,11 @@ def _plotScatterRates(pdf):
     yminf =  percentage(20,  np.median(R1R2))
     xmaxf =  percentage(20,  np.median(R2R1))
     ymaxf =  percentage(20,  np.median(R1R2))
-    axRscatter.set_xlim(xmin=min(R2R1)- xminf, xmax=max(R2R1) + xmaxf,)
-    axRscatter.set_ylim(ymin=min(R1R2) - yminf, ymax=max(R1R2) + ymaxf,)
+    try:
+        axRscatter.set_xlim(xmin=min(R2R1)- xminf, xmax=max(R2R1) + xmaxf,)
+        axRscatter.set_ylim(ymin=min(R1R2) - yminf, ymax=max(R1R2) + ymaxf,)
+    except Exception as err:
+        print('cannot find a best fit')
     plt.tight_layout()
     plt.subplots_adjust(hspace=hspace) # space between plots
     plt.subplots_adjust(bottom=0.15,)# space title and plots

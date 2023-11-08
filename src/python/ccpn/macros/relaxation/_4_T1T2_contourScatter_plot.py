@@ -24,9 +24,9 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2023-11-07 14:20:13 +0000 (Tue, November 07, 2023) $"
-__version__ = "$Revision: 3.2.1 $"
+__modifiedBy__ = "$modifiedBy: Luca Mureddu $"
+__dateModified__ = "$dateModified: 2023-11-08 10:37:54 +0000 (Wed, November 08, 2023) $"
+__version__ = "$Revision: 3.2.0 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -212,8 +212,12 @@ def _plotClusters(pdf):
 
     macrosLib.labelLines(plt.gca().get_lines(), xvals=[xMaxLim + xPerc] * len(rctLines), color=rctLineColour,
                          align=False, clip_on=False, fontsize=4, zorder=None)
-    ax.set_xlim(xMinLim - xPerc, xMaxLim + xPerc)
-    ax.set_ylim(yMinLim, yMaxLim)
+    try:
+        ax.set_xlim(xMinLim - xPerc, xMaxLim + xPerc)
+        ax.set_ylim(yMinLim, yMaxLim)
+    except Exception as err:
+        warning(f'Cannot set limits for  {titlePdf}. {err}')
+
     ax.legend(prop={'size': 6})
 
     pdf.savefig()

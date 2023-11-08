@@ -52,7 +52,7 @@ sequence  = 'KLILNGKTLKGETTTEAVDAATAEKVFKQYANDNGVDGEWTYDAATKTFTVTE'
 ##  secondary structure  for the above sequence  using the DSSP nomenclature.  Replace with an empty str if not available. e.g.: ss_sequence  = ''
 ss_sequence   =  'BBBBBCCCCBBBBBBCCCCHHHHHHHHHHHHHHCCCCCBBBBCCCCCBBBBBC'
 
-spectrometerFrequency=600.053
+spectrometerFrequency=500.053
 
 ## Some Graphics Settings
 
@@ -227,13 +227,13 @@ NOE_ERR = data[sv.HETNOE_VALUE_ERR]
 
 scalingFactor = 1e-9  # convert from sec to nanosec
 J0 = data[sv.J0].values / scalingFactor
-J0_ERR = data[sv.J0_ERR].values
 JWH = data[sv.JwH].values / scalingFactor
-JWH_ERR = data[sv.JwH_ERR].values
 JWH087 = JWH*0.87
 JWN = data[sv.JwX].values / scalingFactor
-JWN_ERR = data[sv.JwX_ERR].values
 JWN087 = JWN*0.87
+J0_ERR = np.abs(data[sv.J0_ERR].values)
+JWH_ERR = np.abs(data[sv.JwH_ERR].values)
+JWN_ERR = np.abs(data[sv.JwX_ERR].values)
 
 # calculate the theoretical JW Lines
 rcts, jwHTheoretical, jwNTheoretical = sdl.calculateJW_at_Tc(spectrometerFrequency=spectrometerFrequency)
