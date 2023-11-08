@@ -12,7 +12,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2023-11-08 11:24:42 +0000 (Wed, November 08, 2023) $"
+__dateModified__ = "$dateModified: 2023-11-08 11:32:11 +0000 (Wed, November 08, 2023) $"
 __version__ = "$Revision: 3.2.0 $"
 #=========================================================================================
 # Created
@@ -582,7 +582,6 @@ class GuiCalculationPanel(GuiSettingPanel):
                                            calculationModels.items()]
         tipTexts_ddCalculationsModes = [model.FullDescription for modelName, model in
                                         calculationModels.items()]
-        extraLabelPixmaps = [maTex2Pixmap(maTex) for maTex in extraLabels_ddCalculationsModes]
         calculationWidgetDefinitions = od((
             (guiNameSpaces.WidgetVarName_CalcModeSeparator,
              {'label': guiNameSpaces.Label_CalcModeSeparator,
@@ -605,7 +604,7 @@ class GuiCalculationPanel(GuiSettingPanel):
                                         'extraLabels': extraLabels_ddCalculationsModes,
                                         'tipTexts': tipTexts_ddCalculationsModes,
                                         'direction': 'v',
-                                        'extraLabelIcons': extraLabelPixmaps}}}),
+                                       }}}),
         ))
         ## add the new items to the main dict
         filteringWidgetDefinitions = od((
@@ -760,7 +759,6 @@ class GuiFittingPanel(GuiSettingPanel):
         extraLabels_ddFittingModels = [model.MaTex for model in models]
         tipTexts_ddFittingModels = [model.FullDescription for model in models]
         modelNames = [model.ModelName for model in models]
-        extraLabelPixmaps = [maTex2Pixmap(maTex) for maTex in extraLabels_ddFittingModels]
         enabledModels = [model.isEnabled for model in models]
         settingsDict = od((
             (guiNameSpaces.WidgetVarName_FittingSeparator,
@@ -788,7 +786,7 @@ class GuiFittingPanel(GuiSettingPanel):
                                         'direction': 'v',
                                         'tipText': '',
                                         'hAlign': 'l',
-                                        'extraLabelIcons': extraLabelPixmaps}}}),
+                                       }}}),
         ))
         self.widgetDefinitions.update(settingsDict)
 

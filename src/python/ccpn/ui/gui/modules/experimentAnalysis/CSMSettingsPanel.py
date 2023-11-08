@@ -28,25 +28,15 @@ This module contains the GUI Settings panels for the CSM module.
 """
 
 from collections import OrderedDict as od
-from ccpn.framework.lib.experimentAnalysis.SeriesAnalysisABC import ALL_GROUPINGNMRATOMS
 from ccpn.util.Logging import getLogger
-import numpy as np
 import ccpn.framework.lib.experimentAnalysis.SeriesAnalysisVariables as sv
 
 from ccpn.util.isotopes import name2IsotopeCode
 ######## gui/ui imports ########
-from PyQt5 import QtCore, QtWidgets, QtGui
 import ccpn.ui.gui.widgets.CompoundWidgets as compoundWidget
-from ccpn.ui.gui.widgets.Frame import Frame, ScrollableFrame
-import ccpn.ui.gui.widgets.SettingsWidgets as settingWidgets
-from ccpn.ui.gui.widgets.Spacer import Spacer
-from ccpn.ui.gui.widgets.Label import maTex2Pixmap
 import ccpn.ui.gui.modules.experimentAnalysis.ExperimentAnalysisGuiNamespaces as guiNameSpaces
 import ccpn.framework.lib.experimentAnalysis.SeriesAnalysisVariables as seriesVariables
-from ccpn.ui.gui.widgets.HLine import LabeledHLine
 from ccpn.ui.gui.guiSettings import COLOUR_SCHEMES, getColours, DIVIDER
-from ccpn.ui.gui.modules.experimentAnalysis.ExperimentAnalysisToolBars import PanelUpdateState
-from ccpn.ui.gui.widgets.MessageDialog import showInfo, showWarning
 from ccpn.ui.gui.modules.experimentAnalysis.ExperimentAnalysisGuiSettingsPanel import GuiSettingPanel, \
     GuiInputDataPanel, GuiCalculationPanel, GuiFittingPanel, AppearancePanel
 
