@@ -15,7 +15,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2023-11-07 09:51:01 +0000 (Tue, November 07, 2023) $"
+__dateModified__ = "$dateModified: 2023-11-09 09:49:31 +0000 (Thu, November 09, 2023) $"
 __version__ = "$Revision: 3.2.0 $"
 #=========================================================================================
 # Created
@@ -30,14 +30,14 @@ from ccpn.util.DataEnum import DataEnum
 from lmfit.models import update_param_vals
 import numpy as np
 import pandas as pd
-import ccpn.framework.lib.experimentAnalysis.fitFunctionsLib as lf
-import ccpn.framework.lib.experimentAnalysis.spectralDensityLib as sdl
-from ccpn.framework.lib.experimentAnalysis.experimentConstants import N15gyromagneticRatio, HgyromagneticRatio
+import ccpn.framework.lib.experimentAnalysis.fittingModels.fitFunctionsLib as lf
+import ccpn.framework.lib.experimentAnalysis.fittingModels.relaxation.spectralDensityLib as sdl
+from ccpn.framework.lib.experimentAnalysis.ExperimentConstants import N15gyromagneticRatio, HgyromagneticRatio
 import ccpn.framework.lib.experimentAnalysis.SeriesAnalysisVariables as sv
 from ccpn.util.Logging import getLogger
 from ccpn.core.DataTable import TableFrame
-from ccpn.framework.lib.experimentAnalysis.FittingModelABC import FittingModelABC, MinimiserModel, MinimiserResult, CalculationModel
-from ccpn.framework.lib.experimentAnalysis.SeriesTablesBC import ETAOutputFrame, HetNoeOutputFrame, R2R1OutputFrame, RSDMOutputFrame
+from ccpn.framework.lib.experimentAnalysis.fittingModels.FittingModelABC import FittingModelABC, MinimiserModel, MinimiserResult, CalculationModel
+from ccpn.framework.lib.experimentAnalysis.SeriesTables import ETAOutputFrame, HetNoeOutputFrame, R2R1OutputFrame, RSDMOutputFrame
 
 #####################################################
 ###########        Minimisers        ################

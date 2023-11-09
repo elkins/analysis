@@ -25,7 +25,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2023-11-08 10:37:54 +0000 (Wed, November 08, 2023) $"
+__dateModified__ = "$dateModified: 2023-11-09 09:49:32 +0000 (Thu, November 09, 2023) $"
 __version__ = "$Revision: 3.2.0 $"
 #=========================================================================================
 # Created
@@ -106,7 +106,7 @@ import numpy as np
 import ccpn.framework.lib.experimentAnalysis.SeriesAnalysisVariables as sv
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
-import ccpn.framework.lib.experimentAnalysis.spectralDensityLib as sdl
+import ccpn.framework.lib.experimentAnalysis.fittingModels.relaxation.spectralDensityLib as sdl
 import ccpn.macros.relaxation._macrosLib as macrosLib
 from ccpn.util.Common import percentage
 

@@ -40,7 +40,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2023-11-07 09:52:04 +0000 (Tue, November 07, 2023) $"
+__dateModified__ = "$dateModified: 2023-11-09 09:49:32 +0000 (Thu, November 09, 2023) $"
 __version__ = "$Revision: 3.2.0 $"
 #=========================================================================================
 # Created
@@ -84,11 +84,10 @@ InputDataNameSuffix = '_inputData'
 ############################################################
 
 import ccpn.framework.lib.experimentAnalysis.SeriesAnalysisVariables as sv
-from ccpn.framework.lib.experimentAnalysis.RelaxationAnalysisBC import RelaxationAnalysisBC
+from ccpn.framework.lib.experimentAnalysis.backends.RelaxationAnalysis import RelaxationAnalysisBC
 from ccpn.ui.gui.widgets.MessageDialog import showMessage
-from ccpn.framework.lib.experimentAnalysis.SeriesTablesBC import RexETAOutputFrame
+from ccpn.framework.lib.experimentAnalysis.SeriesTables import RexETAOutputFrame
 import numpy as np
-from ccpn.core.lib.ContextManagers import undoBlockWithoutSideBar, notificationEchoBlocking, progressHandler, busyHandler
 import pandas as pd
 from scipy import stats
 

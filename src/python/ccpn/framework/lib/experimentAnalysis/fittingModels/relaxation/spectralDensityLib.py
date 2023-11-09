@@ -16,9 +16,9 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2023-11-07 14:20:12 +0000 (Tue, November 07, 2023) $"
-__version__ = "$Revision: 3.2.1 $"
+__modifiedBy__ = "$modifiedBy: Luca Mureddu $"
+__dateModified__ = "$dateModified: 2023-11-07 09:52:03 +0000 (Tue, November 07, 2023) $"
+__version__ = "$Revision: 3.2.0 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -31,7 +31,7 @@ __date__ = "$Date: 2022-02-02 14:08:56 +0000 (Wed, February 02, 2022) $"
 from lmfit import lineshapes as ls
 import numpy as np
 import ccpn.framework.lib.experimentAnalysis.SeriesAnalysisVariables as sv
-import ccpn.framework.lib.experimentAnalysis.experimentConstants as constants
+import ccpn.framework.lib.experimentAnalysis.ExperimentConstants as constants
 from math import pi
 from random import random, randint
 from math import sqrt, exp
@@ -77,18 +77,6 @@ def calculateJWH(noe, r1, r2, d, c, gx, gh):
     jwh = sigmaNOE / (5.0*d)
     return jwh
 
-def calculateSingleMotionSpectralDensityFunction(J0, omega):
-    """
-    Calculate the JW from a single Lorentzian.
-    Eq. 10  from Temperature-dependent spectral density analysis applied
-    to monitoring backbone dynamics of major urinary protein-I complexed with the pheromone 2-sec-butyl-4,5-dihydrothiazole.
-    Journal of Biomolecular NMR 28: 369–384, 2004.
-
-    :return:
-    """
-    ll = 6.25 * ((omega * J0)**2)
-    jomega = J0 / (1+ll )
-    return jomega
 
 def _polifitJs(j0, jw, order=1):
     """ Fit J0 and Jw(H or N) to a first order polynomial, Return the slope  and intercept  from the fit, and the new fitted Y  """

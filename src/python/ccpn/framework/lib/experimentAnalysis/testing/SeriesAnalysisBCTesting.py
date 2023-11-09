@@ -4,7 +4,7 @@ This module defines base classes for Series Analysis
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2022"
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2023"
 __credits__ = ("Ed Brooksbank, Joanna Fox, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
                "Timothy J Ragan, Brian O Smith, Gary S Thompson & Geerten W Vuister")
 __licence__ = ("CCPN licence. See https://ccpn.ac.uk/software/licensing/")
@@ -14,9 +14,9 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2022-10-12 15:27:08 +0100 (Wed, October 12, 2022) $"
-__version__ = "$Revision: 3.1.0 $"
+__modifiedBy__ = "$modifiedBy: Luca Mureddu $"
+__dateModified__ = "$dateModified: 2023-11-09 09:49:31 +0000 (Thu, November 09, 2023) $"
+__version__ = "$Revision: 3.2.0 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -26,7 +26,6 @@ __date__ = "$Date: 2022-02-02 14:08:56 +0000 (Wed, February 02, 2022) $"
 # Start of code
 #=========================================================================================
 
-from unittest import expectedFailure, skip
 from ccpn.framework.lib.experimentAnalysis.testing.ExperimentAnalysisTesting import ExperimentAnalysisTestingBC
 
 
@@ -41,7 +40,7 @@ class SeriesAnalysisABC_Test(ExperimentAnalysisTestingBC):
         """
         Test the SeriesAnalysisABC class contains the right methods.
         """
-        from ccpn.framework.lib.experimentAnalysis.SeriesAnalysisABC import SeriesAnalysisABC
+        from ccpn.framework.lib.experimentAnalysis.backends.SeriesAnalysisABC import SeriesAnalysisABC
         with self.initialSetup():
             self.seriesAnalysisABC = SeriesAnalysisABC()
 
@@ -53,7 +52,8 @@ class SeriesAnalysisABC_Test(ExperimentAnalysisTestingBC):
 
     def test_registerFittingModel_badModelType(self):
         """Test if a bad FittingModel Type fails to register. Pass if a valueError is raised """
-        from ccpn.framework.lib.experimentAnalysis.FittingModelABC import FittingModelABC, T1FittingModel
+        from ccpn.framework.lib.experimentAnalysis.fittingModels.FittingModelABC import FittingModelABC
+
         message = f'The given fittingModel is not of instance {FittingModelABC}.'
         badModelExample = 'A_wrong_model_type'
         with self.assertRaises(ValueError):
@@ -62,7 +62,7 @@ class SeriesAnalysisABC_Test(ExperimentAnalysisTestingBC):
 
     def test_registerFittingModel_goodModelType(self):
         """Test if a correct FittingModel Type is registered correctly. Fail if an error is raised """
-        from ccpn.framework.lib.experimentAnalysis.FittingModelABC import FittingModelABC, T1FittingModel
+        from ccpn.framework.lib.experimentAnalysis.fittingModels.FittingModelABC import T1FittingModel
         message = f'An unexpected error was raising registering a correct Type FittingModel.'
         goodModelExample = T1FittingModel()
         try:
@@ -72,7 +72,7 @@ class SeriesAnalysisABC_Test(ExperimentAnalysisTestingBC):
 
     def test_deregisterFittingModel(self):
         """Test if a correct FittingModel Type is deregistered correctly. Fail if an error is raised """
-        from ccpn.framework.lib.experimentAnalysis.FittingModelABC import T1FittingModel
+        from ccpn.framework.lib.experimentAnalysis.fittingModels.FittingModelABC import T1FittingModel
         message = f'An unexpected error was raising registering a correct Type FittingModel.'
         fittingModel = T1FittingModel()
         self.seriesAnalysisABC.registerModel(fittingModel)
@@ -83,7 +83,7 @@ class SeriesAnalysisABC_Test(ExperimentAnalysisTestingBC):
 
     def test_getFittingModelByName(self):
         """Test if a FittingModel is retrieved correctly by name."""
-        from ccpn.framework.lib.experimentAnalysis.FittingModelABC import T1FittingModel
+        from ccpn.framework.lib.experimentAnalysis.fittingModels.FittingModelABC import T1FittingModel
         queryName = T1FittingModel.ModelName
         fittingModel = T1FittingModel()
         self.seriesAnalysisABC.registerModel(fittingModel)

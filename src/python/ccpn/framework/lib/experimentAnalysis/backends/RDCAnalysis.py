@@ -1,5 +1,5 @@
 """
-This module defines base classes for Series Analysis
+This module has not  been implemented yet
 """
 #=========================================================================================
 # Licence, Reference and Credits
@@ -26,30 +26,22 @@ __date__ = "$Date: 2022-02-02 14:08:56 +0000 (Wed, February 02, 2022) $"
 # Start of code
 #=========================================================================================
 
-from ccpn.framework.lib.experimentAnalysis.testing.ExperimentAnalysisTesting import ExperimentAnalysisTestingBC
+import ccpn.framework.lib.experimentAnalysis.SeriesAnalysisVariables as sv
+from ccpn.framework.lib.experimentAnalysis.backends.SeriesAnalysisABC import SeriesAnalysisABC
+from ccpn.framework.lib.experimentAnalysis.fittingModels.others.BlankModels import BlankFittingModel
+from ccpn.framework.lib.experimentAnalysis.calculationModels.others.BlankCalculationModel import BlankCalculationModel
 
+class RDCAnalysisBC(SeriesAnalysisABC):
+    """
+    RDC Analysis  backend  module.
+    """
+    seriesAnalysisName = sv.RDC
+    _allowedPeakProperties = [sv._HEIGHT, sv._VOLUME]
 
-class RelaxationAnalysisBC_Test(ExperimentAnalysisTestingBC):
-    # Path of project to load (None for new project)
-    projectPath = None
+    def __init__(self):
+        super().__init__()
+        self.fittingModels = self._registerModels([BlankFittingModel])
+        self.calculationModels = self._registerModels([BlankCalculationModel])
 
-    #=========================================================================================
-    # setUp       initialise a new project
-    #=========================================================================================
+        raise RuntimeError('No Calculation Models have been implemented yet for this backend')
 
-    def setUp(self):
-        """
-        Test the RelaxationAnalysisBC class contains the right methods.
-        """
-        from ccpn.framework.lib.experimentAnalysis.backends.RelaxationAnalysis import RelaxationAnalysisBC
-        with self.initialSetup():
-            self.seriesAnalysisABC = RelaxationAnalysisBC()
-
-    #=========================================================================================
-    #
-    #=========================================================================================
-
-    def test_RelaxationAnalysis(self):
-        from ccpn.util.OrderedSet import OrderedSet
-        message = "fittingModels class-variable is not of instance OrderedSet."
-        self.assertIsInstance(self.seriesAnalysisABC.fittingModels, OrderedSet, message)

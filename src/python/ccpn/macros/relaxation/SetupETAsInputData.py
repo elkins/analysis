@@ -41,8 +41,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: VickyAH $"
-__dateModified__ = "$dateModified: 2023-11-02 10:15:27 +0000 (Thu, November 02, 2023) $"
+__modifiedBy__ = "$modifiedBy: Luca Mureddu $"
+__dateModified__ = "$dateModified: 2023-11-09 09:49:31 +0000 (Thu, November 09, 2023) $"
 __version__ = "$Revision: 3.2.0 $"
 #=========================================================================================
 # Created
@@ -83,9 +83,9 @@ ETAzResultDataName = 'ETAzResultData'
 ############################################################
 
 import ccpn.framework.lib.experimentAnalysis.SeriesAnalysisVariables as sv
-from ccpn.framework.lib.experimentAnalysis.RelaxationAnalysisBC import RelaxationAnalysisBC
+from ccpn.framework.lib.experimentAnalysis.backends.RelaxationAnalysis import RelaxationAnalysisBC
 from ccpn.ui.gui.widgets.MessageDialog import  showMessage
-from ccpn.core.lib.ContextManagers import undoBlockWithoutSideBar, notificationEchoBlocking, progressHandler, busyHandler
+from ccpn.core.lib.ContextManagers import busyHandler
 
 ## get the objects
 ETAz_IP_SG = get(ETAz_IP_SGpid)

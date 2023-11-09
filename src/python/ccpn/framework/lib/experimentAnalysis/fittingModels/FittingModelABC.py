@@ -42,7 +42,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2023-10-23 09:19:35 +0100 (Mon, October 23, 2023) $"
+__dateModified__ = "$dateModified: 2023-11-09 09:49:31 +0000 (Thu, November 09, 2023) $"
 __version__ = "$Revision: 3.2.0 $"
 #=========================================================================================
 # Created
@@ -57,7 +57,6 @@ __date__ = "$Date: 2022-02-02 14:08:56 +0000 (Wed, February 02, 2022) $"
 import warnings
 import numpy as np
 import pandas as pd
-from collections import defaultdict, OrderedDict
 from abc import ABC, abstractmethod
 from copy import deepcopy
 from pandas import Series, isnull
@@ -65,12 +64,10 @@ from lmfit import Model, Parameter
 from lmfit.model import ModelResult, _align
 from ccpn.core.DataTable import TableFrame
 from ccpn.util.Logging import getLogger
-from ccpn.util.OrderedSet import OrderedSet
-import ccpn.framework.lib.experimentAnalysis.fitFunctionsLib as lf
+import ccpn.framework.lib.experimentAnalysis.fittingModels.fitFunctionsLib as lf
 import ccpn.framework.lib.experimentAnalysis.SeriesAnalysisVariables as sv
-from ccpn.framework.lib.experimentAnalysis.SeriesTablesBC import SeriesFrameBC
 from ccpn.framework.Application import getApplication, getProject
-from ccpn.core.lib.CcpnSorting import stringSortKey
+
 
 # pd.set_option('display.max_columns', None)  # or 1\000
 # pd.set_option('display.max_rows', 50)  # or 1000

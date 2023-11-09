@@ -1876,7 +1876,7 @@ class _SeriesInputDataTableSelectionWidget(ObjectSelectionWidget):
         """ Override original behavior to allow only the right dataType """
 
         import ccpn.framework.lib.experimentAnalysis.SeriesAnalysisVariables as sv
-        from ccpn.framework.lib.experimentAnalysis.SeriesTablesBC import InputSeriesFrameBC, ALL_SERIES_DATA_TYPES
+        from ccpn.framework.lib.experimentAnalysis.SeriesTables import InputSeriesFrameBC, ALL_SERIES_DATA_TYPES
 
         pulldown = self.pulldownList
         ll = [SelectToAdd] + self.standardListItems

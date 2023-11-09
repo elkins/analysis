@@ -30,7 +30,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2023-11-01 20:08:05 +0000 (Wed, November 01, 2023) $"
+__dateModified__ = "$dateModified: 2023-11-09 09:49:31 +0000 (Thu, November 09, 2023) $"
 __version__ = "$Revision: 3.2.0 $"
 #=========================================================================================
 # Created
@@ -92,10 +92,9 @@ outputPath = None
 ##################   End User Settings     ########################
 ############################################################
 
-import pandas as pd
 import ccpn.framework.lib.experimentAnalysis.SeriesAnalysisVariables as sv
-from ccpn.framework.lib.experimentAnalysis.experimentConstants import N15gyromagneticRatio, HgyromagneticRatio
-import ccpn.framework.lib.experimentAnalysis.spectralDensityLib as sdl
+from ccpn.framework.lib.experimentAnalysis.ExperimentConstants import N15gyromagneticRatio, HgyromagneticRatio
+import ccpn.framework.lib.experimentAnalysis.fittingModels.relaxation.spectralDensityLib as sdl
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
@@ -103,12 +102,10 @@ from ccpn.ui.gui.widgets.DrawSS import plotSS
 import ccpn.macros.relaxation._macrosLib as macrosLib
 from ccpn.ui.gui.widgets.MessageDialog import  showMessage, showMulti
 from ccpn.framework.PathsAndUrls import CCPN_SUMMARIES_DIRECTORY
-from ccpn.util.Path import aPath, joinPath
-from ccpn.ui.gui.widgets.Label import Label
-from ccpn.ui.gui.widgets.PulldownList import PulldownList
+from ccpn.util.Path import joinPath
 from ccpn.ui.gui.popups.Dialog import CcpnDialogMainWidget
 import ccpn.ui.gui.widgets.PulldownListsForObjects as cw
-from ccpn.core.lib.Pid import Pid, createPid
+from ccpn.core.lib.Pid import createPid
 # create a very simple popup to get the dataTable names
 
 ETAxyDataPid = createPid('DT', ETAxyDataName)

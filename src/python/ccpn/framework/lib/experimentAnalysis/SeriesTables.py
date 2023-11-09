@@ -15,7 +15,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2023-11-07 09:51:01 +0000 (Tue, November 07, 2023) $"
+__dateModified__ = "$dateModified: 2023-11-09 09:49:30 +0000 (Thu, November 09, 2023) $"
 __version__ = "$Revision: 3.2.0 $"
 #=========================================================================================
 # Created
@@ -271,14 +271,10 @@ class InputSeriesFrameBC(SeriesFrameBC):
                                 self.loc[i, sv.NMRATOMNAME] = nmrAtom.name
                                 self.loc[i, sv.NMRATOMPID] = nmrAtom.pid
                                 self.loc[i, sv.NMRRESIDUEPID] = nmrAtom.nmrResidue.pid
-                            # for excludedFlag in sv.EXCLUDED_OBJECTS:
-                            #     self.loc[i, excludedFlag] = False
                             i += 1
                         except Exception as e:
                             getLogger().warn(f'Cannot add row {i} for peak {pk.pid}. Skipping with error: {e}')
             break
-
-        # self.loc[self.index, sv._isSeriesAscending] = isSeriesAscending
 
 
 ########################################################################################################################

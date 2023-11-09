@@ -12,7 +12,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2023-11-08 11:32:11 +0000 (Wed, November 08, 2023) $"
+__dateModified__ = "$dateModified: 2023-11-09 09:49:32 +0000 (Thu, November 09, 2023) $"
 __version__ = "$Revision: 3.2.0 $"
 #=========================================================================================
 # Created
@@ -28,32 +28,26 @@ This module contains the GUI Settings tabs.
 """
 
 from collections import OrderedDict as od
-from ccpn.framework.lib.experimentAnalysis.SeriesAnalysisABC import ALL_GROUPINGNMRATOMS
+from ccpn.framework.lib.experimentAnalysis.backends.SeriesAnalysisABC import ALL_GROUPINGNMRATOMS
 from ccpn.util.Logging import getLogger
-import numpy as np
-from ccpn.util.OrderedSet import OrderedSet
 from functools import partial
 ######## gui/ui imports ########
-from PyQt5 import QtCore, QtWidgets, QtGui
-from ccpn.ui.gui.widgets.Label import Label, DividerLabel
+from PyQt5 import QtCore, QtWidgets
 import ccpn.ui.gui.widgets.CompoundWidgets as compoundWidget
 import ccpn.ui.gui.widgets.PulldownListsForObjects as objectPulldowns
-from ccpn.ui.gui.widgets.Frame import Frame, ScrollableFrame
-from ccpn.ui.gui.widgets.RadioButtons import RadioButtons, EditableRadioButtons
+from ccpn.ui.gui.widgets.Frame import Frame
 import ccpn.ui.gui.widgets.SettingsWidgets as settingWidgets
 from ccpn.ui.gui.widgets.Spacer import Spacer
-from ccpn.ui.gui.widgets.Label import maTex2Pixmap
 import ccpn.ui.gui.modules.experimentAnalysis.ExperimentAnalysisGuiNamespaces as guiNameSpaces
 import ccpn.framework.lib.experimentAnalysis.SeriesAnalysisVariables as seriesVariables
-from ccpn.ui.gui.widgets.HLine import LabeledHLine, HLine
-from ccpn.ui.gui.guiSettings import COLOUR_SCHEMES, getColours, DIVIDER, setColourScheme, FONTLIST, ZPlaneNavigationModes
-from ccpn.ui.gui.widgets.FileDialog import LineEditButtonDialog
+from ccpn.ui.gui.widgets.HLine import LabeledHLine
+from ccpn.ui.gui.guiSettings import getColours, DIVIDER
 from ccpn.ui.gui.modules.experimentAnalysis.ExperimentAnalysisToolBars import PanelUpdateState
-from ccpn.ui.gui.widgets.MessageDialog import showInfo, showWarning, showYesNo
+from ccpn.ui.gui.widgets.MessageDialog import showWarning
 import ccpn.framework.lib.experimentAnalysis.SeriesAnalysisVariables as sv
-from ccpn.ui.gui.widgets.SettingsWidgets import ALL, UseCurrent
+from ccpn.ui.gui.widgets.SettingsWidgets import UseCurrent
 from ccpn.ui.gui.widgets.BarGraphWidget import TICKOPTIONS
-from ccpn.ui.gui.modules.experimentAnalysis.MainPlotWidgetBC import MainPlotWidget, PlotType
+from ccpn.ui.gui.modules.experimentAnalysis.MainPlotWidgetBC import PlotType
 
 SettingsWidgeMinimumWidths =  (180, 180, 180)
 SettingsWidgetFixedWidths = (200, 350, 350)

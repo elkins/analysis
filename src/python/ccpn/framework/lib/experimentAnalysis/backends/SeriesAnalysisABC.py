@@ -15,7 +15,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2023-10-11 15:29:56 +0100 (Wed, October 11, 2023) $"
+__dateModified__ = "$dateModified: 2023-10-27 11:03:41 +0100 (Fri, October 27, 2023) $"
 __version__ = "$Revision: 3.2.0 $"
 #=========================================================================================
 # Created
@@ -35,10 +35,10 @@ from ccpn.util.Logging import getLogger
 from ccpn.core.SpectrumGroup import SpectrumGroup
 from ccpn.core.DataTable import DataTable
 from ccpn.util.traits.TraitBase import TraitBase
-from ccpn.util.traits.CcpNmrTraits import Any, List, Bool, Odict, CString, Set
+from ccpn.util.traits.CcpNmrTraits import List
 from ccpn.framework.Application import getApplication, getCurrent, getProject
-from ccpn.framework.lib.experimentAnalysis.SeriesTablesBC import SeriesFrameBC, InputSeriesFrameBC
-import ccpn.framework.lib.experimentAnalysis.fitFunctionsLib as lf
+from ccpn.framework.lib.experimentAnalysis.SeriesTables import SeriesFrameBC, InputSeriesFrameBC
+import ccpn.framework.lib.experimentAnalysis.fittingModels.fitFunctionsLib as lf
 import ccpn.framework.lib.experimentAnalysis.SeriesAnalysisVariables as sv
 
 
@@ -341,7 +341,7 @@ class SeriesAnalysisABC(ABC):
         A method to register a Model object, either FittingModel or CalculationModel.
         See the FittingModelABC for more information
         """
-        from ccpn.framework.lib.experimentAnalysis.FittingModelABC import FittingModelABC, CalculationModel
+        from ccpn.framework.lib.experimentAnalysis.fittingModels.FittingModelABC import FittingModelABC, CalculationModel
         if issubclass(model, CalculationModel):
             self.calculationModels.update({model.ModelName: model})
             return

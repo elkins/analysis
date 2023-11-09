@@ -18,7 +18,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2023-11-01 20:08:05 +0000 (Wed, November 01, 2023) $"
+__dateModified__ = "$dateModified: 2023-11-09 09:49:32 +0000 (Thu, November 09, 2023) $"
 __version__ = "$Revision: 3.2.0 $"
 #=========================================================================================
 # Created
@@ -70,6 +70,7 @@ def _setXTicks(ax, labelMajorSize, labelMinorSize):
     ax.tick_params(axis='both', which='minor', labelsize=labelMinorSize)
 
 def _setCommonYLim(ax, ys):
+    ys = np.array(ys)
     ys = ys[~np.isnan(ys)]
     extraY = np.ceil(percentage(30, np.max(ys)))
     ylim = np.max(ys) + extraY
