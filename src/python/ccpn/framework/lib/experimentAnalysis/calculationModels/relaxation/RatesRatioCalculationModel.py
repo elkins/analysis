@@ -15,7 +15,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2023-11-10 15:58:41 +0000 (Fri, November 10, 2023) $"
+__dateModified__ = "$dateModified: 2023-11-10 16:12:23 +0000 (Fri, November 10, 2023) $"
 __version__ = "$Revision: 3.2.0 $"
 #=========================================================================================
 # Created
@@ -45,7 +45,7 @@ class R2R1RatesCalculation(CalculationModel):
     """
     Calculate R2/R1 rates
     """
-    ModelName = sv.R2R1
+    modelName = sv.R2R1
     TargetSeriesAnalyses = [sv.RelaxationAnalysis]
 
     Info = '''Calculate the ratio R2/R1.  Requires two input dataTables: the T1, T2 with calculated rates (R1, and R2).'''
@@ -138,5 +138,5 @@ class R2R1RatesCalculation(CalculationModel):
         outputFrame[sv.CONSTANT_STATS_OUTPUT_TABLE_COLUMNS] = None
         outputFrame[sv.SpectrumPropertiesHeaders] = None
         outputFrame[sv.PeakPropertiesHeaders] = None
-        outputFrame[sv.CALCULATION_MODEL] = self.ModelName
+        outputFrame[sv.CALCULATION_MODEL] = self.modelName
         return outputFrame

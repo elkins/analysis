@@ -15,7 +15,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2023-11-10 15:58:41 +0000 (Fri, November 10, 2023) $"
+__dateModified__ = "$dateModified: 2023-11-10 16:12:23 +0000 (Fri, November 10, 2023) $"
 __version__ = "$Revision: 3.2.0 $"
 #=========================================================================================
 # Created
@@ -218,7 +218,7 @@ class _ExponentialBaseModel(FittingModelABC):
             for ix, row in groupDf.iterrows():
                 for resultName, resulValue in result.getAllResultsAsDict().items():
                     inputData.loc[ix, resultName] = resulValue
-                inputData.loc[ix, sv.MODEL_NAME] = self.ModelName
+                inputData.loc[ix, sv.MODEL_NAME] = self.modelName
                 inputData.loc[ix, sv.MINIMISER_METHOD] = minimiser.method
                 try:
                     nmrAtomNames = inputData._getAtomNamesFromGroupedByHeaders(groupDf)
@@ -233,7 +233,7 @@ class OnePhaseDecayModel(_ExponentialBaseModel):
     """
     FittingModel model class containing fitting equation and fitting information
     """
-    ModelName   = sv.OnePhaseDecay
+    modelName   = sv.OnePhaseDecay
     Info        = '''A model to describe the rate of a decay.  '''
     Description = '''Model:\nY=amplitude*exp(-rate*X)      
                  X:the various times values
@@ -255,7 +255,7 @@ class OnePhaseDecayPlateauModel(_ExponentialBaseModel):
     """
     FittingModel model class containing fitting equation and fitting information
     """
-    ModelName   = sv.OnePhaseDecayWithPlateau
+    modelName   = sv.OnePhaseDecayWithPlateau
     Info        = '''A model to describe the rate of a decay.  '''
     Description = '''Model:\nY=(amplitude - plateau) *exp(-rate*X) + plateau     
                  X:the various times values
@@ -279,7 +279,7 @@ class ExponentialDecayModel(_ExponentialBaseModel):
     """
     FittingModel model class containing fitting equation and fitting information
     """
-    ModelName = sv.ExponentialDecay
+    modelName = sv.ExponentialDecay
     Info = '''A model to describe the time constant of a decay (also known as Tau). '''
     Description = '''Model:\nY=amplitude*exp(-X / decay)
 
@@ -302,7 +302,7 @@ class InversionRecoveryModel(_ExponentialBaseModel):
     """
     InversionRecovery model class containing fitting equation and fitting information
     """
-    ModelName = sv.InversionRecovery
+    modelName = sv.InversionRecovery
     Info = '''Inversion Recovery fitting model. '''
     Description = '''Model:\nY = amplitude * (1 - e^{-time/decay})
     

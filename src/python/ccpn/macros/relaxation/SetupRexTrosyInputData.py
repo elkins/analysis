@@ -40,7 +40,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2023-11-10 15:58:42 +0000 (Fri, November 10, 2023) $"
+__dateModified__ = "$dateModified: 2023-11-10 16:12:24 +0000 (Fri, November 10, 2023) $"
 __version__ = "$Revision: 3.2.0 $"
 #=========================================================================================
 # Created
@@ -326,6 +326,6 @@ outputFrame[sv.SERIES_STEP_Y] = None
 outputFrame[sv.CONSTANT_STATS_OUTPUT_TABLE_COLUMNS] = None
 outputFrame[sv.SpectrumPropertiesHeaders] = None
 outputFrame[sv.PeakPropertiesHeaders] = None
-outputFrame[sv.CALCULATION_MODEL] = backend.currentCalculationModel.ModelName
+outputFrame[sv.CALCULATION_MODEL] = backend.currentCalculationModel.modelName
 
 # showMessage('Done', 'Rex calculation via Trosy ETAs completed')

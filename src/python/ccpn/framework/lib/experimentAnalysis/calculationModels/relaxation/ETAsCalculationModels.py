@@ -15,7 +15,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2023-11-10 15:58:40 +0000 (Fri, November 10, 2023) $"
+__dateModified__ = "$dateModified: 2023-11-10 16:12:23 +0000 (Fri, November 10, 2023) $"
 __version__ = "$Revision: 3.2.0 $"
 #=========================================================================================
 # Created
@@ -44,7 +44,7 @@ class ETACalculation(CalculationModel):
     """
     Calculate ETA Values for HSQC series
     """
-    ModelName =sv.ETAS_CALCULATION_MODEL
+    modelName =sv.ETAS_CALCULATION_MODEL
     TargetSeriesAnalyses = [sv.RelaxationAnalysis]
 
     Info = ''''''
@@ -59,7 +59,7 @@ class ETACalculation(CalculationModel):
     FullDescription = f'{Info}\n{Description}'
     PeakProperty = sv._HEIGHT
     _allowedIntensityTypes = (sv._HEIGHT, sv._VOLUME)
-    _minimisedProperty = ModelName
+    _minimisedProperty = modelName
 
     @property
     def modelArgumentNames(self):
@@ -140,7 +140,7 @@ class ETACalculation(CalculationModel):
 
                 xs.append(iphase[sv.SERIES_STEP_X])
                 ys.append(ratio)
-                outputFrame.loc[index, sv.CALCULATION_MODEL] = self.ModelName
+                outputFrame.loc[index, sv.CALCULATION_MODEL] = self.modelName
                 outputFrame.loc[index, sv.GROUPBYAssignmentHeaders] = \
                     groupDf[sv.GROUPBYAssignmentHeaders].values[0]
                 outputFrame.loc[index, sv.NMRATOMNAMES] = 'H,N'
@@ -152,7 +152,7 @@ class RexViaTrosyCalculation(CalculationModel):
     """
     Calculate the Rex value through the 15N TROSY-selected Hahn-echo experiments
     """
-    ModelName = sv.REXVIATROSY
+    modelName = sv.REXVIATROSY
     Info = '''Calculate the Rex value through the 15N TROSY-selected Hahn-echo experiments.
     This model can be used to map chemical exchange values in proteins with MW > 50 kD.
     '''
@@ -262,6 +262,6 @@ class RexViaTrosyCalculation(CalculationModel):
         outputFrame[sv.CONSTANT_STATS_OUTPUT_TABLE_COLUMNS] = None
         outputFrame[sv.SpectrumPropertiesHeaders] = None
         outputFrame[sv.PeakPropertiesHeaders] = None
-        outputFrame[sv.CALCULATION_MODEL] = self.ModelName
+        outputFrame[sv.CALCULATION_MODEL] = self.modelName
         return outputFrame
 

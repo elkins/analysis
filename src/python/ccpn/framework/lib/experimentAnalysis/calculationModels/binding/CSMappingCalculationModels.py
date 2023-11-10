@@ -15,7 +15,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2023-11-10 15:58:40 +0000 (Fri, November 10, 2023) $"
+__dateModified__ = "$dateModified: 2023-11-10 16:12:23 +0000 (Fri, November 10, 2023) $"
 __version__ = "$Revision: 3.2.0 $"
 #=========================================================================================
 # Created
@@ -58,7 +58,7 @@ class EuclideanCalculationModel(CalculationModel):
     """
     ChemicalShift Analysis DeltaDeltas shift distance calculation
     """
-    ModelName = sv.EUCLIDEAN_DISTANCE
+    modelName = sv.EUCLIDEAN_DISTANCE
     TargetSeriesAnalyses = [
                                             sv.ChemicalShiftMappingAnalysis
                                             ]
@@ -149,7 +149,7 @@ class EuclideanCalculationModel(CalculationModel):
                         outputFrame.loc[rowIndex, sv.SERIES_STEP_Y] = delta
                         outputFrame.loc[rowIndex, self.xSeriesStepHeader] = seriesStep
                         outputFrame.loc[rowIndex, sv.SERIESUNIT] = seriesUnits[-1]
-                        outputFrame.loc[rowIndex, sv.CALCULATION_MODEL] = self.ModelName
+                        outputFrame.loc[rowIndex, sv.CALCULATION_MODEL] = self.modelName
                         outputFrame.loc[rowIndex, sv.GROUPBYAssignmentHeaders] = \
                         groupDf[sv.GROUPBYAssignmentHeaders].values[0]
                         outputFrame.loc[rowIndex, sv.NMRATOMNAMES] = nmrAtomNames[0] if len(nmrAtomNames) > 0 else ''

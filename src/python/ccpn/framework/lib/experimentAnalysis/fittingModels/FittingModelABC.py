@@ -42,7 +42,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2023-11-10 15:58:41 +0000 (Fri, November 10, 2023) $"
+__dateModified__ = "$dateModified: 2023-11-10 16:12:23 +0000 (Fri, November 10, 2023) $"
 __version__ = "$Revision: 3.2.0 $"
 #=========================================================================================
 # Created
@@ -71,7 +71,7 @@ from ccpn.framework.Application import getApplication, getProject
 
 class FittingModelABC(ABC):
 
-    ModelName                  = None                       # The Model name.
+    modelName                  = None                       # The Model name.
     TargetSeriesAnalyses  = []                              # A list of Series Analysis Names where this model will be available. E.G.: [sv.RelaxationAnalysis,... ]
     Info                               = ''                               # A brief description of the fitting model.
     Description                   = ''                                # A simplified representation of the used equation(s).
@@ -178,7 +178,7 @@ class FittingModelABC(ABC):
         self._minimiserMethod = method
 
     def __str__(self):
-        return f'<{self.__class__.__name__}: {self.ModelName}>'
+        return f'<{self.__class__.__name__}: {self.modelName}>'
 
     __repr__ = __str__
 

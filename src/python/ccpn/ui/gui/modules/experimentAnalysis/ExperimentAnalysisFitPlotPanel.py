@@ -12,7 +12,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2023-11-01 12:24:05 +0000 (Wed, November 01, 2023) $"
+__dateModified__ = "$dateModified: 2023-11-10 16:12:24 +0000 (Fri, November 10, 2023) $"
 __version__ = "$Revision: 3.2.0 $"
 #=========================================================================================
 # Created
@@ -230,12 +230,12 @@ class FitPlotPanel(GuiPanel):
         ## Grab the Fitting Model, to recreate the fitted Curve from the fitting results.
         model = backend.currentFittingModel
         calcModel = backend.currentCalculationModel
-        if model.ModelName == sv.BLANKMODELNAME:
-            getLogger().info(f'Fitting results not displayed/permitted on Calculation Model: {calcModel.ModelName} and Fitting Model: {model.ModelName}')
+        if model.modelName == sv.BLANKMODELNAME:
+            getLogger().info(f'Fitting results not displayed/permitted on Calculation Model: {calcModel.modelName} and Fitting Model: {model.modelName}')
             return False
         if calcModel is not None:
             if calcModel._disableFittingModels:
-                getLogger().info(f'Fitting results not displayed/permitted on Calculation Model: {calcModel.ModelName} and Fitting Model: {model.ModelName}')
+                getLogger().info(f'Fitting results not displayed/permitted on Calculation Model: {calcModel.modelName} and Fitting Model: {model.modelName}')
                 return False
         return True
 

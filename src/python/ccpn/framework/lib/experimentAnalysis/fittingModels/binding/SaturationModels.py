@@ -15,7 +15,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2023-11-10 15:58:41 +0000 (Fri, November 10, 2023) $"
+__dateModified__ = "$dateModified: 2023-11-10 16:12:23 +0000 (Fri, November 10, 2023) $"
 __version__ = "$Revision: 3.2.0 $"
 #=========================================================================================
 # Created
@@ -73,7 +73,7 @@ class BindingModelBC(FittingModelABC):
                 getLogger().warning(f'Fitting Failed for collectionId: {collectionId} data.')
                 params = minimiser.params
                 result = MinimiserResult(minimiser, params)
-            inputData.loc[collectionId, sv.MODEL_NAME] = self.ModelName
+            inputData.loc[collectionId, sv.MODEL_NAME] = self.modelName
             inputData.loc[collectionId, sv.MINIMISER_METHOD] = minimiser.method
             for ix, row in groupDf.iterrows():
                 for resultName, resulValue in result.getAllResultsAsDict().items():
@@ -245,7 +245,7 @@ class OneSiteBindingModel(BindingModelBC):
     """
     ChemicalShift Analysis: One Site-Binding Curve calculation model
     """
-    ModelName = sv.ONE_SITE_BINDING_MODEL
+    modelName = sv.ONE_SITE_BINDING_MODEL
     Info = 'Fit data to using the One-Site Specific Binding model in a saturation binding experiment analysis.'
     Description = '''This simple model can be used when a small fraction of the ligand binds to the target, in this state, the bound concentration is ~ equal to the unbound.
                     \nModel:
@@ -266,7 +266,7 @@ class TwoSiteBindingModel(BindingModelBC):
     """
     ChemicalShift Analysis: Two Site-Binding Curve calculation model
     """
-    ModelName = sv.TWO_BINDING_SITE_MODEL
+    modelName = sv.TWO_BINDING_SITE_MODEL
     Info = 'Fit data to using the Two-Binding-Site model.'
     Description = sv.NIY_WARNING
     References  = sv.NIY_WARNING
@@ -291,7 +291,7 @@ class OneSiteWithAllostericBindingModel(BindingModelBC):
     This is different from a Competitive experiment! This model works when two ligands bind different sites.
     The allosteric binding can decrease-increase the main binding event.
     """
-    ModelName = sv.ONE_SITE_BINDING_ALLOSTERIC_MODEL
+    modelName = sv.ONE_SITE_BINDING_ALLOSTERIC_MODEL
     Info = 'Fit data to using the One Site with allosteric modulator model.'
     Description = sv.NIY_WARNING
     References  = sv.NIY_WARNING
@@ -317,7 +317,7 @@ class CooperativityBindingModel(BindingModelBC):
     """
     ChemicalShift Analysis: Cooperativity-Binding calculation model
     """
-    ModelName = sv.COOPERATIVITY_BINDING_MODEL
+    modelName = sv.COOPERATIVITY_BINDING_MODEL
     Info = 'Fit data to using the  Cooperativity Binding  model in a saturation binding experiment analysis.'
     Description = '''
                     \nModel:
@@ -343,7 +343,7 @@ class FractionBindingModel(BindingModelBC):
     """
     ChemicalShift Analysis: FractionBinding fitting Curve calculation model
     """
-    ModelName = sv.FRACTION_BINDING_MODEL
+    modelName = sv.FRACTION_BINDING_MODEL
     Info = 'Fit data to using the Fraction Binding model.'
     Description = '''Fitting model for one-site fraction bound in a saturation binding experiment. This model can be used when a large fraction of the ligand binds to the target.
                     \nModel:
@@ -362,7 +362,7 @@ class FractionBindingWithTargetConcentrModel(BindingModelBC):
     """
     ChemicalShift Analysis: FractionBinding with Target Concentration fitting Curve calculation model
     """
-    ModelName = sv.FRACTION_BINDING_WITHTARGETMODEL
+    modelName = sv.FRACTION_BINDING_WITHTARGETMODEL
     Info = 'Fit data to using the Fraction Binding model.'
     Description = sv.NIY_WARNING
     References  = sv.NIY_WARNING

@@ -298,7 +298,7 @@ class SeriesAnalysisABC(ABC):
         for ix, row in resultDataForCollection.iterrows():
             for resultName, resulValue in result.getAllResultsAsDict().items():
                 resultData.loc[ix, resultName] = resulValue
-            resultData.loc[ix, sv.MODEL_NAME] = fittingModel.ModelName
+            resultData.loc[ix, sv.MODEL_NAME] = fittingModel.modelName
             resultData.loc[ix, sv.MINIMISER_METHOD] = minimiser.method
 
     def _setMinimisedPropertyFromModels(self):
@@ -322,7 +322,6 @@ class SeriesAnalysisABC(ABC):
          E.g.: the initiated ExponentialDecayModel. See models for docs. """
         if self._currentFittingModel is None:
             model = self._getFirstModel(self.fittingModels)
-            getLogger().warn(f'Fitting Model not set. Fetched the first available: {model.ModelName}')
             return model()
         return self._currentFittingModel
 
@@ -336,7 +335,6 @@ class SeriesAnalysisABC(ABC):
         E.g.: the initiated EuclidianModel for ChemicalshiftMapping. See models for docs. """
         if self._currentCalculationModel is None:
             model = self._getFirstModel(self.calculationModels)
-            getLogger().warn(f'Calculation Model not set. Fetched the first available: {model.ModelName}')
             return model()
         return self._currentCalculationModel
 
@@ -369,7 +367,7 @@ class SeriesAnalysisABC(ABC):
                                 continue # skip
                             if not obj._autoRegisterModel:
                                 continue
-                            if not obj.ModelName:
+                            if not obj.modelName:
                                 continue
                             SeriesAnalysisABC._loadedModels.add(obj)
 
@@ -395,10 +393,10 @@ class SeriesAnalysisABC(ABC):
         from ccpn.framework.lib.experimentAnalysis.calculationModels.CalculationModelABC import CalculationModel
 
         if issubclass(model, CalculationModel):
-            self.calculationModels.update({model.ModelName: model})
+            self.calculationModels.update({model.modelName: model})
             return
         elif issubclass(model, FittingModelABC):
-            self.fittingModels.update({model.ModelName: model})
+            self.fittingModels.update({model.modelName: model})
         else:
             getLogger().warn(f'The given model type could not be identified. Skipping: {model} ')
         return
@@ -407,8 +405,8 @@ class SeriesAnalysisABC(ABC):
         """
         A method to de-register a  Model
         """
-        self.calculationModels.pop(model.ModelName, None)
-        self.fittingModels.pop(model.ModelName, None)
+        self.calculationModels.pop(model.modelName, None)
+        self.fittingModels.pop(model.modelName, None)
 
     def getFittingModelByName(self, modelName):
         """

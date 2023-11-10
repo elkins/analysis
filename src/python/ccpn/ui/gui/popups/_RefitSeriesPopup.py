@@ -15,7 +15,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2023-10-27 14:58:59 +0100 (Fri, October 27, 2023) $"
+__dateModified__ = "$dateModified: 2023-11-10 16:12:24 +0000 (Fri, November 10, 2023) $"
 __version__ = "$Revision: 3.2.0 $"
 #=========================================================================================
 # Created
@@ -122,7 +122,7 @@ class RefitSingularSelectedSeriesPopup(CcpnDialogMainWidget):
         minimiserMethods = list(sv.MINIMISER_METHODS.keys())
         self._fittingModelPullDown.setData(modelNames)
         if self._backendHandler.currentFittingModel:
-            currentModelName = self._backendHandler.currentFittingModel.ModelName
+            currentModelName = self._backendHandler.currentFittingModel.modelName
             with self._fittingModelPullDown.blockWidgetSignals():
                 self._fittingModelPullDown.select(currentModelName)
         self._minimiserModelPullDown.setData(minimiserMethods)

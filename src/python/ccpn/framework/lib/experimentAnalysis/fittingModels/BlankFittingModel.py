@@ -15,7 +15,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2023-11-10 16:06:29 +0000 (Fri, November 10, 2023) $"
+__dateModified__ = "$dateModified: 2023-11-10 16:12:23 +0000 (Fri, November 10, 2023) $"
 __version__ = "$Revision: 3.2.0 $"
 #=========================================================================================
 # Created
@@ -63,7 +63,7 @@ class BlankFittingModel(FittingModelABC):
     """
     Blank model which fits a blank function!. Used as space-holder/example
     """
-    ModelName = sv.BLANKMODELNAME
+    modelName = sv.BLANKMODELNAME
     TargetSeriesAnalyses = [sv.RelaxationAnalysis,
                                             sv.JCouplingAnalysis,
                                             sv.RDCAnalysis,
@@ -100,7 +100,7 @@ class BlankFittingModel(FittingModelABC):
         result = MinimiserResult(minimiser, params) #Don't do the fitting. Just return a mock of results as np.nan
         for resultName, resulValue in result.getAllResultsAsDict().items():
             outputFrame.loc[outputFrame.index, resultName] = resulValue
-            outputFrame.loc[outputFrame.index, sv.MODEL_NAME] = self.ModelName
+            outputFrame.loc[outputFrame.index, sv.MODEL_NAME] = self.modelName
             outputFrame.loc[outputFrame.index, sv.MINIMISER_METHOD] = minimiser.method
 
         return outputFrame

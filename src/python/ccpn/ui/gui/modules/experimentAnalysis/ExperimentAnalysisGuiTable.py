@@ -266,12 +266,12 @@ class _ExperimentalAnalysisTableABC(Table):
         apperanceTab = self.guiModule.settingsPanelHandler.getTab(guiNameSpaces.Label_GeneralAppearance)
         tableHeaderWidget = apperanceTab.getWidget(guiNameSpaces.WidgetVarName_TableView)
         if tableHeaderWidget is not None:
-            if fitModel and fitModel.ModelName == sv.BLANKMODELNAME:
+            if fitModel and fitModel.modelName == sv.BLANKMODELNAME:
                 # tableHeaderWidget.untickTexts([guiNameSpaces._Fitting, guiNameSpaces._Stats])
                 self._toggleFittingHeaders(False)
                 self._toggleStatsHeaders(False)
                 self._toggleFittingErrorsHeaders(False)
-            if calModel and calModel.ModelName == sv.BLANKMODELNAME:
+            if calModel and calModel.modelName == sv.BLANKMODELNAME:
                 # tableHeaderWidget.untickTexts([guiNameSpaces._Calculation])
                 self._toggleCalculationHeaders(False)
                 self._toggleCalculationErrorsHeaders(False)

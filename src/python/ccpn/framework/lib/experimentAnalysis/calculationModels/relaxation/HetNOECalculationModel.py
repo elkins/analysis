@@ -15,7 +15,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2023-11-10 15:58:41 +0000 (Fri, November 10, 2023) $"
+__dateModified__ = "$dateModified: 2023-11-10 16:12:23 +0000 (Fri, November 10, 2023) $"
 __version__ = "$Revision: 3.2.0 $"
 #=========================================================================================
 # Created
@@ -71,7 +71,7 @@ class HetNoeCalculation(CalculationModel):
     """
     Calculate HeteroNuclear NOE Values
     """
-    ModelName = sv.HETNOE
+    modelName = sv.HETNOE
     TargetSeriesAnalyses = [sv.RelaxationAnalysis]
 
     Info        = '''Calculate HeteroNuclear NOE Values using peak Intensity (Height or Volume).
@@ -168,7 +168,7 @@ class HetNoeCalculation(CalculationModel):
                 outputFrame.loc[rowIndex, self.modelArgumentNames[1]] = error
 
                 ## 2) step: add the model metadata
-                outputFrame.loc[rowIndex, sv.CALCULATION_MODEL] = self.ModelName
+                outputFrame.loc[rowIndex, sv.CALCULATION_MODEL] = self.modelName
 
                 ## 3) step: add all the other columns as the input data
                 firstRow = groupDf.iloc[i]

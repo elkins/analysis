@@ -12,7 +12,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2023-11-09 09:49:32 +0000 (Thu, November 09, 2023) $"
+__dateModified__ = "$dateModified: 2023-11-10 16:12:24 +0000 (Fri, November 10, 2023) $"
 __version__ = "$Revision: 3.2.0 $"
 #=========================================================================================
 # Created
@@ -690,7 +690,7 @@ class GuiCalculationPanel(GuiSettingPanel):
         backend = self.guiModule.backendHandler
         currentCalculationModel = backend.currentCalculationModel
         if currentCalculationModel is not None:
-            if currentCalculationModel.ModelName != selectedCalcModelName:
+            if currentCalculationModel.modelName != selectedCalcModelName:
 
                 modelObj = backend.getCalculationModelByName(selectedCalcModelName)
                 if modelObj is not None:
@@ -717,7 +717,7 @@ class GuiFittingPanel(GuiSettingPanel):
         """Common fitting Widgets"""
         models = list(self.guiModule.backendHandler.fittingModels.values())
         currentFittingModel = self.guiModule.backendHandler.currentFittingModel
-        currentFittingModelName = currentFittingModel.ModelName if currentFittingModel is not None else None
+        currentFittingModelName = currentFittingModel.modelName if currentFittingModel is not None else None
         self.widgetDefinitions = od((
             (guiNameSpaces.WidgetVarName_OptimiserSeparator,
              {'label': guiNameSpaces.Label_OptimiserSeparator,
@@ -752,7 +752,7 @@ class GuiFittingPanel(GuiSettingPanel):
         ## Set the models definitions
         extraLabels_ddFittingModels = [model.MaTex for model in models]
         tipTexts_ddFittingModels = [model.FullDescription for model in models]
-        modelNames = [model.ModelName for model in models]
+        modelNames = [model.modelName for model in models]
         enabledModels = [model.isEnabled for model in models]
         settingsDict = od((
             (guiNameSpaces.WidgetVarName_FittingSeparator,
@@ -1253,7 +1253,7 @@ class AppearancePanel(GuiSettingPanel):
         selected = yColumnNameW.getText()
 
         if calcModel is not None:  # the calculation model has priority
-            if calcModel.ModelName != sv.BLANKMODELNAME:
+            if calcModel.modelName != sv.BLANKMODELNAME:
                 moArgs = calcModel.modelArgumentNames
                 topSelection.extend(moArgs)
                 preferredSelection = calcModel._preferredYPlotArgName
@@ -1261,7 +1261,7 @@ class AppearancePanel(GuiSettingPanel):
                     preferred.append(preferredSelection)
 
         if fittingModel is not None:
-            if fittingModel.ModelName != sv.BLANKMODELNAME:
+            if fittingModel.modelName != sv.BLANKMODELNAME:
                 allArgs = fittingModel.getAllArgNames()
                 if calcModel is not None and not calcModel._disableFittingModels:
                     topSelection.extend(allArgs)

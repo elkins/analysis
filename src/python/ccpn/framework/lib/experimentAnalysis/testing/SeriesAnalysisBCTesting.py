@@ -15,7 +15,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2023-11-09 09:49:31 +0000 (Thu, November 09, 2023) $"
+__dateModified__ = "$dateModified: 2023-11-10 16:12:24 +0000 (Fri, November 10, 2023) $"
 __version__ = "$Revision: 3.2.0 $"
 #=========================================================================================
 # Created
@@ -84,7 +84,7 @@ class SeriesAnalysisABC_Test(ExperimentAnalysisTestingBC):
     def test_getFittingModelByName(self):
         """Test if a FittingModel is retrieved correctly by name."""
         from ccpn.framework.lib.experimentAnalysis.fittingModels.FittingModelABC import T1FittingModel
-        queryName = T1FittingModel.ModelName
+        queryName = T1FittingModel.modelName
         fittingModel = T1FittingModel()
         self.seriesAnalysisABC.registerModel(fittingModel)
         message = "getFittingModelByName retrieved the wrong Object"
