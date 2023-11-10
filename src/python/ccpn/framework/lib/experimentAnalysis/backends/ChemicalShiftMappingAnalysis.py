@@ -15,7 +15,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2023-11-10 15:58:40 +0000 (Fri, November 10, 2023) $"
+__dateModified__ = "$dateModified: 2023-11-10 16:06:29 +0000 (Fri, November 10, 2023) $"
 __version__ = "$Revision: 3.2.0 $"
 #=========================================================================================
 # Created
@@ -48,12 +48,7 @@ class ChemicalShiftMappingAnalysisBC(SeriesAnalysisABC):
         self._alphaFactors = sv.DEFAULT_ALPHA_FACTORS
         self._excludedResidueTypes = sv.DEFAULT_EXCLUDED_RESIDUES
         self._untraceableValue = 1.0  # default value for replacing NaN values in the DeltaDeltas column
-        fittingModel = self._getFirstModel(self.fittingModels)
-        calculationModel = self._getFirstModel(self.calculationModels)
-        if fittingModel:
-            self._currentFittingModel = fittingModel()
-        if calculationModel:
-            self._currentCalculationModel = calculationModel()
+
 
     def getAlphaFactor(self, isotopeCode):
         """Get the Alpha Factor for the DeltaDeltas calculation

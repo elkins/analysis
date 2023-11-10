@@ -15,7 +15,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2023-10-27 11:03:41 +0100 (Fri, October 27, 2023) $"
+__dateModified__ = "$dateModified: 2023-11-10 15:58:40 +0000 (Fri, November 10, 2023) $"
 __version__ = "$Revision: 3.2.0 $"
 #=========================================================================================
 # Created
@@ -379,7 +379,7 @@ class SeriesAnalysisABC(ABC):
 
     def _registerModels(self):
         """ Register all the available models"""
-        from ccpn.framework.lib.experimentAnalysis.fittingModels.BlankModels import BlankFittingModel
+        from ccpn.framework.lib.experimentAnalysis.fittingModels.BlankFittingModel import BlankFittingModel
         from ccpn.framework.lib.experimentAnalysis.calculationModels.BlankCalculationModel import BlankCalculationModel
         self.registerModel(BlankFittingModel)
         self.registerModel(BlankCalculationModel)

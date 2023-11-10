@@ -15,7 +15,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2023-11-10 15:58:41 +0000 (Fri, November 10, 2023) $"
+__dateModified__ = "$dateModified: 2023-11-10 16:06:29 +0000 (Fri, November 10, 2023) $"
 __version__ = "$Revision: 3.2.0 $"
 #=========================================================================================
 # Created
@@ -33,8 +33,7 @@ from ccpn.framework.lib.experimentAnalysis.fittingModels.FittingModelABC import 
 from ccpn.util.Logging import getLogger
 import ccpn.framework.lib.experimentAnalysis.fittingModels.fitFunctionsLib as lf
 
-
-class BlankMinimiser(MinimiserModel):
+class _BlankMinimiser(MinimiserModel):
     """
     Blank Minimiser which fits a blank function!. Used as space-holder/example
     """
@@ -47,7 +46,7 @@ class BlankMinimiser(MinimiserModel):
                      Bstr:np.nan}
 
     def __init__(self, **kwargs):
-        super().__init__(BlankMinimiser.FITTING_FUNC, **kwargs)
+        super().__init__(_BlankMinimiser.FITTING_FUNC, **kwargs)
         self.name = self.MODELNAME
         self.params = self.make_params(**self.defaultParams)
 
@@ -77,7 +76,7 @@ class BlankFittingModel(FittingModelABC):
     References = ''' None
                 '''
     MaTex = ''
-    Minimiser = BlankMinimiser
+    Minimiser = _BlankMinimiser
     PeakProperty = None
     _minimisedProperty = None
 
