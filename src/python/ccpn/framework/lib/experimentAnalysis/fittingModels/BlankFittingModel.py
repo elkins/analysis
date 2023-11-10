@@ -15,7 +15,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2023-11-10 16:12:23 +0000 (Fri, November 10, 2023) $"
+__dateModified__ = "$dateModified: 2023-11-10 16:40:18 +0000 (Fri, November 10, 2023) $"
 __version__ = "$Revision: 3.2.0 $"
 #=========================================================================================
 # Created
@@ -64,20 +64,20 @@ class BlankFittingModel(FittingModelABC):
     Blank model which fits a blank function!. Used as space-holder/example
     """
     modelName = sv.BLANKMODELNAME
-    TargetSeriesAnalyses = [sv.RelaxationAnalysis,
-                                            sv.JCouplingAnalysis,
-                                            sv.RDCAnalysis,
-                                            sv.PREAnalysis,
-                                            sv.PCSAnalysis
-                                            ]
+    targetSeriesAnalyses = [sv.RelaxationAnalysis,
+                            sv.JCouplingAnalysis,
+                            sv.RDCAnalysis,
+                            sv.PREAnalysis,
+                            sv.PCSAnalysis
+                            ]
 
-    Info = 'Fit data to using the Blank model.'
-    Description = ' An empty model used as a placeholder. Does not fit any data.'
-    References = ''' None
+    modelInfo = 'Fit data to using the Blank model.'
+    description = ' An empty model used as a placeholder. Does not fit any data.'
+    references = ''' None
                 '''
-    MaTex = ''
+    maTex = ''
     Minimiser = _BlankMinimiser
-    PeakProperty = None
+    peakProperty = None
     _minimisedProperty = None
 
     def fitSeries(self, inputData: TableFrame, rescale=True, *args, **kwargs) -> TableFrame:

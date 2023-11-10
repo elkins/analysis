@@ -15,7 +15,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2023-11-10 16:12:23 +0000 (Fri, November 10, 2023) $"
+__dateModified__ = "$dateModified: 2023-11-10 16:40:18 +0000 (Fri, November 10, 2023) $"
 __version__ = "$Revision: 3.2.0 $"
 #=========================================================================================
 # Created
@@ -37,14 +37,14 @@ class BlankCalculationModel(CalculationModel):
     """
 
     modelName = sv.BLANKMODELNAME
-    TargetSeriesAnalyses = [sv.RelaxationAnalysis,
-                                            sv.JCouplingAnalysis,
-                                            sv.RDCAnalysis,
-                                            sv.PREAnalysis,
-                                            sv.PCSAnalysis
-                                            ]
-    Info = 'Blank Model'
-    Description = 'A blank model containing no calculation. This will show only raw data.'
+    targetSeriesAnalyses = [sv.RelaxationAnalysis,
+                            sv.JCouplingAnalysis,
+                            sv.RDCAnalysis,
+                            sv.PREAnalysis,
+                            sv.PCSAnalysis
+                            ]
+    modelInfo = 'Blank Model'
+    description = 'A blank model containing no calculation. This will show only raw data.'
     _minimisedProperty = None
 
     def calculateValues(self, inputDataTables):

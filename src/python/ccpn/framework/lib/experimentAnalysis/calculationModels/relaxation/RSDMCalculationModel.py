@@ -15,7 +15,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2023-11-10 16:12:23 +0000 (Fri, November 10, 2023) $"
+__dateModified__ = "$dateModified: 2023-11-10 16:40:18 +0000 (Fri, November 10, 2023) $"
 __version__ = "$Revision: 3.2.0 $"
 #=========================================================================================
 # Created
@@ -44,19 +44,19 @@ class SDMCalculation(CalculationModel):
     Calculate the Spectral density mapping
     """
     modelName = sv.RSDM
-    TargetSeriesAnalyses = [sv.RelaxationAnalysis]
+    targetSeriesAnalyses = [sv.RelaxationAnalysis]
 
-    Info = '''Calculate the Reduced Spectral Density Mapping (SDM). Requires three input dataTables: the T1, T2 with calculated rates and NOE values'''
-    Description = f'''Model:
+    modelInfo = '''Calculate the Reduced Spectral Density Mapping (SDM). Requires three input dataTables: the T1, T2 with calculated rates and NOE values'''
+    description = f'''Model:
                   Calculates J0, J(ѠX) and J(ѠH) using the R1, R2 and NOE values.
                   Values in sec/rad
                   See references for details
                   '''
-    References = '''
+    references = '''
                 1) Theory: Farrow,  et al. Spectral density function mapping using 15N relaxation data exclusively. J Biomol NMR 6, 153–162 (1995)
                 2) Equations: 13-16. Udgaonkar et al. Backbone dynamics of Barstar: A 15N NMR relaxation study.  Proteins: 41:460-474 (2000)
                 '''
-    FullDescription = f'{Info}\n{Description}'
+    
     _disableFittingModels = True  # Don't apply any fitting models to this output frame
     _spectrometerFrequency = 600.130  # hardcoded for development only. default will be taken from 1st spectrum in a series . todo need a way to set options model specific
     _minimisedProperty = None

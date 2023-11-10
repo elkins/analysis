@@ -15,7 +15,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2023-11-10 15:58:40 +0000 (Fri, November 10, 2023) $"
+__dateModified__ = "$dateModified: 2023-11-10 16:12:23 +0000 (Fri, November 10, 2023) $"
 __version__ = "$Revision: 3.2.0 $"
 #=========================================================================================
 # Created
@@ -363,7 +363,7 @@ class SeriesAnalysisABC(ABC):
                 for i, obj in _inspect.getmembers(pythonModule): # this scans for the right classes within the Python-Module
                     if _inspect.isclass(obj):
                         if issubclass(obj,  (FittingModelABC, CalculationModel)):
-                            if self.seriesAnalysisName not in obj.TargetSeriesAnalyses:
+                            if self.seriesAnalysisName not in obj.targetSeriesAnalyses:
                                 continue # skip
                             if not obj._autoRegisterModel:
                                 continue

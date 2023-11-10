@@ -12,7 +12,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2023-11-10 16:12:24 +0000 (Fri, November 10, 2023) $"
+__dateModified__ = "$dateModified: 2023-11-10 16:40:19 +0000 (Fri, November 10, 2023) $"
 __version__ = "$Revision: 3.2.0 $"
 #=========================================================================================
 # Created
@@ -572,9 +572,9 @@ class GuiCalculationPanel(GuiSettingPanel):
         ))
         calculationModels = backendHandler.calculationModels
         ## autogenerate labels/tiptexts from the calculationModes.
-        extraLabels_ddCalculationsModes = [model.MaTex for modelName, model in
+        extraLabels_ddCalculationsModes = [model.maTex for modelName, model in
                                            calculationModels.items()]
-        tipTexts_ddCalculationsModes = [model.FullDescription for modelName, model in
+        tipTexts_ddCalculationsModes = [model.fullDescription(model) for modelName, model in
                                         calculationModels.items()]
         calculationWidgetDefinitions = od((
             (guiNameSpaces.WidgetVarName_CalcModeSeparator,
@@ -696,7 +696,7 @@ class GuiCalculationPanel(GuiSettingPanel):
                 if modelObj is not None:
                     currentCalculationModel = modelObj()
         backend.currentCalculationModel = currentCalculationModel
-        backend.currentFittingModel.PeakProperty = selectedCalcPeakProperty
+        backend.currentFittingModel.peakProperty = selectedCalcPeakProperty
         backend.currentCalculationModel.PeakProperty = selectedCalcPeakProperty
         backend._needsRefitting = True
         self._setUpdatedDetectedState()
@@ -750,8 +750,8 @@ class GuiFittingPanel(GuiSettingPanel):
                        'fixedWidths': SettingsWidgetFixedWidths}}),
         ))
         ## Set the models definitions
-        extraLabels_ddFittingModels = [model.MaTex for model in models]
-        tipTexts_ddFittingModels = [model.FullDescription for model in models]
+        extraLabels_ddFittingModels = [model.maTex for model in models]
+        tipTexts_ddFittingModels = [model.fullDescription(model) for model in models]
         modelNames = [model.modelName for model in models]
         enabledModels = [model.isEnabled for model in models]
         settingsDict = od((
@@ -1262,7 +1262,7 @@ class AppearancePanel(GuiSettingPanel):
 
         if fittingModel is not None:
             if fittingModel.modelName != sv.BLANKMODELNAME:
-                allArgs = fittingModel.getAllArgNames()
+                allArgs = fittingModel._getAllArgNames()
                 if calcModel is not None and not calcModel._disableFittingModels:
                     topSelection.extend(allArgs)
                     if preferred in availableColumns:

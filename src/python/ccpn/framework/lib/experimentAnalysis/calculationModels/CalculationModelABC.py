@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2023-11-10 16:12:23 +0000 (Fri, November 10, 2023) $"
+__dateModified__ = "$dateModified: 2023-11-10 16:40:18 +0000 (Fri, November 10, 2023) $"
 __version__ = "$Revision: 3.2.0 $"
 #=========================================================================================
 # Created
@@ -39,12 +39,12 @@ class CalculationModel(FittingModelABC):
     """
 
     modelName   = 'Calculation'     ## The Model name.
-    Info        = 'the info'        ## A brief description of the fitting model.
-    Description = 'Description'     ## A simplified representation of the used equation(s).
-    MaTex       = r''               ## MaTex representation of the used equation(s). see https://matplotlib.org/3.5.0/tutorials/text/mathtext.html
-    References  = 'References'      ## A list of journal article references that help to identify the employed calculation equations. E.g.: DOIs or title/authors/year/journal; web-pages.
+    modelInfo        = 'the info'        ## A brief description of the fitting model.
+    description = 'Description'     ## A simplified representation of the used equation(s).
+    maTex       = r''               ## MaTex representation of the used equation(s). see https://matplotlib.org/3.5.0/tutorials/text/mathtext.html
+    references  = 'References'      ## A list of journal article references that help to identify the employed calculation equations. E.g.: DOIs or title/authors/year/journal; web-pages.
     _disableFittingModels = False  # If True, a fitting models are not applied to the resulting calculation mode. E.g. for R2/R1 Model
-    RequiredInputData = 1
+    requiredInputData = 1
     _minimisedProperty = None
 
 

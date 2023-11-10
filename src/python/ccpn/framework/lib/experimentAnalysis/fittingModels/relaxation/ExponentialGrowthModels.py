@@ -15,7 +15,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2023-11-10 16:12:24 +0000 (Fri, November 10, 2023) $"
+__dateModified__ = "$dateModified: 2023-11-10 16:40:19 +0000 (Fri, November 10, 2023) $"
 __version__ = "$Revision: 3.2.0 $"
 #=========================================================================================
 # Created
@@ -84,14 +84,14 @@ class  ExponentialGrowthModel(_ExponentialBaseModel):
     InversionRecovery model class containing fitting equation and fitting information
     """
     modelName = sv.InversionRecovery
-    Info = '''Exponential Growth Model fitting model. '''
-    Description = '''
+    modelInfo = '''Exponential Growth Model fitting model. '''
+    description = '''
                   '''
-    References = '''
+    references = '''
                   '''
     Minimiser = _ExponentialGrowthMinimiser
     # MaTex =  r'$amplitude*(1 - e^{-time/decay})$'
-    FullDescription = f'{Info}\n{Description}'
+    
 
 
 

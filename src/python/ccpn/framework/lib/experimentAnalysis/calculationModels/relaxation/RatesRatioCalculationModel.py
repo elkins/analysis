@@ -15,7 +15,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2023-11-10 16:12:23 +0000 (Fri, November 10, 2023) $"
+__dateModified__ = "$dateModified: 2023-11-10 16:40:18 +0000 (Fri, November 10, 2023) $"
 __version__ = "$Revision: 3.2.0 $"
 #=========================================================================================
 # Created
@@ -46,11 +46,11 @@ class R2R1RatesCalculation(CalculationModel):
     Calculate R2/R1 rates
     """
     modelName = sv.R2R1
-    TargetSeriesAnalyses = [sv.RelaxationAnalysis]
+    targetSeriesAnalyses = [sv.RelaxationAnalysis]
 
-    Info = '''Calculate the ratio R2/R1.  Requires two input dataTables: the T1, T2 with calculated rates (R1, and R2).'''
+    modelInfo = '''Calculate the ratio R2/R1.  Requires two input dataTables: the T1, T2 with calculated rates (R1, and R2).'''
 
-    Description = f'''Model:
+    description = f'''Model:
                   ratio =  R2/R1
                   R1 and R2 the decay rate for the T1 and T2 calculated using the {sv.OnePhaseDecay} model.
                   
@@ -58,9 +58,8 @@ class R2R1RatesCalculation(CalculationModel):
                   error =  (Re1/R1 + Re2/R2) * R2/R1
                   Re1/Re2 are the respective rate errors for R1 and R2.
                   '''
-    References = '''
+    references = '''
                 '''
-    FullDescription = f'{Info}\n{Description}'
     _disableFittingModels = True  # Don't apply any fitting models to this output frame
     _minimisedProperty = None
 

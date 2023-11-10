@@ -15,7 +15,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2023-11-10 16:12:23 +0000 (Fri, November 10, 2023) $"
+__dateModified__ = "$dateModified: 2023-11-10 16:40:19 +0000 (Fri, November 10, 2023) $"
 __version__ = "$Revision: 3.2.0 $"
 #=========================================================================================
 # Created
@@ -181,8 +181,8 @@ class _ExponentialBaseModel(FittingModelABC):
     """
     A Base model class for multiple Exponential types
     """
-    PeakProperty =  sv._HEIGHT
-    TargetSeriesAnalyses = [sv.RelaxationAnalysis]
+    peakProperty =  sv._HEIGHT
+    targetSeriesAnalyses = [sv.RelaxationAnalysis]
 
     def fitSeries(self, inputData:TableFrame, rescale=True, *args, **kwargs) -> TableFrame:
         """
@@ -234,16 +234,16 @@ class OnePhaseDecayModel(_ExponentialBaseModel):
     FittingModel model class containing fitting equation and fitting information
     """
     modelName   = sv.OnePhaseDecay
-    Info        = '''A model to describe the rate of a decay.  '''
-    Description = '''Model:\nY=amplitude*exp(-rate*X)      
+    modelInfo        = '''A model to describe the rate of a decay.  '''
+    description = '''Model:\nY=amplitude*exp(-rate*X)      
                  X:the various times values
                  amplitude: the Y value when X (time) is zero. Same units as Y
                  rate: the rate constant, expressed in reciprocal of the X axis time units,  e.g.: Second-1.
                   '''
-    References  = '''
+    references  = '''
                   '''
     Minimiser = OnePhaseDecayMinimiser
-    FullDescription = f'{Info}\n{Description}'
+    
 
     @property
     def _preferredYPlotArgName(self):
@@ -256,17 +256,17 @@ class OnePhaseDecayPlateauModel(_ExponentialBaseModel):
     FittingModel model class containing fitting equation and fitting information
     """
     modelName   = sv.OnePhaseDecayWithPlateau
-    Info        = '''A model to describe the rate of a decay.  '''
-    Description = '''Model:\nY=(amplitude - plateau) *exp(-rate*X) + plateau     
+    modelInfo        = '''A model to describe the rate of a decay.  '''
+    description = '''Model:\nY=(amplitude - plateau) *exp(-rate*X) + plateau     
                  X:the various times values
                  amplitude: the Y value when X (time) is zero. Same units as Y
                  rate: the rate constant, expressed in reciprocal of the X axis time units,  e.g.: Second-1
                  plateau: the Y value at infinite times. Same units as Y.
                   '''
-    References  = '''
+    references  = '''
                   '''
     Minimiser = OnePhaseDecayPlateauMinimiser
-    FullDescription = f'{Info}\n{Description}'
+    
 
     @property
     def _preferredYPlotArgName(self):
@@ -280,17 +280,17 @@ class ExponentialDecayModel(_ExponentialBaseModel):
     FittingModel model class containing fitting equation and fitting information
     """
     modelName = sv.ExponentialDecay
-    Info = '''A model to describe the time constant of a decay (also known as Tau). '''
-    Description = '''Model:\nY=amplitude*exp(-X / decay)
+    modelInfo = '''A model to describe the time constant of a decay (also known as Tau). '''
+    description = '''Model:\nY=amplitude*exp(-X / decay)
 
                  X:the various times values
                  amplitude: the Y value when X (time) is zero. Same units as Y
                  decay: the time constant (Tau), same units as  X axis e.g.: Second.
                   '''
-    References = '''
+    references = '''
                   '''
     Minimiser = ExpDecayMinimiser
-    FullDescription = f'{Info}\n{Description}'
+    
 
     @property
     def _preferredYPlotArgName(self):
@@ -303,18 +303,18 @@ class InversionRecoveryModel(_ExponentialBaseModel):
     InversionRecovery model class containing fitting equation and fitting information
     """
     modelName = sv.InversionRecovery
-    Info = '''Inversion Recovery fitting model. '''
-    Description = '''Model:\nY = amplitude * (1 - e^{-time/decay})
+    modelInfo = '''Inversion Recovery fitting model. '''
+    description = '''Model:\nY = amplitude * (1 - e^{-time/decay})
     
                  X:the various times values
                  amplitude: the Y value when X (time) is zero. Same units as Y
                  decay: the time constant, same units as  X axis.
                   '''
-    References = '''
+    references = '''
                   '''
     Minimiser = InversionRecoveryMinimiser
     # MaTex =  r'$amplitude*(1 - e^{-time/decay})$'
-    FullDescription = f'{Info}\n{Description}'
+    
 
     @property
     def _preferredYPlotArgName(self):

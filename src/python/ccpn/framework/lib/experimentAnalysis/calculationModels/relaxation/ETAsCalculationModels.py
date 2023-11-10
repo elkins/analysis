@@ -15,7 +15,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2023-11-10 16:12:23 +0000 (Fri, November 10, 2023) $"
+__dateModified__ = "$dateModified: 2023-11-10 16:40:18 +0000 (Fri, November 10, 2023) $"
 __version__ = "$Revision: 3.2.0 $"
 #=========================================================================================
 # Created
@@ -45,19 +45,19 @@ class ETACalculation(CalculationModel):
     Calculate ETA Values for HSQC series
     """
     modelName =sv.ETAS_CALCULATION_MODEL
-    TargetSeriesAnalyses = [sv.RelaxationAnalysis]
+    targetSeriesAnalyses = [sv.RelaxationAnalysis]
 
-    Info = ''''''
+    modelInfo = ''''''
 
-    Description = '''Model:
+    description = '''Model:
     Measure cross-correlation rates by calculating the ratio of two separate series: in-phase (IP) and anti-phase (AP) (IP/AP) 
                  '''
-    References = '''
+    references = '''
               1) Direct measurement of the 15 N CSA/dipolar relaxation interference from coupled HSQC spectra. 
               Jennifer B. Hall , Kwaku T. Dayie & David Fushman. Journal of Biomolecular NMR, 26: 181–186, 2003
                 '''
-    FullDescription = f'{Info}\n{Description}'
-    PeakProperty = sv._HEIGHT
+    
+    peakProperty = sv._HEIGHT
     _allowedIntensityTypes = (sv._HEIGHT, sv._VOLUME)
     _minimisedProperty = modelName
 
@@ -153,17 +153,17 @@ class RexViaTrosyCalculation(CalculationModel):
     Calculate the Rex value through the 15N TROSY-selected Hahn-echo experiments
     """
     modelName = sv.REXVIATROSY
-    Info = '''Calculate the Rex value through the 15N TROSY-selected Hahn-echo experiments.
+    modelInfo = '''Calculate the Rex value through the 15N TROSY-selected Hahn-echo experiments.
     This model can be used to map chemical exchange values in proteins with MW > 50 kD.
     '''
 
-    Description = f'''Model:
+    description = f'''Model:
                   '''
-    References = '''
+    references = '''
     Mapping chemical exchange in proteins with MW > 50 kD. 2003 Jul 30;125(30):8968-9.
     doi: 10.1021/ja035139z. 
      '''
-    FullDescription = f'{Info}\n{Description}'
+    
     _disableFittingModels = True  # Don't apply any fitting models to this output frame
     _minimisedProperty = None
 

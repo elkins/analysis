@@ -15,7 +15,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2023-11-10 16:12:23 +0000 (Fri, November 10, 2023) $"
+__dateModified__ = "$dateModified: 2023-11-10 16:40:19 +0000 (Fri, November 10, 2023) $"
 __version__ = "$Revision: 3.2.0 $"
 #=========================================================================================
 # Created
@@ -246,8 +246,8 @@ class OneSiteBindingModel(BindingModelBC):
     ChemicalShift Analysis: One Site-Binding Curve calculation model
     """
     modelName = sv.ONE_SITE_BINDING_MODEL
-    Info = 'Fit data to using the One-Site Specific Binding model in a saturation binding experiment analysis.'
-    Description = '''This simple model can be used when a small fraction of the ligand binds to the target, in this state, the bound concentration is ~ equal to the unbound.
+    modelInfo = 'Fit data to using the One-Site Specific Binding model in a saturation binding experiment analysis.'
+    description = '''This simple model can be used when a small fraction of the ligand binds to the target, in this state, the bound concentration is ~ equal to the unbound.
                     \nModel:
                     Y = Bmax*X/(Kd + X)
                     Bmax: is the maximum specific binding and in the CSM is given by the Relative displacement (Deltas among ChemicalShifts).
@@ -255,24 +255,24 @@ class OneSiteBindingModel(BindingModelBC):
                     The Kd represents the [ligand] required to get a half-maximum binding at equilibrium.
                     X: is the Series steps. 
     '''
-    References = '''
+    references = '''
                 1) Model derived from  E.q. 13. Receptor and Binding Studies. Hein et al. 2005. https://doi.org/10.1007/3-540-26574-0_37
                 '''
     # MaTex = r'$\frac{B_{Max} * [L]}{[L] + K_d}$'
     Minimiser = _Binding1SiteMinimiser
-    FullDescription = f'{Info} \n {Description}\nReferences: {References}'
+    
 
 class TwoSiteBindingModel(BindingModelBC):
     """
     ChemicalShift Analysis: Two Site-Binding Curve calculation model
     """
     modelName = sv.TWO_BINDING_SITE_MODEL
-    Info = 'Fit data to using the Two-Binding-Site model.'
-    Description = sv.NIY_WARNING
-    References  = sv.NIY_WARNING
+    modelInfo = 'Fit data to using the Two-Binding-Site model.'
+    description = sv.NIY_WARNING
+    references  = sv.NIY_WARNING
     # MaTex = r''
     Minimiser = _Binding2SiteMinimiser
-    FullDescription = f'{Info} \n {Description}\nReferences: {References}'
+    
     isEnabled = False
 
     def fitSeries(self, inputData:TableFrame, rescale=True, *args, **kwargs) -> TableFrame:
@@ -292,15 +292,15 @@ class OneSiteWithAllostericBindingModel(BindingModelBC):
     The allosteric binding can decrease-increase the main binding event.
     """
     modelName = sv.ONE_SITE_BINDING_ALLOSTERIC_MODEL
-    Info = 'Fit data to using the One Site with allosteric modulator model.'
-    Description = sv.NIY_WARNING
-    References  = sv.NIY_WARNING
+    modelInfo = 'Fit data to using the One Site with allosteric modulator model.'
+    description = sv.NIY_WARNING
+    references  = sv.NIY_WARNING
     # References = '''
     #                 1) A. Christopoulos and T. Kenakin, Pharmacol Rev, 54: 323-374, 2002.
     #               '''
     # MaTex = r''
     Minimiser = _Binding1SiteAllostericMinimiser
-    FullDescription = f'{Info} \n {Description}\nReferences: {References}'
+    
     isEnabled = False
 
     def fitSeries(self, inputData:TableFrame, rescale=True, *args, **kwargs) -> TableFrame:
@@ -318,8 +318,8 @@ class CooperativityBindingModel(BindingModelBC):
     ChemicalShift Analysis: Cooperativity-Binding calculation model
     """
     modelName = sv.COOPERATIVITY_BINDING_MODEL
-    Info = 'Fit data to using the  Cooperativity Binding  model in a saturation binding experiment analysis.'
-    Description = '''
+    modelInfo = 'Fit data to using the  Cooperativity Binding  model in a saturation binding experiment analysis.'
+    description = '''
                     \nModel:
                     Y=Bmax*x^{Hs}/(Kd^{Hs} + x^{Hs}).
                     Bmax: is the maximum specific binding and in the CSM is given by the Relative displacement
@@ -332,29 +332,29 @@ class CooperativityBindingModel(BindingModelBC):
                     Hs > 1: ligand/monomer binds to multiple sites with positive cooperativity.
                     Hs < 0: ligand/monomer binds to multiple sites with variable affinities or negative cooperativity.
                     '''
-    References = '''
+    references = '''
                  1) Model derived from the Hill equation: https://en.wikipedia.org/wiki/Cooperative_binding. 
                  '''
     # MaTex = r'$\frac{B_{Max} * [L]^Hs }{[L]^Hs + K_d^Hs}$'
     Minimiser = _BindingCooperativityMinimiser
-    FullDescription = f'{Info} \n {Description}\nReferences: {References}'
+    
 
 class FractionBindingModel(BindingModelBC):
     """
     ChemicalShift Analysis: FractionBinding fitting Curve calculation model
     """
     modelName = sv.FRACTION_BINDING_MODEL
-    Info = 'Fit data to using the Fraction Binding model.'
-    Description = '''Fitting model for one-site fraction bound in a saturation binding experiment. This model can be used when a large fraction of the ligand binds to the target.
+    modelInfo = 'Fit data to using the Fraction Binding model.'
+    description = '''Fitting model for one-site fraction bound in a saturation binding experiment. This model can be used when a large fraction of the ligand binds to the target.
                     \nModel:
                     Y = BMax * (Kd + x - sqrt((Kd + x)^2 - 4x)) 
                     Bmax: is the maximum specific binding and in the CSM is given by the Relative displacement (Deltas among chemicalShifts).
                     Kd: is the (equilibrium) dissociation constant in the same unit as the Series.
                     The Kd represents the [ligand] required to get a half-maximum binding at equilibrium.
                   '''
-    References  = '1) Model derived from Eq. 6  M.P. Williamson. Progress in Nuclear Magnetic Resonance Spectroscopy 73, 1–16 (2013).'
+    references  = '1) Model derived from Eq. 6  M.P. Williamson. Progress in Nuclear Magnetic Resonance Spectroscopy 73, 1–16 (2013).'
     # MaTex = r'$B_{Max}*(K_d+[L]- \sqrt{(K_d+[L]^2)}-4[L]$'
-    FullDescription = f'{Info} \n {Description}\nReferences: {References}'
+    
     Minimiser = _FractionBindingMinimiser
     isEnabled = True
 
@@ -363,9 +363,9 @@ class FractionBindingWithTargetConcentrModel(BindingModelBC):
     ChemicalShift Analysis: FractionBinding with Target Concentration fitting Curve calculation model
     """
     modelName = sv.FRACTION_BINDING_WITHTARGETMODEL
-    Info = 'Fit data to using the Fraction Binding model.'
-    Description = sv.NIY_WARNING
-    References  = sv.NIY_WARNING
+    modelInfo = 'Fit data to using the Fraction Binding model.'
+    description = sv.NIY_WARNING
+    references  = sv.NIY_WARNING
     # MaTex = ''
     Minimiser = _FractionBindingWitTargetConcentMinimiser
     isEnabled = True

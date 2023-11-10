@@ -42,7 +42,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2023-11-10 16:12:23 +0000 (Fri, November 10, 2023) $"
+__dateModified__ = "$dateModified: 2023-11-10 16:40:19 +0000 (Fri, November 10, 2023) $"
 __version__ = "$Revision: 3.2.0 $"
 #=========================================================================================
 # Created
@@ -71,24 +71,21 @@ from ccpn.framework.Application import getApplication, getProject
 
 class FittingModelABC(ABC):
 
-    modelName                  = None                       # The Model name.
-    TargetSeriesAnalyses  = []                              # A list of Series Analysis Names where this model will be available. E.G.: [sv.RelaxationAnalysis,... ]
-    Info                               = ''                               # A brief description of the fitting model.
-    Description                   = ''                                # A simplified representation of the used equation(s).
-    MaTex                          = r''                              # MaTex representation of the used equation(s). see https://matplotlib.org/3.5.0/tutorials/text/mathtext.html
-    References                   = ''                               # A list of journal article references. E.g.: DOIs or title/authors/year/journal; web-pages.
-    Minimiser                      = None                        # The fitting minimiser model object (initiated)
-    FullDescription              = f'{Info} \n {Description}\nSee References: {References}'
-    PeakProperty                = sv._HEIGHT             # The peak property to fit. One of ['height', 'lineWidth', 'volume', 'ppmPosition']
+    modelName                 = None                          # The Model name.
+    targetSeriesAnalyses   = []                                # A list of Series Analysis Names where this model will be available. E.G.: [sv.RelaxationAnalysis,... ]
+    modelInfo                     = ''                                # A brief description of the fitting model.
+    description                   = ''                                # A simplified representation of the used equation(s).
+    maTex                          = r''                              # MaTex representation of the used equation(s). see https://matplotlib.org/3.5.0/tutorials/text/mathtext.html
+    references                   = ''                                # A list of journal article references. E.g.: DOIs or title/authors/year/journal; web-pages.
+    Minimiser                     = None                         # The fitting minimiser model object (initiated)
+    peakProperty               = sv._HEIGHT              # The peak property to fit. One of ['height', 'lineWidth', 'volume', 'ppmPosition']
     _minimisedProperty      = sv._HEIGHT             # Similarly to peakProperty, The same as peakProperty for most of the models.
-                                                                             # Added because models can be fitted using other properties e.g. ratios.  This will appear as  Y label in the fitting plot.
+                                                                             # Added because models can be fitted using any properties (data) e.g. ratios.   This will appear as  Y label in the fitting plot.
     isEnabled                        = True                       # True to enable on the UI and be selected/used
-    RequiredInputData          = 1                            # ensure there is the correct amount of input data. Should also check the types (?)
+    requiredInputData            = 1                           # ensure there is the correct amount of input data. Should also check the types (?)
     _autoRegisterModel        = True                      # Register to the Backend when dynamically loading its Python module from disk
 
-
     def __init__(self, *args, **kwargs):
-
         self.application = getApplication()
         self.project = getProject()
         self._applyScaleMinMax = False
@@ -98,12 +95,15 @@ class FittingModelABC(ABC):
         self._rawDataHeaders = [] # strings of columnHeaders
         self.xSeriesStepHeader = sv.SERIES_STEP_X
         self.ySeriesStepHeader = sv.SERIES_STEP_Y
-        self._ySeriesLabel = self.PeakProperty # this is only used in the Plot Y Axis label.
+        self._ySeriesLabel = self.peakProperty # this is only used in the Plot Y Axis label.
 
-    @property
-    def rawDataHeaders(self):
-        """ The list of rawData Column headers to appear in output frames and tables."""
-        return self._rawDataHeaders
+    @abstractmethod
+    def fitSeries(self, inputData:TableFrame, *args, **kwargs) -> TableFrame:
+        """
+        :param inputData: a TableFrame containing all necessary data for the fitting calculations
+        :return: an output TableFrame with fitted data
+        """
+        pass
 
     @property
     def modelArgumentNames(self):
@@ -124,6 +124,11 @@ class FittingModelABC(ABC):
         return [f'{vv}{sv._ERR}' for vv in self.modelArgumentNames ]
 
     @property
+    def rawDataHeaders(self):
+        """ The list of rawData Column headers to appear in output frames and tables."""
+        return self._rawDataHeaders
+
+    @property
     def modelStatsNames(self):
         """ The list of statistical names used in the minimiser fitting function .
           These names will be used in the models and will appear as column headers in the output result frames. """
@@ -131,24 +136,22 @@ class FittingModelABC(ABC):
             return self.Minimiser.getStatParamNames(self.Minimiser)
         return []
 
-    def getAllArgNames(self):
-        _all = self.modelArgumentNames + self.modelArgumentErrorNames + self.modelStatsNames
-        return _all
+    @staticmethod
+    def getFittingFunc(cls):
+        """Get the Fitting Function used by the Minimiser """
+        if cls.Minimiser is not None:
+            return cls.Minimiser.FITTING_FUNC
 
-    @property
-    def _preferredYPlotArgName(self):
-        """  Private only used in UI mode."""
-        if len(self.modelArgumentNames) >0:
-            return self.modelArgumentNames[0]
-        return None
+    @staticmethod
+    def fullDescription(cls):
+        """A complete description of the model metadata and its journal article references (if any)"""
+        return f'{cls.modelInfo} \n {cls.description}\nSee References: {cls.references}'
 
-    @abstractmethod
-    def fitSeries(self, inputData:TableFrame, *args, **kwargs) -> TableFrame:
-        """
-        :param inputData: a TableFrame containing all necessary data for the fitting calculations
-        :return: an output TableFrame with fitted data
-        """
-        pass
+    def scaleMinMax(self, data):
+        return lf._scaleMinMaxData(data)
+
+    def setMinimiserMethod(self, method:str):
+        self._minimiserMethod = method
 
     def _getFirstInputDataTable(self, inputDataTables):
         """ _INTERNAL. Used to get the first available
@@ -162,20 +165,18 @@ class FittingModelABC(ABC):
         else:
             inputDataTable = inputDataTables[-1]
             getLogger().warning(f'''Multiple dataTable given as InputData.  Using last added: {inputDataTable.pid}''')
-
         return inputDataTable.data
 
-    @staticmethod
-    def getFittingFunc(cls):
-        """Get the Fitting Function used by the Minimiser """
-        if cls.Minimiser is not None:
-            return cls.Minimiser.FITTING_FUNC
+    def _getAllArgNames(self):
+        _all = self.modelArgumentNames + self.modelArgumentErrorNames + self.modelStatsNames
+        return _all
 
-    def scaleMinMax(self, data):
-        return lf._scaleMinMaxData(data)
-
-    def setMinimiserMethod(self, method:str):
-        self._minimiserMethod = method
+    @property
+    def _preferredYPlotArgName(self):
+        """  Private only used in UI mode."""
+        if len(self.modelArgumentNames) >0:
+            return self.modelArgumentNames[0]
+        return None
 
     def __str__(self):
         return f'<{self.__class__.__name__}: {self.modelName}>'

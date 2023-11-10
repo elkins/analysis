@@ -15,7 +15,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2023-11-10 16:12:23 +0000 (Fri, November 10, 2023) $"
+__dateModified__ = "$dateModified: 2023-11-10 16:40:18 +0000 (Fri, November 10, 2023) $"
 __version__ = "$Revision: 3.2.0 $"
 #=========================================================================================
 # Created
@@ -59,12 +59,12 @@ class EuclideanCalculationModel(CalculationModel):
     ChemicalShift Analysis DeltaDeltas shift distance calculation
     """
     modelName = sv.EUCLIDEAN_DISTANCE
-    TargetSeriesAnalyses = [
+    targetSeriesAnalyses = [
                                             sv.ChemicalShiftMappingAnalysis
                                             ]
-    Info        = 'Calculate The DeltaDelta shifts for a series using the average Euclidean Distance.'
+    modelInfo        = 'Calculate The DeltaDelta shifts for a series using the average Euclidean Distance.'
     # MaTex       = r'$\sqrt{\frac{1}{N}\sum_{i=0}^N (\alpha_i*\delta_i)^2}$'
-    Description = f'''Model:
+    description = f'''Model:
                     d = √ 1/N * ∑(𝝰_i * δ_i)^2
                     {sv.uALPHA}: the alpha factor for each atom of interest
                     i: atom type (isotope code per dimension 1H, 15N...)
@@ -72,12 +72,12 @@ class EuclideanCalculationModel(CalculationModel):
                     {sv.uDelta}: delta shift per atom in the series
                     (with ∑ i=1 to N)
                     Note peak assignments are not mandatory for the calculation.'''
-    References  = '''
+    references  = '''
                     1) Eq. (9) M.P. Williamson. Progress in Nuclear Magnetic Resonance Spectroscopy 73, 1–16 (2013).
                     2) Mureddu, L. & Vuister, G. W. Simple high-resolution NMR spectroscopy as a tool in molecular biology.
                        FEBS J. 286, 2035–2042 (2019).
                   '''
-    FullDescription = f'{Info} \n {Description}\nReferences: {References}'
+    
     _minimisedProperty = sv.RELDISPLACEMENT
 
     def __init__(self):

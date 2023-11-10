@@ -15,7 +15,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2023-11-10 16:12:23 +0000 (Fri, November 10, 2023) $"
+__dateModified__ = "$dateModified: 2023-11-10 16:40:18 +0000 (Fri, November 10, 2023) $"
 __version__ = "$Revision: 3.2.0 $"
 #=========================================================================================
 # Created
@@ -72,26 +72,26 @@ class HetNoeCalculation(CalculationModel):
     Calculate HeteroNuclear NOE Values
     """
     modelName = sv.HETNOE
-    TargetSeriesAnalyses = [sv.RelaxationAnalysis]
+    targetSeriesAnalyses = [sv.RelaxationAnalysis]
 
-    Info        = '''Calculate HeteroNuclear NOE Values using peak Intensity (Height or Volume).
+    modelInfo        = '''Calculate HeteroNuclear NOE Values using peak Intensity (Height or Volume).
     Define your series value with 0 for the unsaturated experiment while 
     use the value 1 for the saturated experiment '''
 
-    Description = '''Model:
+    description = '''Model:
                   HnN = I_Sat / I_UnSat
                   Sat = Peak Intensity for the Saturated Spectrum;
                   UnSat = Peak Intensity for the UnSaturated Spectrum, 
                   Value Error calculated as:
                   error = factor * √SNR_Sat^-2 + SNR_UnSat^-2
                   factor = I_Sat/I_UnSat'''
-    References  = '''
+    references  = '''
                 1) Kharchenko, V., et al. Dynamic 15N{1H} NOE measurements: a tool for studying protein dynamics. 
                 J Biomol NMR 74, 707–716 (2020). https://doi.org/10.1007/s10858-020-00346-6
                 '''
     # MaTex       = r'$I_{Sat} / I_{UnSat}$'
-    FullDescription = f'{Info}\n{Description}'
-    PeakProperty = sv._HEIGHT
+    
+    peakProperty = sv._HEIGHT
     _allowedIntensityTypes = (sv._HEIGHT, sv._VOLUME)
     _minimisedProperty = None
     _disableFittingModels = True  # Don't apply any fitting models to this output frame
