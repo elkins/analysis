@@ -378,7 +378,7 @@ class TablePanel(GuiPanel):
 
     def updatePanel(self, *args, **kwargs):
 
-        dataFrame = self.guiModule.backendHandler.getMergedResultDataFrame()
+        dataFrame = self.guiModule.backendHandler.getResultDataFrame()
         self.setInputData(dataFrame)
         # update here the X-Y selectors on the settings. Has to be done here because the mainplot has to be in sync with the table.
         appearance = self.guiModule.settingsPanelHandler.getTab(guiNameSpaces.Label_GeneralAppearance)

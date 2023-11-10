@@ -40,7 +40,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2023-11-09 09:49:32 +0000 (Thu, November 09, 2023) $"
+__dateModified__ = "$dateModified: 2023-11-10 15:58:42 +0000 (Fri, November 10, 2023) $"
 __version__ = "$Revision: 3.2.0 $"
 #=========================================================================================
 # Created
@@ -90,6 +90,7 @@ from ccpn.framework.lib.experimentAnalysis.SeriesTables import RexETAOutputFrame
 import numpy as np
 import pandas as pd
 from scipy import stats
+from ccpn.core.lib.ContextManagers import progressHandler, busyHandler
 
 ## get the objects
 TrosyETAz_SG = get(TrosyETAz_SGpid)
@@ -120,15 +121,6 @@ experimentsDataDict = {
     }
 
 
-def _calculateZRatio(c, t):
-    """
-    :param c: float. peak intensity for the third experiment
-    :param t:  float. experiment time
-    :return: float
-    """
-    z = (1 / t) * np.log(abs(c / t))
-    return z
-
 def _calculateNxyRatio(n, b, t):
     """
     :param n: float. peak intensity for the first experiment
@@ -138,6 +130,30 @@ def _calculateNxyRatio(n, b, t):
     """
     nxy = (1 / (2 * t)) * np.log(abs(n / b))
     return nxy
+
+def _calculateZRatio(n, l, t):
+    """
+    :param c: float. peak intensity for the third experiment
+    :param t:  float. experiment time
+    :return: float
+    """
+    z = (1 / t) * np.log(abs(l / n))
+    return z
+
+def _calculateRexViaTrosy(r2n, r1n, nxy, z):
+    """
+    eq from https://comdnmr.nysbc.org/comd-nmr-dissem/comd-nmr-solution/hahn-echo-15n-trosy-selected
+    or  eq 2 from  Wang, Palmer. Mapping Chemical Exchange in Proteins with MW > 50 kD. J. AM. CHEM. SOC. 2003, 125, 8968-8969.
+
+    :param r2n: float. the 10% trimmed Global R2
+    :param r1n: float. r1 rate per residue
+    :param nxy: float. nxy ratio per residue
+    :param z: float. z ratio per residue
+    :return: float. Rex per residue
+    """
+    k = r2n/nxy # R2 is the global 10%-trimmed mean
+    rex = z - (0.5 * r1n) - ((k-1) * nxy)
+    return rex
 
 ## check all data is in the project
 if not all( spectrumGroups + [sourcePL]):
@@ -251,11 +267,11 @@ for xyA, xyB, z in zip(meanXyAData, meanXyBData, meanZBData):
     zMean = z[1].unique().mean()
     nmrResiduePid = xyA[0]
     nxy = _calculateNxyRatio(xyAmean, xyBmean, tauXy)
-    nz = _calculateZRatio(zMean,  tauZ)
-
+    nz = _calculateZRatio(xyAmean, zMean, tauZ)
+    k = trimmedR2 / nxy
     r1Value = r1Data[r1Data[sv.NMRRESIDUEPID] == nmrResiduePid][sv.RATE].values[0]
-    r2Ex = backend.currentCalculationModel._calculateRexViaTrosy(trimmedR2, r1Value, nxy, nz)
-    print(nmrResiduePid, r2Ex)
+    r2Ex = _calculateRexViaTrosy(trimmedR2, r1Value, nxy, nz)
+    print(nmrResiduePid, f'nxy: {nxy}, nz: {nz}, k: {k},   r2Ex: {r2Ex}')
     rexs.append(r2Ex)
 
 

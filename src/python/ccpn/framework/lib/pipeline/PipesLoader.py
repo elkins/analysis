@@ -4,7 +4,7 @@ import os
 from ccpn.util.Logging import getLogger
 
 def loadPipeSysModules(paths):
-    """"
+    """
     dynamic pipe importer. Called upon initialisation of the program for loading the registered ccpn Pipes.
     Path = path of the top dir containing the pipes files.
     Users pipes are loaded only when opening a Gui Pipeline.

@@ -42,7 +42,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2023-11-09 09:49:31 +0000 (Thu, November 09, 2023) $"
+__dateModified__ = "$dateModified: 2023-11-10 15:58:41 +0000 (Fri, November 10, 2023) $"
 __version__ = "$Revision: 3.2.0 $"
 #=========================================================================================
 # Created
@@ -69,14 +69,10 @@ import ccpn.framework.lib.experimentAnalysis.SeriesAnalysisVariables as sv
 from ccpn.framework.Application import getApplication, getProject
 
 
-# pd.set_option('display.max_columns', None)  # or 1\000
-# pd.set_option('display.max_rows', 50)  # or 1000
-
-
-
 class FittingModelABC(ABC):
 
-    ModelName                  = 'ModelName'           # The Model name.
+    ModelName                  = None                       # The Model name.
+    TargetSeriesAnalyses  = []                              # A list of Series Analysis Names where this model will be available. E.G.: [sv.RelaxationAnalysis,... ]
     Info                               = ''                               # A brief description of the fitting model.
     Description                   = ''                                # A simplified representation of the used equation(s).
     MaTex                          = r''                              # MaTex representation of the used equation(s). see https://matplotlib.org/3.5.0/tutorials/text/mathtext.html
@@ -86,8 +82,10 @@ class FittingModelABC(ABC):
     PeakProperty                = sv._HEIGHT             # The peak property to fit. One of ['height', 'lineWidth', 'volume', 'ppmPosition']
     _minimisedProperty      = sv._HEIGHT             # Similarly to peakProperty, The same as peakProperty for most of the models.
                                                                              # Added because models can be fitted using other properties e.g. ratios.  This will appear as  Y label in the fitting plot.
-    isEnabled                        = True                       # True to enable on the GUI and be selected/used
+    isEnabled                        = True                       # True to enable on the UI and be selected/used
     RequiredInputData          = 1                            # ensure there is the correct amount of input data. Should also check the types (?)
+    _autoRegisterModel        = True                      # Register to the Backend when dynamically loading its Python module from disk
+
 
     def __init__(self, *args, **kwargs):
 
@@ -152,7 +150,7 @@ class FittingModelABC(ABC):
         """
         pass
 
-    def _getFirstData(self, inputDataTables):
+    def _getFirstInputDataTable(self, inputDataTables):
         """ _INTERNAL. Used to get the first available
         data from a dataTable for models that require only one dataFrame as input"""
 
@@ -183,36 +181,6 @@ class FittingModelABC(ABC):
         return f'<{self.__class__.__name__}: {self.ModelName}>'
 
     __repr__ = __str__
-
-
-class CalculationModel(FittingModelABC):
-    """
-    Calculation model for Series Analysis
-    """
-
-    ModelName   = 'Calculation'     ## The Model name.
-    Info        = 'the info'        ## A brief description of the fitting model.
-    Description = 'Description'     ## A simplified representation of the used equation(s).
-    MaTex       = r''               ## MaTex representation of the used equation(s). see https://matplotlib.org/3.5.0/tutorials/text/mathtext.html
-    References  = 'References'      ## A list of journal article references that help to identify the employed calculation equations. E.g.: DOIs or title/authors/year/journal; web-pages.
-    _disableFittingModels = False  # If True, a fitting models are not applied to the resulting calculation mode. E.g. for R2/R1 Model
-    RequiredInputData = 1
-    _minimisedProperty = None
-
-
-    @abstractmethod
-    def calculateValues(self, inputDataTables) -> TableFrame:
-        """
-        Calculate the required values for an input SeriesTable.
-        This method must be overridden in subclass'.
-        Return one row for each collection pid. Index by collection pid
-        :param inputDataTables: list of DataTables
-        :return: outputFrame
-        """
-        raise RuntimeError('This method must be overridden in subclass')
-
-    def fitSeries(self, inputData:TableFrame, *args, **kwargs) -> TableFrame:
-        raise RuntimeError('This method cannot be used in this class. Use calculateValues instead ')
 
 
 class MinimiserModel(Model):

@@ -80,6 +80,8 @@ macroPath                       = ccpnPythonPath / 'macros'
 pluginPath                      = ccpnPythonPath / 'plugins'
 pipePath                        = ccpnPythonPath / 'pipes'
 pipeTemplates                   = ccpnPythonPath / 'framework' / 'lib' / 'pipeline' / 'templates'
+ccpnExperimentAnalysisPath  = ccpnPythonPath / 'framework' / 'lib' / 'experimentAnalysis'
+
 widgetsPath                     = ccpnGUIPath / 'widgets'
 fontsPath                       = widgetsPath    / 'fonts'
 iconsPath                       = widgetsPath    / 'icons'
@@ -117,6 +119,8 @@ userCcpnDataPath                = userCcpnPath / 'data'
 userCcpnMacroPath               = userCcpnPath / 'macro'
 userCcpnPipesPath               = userCcpnPath / 'pipes'
 userCcpnResourcesPath               = userCcpnPath / CCPN_RESOURCES_DIRECTORY
+USER_EXPERIMENTANALYSIS_MODELS = 'experimentAnalysisModels'
+
 userCcpnPathSubDirectories      = ['data', 'macros', 'pipes']  # These get created by framework
 
 userDefaultProjectPath          = userCcpnDataPath / 'default.ccpn'
@@ -136,7 +140,7 @@ CCPN_SUB_DIRECTORIES = [
     CCPN_SUMMARIES_DIRECTORY, CCPN_LOGS_DIRECTORY, CCPN_DATA_DIRECTORY,
     CCPN_PLUGINS_DIRECTORY, CCPN_SPECTRA_DIRECTORY, CCPN_SCRIPTS_DIRECTORY,
     CCPN_STATE_DIRECTORY, CCPN_STATESPECTRA_DIRECTORY, CCPN_RESOURCES_DIRECTORY,
-    CCPN_PLOTS_DIRECTORY
+    CCPN_PLOTS_DIRECTORY,
 ]
 
 ccpnVersionHistory = 'versionHistory.json'

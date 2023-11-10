@@ -15,7 +15,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2023-11-09 09:49:31 +0000 (Thu, November 09, 2023) $"
+__dateModified__ = "$dateModified: 2023-11-10 15:58:41 +0000 (Fri, November 10, 2023) $"
 __version__ = "$Revision: 3.2.0 $"
 #=========================================================================================
 # Created
@@ -29,38 +29,10 @@ __date__ = "$Date: 2022-02-02 14:08:56 +0000 (Wed, February 02, 2022) $"
 import numpy as np
 from ccpn.core.DataTable import TableFrame
 import ccpn.framework.lib.experimentAnalysis.SeriesAnalysisVariables as sv
-from ccpn.framework.lib.experimentAnalysis.fittingModels.FittingModelABC import FittingModelABC, MinimiserModel, MinimiserResult,\
-    CalculationModel
+from ccpn.framework.lib.experimentAnalysis.fittingModels.FittingModelABC import FittingModelABC, MinimiserModel, MinimiserResult
 from ccpn.util.Logging import getLogger
 import ccpn.framework.lib.experimentAnalysis.fittingModels.fitFunctionsLib as lf
 
-
-class BlankCalculationModel(CalculationModel):
-    """
-    Blank Calculation model for Series Analysis
-    """
-
-    ModelName = sv.BLANKMODELNAME
-    Info = 'Blank Model'
-    Description = 'A blank model containing no calculation. This will show only raw data.'
-    _minimisedProperty = None
-
-    def calculateValues(self, inputDataTables):
-        """Return a frame with Collection Pids and value/error as Nones"""
-        inputData = self._getFirstData(inputDataTables)
-        outputFrame = inputData[inputData[sv.ISOTOPECODE] == inputData[sv.ISOTOPECODE].iloc[0]]
-        outputFrame.loc[outputFrame.index, self.modelArgumentNames] = None
-        return outputFrame
-
-    @property
-    def modelArgumentNames(self):
-        """ The list of parameters as str used in the calculation model.
-          These names will appear as column headers in the output result frames. """
-        return [sv.VALUE, sv.VALUE_ERR]
-
-
-
-##### Fitting Model
 
 class BlankMinimiser(MinimiserModel):
     """
@@ -93,8 +65,15 @@ class BlankFittingModel(FittingModelABC):
     Blank model which fits a blank function!. Used as space-holder/example
     """
     ModelName = sv.BLANKMODELNAME
+    TargetSeriesAnalyses = [sv.RelaxationAnalysis,
+                                            sv.JCouplingAnalysis,
+                                            sv.RDCAnalysis,
+                                            sv.PREAnalysis,
+                                            sv.PCSAnalysis
+                                            ]
+
     Info = 'Fit data to using the Blank model.'
-    Description = ' ... '
+    Description = ' An empty model used as a placeholder. Does not fit any data.'
     References = ''' None
                 '''
     MaTex = ''

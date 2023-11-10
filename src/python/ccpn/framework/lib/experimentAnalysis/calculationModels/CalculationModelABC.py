@@ -1,5 +1,6 @@
 """
-The  JCoupling Analysis  backend  module.
+This module defines base classes for Series Analysis Calculation Models
+
 """
 #=========================================================================================
 # Licence, Reference and Credits
@@ -22,22 +23,41 @@ __version__ = "$Revision: 3.2.0 $"
 #=========================================================================================
 __author__ = "$Author: Luca Mureddu $"
 __date__ = "$Date: 2022-02-02 14:08:56 +0000 (Wed, February 02, 2022) $"
+
+from abc import abstractmethod
+from ccpn.core.DataTable import TableFrame
+from ccpn.framework.lib.experimentAnalysis.fittingModels.FittingModelABC import FittingModelABC
+
+
 #=========================================================================================
 # Start of code
 #=========================================================================================
 
-import ccpn.framework.lib.experimentAnalysis.SeriesAnalysisVariables as sv
-from ccpn.framework.lib.experimentAnalysis.backends.SeriesAnalysisABC import SeriesAnalysisABC
-
-
-class JCouplingAnalysisBC(SeriesAnalysisABC):
+class CalculationModel(FittingModelABC):
     """
-    JCoupling Analysis  backend  module.
+    Calculation model for Series Analysis
     """
-    seriesAnalysisName = sv.JCouplingAnalysis
-    _allowedPeakProperties = [sv._HEIGHT, sv._VOLUME]
 
-    def __init__(self):
-        super().__init__()
-        raise RuntimeError('No Calculation Models have been implemented yet for this backend')
+    ModelName   = 'Calculation'     ## The Model name.
+    Info        = 'the info'        ## A brief description of the fitting model.
+    Description = 'Description'     ## A simplified representation of the used equation(s).
+    MaTex       = r''               ## MaTex representation of the used equation(s). see https://matplotlib.org/3.5.0/tutorials/text/mathtext.html
+    References  = 'References'      ## A list of journal article references that help to identify the employed calculation equations. E.g.: DOIs or title/authors/year/journal; web-pages.
+    _disableFittingModels = False  # If True, a fitting models are not applied to the resulting calculation mode. E.g. for R2/R1 Model
+    RequiredInputData = 1
+    _minimisedProperty = None
 
+
+    @abstractmethod
+    def calculateValues(self, inputDataTables) -> TableFrame:
+        """
+        Calculate the required values for an input SeriesTable.
+        This method must be overridden in subclass'.
+        Return one row for each collection pid. Index by collection pid
+        :param inputDataTables: list of DataTables
+        :return: outputFrame
+        """
+        raise RuntimeError('This method must be overridden in subclass')
+
+    def fitSeries(self, inputData:TableFrame, *args, **kwargs) -> TableFrame:
+        raise RuntimeError('This method cannot be used in this class. Use calculateValues instead ')

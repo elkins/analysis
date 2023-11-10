@@ -17,7 +17,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2023-11-09 09:49:31 +0000 (Thu, November 09, 2023) $"
+__dateModified__ = "$dateModified: 2023-11-10 15:58:41 +0000 (Fri, November 10, 2023) $"
 __version__ = "$Revision: 3.2.0 $"
 #=========================================================================================
 # Created
@@ -217,7 +217,7 @@ def exponentialDecay_func(x, decay=1, amplitude=1):
 
     return amplitude * np.exp(-x / decay)
 
-def onePhaseDecay_func(x, rate=1, amplitude=1):
+def onePhaseDecay_func(x, rate=1.0, amplitude=1.0):
     """ Function used to describe the  decay rate in an exponential decay model
     rate is the rate constant, expressed in reciprocal of the X axis time units.
      If X is in seconds, then rate is expressed in inverse seconds, (Spower-1)
@@ -236,7 +236,7 @@ def onePhaseDecayPlateau_func(x, rate=1, amplitude=1, plateau=0):
     result = (amplitude - plateau) * np.exp(-rate * x) + plateau
     return result
 
-def exponential_func(x, amplitude, decay):
+def exponentialGrowth_func(x, amplitude, decay):
     return amplitude * np.exp(decay * x)
 
 def blank_func(x, argA, argB):
@@ -264,22 +264,6 @@ def r2_func(y, redchi):
         r2 = 1 - redchi / var
         return r2
 
-def euclideanDistance_func(array1, array2, alphaFactors):
-    """
-    Calculate the  Euclidean Distance of two set of coordinates using scaling factors. Used in CSM DeltaDeltas
-    :param array1: (1d array), coordinate 1
-    :param array2: (1d array), coordinate 2 of same shape of array1
-    :param alphaFactors: the scaling factors.  same shape of array1 and 2.
-    :return: float
-    Ref.: Eq.(9) from: M.P. Williamson Progress in Nuclear Magnetic Resonance Spectroscopy 73 (2013) 1–16
-    """
-    deltas = []
-    for a, b, factor in zip(array1, array2, alphaFactors):
-        delta = a - b
-        delta *= factor
-        delta **= 2
-        deltas.append(delta)
-    return np.sqrt(np.mean(np.array(deltas)))
 
 def _checkValidValues(values):
     """
@@ -390,7 +374,3 @@ def aad(data, axis=None):
     """The mean absolute deviation. Do not confuse with the median absolute difference. """
     return np.mean(np.absolute(data - np.mean(data, axis)), axis)
 
-############################################################
-############### Spectral density mapping functions ################
-############################################################
-# see experimentAnalysis/spectralDensityLib.py

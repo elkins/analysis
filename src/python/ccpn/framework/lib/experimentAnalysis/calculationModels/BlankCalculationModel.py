@@ -1,5 +1,5 @@
 """
-The  JCoupling Analysis  backend  module.
+This module defines Blank Models for Series Analysis
 """
 #=========================================================================================
 # Licence, Reference and Credits
@@ -27,17 +27,40 @@ __date__ = "$Date: 2022-02-02 14:08:56 +0000 (Wed, February 02, 2022) $"
 #=========================================================================================
 
 import ccpn.framework.lib.experimentAnalysis.SeriesAnalysisVariables as sv
-from ccpn.framework.lib.experimentAnalysis.backends.SeriesAnalysisABC import SeriesAnalysisABC
+from ccpn.framework.lib.experimentAnalysis.fittingModels.FittingModelABC import FittingModelABC, MinimiserModel, MinimiserResult
+from ccpn.framework.lib.experimentAnalysis.calculationModels.CalculationModelABC import CalculationModel
 
 
-class JCouplingAnalysisBC(SeriesAnalysisABC):
+class BlankCalculationModel(CalculationModel):
     """
-    JCoupling Analysis  backend  module.
+    Blank Calculation model for Series Analysis
     """
-    seriesAnalysisName = sv.JCouplingAnalysis
-    _allowedPeakProperties = [sv._HEIGHT, sv._VOLUME]
 
-    def __init__(self):
-        super().__init__()
-        raise RuntimeError('No Calculation Models have been implemented yet for this backend')
+    ModelName = sv.BLANKMODELNAME
+    TargetSeriesAnalyses = [sv.RelaxationAnalysis,
+                                            sv.JCouplingAnalysis,
+                                            sv.RDCAnalysis,
+                                            sv.PREAnalysis,
+                                            sv.PCSAnalysis
+                                            ]
+    Info = 'Blank Model'
+    Description = 'A blank model containing no calculation. This will show only raw data.'
+    _minimisedProperty = None
+
+    def calculateValues(self, inputDataTables):
+        """Return a frame with Collection Pids and value/error as Nones"""
+        inputData = self._getFirstInputDataTable(inputDataTables)
+        if inputData is None:
+            return # should these better return an empty table
+        if len(inputData) == 0 or sv.ISOTOPECODE not in inputData.columns:
+            return inputData
+        outputFrame = inputData[inputData[sv.ISOTOPECODE] == inputData[sv.ISOTOPECODE].iloc[0]]
+        outputFrame.loc[outputFrame.index, self.modelArgumentNames] = None
+        return outputFrame
+
+    @property
+    def modelArgumentNames(self):
+        """ The list of parameters as str used in the calculation model.
+          These names will appear as column headers in the output result frames. """
+        return [sv.VALUE, sv.VALUE_ERR]
 

@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2023-11-09 09:49:30 +0000 (Thu, November 09, 2023) $"
+__dateModified__ = "$dateModified: 2023-11-10 15:58:40 +0000 (Fri, November 10, 2023) $"
 __version__ = "$Revision: 3.2.0 $"
 #=========================================================================================
 # Created
@@ -225,21 +225,20 @@ _peakPidHeaders             = '_peakPidHeaders'
 _isSeriesAscending = '_isSeriesAscending'
 _SpectrumPropertiesHeaders = 'spectrumPropertiesHeaders'
 
-
 OUTPUT_SERIESFRAME_TYPES = [
                     CSM_OUTPUT_FRAME,
                     RELAXATION_OUTPUT_FRAME,
                     ]
-
-
 
 ############################################################################################
 ### Used in SeriesAnalyisBC
 ############################################################################################
 ChemicalShiftMappingAnalysis = 'ChemicalShiftMappingAnalysis'  # used in SeriesName for the ChemicalShiftMappingAnalysis
 RelaxationAnalysis = 'RelaxationAnalysis'                      # used in SeriesName for the RelaxationAnalysis
-JCoupling = 'JCoupling'
-RDC = 'RDC'
+JCouplingAnalysis = 'JCouplingAnalysis'
+RDCAnalysis = 'RDCAnalysis'
+PCSAnalysis = 'PseudoContactShiftAnalysis'
+PREAnalysis = 'ParamagneticRelaxationEnhancementAnalysis'
 
 ## Series Units
 SERIES_TIME_UNITS = constants.TIME_UNITS

@@ -19,9 +19,9 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2023-10-30 16:30:59 +0000 (Mon, October 30, 2023) $"
-__version__ = "$Revision: 3.2.1 $"
+__modifiedBy__ = "$modifiedBy: Luca Mureddu $"
+__dateModified__ = "$dateModified: 2023-11-10 15:58:42 +0000 (Fri, November 10, 2023) $"
+__version__ = "$Revision: 3.2.0 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -543,6 +543,12 @@ class Path(_Path_):
 #=========================================================================================
 # Functions
 #=========================================================================================
+def scandirs(dirname):
+    """ Recursively find all subdirs"""
+    subfolders = [f.path for f in os.scandir(dirname) if f.is_dir()]
+    for dirname in list(subfolders):
+        subfolders.extend(scandirs(dirname))
+    return subfolders
 
 def _rmdirs(path):
     """Recursively delete path and contents; maybe not very fast

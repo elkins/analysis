@@ -15,7 +15,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2023-11-09 09:49:31 +0000 (Thu, November 09, 2023) $"
+__dateModified__ = "$dateModified: 2023-11-10 15:58:40 +0000 (Fri, November 10, 2023) $"
 __version__ = "$Revision: 3.2.0 $"
 #=========================================================================================
 # Created
@@ -28,20 +28,15 @@ __date__ = "$Date: 2022-02-02 14:08:56 +0000 (Wed, February 02, 2022) $"
 
 import ccpn.framework.lib.experimentAnalysis.SeriesAnalysisVariables as sv
 from ccpn.framework.lib.experimentAnalysis.backends.SeriesAnalysisABC import SeriesAnalysisABC
-from ccpn.framework.lib.experimentAnalysis.fittingModels.others.BlankModels import BlankFittingModel
-from ccpn.framework.lib.experimentAnalysis.calculationModels.others.BlankCalculationModel import BlankCalculationModel
 
 class RDCAnalysisBC(SeriesAnalysisABC):
     """
-    RDC Analysis  backend  module.
+    RDC. Residual Dipolar Coupling Analysis  backend  module.
     """
-    seriesAnalysisName = sv.RDC
+    seriesAnalysisName = sv.RDCAnalysis
     _allowedPeakProperties = [sv._HEIGHT, sv._VOLUME]
 
     def __init__(self):
         super().__init__()
-        self.fittingModels = self._registerModels([BlankFittingModel])
-        self.calculationModels = self._registerModels([BlankCalculationModel])
-
         raise RuntimeError('No Calculation Models have been implemented yet for this backend')
 

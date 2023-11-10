@@ -1,5 +1,5 @@
 """
-The  JCoupling Analysis  backend  module.
+ PCS. Pseudo Contact Shift  Analysis  backend  module.
 """
 #=========================================================================================
 # Licence, Reference and Credits
@@ -29,12 +29,11 @@ __date__ = "$Date: 2022-02-02 14:08:56 +0000 (Wed, February 02, 2022) $"
 import ccpn.framework.lib.experimentAnalysis.SeriesAnalysisVariables as sv
 from ccpn.framework.lib.experimentAnalysis.backends.SeriesAnalysisABC import SeriesAnalysisABC
 
-
-class JCouplingAnalysisBC(SeriesAnalysisABC):
+class PCSAnalysisBC(SeriesAnalysisABC):
     """
-    JCoupling Analysis  backend  module.
+    PCS. Pseudo Contact Shift  Analysis  backend  module.
     """
-    seriesAnalysisName = sv.JCouplingAnalysis
+    seriesAnalysisName = sv.PCSAnalysis
     _allowedPeakProperties = [sv._HEIGHT, sv._VOLUME]
 
     def __init__(self):

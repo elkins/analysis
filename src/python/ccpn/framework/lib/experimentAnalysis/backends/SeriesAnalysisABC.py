@@ -40,6 +40,9 @@ from ccpn.framework.Application import getApplication, getCurrent, getProject
 from ccpn.framework.lib.experimentAnalysis.SeriesTables import SeriesFrameBC, InputSeriesFrameBC
 import ccpn.framework.lib.experimentAnalysis.fittingModels.fitFunctionsLib as lf
 import ccpn.framework.lib.experimentAnalysis.SeriesAnalysisVariables as sv
+from ccpn.framework.PathsAndUrls import ccpnExperimentAnalysisPath
+from ccpn.util.Path import aPath, scandirs
+from ccpn.util.Common import loadModules
 
 
 class SeriesAnalysisABC(ABC):
@@ -49,6 +52,8 @@ class SeriesAnalysisABC(ABC):
     seriesAnalysisName = ''
     _allowedPeakProperties = [sv._HEIGHT, sv._VOLUME, sv._PPMPOSITION, sv._LINEWIDTH]
     _minimisedProperty = None  # the property currently used to perform the fitting routines. Default height, but can be anything.
+    _modelsAreLoaded = False
+    _loadedModels = set()
 
     @property
     def inputDataTables(self) -> list:
@@ -122,15 +127,16 @@ class SeriesAnalysisABC(ABC):
         dataTable.setMetadata(sv.SERIESFRAMETYPE,  sv.SERIESANALYSISOUTPUTDATA)
         return dataTable
 
-    def getMergedResultDataFrame(self):
-        """Get the SelectedOutputDataTable  merged  by the collection pid
+    def getResultDataFrame(self) -> pd.DataFrame:
+        """
+        Get the SelectedOutputDataTable and merge rows by the collection pid
         """
         dataTable = self.resultDataTable
         if dataTable is None:
-            return
+            return pd.DataFrame()
         dataFrame = dataTable.data
         if len(dataFrame)==0:
-            return
+            return pd.DataFrame()
         if not sv.COLLECTIONPID in dataFrame:
             return dataFrame
         ## group by id and keep only first row as all duplicated except the series steps, which are not needed here.
@@ -315,8 +321,9 @@ class SeriesAnalysisABC(ABC):
         """ The working fittingModel in the module.
          E.g.: the initiated ExponentialDecayModel. See models for docs. """
         if self._currentFittingModel is None:
-            getLogger().warn('Fitting Model not set.')
-            return
+            model = self._getFirstModel(self.fittingModels)
+            getLogger().warn(f'Fitting Model not set. Fetched the first available: {model.ModelName}')
+            return model()
         return self._currentFittingModel
 
     @currentFittingModel.setter
@@ -328,25 +335,72 @@ class SeriesAnalysisABC(ABC):
         """ The working CalculationModel in the module.
         E.g.: the initiated EuclidianModel for ChemicalshiftMapping. See models for docs. """
         if self._currentCalculationModel is None:
-            getLogger().warn('CalculationModel not set.')
-            return
+            model = self._getFirstModel(self.calculationModels)
+            getLogger().warn(f'Calculation Model not set. Fetched the first available: {model.ModelName}')
+            return model()
         return self._currentCalculationModel
 
     @currentCalculationModel.setter
     def currentCalculationModel(self, model):
         self._currentCalculationModel = model
 
+    def _loadModelsFromDisk(self):
+        """ Inspect the directory and search for importable modules """
+        import inspect as _inspect
+        from ccpn.framework.lib.experimentAnalysis.fittingModels.FittingModelABC import FittingModelABC
+        from ccpn.framework.lib.experimentAnalysis.calculationModels.CalculationModelABC import CalculationModel
+
+        if self._modelsAreLoaded:
+            return
+        fittingModelsPath = aPath(ccpnExperimentAnalysisPath) / 'fittingModels'
+        calculationModelsPath = aPath(ccpnExperimentAnalysisPath) / 'calculationModels'
+        # userModels = ''to be done'
+        fittingModelsSubDirPaths = scandirs(fittingModelsPath)
+        calculationModelsSubDirPaths = scandirs(calculationModelsPath)
+
+        allModelsFilePaths = fittingModelsSubDirPaths + calculationModelsSubDirPaths
+        pythonModules = loadModules(allModelsFilePaths) # this does the physical loading of the files to Python-Modules
+        for pythonModule in pythonModules:
+            try:
+                for i, obj in _inspect.getmembers(pythonModule): # this scans for the right classes within the Python-Module
+                    if _inspect.isclass(obj):
+                        if issubclass(obj,  (FittingModelABC, CalculationModel)):
+                            if self.seriesAnalysisName not in obj.TargetSeriesAnalyses:
+                                continue # skip
+                            if not obj._autoRegisterModel:
+                                continue
+                            if not obj.ModelName:
+                                continue
+                            SeriesAnalysisABC._loadedModels.add(obj)
+
+            except Exception as loadingError: # Not encountered any so far. but just in case
+                getLogger().warn(f'Error in registering the class from {pythonModule}. Skipping with: {loadingError} ')
+        self._modelsAreLoaded = True
+
+    def _registerModels(self):
+        """ Register all the available models"""
+        from ccpn.framework.lib.experimentAnalysis.fittingModels.BlankModels import BlankFittingModel
+        from ccpn.framework.lib.experimentAnalysis.calculationModels.BlankCalculationModel import BlankCalculationModel
+        self.registerModel(BlankFittingModel)
+        self.registerModel(BlankCalculationModel)
+        for model in self._loadedModels:
+            self.registerModel(model)
+
     def registerModel(self, model):
         """
         A method to register a Model object, either FittingModel or CalculationModel.
         See the FittingModelABC for more information
         """
-        from ccpn.framework.lib.experimentAnalysis.fittingModels.FittingModelABC import FittingModelABC, CalculationModel
+        from ccpn.framework.lib.experimentAnalysis.fittingModels.FittingModelABC import FittingModelABC
+        from ccpn.framework.lib.experimentAnalysis.calculationModels.CalculationModelABC import CalculationModel
+
         if issubclass(model, CalculationModel):
             self.calculationModels.update({model.ModelName: model})
             return
-        if issubclass(model, FittingModelABC):
+        elif issubclass(model, FittingModelABC):
             self.fittingModels.update({model.ModelName: model})
+        else:
+            getLogger().warn(f'The given model type could not be identified. Skipping: {model} ')
         return
 
     def deRegisterModel(self, model):
@@ -505,14 +559,6 @@ class SeriesAnalysisABC(ABC):
         """
         pass
 
-    def _registerModels(self, models):
-        """Register multiple models in the main class """
-        dd = {}
-        for model in models:
-            self.registerModel(model)
-            dd[model.ModelName] = model
-        return dd
-
     def _getSeriesStepValues(self):
         """ Get the series values from the first input SpectrumGroups"""
 
@@ -566,6 +612,8 @@ class SeriesAnalysisABC(ABC):
         self._needsRefitting = False
         self._needsRebuildingInputDataTables = False
         self._exclusionHandler = ExclusionHandler()
+        self._loadModelsFromDisk()
+        self._registerModels()
 
     def close(self):
         # self.exclusionHandler.save()

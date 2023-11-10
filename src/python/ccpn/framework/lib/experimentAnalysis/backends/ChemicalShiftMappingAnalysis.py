@@ -15,7 +15,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2023-11-09 09:49:30 +0000 (Thu, November 09, 2023) $"
+__dateModified__ = "$dateModified: 2023-11-10 15:58:40 +0000 (Fri, November 10, 2023) $"
 __version__ = "$Revision: 3.2.0 $"
 #=========================================================================================
 # Created
@@ -30,8 +30,8 @@ __date__ = "$Date: 2022-02-02 14:08:56 +0000 (Wed, February 02, 2022) $"
 from ccpn.util.Logging import getLogger
 from ccpn.framework.lib.experimentAnalysis.backends.SeriesAnalysisABC import SeriesAnalysisABC
 import ccpn.framework.lib.experimentAnalysis.SeriesAnalysisVariables as sv
-from ccpn.framework.lib.experimentAnalysis.fittingModels.binding.CSMappingModels import FittingModels, CalculationModels, EuclideanCalculationModel
-
+from ccpn.framework.lib.experimentAnalysis.fittingModels.binding.SaturationModels import FittingModels
+from ccpn.framework.lib.experimentAnalysis.calculationModels.binding.CSMappingCalculationModels import EuclideanCalculationModel
 
 class ChemicalShiftMappingAnalysisBC(SeriesAnalysisABC):
     """
@@ -48,8 +48,6 @@ class ChemicalShiftMappingAnalysisBC(SeriesAnalysisABC):
         self._alphaFactors = sv.DEFAULT_ALPHA_FACTORS
         self._excludedResidueTypes = sv.DEFAULT_EXCLUDED_RESIDUES
         self._untraceableValue = 1.0  # default value for replacing NaN values in the DeltaDeltas column
-        self.fittingModels = self._registerModels(FittingModels)
-        self.calculationModels = self._registerModels(CalculationModels)
         fittingModel = self._getFirstModel(self.fittingModels)
         calculationModel = self._getFirstModel(self.calculationModels)
         if fittingModel:

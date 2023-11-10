@@ -15,7 +15,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2023-11-09 09:49:31 +0000 (Thu, November 09, 2023) $"
+__dateModified__ = "$dateModified: 2023-11-10 15:58:40 +0000 (Fri, November 10, 2023) $"
 __version__ = "$Revision: 3.2.0 $"
 #=========================================================================================
 # Created
@@ -28,8 +28,6 @@ __date__ = "$Date: 2022-02-02 14:08:56 +0000 (Wed, February 02, 2022) $"
 
 import ccpn.framework.lib.experimentAnalysis.SeriesAnalysisVariables as sv
 from ccpn.framework.lib.experimentAnalysis.backends.SeriesAnalysisABC import SeriesAnalysisABC
-from ccpn.framework.lib.experimentAnalysis.fittingModels.relaxation.RelaxationModels import FittingModels, CalculationModels
-from ccpn.framework.lib.experimentAnalysis.fittingModels.others.BlankModels import BlankFittingModel, BlankCalculationModel
 
 class RelaxationAnalysisBC(SeriesAnalysisABC):
     """
@@ -41,17 +39,4 @@ class RelaxationAnalysisBC(SeriesAnalysisABC):
 
     def __init__(self):
         super().__init__()
-        self.fittingModels = self._registerModels([BlankFittingModel] + FittingModels)
-        self.calculationModels = self._registerModels([BlankCalculationModel] + CalculationModels)
-        fittingModel = self.getFittingModelByName(sv.OnePhaseDecay) or self._getFirstModel(self.fittingModels)
-        calculationModel = self._getFirstModel(self.calculationModels)
-        if fittingModel:
-            self._currentFittingModel = fittingModel()
-        if calculationModel:
-            self._currentCalculationModel = calculationModel()
 
-    def fitInputData(self):
-        """
-        Perform calculation using the currentFittingModel and currentCalculationModel
-        """
-        return super().fitInputData()
