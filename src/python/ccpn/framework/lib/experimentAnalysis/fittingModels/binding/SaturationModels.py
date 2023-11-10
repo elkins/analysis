@@ -15,7 +15,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2023-11-10 16:40:19 +0000 (Fri, November 10, 2023) $"
+__dateModified__ = "$dateModified: 2023-11-10 17:12:50 +0000 (Fri, November 10, 2023) $"
 __version__ = "$Revision: 3.2.0 $"
 #=========================================================================================
 # Created
@@ -38,6 +38,165 @@ import ccpn.framework.lib.experimentAnalysis.fittingModels.fitFunctionsLib as lf
 
 
 
+## -----------------------     Saturation Minimisers       -----------------------      ##
+
+class _Binding1SiteMinimiser(MinimiserModel):
+    """A model based on the oneSiteBindingCurve Fitting equation.
+    """
+    FITTING_FUNC = lf.oneSiteBinding_func
+    MODELNAME = '1_Site_Binding_Model'
+    KD = sv.KD # They must be exactly as they are defined in the FITTING_FUNC arguments! This was too hard to change!
+    BMAX = sv.BMAX
+    defaultParams = {KD:1,
+                     BMAX:0.5}
+
+    def __init__(self, independent_vars=['x'], prefix='', nan_policy=sv.OMIT_MODE, **kwargs):
+        kwargs.update({'prefix': prefix, 'nan_policy': nan_policy, 'independent_vars': independent_vars})
+        super().__init__(_Binding1SiteMinimiser.FITTING_FUNC, **kwargs)
+        self.name = self.MODELNAME
+        self.params = self.make_params(**_Binding1SiteMinimiser.defaultParams)
+
+    def guess(self, data, x, **kws):
+        """
+        :param data: y values 1D array
+        :param x: the x axis values. 1D array
+        :param kws:
+        :return: dict of params needed for the fitting
+        """
+        params = self.params
+        minKD = np.min(x)
+        maxKD = np.max(x)+(np.max(x)*0.5)
+        if minKD == maxKD == 0:
+            getLogger().warning(f'Fitting model min==max {minKD}, {maxKD}')
+            minKD = -1
+
+        params.get(self.KD).value = np.mean(x)
+        params.get(self.KD).min = minKD
+        params.get(self.KD).max = maxKD
+        params.get(self.BMAX).value = np.mean(data)
+        params.get(self.BMAX).min = 0.001
+        params.get(self.BMAX).max = np.max(data)+(np.max(data)*0.5)
+        return params
+
+class _Binding2SiteMinimiser(MinimiserModel):
+    """A model based on the twoSiteBindingCurve Fitting equations.
+    To be implemented
+    """
+    FITTING_FUNC = None
+    MODELNAME = '2_Site_Binding_Model'
+
+class _Binding1SiteAllostericMinimiser(MinimiserModel):
+    """A model based on the 1-Site-with-Allosteric Fitting equation.
+    To be implemented
+
+    """
+    FITTING_FUNC = None
+    MODELNAME = '1SiteAllosteric_Model'
+
+class _BindingCooperativityMinimiser(MinimiserModel):
+    """A model based on the Binding with Cooperativity  Fitting equation.
+    """
+
+    FITTING_FUNC = lf.cooperativity_func
+    MODELNAME = 'Cooperativity_binding_Model'
+
+    KD = sv.KD # They must be exactly as they are defined in the FITTING_FUNC arguments! This was too hard to change!
+    BMAX = sv.BMAX
+    HILLSLOPE = sv.HillSlope
+    defaultParams = {KD:1,
+                     BMAX:0.5,
+                     HILLSLOPE:1}
+
+    def __init__(self, independent_vars=['x'], prefix='', nan_policy=sv.OMIT_MODE, **kwargs):
+        kwargs.update({'prefix': prefix, 'nan_policy': nan_policy, 'independent_vars': independent_vars})
+        super().__init__(_BindingCooperativityMinimiser.FITTING_FUNC, **kwargs)
+        self.name = self.MODELNAME
+        self.params = self.make_params(**_BindingCooperativityMinimiser.defaultParams)
+
+    def guess(self, data, x, **kws):
+        """
+        :param data: y values 1D array
+        :param x: the x axis values. 1D array
+        :param kws:
+        :return: dict of params needed for the fitting
+        """
+        params = self.params
+        minKD = np.min(x)
+        maxKD = np.max(x)+(np.max(x)*0.5)
+        if minKD == maxKD == 0:
+            getLogger().warning(f'Fitting model min==max {minKD}, {maxKD}')
+            minKD = -1
+
+        params.get(self.HILLSLOPE).value = 1
+        params.get(self.KD).value = np.mean(x)
+        params.get(self.KD).min = minKD
+        params.get(self.KD).max = maxKD
+        params.get(self.BMAX).value = np.mean(data)
+        params.get(self.BMAX).min = 0.001
+        params.get(self.BMAX).max = np.max(data)+(np.max(data)*0.5)
+        return params
+
+class _FractionBindingMinimiser(MinimiserModel):
+    """A model based on the fraction bound Fitting equation.
+      Eq. from in house calculation (V2 equation)
+    """
+    FITTING_FUNC = lf.fractionBound_func
+    KD = sv.KD # They must be exactly as they are defined in the FITTING_FUNC arguments! This was too hard to change!
+    BMAX = sv.BMAX
+    defaultParams = {KD:1,
+                     BMAX:0.5}
+
+    def __init__(self, **kwargs):
+        super().__init__(_FractionBindingMinimiser.FITTING_FUNC, **kwargs)
+        self.name = self.MODELNAME
+        self.params = self.make_params(**_FractionBindingMinimiser.defaultParams)
+
+    def guess(self, data, x, **kws):
+        """
+        :param data: y values 1D array
+        :param x: the x axis values. 1D array
+        :param kws:
+        :return: dict of params needed for the fitting
+        """
+        params = self.params
+        params.get(self.KD).value = np.median(x)
+        params.get(self.BMAX).value = np.max(data)
+        return params
+
+class _FractionBindingWitTargetConcentMinimiser(MinimiserModel):
+    """A model based on the fraction bound Fitting equation.
+      Eq. 6 from  M.P. Williamson. Progress in Nuclear Magnetic Resonance Spectroscopy 73, 1–16 (2013).
+    """
+    FITTING_FUNC = lf.fractionBoundWithPro_func
+    KD = sv.KD # They must be exactly as they are defined in the FITTING_FUNC arguments! This was too hard to change!
+    BMAX = sv.BMAX
+    Tstr = sv.T
+
+    defaultParams = {KD:1,
+                     BMAX:0.5,
+                     Tstr:1}
+
+    def __init__(self, **kwargs):
+        super().__init__(_FractionBindingWitTargetConcentMinimiser.FITTING_FUNC, **kwargs)
+        self.name = self.MODELNAME
+        self.params = self.make_params(**_FractionBindingWitTargetConcentMinimiser.defaultParams)
+
+    def guess(self, data, x, **kws):
+        """
+        :param data: y values 1D array
+        :param x: the x axis values. 1D array
+        :param kws:
+        :return: dict of params needed for the fitting
+        """
+        params = self.params
+        params.get(self.KD).value = np.median(x)
+        params.get(self.BMAX).value = np.max(data)
+        return params
+
+## -----------------------     End of  Minimisers       -----------------------       ##
+
+
+## -----------------------      Saturation Models       -----------------------        ##
 
 
 class BindingModelBC(FittingModelABC):
@@ -79,167 +238,6 @@ class BindingModelBC(FittingModelABC):
                 for resultName, resulValue in result.getAllResultsAsDict().items():
                     inputData.loc[ix, resultName] = resulValue
         return inputData
-
-## -----------------------     Saturation Minimisers       -----------------------      ##
-
-class _Binding1SiteMinimiser(MinimiserModel):
-    """A model based on the oneSiteBindingCurve Fitting equation.
-    """
-    FITTING_FUNC = lf.oneSiteBinding_func
-    MODELNAME = '1_Site_Binding_Model'
-    KDstr = sv.KD # They must be exactly as they are defined in the FITTING_FUNC arguments! This was too hard to change!
-    BMAXstr = sv.BMAX
-    defaultParams = {KDstr:1,
-                     BMAXstr:0.5}
-
-    def __init__(self, independent_vars=['x'], prefix='', nan_policy=sv.OMIT_MODE, **kwargs):
-        kwargs.update({'prefix': prefix, 'nan_policy': nan_policy, 'independent_vars': independent_vars})
-        super().__init__(_Binding1SiteMinimiser.FITTING_FUNC, **kwargs)
-        self.name = self.MODELNAME
-        self.params = self.make_params(**_Binding1SiteMinimiser.defaultParams)
-
-    def guess(self, data, x, **kws):
-        """
-        :param data: y values 1D array
-        :param x: the x axis values. 1D array
-        :param kws:
-        :return: dict of params needed for the fitting
-        """
-        params = self.params
-        minKD = np.min(x)
-        maxKD = np.max(x)+(np.max(x)*0.5)
-        if minKD == maxKD == 0:
-            getLogger().warning(f'Fitting model min==max {minKD}, {maxKD}')
-            minKD = -1
-
-        params.get(self.KDstr).value = np.mean(x)
-        params.get(self.KDstr).min = minKD
-        params.get(self.KDstr).max = maxKD
-        params.get(self.BMAXstr).value = np.mean(data)
-        params.get(self.BMAXstr).min = 0.001
-        params.get(self.BMAXstr).max = np.max(data)+(np.max(data)*0.5)
-        return params
-
-class _Binding2SiteMinimiser(MinimiserModel):
-    """A model based on the twoSiteBindingCurve Fitting equations.
-    To be implemented
-    """
-    FITTING_FUNC = None
-    MODELNAME = '2_Site_Binding_Model'
-
-class _Binding1SiteAllostericMinimiser(MinimiserModel):
-    """A model based on the 1-Site-with-Allosteric Fitting equation.
-    To be implemented
-
-    """
-    FITTING_FUNC = None
-    MODELNAME = '1SiteAllosteric_Model'
-
-class _BindingCooperativityMinimiser(MinimiserModel):
-    """A model based on the Binding with Cooperativity  Fitting equation.
-    """
-
-    FITTING_FUNC = lf.cooperativity_func
-    MODELNAME = 'Cooperativity_binding_Model'
-
-    KDstr = sv.KD # They must be exactly as they are defined in the FITTING_FUNC arguments! This was too hard to change!
-    BMAXstr = sv.BMAX
-    HillSlopestr = sv.HillSlope
-    defaultParams = {KDstr:1,
-                     BMAXstr:0.5,
-                     HillSlopestr:1}
-
-    def __init__(self, independent_vars=['x'], prefix='', nan_policy=sv.OMIT_MODE, **kwargs):
-        kwargs.update({'prefix': prefix, 'nan_policy': nan_policy, 'independent_vars': independent_vars})
-        super().__init__(_BindingCooperativityMinimiser.FITTING_FUNC, **kwargs)
-        self.name = self.MODELNAME
-        self.params = self.make_params(**_BindingCooperativityMinimiser.defaultParams)
-
-    def guess(self, data, x, **kws):
-        """
-        :param data: y values 1D array
-        :param x: the x axis values. 1D array
-        :param kws:
-        :return: dict of params needed for the fitting
-        """
-        params = self.params
-        minKD = np.min(x)
-        maxKD = np.max(x)+(np.max(x)*0.5)
-        if minKD == maxKD == 0:
-            getLogger().warning(f'Fitting model min==max {minKD}, {maxKD}')
-            minKD = -1
-
-        params.get(self.HillSlopestr).value = 1
-        params.get(self.KDstr).value = np.mean(x)
-        params.get(self.KDstr).min = minKD
-        params.get(self.KDstr).max = maxKD
-        params.get(self.BMAXstr).value = np.mean(data)
-        params.get(self.BMAXstr).min = 0.001
-        params.get(self.BMAXstr).max = np.max(data)+(np.max(data)*0.5)
-        return params
-
-class _FractionBindingMinimiser(MinimiserModel):
-    """A model based on the fraction bound Fitting equation.
-      Eq. from in house calculation (V2 equation)
-    """
-    FITTING_FUNC = lf.fractionBound_func
-    KDstr = sv.KD # They must be exactly as they are defined in the FITTING_FUNC arguments! This was too hard to change!
-    BMAXstr = sv.BMAX
-    defaultParams = {KDstr:1,
-                     BMAXstr:0.5}
-
-    def __init__(self, **kwargs):
-        super().__init__(_FractionBindingMinimiser.FITTING_FUNC, **kwargs)
-        self.name = self.MODELNAME
-        self.params = self.make_params(**_FractionBindingMinimiser.defaultParams)
-
-    def guess(self, data, x, **kws):
-        """
-        :param data: y values 1D array
-        :param x: the x axis values. 1D array
-        :param kws:
-        :return: dict of params needed for the fitting
-        """
-        params = self.params
-        params.get(self.KDstr).value = np.median(x)
-        params.get(self.BMAXstr).value = np.max(data)
-        return params
-
-class _FractionBindingWitTargetConcentMinimiser(MinimiserModel):
-    """A model based on the fraction bound Fitting equation.
-      Eq. 6 from  M.P. Williamson. Progress in Nuclear Magnetic Resonance Spectroscopy 73, 1–16 (2013).
-    """
-    FITTING_FUNC = lf.fractionBoundWithPro_func
-    KDstr = sv.KD # They must be exactly as they are defined in the FITTING_FUNC arguments! This was too hard to change!
-    BMAXstr = sv.BMAX
-    Tstr = sv.T
-
-    defaultParams = {KDstr:1,
-                     BMAXstr:0.5,
-                     Tstr:1}
-
-    def __init__(self, **kwargs):
-        super().__init__(_FractionBindingWitTargetConcentMinimiser.FITTING_FUNC, **kwargs)
-        self.name = self.MODELNAME
-        self.params = self.make_params(**_FractionBindingWitTargetConcentMinimiser.defaultParams)
-
-    def guess(self, data, x, **kws):
-        """
-        :param data: y values 1D array
-        :param x: the x axis values. 1D array
-        :param kws:
-        :return: dict of params needed for the fitting
-        """
-        params = self.params
-        params.get(self.KDstr).value = np.median(x)
-        params.get(self.BMAXstr).value = np.max(data)
-        return params
-
-## -----------------------     End of  Minimisers       -----------------------       ##
-
-
-## -----------------------      Saturation Models       -----------------------        ##
-
 
 class OneSiteBindingModel(BindingModelBC):
     """
@@ -369,15 +367,3 @@ class FractionBindingWithTargetConcentrModel(BindingModelBC):
     # MaTex = ''
     Minimiser = _FractionBindingWitTargetConcentMinimiser
     isEnabled = True
-
-
-## Add a new Model to the list to be available throughout the program
-
-
-FittingModels = [
-        OneSiteBindingModel,
-        TwoSiteBindingModel,
-        FractionBindingModel,
-        CooperativityBindingModel,
-        OneSiteWithAllostericBindingModel,
-        ]

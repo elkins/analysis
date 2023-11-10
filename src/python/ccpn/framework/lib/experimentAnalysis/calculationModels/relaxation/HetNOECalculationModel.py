@@ -15,7 +15,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2023-11-10 16:40:18 +0000 (Fri, November 10, 2023) $"
+__dateModified__ = "$dateModified: 2023-11-10 17:12:50 +0000 (Fri, November 10, 2023) $"
 __version__ = "$Revision: 3.2.0 $"
 #=========================================================================================
 # Created
@@ -150,7 +150,7 @@ class HetNoeCalculation(CalculationModel):
 
         for collectionId, groupDf in grouppedByCollectionsId:
             groupDf.sort_values([self.xSeriesStepHeader], inplace=True)
-            seriesValues = groupDf[self.PeakProperty]
+            seriesValues = groupDf[self.peakProperty]
 
             ## make the calculation required by the model
             satPeakSNR = groupDf[sv._SNR].values[satIndex]

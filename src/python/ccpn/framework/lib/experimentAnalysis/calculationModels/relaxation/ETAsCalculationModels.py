@@ -15,7 +15,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2023-11-10 16:40:18 +0000 (Fri, November 10, 2023) $"
+__dateModified__ = "$dateModified: 2023-11-10 17:12:50 +0000 (Fri, November 10, 2023) $"
 __version__ = "$Revision: 3.2.0 $"
 #=========================================================================================
 # Created
@@ -117,8 +117,8 @@ class ETACalculation(CalculationModel):
             ys = []
 
             for (inx, iphase), (anx, aphase) in zip(inphase.iterrows(), antiphase.iterrows()):
-                inphaseValue = iphase[self.PeakProperty]
-                antiphaseValue = aphase[self.PeakProperty]
+                inphaseValue = iphase[self.peakProperty]
+                antiphaseValue = aphase[self.peakProperty]
                 inphaseSNR = iphase[sv._SNR]
                 antiphaseSNR = aphase[sv._SNR]
                 ratio = inphaseValue / antiphaseValue

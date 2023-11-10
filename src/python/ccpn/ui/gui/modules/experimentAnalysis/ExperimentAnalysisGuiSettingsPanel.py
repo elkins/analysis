@@ -12,7 +12,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2023-11-10 16:40:19 +0000 (Fri, November 10, 2023) $"
+__dateModified__ = "$dateModified: 2023-11-10 17:12:51 +0000 (Fri, November 10, 2023) $"
 __version__ = "$Revision: 3.2.0 $"
 #=========================================================================================
 # Created
@@ -697,7 +697,7 @@ class GuiCalculationPanel(GuiSettingPanel):
                     currentCalculationModel = modelObj()
         backend.currentCalculationModel = currentCalculationModel
         backend.currentFittingModel.peakProperty = selectedCalcPeakProperty
-        backend.currentCalculationModel.PeakProperty = selectedCalcPeakProperty
+        backend.currentCalculationModel.peakProperty = selectedCalcPeakProperty
         backend._needsRefitting = True
         self._setUpdatedDetectedState()
         self.guiModule.settingsChanged.emit(self.getSettingsAsDict())

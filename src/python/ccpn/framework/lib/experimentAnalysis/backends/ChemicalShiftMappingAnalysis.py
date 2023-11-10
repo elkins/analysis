@@ -15,7 +15,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2023-11-10 16:06:29 +0000 (Fri, November 10, 2023) $"
+__dateModified__ = "$dateModified: 2023-11-10 17:12:50 +0000 (Fri, November 10, 2023) $"
 __version__ = "$Revision: 3.2.0 $"
 #=========================================================================================
 # Created
@@ -30,7 +30,6 @@ __date__ = "$Date: 2022-02-02 14:08:56 +0000 (Wed, February 02, 2022) $"
 from ccpn.util.Logging import getLogger
 from ccpn.framework.lib.experimentAnalysis.backends.SeriesAnalysisABC import SeriesAnalysisABC
 import ccpn.framework.lib.experimentAnalysis.SeriesAnalysisVariables as sv
-from ccpn.framework.lib.experimentAnalysis.fittingModels.binding.SaturationModels import FittingModels
 from ccpn.framework.lib.experimentAnalysis.calculationModels.binding.CSMappingCalculationModels import EuclideanCalculationModel
 
 class ChemicalShiftMappingAnalysisBC(SeriesAnalysisABC):
@@ -75,7 +74,6 @@ class ChemicalShiftMappingAnalysisBC(SeriesAnalysisABC):
         """
         Perform calculation using the currentFittingModel and currentCalculationModel
         """
-        getLogger().warning(sv.UNDER_DEVELOPMENT_WARNING)
 
         if isinstance(self.currentCalculationModel, EuclideanCalculationModel):
             self.currentCalculationModel.setAlphaFactors(self._alphaFactors)
