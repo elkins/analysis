@@ -15,7 +15,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2023-11-10 17:12:50 +0000 (Fri, November 10, 2023) $"
+__dateModified__ = "$dateModified: 2023-11-13 10:25:55 +0000 (Mon, November 13, 2023) $"
 __version__ = "$Revision: 3.2.0 $"
 #=========================================================================================
 # Created
@@ -26,19 +26,42 @@ __date__ = "$Date: 2022-02-02 14:08:56 +0000 (Wed, February 02, 2022) $"
 # Start of code
 #=========================================================================================
 
-from ccpn.util.DataEnum import DataEnum
 from lmfit.models import update_param_vals
 import numpy as np
-import pandas as pd
-import ccpn.framework.lib.experimentAnalysis.fittingModels.fitFunctionsLib as lf
-import ccpn.framework.lib.experimentAnalysis.calculationModels.relaxation.spectralDensityLib as sdl
-from ccpn.framework.lib.experimentAnalysis.ExperimentConstants import N15gyromagneticRatio, HgyromagneticRatio
+from lmfit import lineshapes as ls
 import ccpn.framework.lib.experimentAnalysis.SeriesAnalysisVariables as sv
 from ccpn.util.Logging import getLogger
 from ccpn.core.DataTable import TableFrame
 from ccpn.framework.lib.experimentAnalysis.fittingModels.FittingModelABC import FittingModelABC, MinimiserModel, MinimiserResult
-from ccpn.framework.lib.experimentAnalysis.calculationModels.CalculationModelABC import CalculationModel
-from ccpn.framework.lib.experimentAnalysis.SeriesTables import ETAOutputFrame, HetNoeOutputFrame, R2R1OutputFrame, RSDMOutputFrame
+
+
+## ----------       Lineshape Functions       ---------- ##
+
+def onePhaseDecay_func(x, rate=1.0, amplitude=1.0):
+    """
+    Function used to describe the  decay rate in an exponential decay model
+    :param x: 1d array. If X is in seconds, then rate is expressed in inverse seconds, (Spower-1)
+    :param rate: float. The rate constant, expressed in reciprocal of the X axis time units.
+    :param amplitude:  float.
+    :return: 1d array of  the lineshape describing this function
+    """
+    rate = ls.not_zero(rate)
+    result = amplitude * np.exp(-rate * x)
+    return result
+
+def onePhaseDecayPlateau_func(x, rate=1.0, amplitude=1.0, plateau=0.0):
+    """
+    Function used to describe the  decay rate in an exponential decay model with the extra argument plateau.
+    Y=(Y0 - Plateau)*exp(-K*X) + Plateau
+    :param x: 1d array. If X is in seconds, then rate is expressed in inverse seconds, (Spower-1)
+    :param rate: float. The rate constant, expressed in reciprocal of the X axis time units.
+    :param amplitude:  float.
+    :return: d array of  the lineshape describing this function
+    """
+    rate = ls.not_zero(rate)
+    result = (amplitude - plateau) * np.exp(-rate * x) + plateau
+    return result
+
 
 ## ----------       Minimisers       ---------- ##
 
@@ -46,7 +69,7 @@ from ccpn.framework.lib.experimentAnalysis.SeriesTables import ETAOutputFrame, H
 class _OnePhaseDecayMinimiser(MinimiserModel):
 
     MODELNAME = 'OnePhaseDecayMinimiser'
-    FITTING_FUNC = lf.onePhaseDecay_func
+    FITTING_FUNC = onePhaseDecay_func
     AMPLITUDE = sv.AMPLITUDE
     RATE = sv.RATE
     # _defaultParams must be set. They are required. Also Strings must be exactly as they are defined in the FITTING_FUNC arguments!
@@ -75,7 +98,7 @@ class _OnePhaseDecayMinimiser(MinimiserModel):
 class _OnePhaseDecayPlateauMinimiser(MinimiserModel):
 
     MODELNAME = 'OnePhaseDecayPlateauMinimiser'
-    FITTING_FUNC = lf.onePhaseDecayPlateau_func
+    FITTING_FUNC = onePhaseDecayPlateau_func
     AMPLITUDE = sv.AMPLITUDE
     RATE = sv.RATE
     PLATEAU = sv.PLATEAU
@@ -194,12 +217,9 @@ class OnePhaseDecayPlateauModel(_ExponentialBaseModel):
     references  = '''
                   '''
     Minimiser = _OnePhaseDecayPlateauMinimiser
-    
 
     @property
     def _preferredYPlotArgName(self):
         """  Private only used in UI mode."""
 
         return self.Minimiser.RATE
-
-

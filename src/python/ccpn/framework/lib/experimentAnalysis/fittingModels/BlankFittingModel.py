@@ -15,7 +15,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2023-11-10 16:40:18 +0000 (Fri, November 10, 2023) $"
+__dateModified__ = "$dateModified: 2023-11-13 10:25:55 +0000 (Mon, November 13, 2023) $"
 __version__ = "$Revision: 3.2.0 $"
 #=========================================================================================
 # Created
@@ -31,19 +31,30 @@ from ccpn.core.DataTable import TableFrame
 import ccpn.framework.lib.experimentAnalysis.SeriesAnalysisVariables as sv
 from ccpn.framework.lib.experimentAnalysis.fittingModels.FittingModelABC import FittingModelABC, MinimiserModel, MinimiserResult
 from ccpn.util.Logging import getLogger
-import ccpn.framework.lib.experimentAnalysis.fittingModels.fitFunctionsLib as lf
+
+def blank_func(x, argA, argB):
+    """
+    A mock fitting function. Used for a Blank model.
+    :param x: example argument. Not in use.
+    :param argA: example argument. Not in use.
+    :param argB: example argument. Not in use.
+    :return: None
+    """
+    return
 
 class _BlankMinimiser(MinimiserModel):
     """
     Blank Minimiser which fits a blank function!. Used as space-holder/example
     """
 
-    FITTING_FUNC = lf.blank_func
-    Astr = sv.ARGA  # They must be exactly as they are defined in the FITTING_FUNC arguments!
-    Bstr = sv.ARGB
+    FITTING_FUNC = blank_func
+    ARGA = sv.ARGA  # They must be exactly as they are defined in the FITTING_FUNC arguments!
+    ARGB = sv.ARGB
 
-    defaultParams = {Astr:np.nan,
-                     Bstr:np.nan}
+    defaultParams = {
+                                ARGA:np.nan,
+                                ARGB:np.nan
+                                }
 
     def __init__(self, **kwargs):
         super().__init__(_BlankMinimiser.FITTING_FUNC, **kwargs)

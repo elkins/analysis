@@ -2,7 +2,10 @@
 This module defines base classes for Series Analysis.
 
 The fitting models are based on the Lmfit framework.
-Optimisers:
+Note that the package Lmfit refers to the Minimisers as Models.
+In the Series Analysis context we use the term Model more broadly and we refer to the top object containing the Metadata for the Minimiser, fitting functions etc.
+
+Lmfit Minimisers:
     ’leastsq’: Levenberg-Marquardt (default)
     ’least_squares’: Least-Squares minimization, using Trust Region Reflective method
     ’differential_evolution’: differential evolution
@@ -27,6 +30,22 @@ Optimisers:
     ’shgo’: Simplicial Homology Global Optimization
     ’dual_annealing’: Dual Annealing optimization
 
+    <-> WARNING <-> :
+    Do not change the function signature for a fitting function without amending the Minimiser default parameters or
+    will result in a broken Model.
+    E.g.:
+            Minimiser:
+                defaultParams = {
+                                            'Kd' : 1.0,
+                                            'BMax': 10
+                                            }
+            Minimiser.fittingFunc:
+            the  function's argument are EXACTLY as defined in the defaultParams dictionary keys:
+                def oneSiteBinding_func(x, Kd, BMax): ...
+
+    See MinimiserModel _defaultParams for more info.
+
+
 """
 #=========================================================================================
 # Licence, Reference and Credits
@@ -42,7 +61,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2023-11-10 16:40:19 +0000 (Fri, November 10, 2023) $"
+__dateModified__ = "$dateModified: 2023-11-13 10:25:55 +0000 (Mon, November 13, 2023) $"
 __version__ = "$Revision: 3.2.0 $"
 #=========================================================================================
 # Created
@@ -52,7 +71,6 @@ __date__ = "$Date: 2022-02-02 14:08:56 +0000 (Wed, February 02, 2022) $"
 #=========================================================================================
 # Start of code
 #=========================================================================================
-
 
 import warnings
 import numpy as np
@@ -64,7 +82,6 @@ from lmfit import Model, Parameter
 from lmfit.model import ModelResult, _align
 from ccpn.core.DataTable import TableFrame
 from ccpn.util.Logging import getLogger
-import ccpn.framework.lib.experimentAnalysis.fittingModels.fitFunctionsLib as lf
 import ccpn.framework.lib.experimentAnalysis.SeriesAnalysisVariables as sv
 from ccpn.framework.Application import getApplication, getProject
 
@@ -88,9 +105,7 @@ class FittingModelABC(ABC):
     def __init__(self, *args, **kwargs):
         self.application = getApplication()
         self.project = getProject()
-        self._applyScaleMinMax = False
-        self._applyStandardScaler = False
-        self._minimiserMethod = 'leastsq'
+        self._minimiserMethod = sv.LEASTSQ
         self._modelArgumentNames = []
         self._rawDataHeaders = [] # strings of columnHeaders
         self.xSeriesStepHeader = sv.SERIES_STEP_X
@@ -146,9 +161,6 @@ class FittingModelABC(ABC):
     def fullDescription(cls):
         """A complete description of the model metadata and its journal article references (if any)"""
         return f'{cls.modelInfo} \n {cls.description}\nSee References: {cls.references}'
-
-    def scaleMinMax(self, data):
-        return lf._scaleMinMaxData(data)
 
     def setMinimiserMethod(self, method:str):
         self._minimiserMethod = method
@@ -231,10 +243,9 @@ class MinimiserModel(Model):
     """
     FITTING_FUNC  = None
     MODELNAME     = 'Minimiser'
-    method                = 'leastsq'
+    method                = sv.LEASTSQ
     label                    = ''
     defaultParams = {} # N.B Very important. see docs above.
-
 
     def fit(self, data, params=None, weights=None, method='leastsq',
             iter_cb=None, scale_covar=True, verbose=False, fit_kws=None,
@@ -383,7 +394,7 @@ class MinimiserModel(Model):
             result.fit(data=data, weights=weights, method=self.method)
             result.components = self.components
             if result.redchi is not None:
-                result.r2 = lf.r2_func(redchi=result.redchi, y=data)
+                result.r2 = rSQR_func(redchi=result.redchi, y=data)
         return result
 
     def setMethod(self, method):
@@ -654,3 +665,14 @@ class MinimiserResult(ModelResult):
         if showPlot:
             plt.show()
         return fig
+
+def rSQR_func(y, redchi):
+    """
+    Calculate the R2 (called from the minimiser results).
+    :param redchi: Chi-square. From the Minimiser Obj can be retrieved as "result.redchi"
+    :return: r2
+    """
+    var = np.var(y, ddof=2)
+    if var != 0:
+        r2 = 1 - redchi / var
+        return r2

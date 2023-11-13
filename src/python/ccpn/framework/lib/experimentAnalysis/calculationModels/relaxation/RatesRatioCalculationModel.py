@@ -15,7 +15,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2023-11-10 16:40:18 +0000 (Fri, November 10, 2023) $"
+__dateModified__ = "$dateModified: 2023-11-13 10:25:55 +0000 (Mon, November 13, 2023) $"
 __version__ = "$Revision: 3.2.0 $"
 #=========================================================================================
 # Created
@@ -26,19 +26,12 @@ __date__ = "$Date: 2022-02-02 14:08:56 +0000 (Wed, February 02, 2022) $"
 # Start of code
 #=========================================================================================
 
-from ccpn.util.DataEnum import DataEnum
-from lmfit.models import update_param_vals
-import numpy as np
 import pandas as pd
-import ccpn.framework.lib.experimentAnalysis.fittingModels.fitFunctionsLib as lf
-import ccpn.framework.lib.experimentAnalysis.calculationModels.relaxation.spectralDensityLib as sdl
-from ccpn.framework.lib.experimentAnalysis.ExperimentConstants import N15gyromagneticRatio, HgyromagneticRatio
+import ccpn.framework.lib.experimentAnalysis.calculationModels._libraryFunctions as lf
 import ccpn.framework.lib.experimentAnalysis.SeriesAnalysisVariables as sv
-from ccpn.util.Logging import getLogger
 from ccpn.core.DataTable import TableFrame
-from ccpn.framework.lib.experimentAnalysis.fittingModels.FittingModelABC import FittingModelABC, MinimiserModel, MinimiserResult
 from ccpn.framework.lib.experimentAnalysis.calculationModels.CalculationModelABC import CalculationModel
-from ccpn.framework.lib.experimentAnalysis.SeriesTables import ETAOutputFrame, HetNoeOutputFrame, R2R1OutputFrame, RSDMOutputFrame
+from ccpn.framework.lib.experimentAnalysis.SeriesTables import R2R1OutputFrame
 
 
 class R2R1RatesCalculation(CalculationModel):

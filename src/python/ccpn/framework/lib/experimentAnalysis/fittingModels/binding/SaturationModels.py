@@ -1,5 +1,4 @@
 """
-This module defines base classes for Series Analysis
 """
 #=========================================================================================
 # Licence, Reference and Credits
@@ -15,7 +14,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2023-11-10 17:12:50 +0000 (Fri, November 10, 2023) $"
+__dateModified__ = "$dateModified: 2023-11-13 10:25:55 +0000 (Mon, November 13, 2023) $"
 __version__ = "$Revision: 3.2.0 $"
 #=========================================================================================
 # Created
@@ -27,15 +26,140 @@ __date__ = "$Date: 2022-02-02 14:08:56 +0000 (Wed, February 02, 2022) $"
 #=========================================================================================
 
 import numpy as np
-import warnings
 from ccpn.util.Logging import getLogger
 from ccpn.core.DataTable import TableFrame
 from ccpn.framework.lib.experimentAnalysis.fittingModels.FittingModelABC import FittingModelABC, MinimiserModel, MinimiserResult
-from ccpn.framework.lib.experimentAnalysis.calculationModels.CalculationModelABC import CalculationModel
-from ccpn.framework.lib.experimentAnalysis.SeriesTables import CSMOutputFrame
 import ccpn.framework.lib.experimentAnalysis.SeriesAnalysisVariables as sv
-import ccpn.framework.lib.experimentAnalysis.fittingModels.fitFunctionsLib as lf
 
+def oneSiteBinding_func(x, Kd, BMax):
+    """
+    The one-site Specific Binding equation for a saturation binding experiment.
+
+    Y = Bmax*X/(Kd + X)
+
+    :param x:   1d array. The data to be fitted.
+                In the CSM it's the array of deltas (deltas among chemicalShifts, CS, usually in ppm positions)
+
+    :param Kd:  Defines the equilibrium dissociation constant. The value to get a half-maximum binding at equilibrium.
+                In the CSM the initial value is calculated from the ligand concentration.
+                The ligand concentration is inputted in the SpectrumGroup Series values.
+
+    :param BMax: Defines the max specific binding.
+                In the CSM the initial value is calculated from the CS deltas.
+                Note, The optimised BMax will be (probably always) larger than the measured CS.
+
+    :return:    Y array same shape of x. Represents the points for the fitted curve Y to be plotted.
+                When plotting BMax is the Y axis, Kd the X axis.
+    """
+    return (BMax * x) / (x + Kd)
+
+
+def oneSiteNonSpecBinding_func(x, NS, B=1):
+    """
+    The  one-site non specific Binding equation for a saturation binding experiment.
+
+    Y = NS*X + B
+
+    :param x:  1d array. The data to be fitted.
+               In the CSM it's the array of deltas (deltas among chemicalShifts, CS, usually in ppm positions)
+
+    :param NS: the slope of non-specific binding
+    :param B:  The non specific binding without ligand.
+
+    :return:   Y array same shape of x. Represents the points for the fitted curve Y to be plotted.
+               When plotting BMax is the Y axis, Kd the X axis.
+    """
+
+    YnonSpecific = NS * x + B
+
+    return YnonSpecific
+
+
+def fractionBound_func(x, Kd, BMax):
+    """
+    The one-site fractionBound equation for a saturation binding experiment.
+    V2 equation.
+    Y = BMax * (Kd + x - sqrt((Kd + x)^2 - 4x))
+
+    ref: 1) In-house calculations (V2 - wayne - Double check )
+
+    :param x:   1d array. The data to be fitted.
+                In the CSM it's the array of deltas (deltas among chemicalShifts, CS, usually in ppm positions)
+
+    :param Kd:  Defines the equilibrium dissociation constant. The value to get a half-maximum binding at equilibrium.
+                In the CSM the initial value is calculated from the ligand concentration.
+                The ligand concentration is inputted in the SpectrumGroup Series values.
+
+    :param BMax: Defines the max specific binding.
+                In the CSM the initial value is calculated from the CS deltas.
+                Note, The optimised BMax will be (probably always) larger than the measured CS.
+
+    :return:    Y array same shape of x. Represents the points for the fitted curve Y to be plotted.
+                When plotting BMax is the Y axis, Kd the X axis.
+    """
+
+    qd = np.sqrt((Kd + x)**2 - 4 * x)
+    Y = BMax * (Kd + x - qd)
+
+    return Y
+
+
+def fractionBoundWithPro_func(x, Kd, BMax, T=1):
+    """
+    The one-site fractionBound equation for a saturation binding experiment.
+    V2 equation.
+    Y = BMax * ( (P + x + Kd) - sqrt(P + x + Kd)^2 - 4*P*x)) / 2 * P
+
+    ref: 1) M.P. Williamson. Progress in Nuclear Magnetic Resonance Spectroscopy 73, 1–16 (2013).
+
+
+    :param x:   1d array. The data to be fitted.
+                In the CSM it's the array of deltas (deltas among chemicalShifts, CS, usually in ppm positions)
+
+    :param Kd:  Defines the equilibrium dissociation constant. The value to get a half-maximum binding at equilibrium.
+                In the CSM the initial value is calculated from the ligand concentration.
+                The ligand concentration is inputted in the SpectrumGroup Series values.
+
+    :param BMax: Defines the max specific binding.
+                In the CSM the initial value is calculated from the CS deltas.
+                Note, The optimised BMax will be (probably always) larger than the measured CS.
+
+    :param T: Target concentration.
+
+    :return:    Y array same shape of x. Represents the points for the fitted curve Y to be plotted.
+                When plotting BMax is the Y axis, Kd the X axis.
+    """
+
+    Y = BMax * ((T + x + Kd) - np.sqrt((T + x + Kd)**2 - 4 * T * x)) / 2 * T
+    return Y
+
+
+def cooperativity_func(x, Kd, BMax, Hs):
+    """
+    The cooperativity equation for a saturation binding experiment.
+
+    Y = Bmax*X^Hs/(Kd^Hs + X^Hs)
+
+    :param x:   1d array. The data to be fitted.
+                In the CSM it's the array of deltas (deltas among chemicalShifts, CS, usually in ppm positions)
+
+    :param Kd:  Defines the equilibrium dissociation constant. The value to get a half-maximum binding at equilibrium.
+                In the CSM the initial value is calculated from the ligand concentration.
+                The ligand concentration is inputted in the SpectrumGroup Series values.
+
+    :param BMax: Defines the max specific binding.
+                In the CSM the initial value is calculated from the CS deltas.
+                Note, The optimised BMax will be (probably always) larger than the measured CS.
+    :param Hs: hill slope. Default 1 to assume no cooperativity.
+                Hs = 1: ligand/monomer binds to one site with no cooperativity.
+                Hs > 1: ligand/monomer binds to multiple sites with positive cooperativity.
+                Hs < 0: ligand/monomer binds to multiple sites with variable affinities or negative cooperativity.
+    :return:    Y array same shape of x. Represents the points for the fitted curve Y to be plotted.
+                When plotting BMax is the Y axis, Kd the X axis.
+    """
+
+    Y = (BMax * x**Hs) / (x**Hs + Kd**Hs)
+    return Y
 
 
 ## -----------------------     Saturation Minimisers       -----------------------      ##
@@ -43,7 +167,7 @@ import ccpn.framework.lib.experimentAnalysis.fittingModels.fitFunctionsLib as lf
 class _Binding1SiteMinimiser(MinimiserModel):
     """A model based on the oneSiteBindingCurve Fitting equation.
     """
-    FITTING_FUNC = lf.oneSiteBinding_func
+    FITTING_FUNC = oneSiteBinding_func
     MODELNAME = '1_Site_Binding_Model'
     KD = sv.KD # They must be exactly as they are defined in the FITTING_FUNC arguments! This was too hard to change!
     BMAX = sv.BMAX
@@ -97,7 +221,7 @@ class _BindingCooperativityMinimiser(MinimiserModel):
     """A model based on the Binding with Cooperativity  Fitting equation.
     """
 
-    FITTING_FUNC = lf.cooperativity_func
+    FITTING_FUNC = cooperativity_func
     MODELNAME = 'Cooperativity_binding_Model'
 
     KD = sv.KD # They must be exactly as they are defined in the FITTING_FUNC arguments! This was too hard to change!
@@ -140,7 +264,7 @@ class _FractionBindingMinimiser(MinimiserModel):
     """A model based on the fraction bound Fitting equation.
       Eq. from in house calculation (V2 equation)
     """
-    FITTING_FUNC = lf.fractionBound_func
+    FITTING_FUNC = fractionBound_func
     KD = sv.KD # They must be exactly as they are defined in the FITTING_FUNC arguments! This was too hard to change!
     BMAX = sv.BMAX
     defaultParams = {KD:1,
@@ -167,7 +291,7 @@ class _FractionBindingWitTargetConcentMinimiser(MinimiserModel):
     """A model based on the fraction bound Fitting equation.
       Eq. 6 from  M.P. Williamson. Progress in Nuclear Magnetic Resonance Spectroscopy 73, 1–16 (2013).
     """
-    FITTING_FUNC = lf.fractionBoundWithPro_func
+    FITTING_FUNC = fractionBoundWithPro_func
     KD = sv.KD # They must be exactly as they are defined in the FITTING_FUNC arguments! This was too hard to change!
     BMAX = sv.BMAX
     Tstr = sv.T
@@ -367,3 +491,5 @@ class FractionBindingWithTargetConcentrModel(BindingModelBC):
     # MaTex = ''
     Minimiser = _FractionBindingWitTargetConcentMinimiser
     isEnabled = True
+
+

@@ -15,7 +15,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2023-11-10 16:40:19 +0000 (Fri, November 10, 2023) $"
+__dateModified__ = "$dateModified: 2023-11-13 10:25:55 +0000 (Mon, November 13, 2023) $"
 __version__ = "$Revision: 3.2.0 $"
 #=========================================================================================
 # Created
@@ -28,16 +28,22 @@ __date__ = "$Date: 2022-02-02 14:08:56 +0000 (Wed, February 02, 2022) $"
 
 from lmfit.models import update_param_vals
 import numpy as np
-import ccpn.framework.lib.experimentAnalysis.fittingModels.fitFunctionsLib as lf
 from ccpn.framework.lib.experimentAnalysis.fittingModels.relaxation.ExponentialDecayModels import _ExponentialBaseModel
 import ccpn.framework.lib.experimentAnalysis.SeriesAnalysisVariables as sv
 from ccpn.framework.lib.experimentAnalysis.fittingModels.FittingModelABC import MinimiserModel
+
+## ----------       Lineshape Functions       ---------- ##
+
+def exponentialGrowth_func(x, amplitude, decay):
+    return amplitude * np.exp(decay * x)
+
+## ----------       Minimisers       ---------- ##
 
 class _ExponentialGrowthMinimiser(MinimiserModel):
     """
     """
     MODELNAME = 'InversionRecoveryMinimiser'
-    FITTING_FUNC = lf.exponentialGrowth_func
+    FITTING_FUNC = exponentialGrowth_func
     AMPLITUDEstr = sv.AMPLITUDE
     DECAYstr = sv.DECAY
     # _defaultParams must be set. They are required. Also Strings must be exactly as they are defined in the FITTING_FUNC arguments!

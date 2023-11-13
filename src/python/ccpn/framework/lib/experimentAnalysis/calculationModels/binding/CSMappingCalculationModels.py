@@ -15,7 +15,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2023-11-10 16:40:18 +0000 (Fri, November 10, 2023) $"
+__dateModified__ = "$dateModified: 2023-11-13 10:25:55 +0000 (Mon, November 13, 2023) $"
 __version__ = "$Revision: 3.2.0 $"
 #=========================================================================================
 # Created
@@ -30,11 +30,10 @@ import numpy as np
 import warnings
 from ccpn.util.Logging import getLogger
 from ccpn.core.DataTable import TableFrame
-from ccpn.framework.lib.experimentAnalysis.fittingModels.FittingModelABC import FittingModelABC, MinimiserModel, MinimiserResult
 from ccpn.framework.lib.experimentAnalysis.calculationModels.CalculationModelABC import CalculationModel
 from ccpn.framework.lib.experimentAnalysis.SeriesTables import CSMOutputFrame
 import ccpn.framework.lib.experimentAnalysis.SeriesAnalysisVariables as sv
-import ccpn.framework.lib.experimentAnalysis.fittingModels.fitFunctionsLib as lf
+import ccpn.framework.lib.experimentAnalysis.calculationModels._libraryFunctions as lf
 
 
 def euclideanDistance_func(array1, array2, alphaFactors):
