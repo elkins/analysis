@@ -40,7 +40,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2023-11-10 16:12:24 +0000 (Fri, November 10, 2023) $"
+__dateModified__ = "$dateModified: 2023-11-16 15:56:50 +0000 (Thu, November 16, 2023) $"
 __version__ = "$Revision: 3.2.0 $"
 #=========================================================================================
 # Created
@@ -128,7 +128,7 @@ def _calculateNxyRatio(n, b, t):
     :param t:  float. experiment time
     :return: float
     """
-    nxy = (1 / (2 * t)) * np.log(abs(n / b))
+    nxy = (1 / 2 * t) * np.log(abs(n / b))
     return nxy
 
 def _calculateZRatio(n, l, t):
@@ -202,8 +202,8 @@ for dataTableN in experimentsDataDict:
 ## set calculation/fitting model to backend
 calculationModel = backend.getCalculationModelByName(sv.REXVIATROSY)
 fittingModel = backend.getFittingModelByName(sv.BLANKMODELNAME)
-backend.currentCalculationModel = calculationModel()
-backend.currentFittingModel = fittingModel()
+# backend.currentCalculationModel = calculationModel()
+# backend.currentFittingModel = fittingModel()
 
 ## Create  the Rex Result Data
 backend.outputDataTableName = RexResultDataTable

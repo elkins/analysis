@@ -27,7 +27,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2023-11-09 09:49:32 +0000 (Thu, November 09, 2023) $"
+__dateModified__ = "$dateModified: 2023-11-10 15:58:42 +0000 (Fri, November 10, 2023) $"
 __version__ = "$Revision: 3.2.0 $"
 #=========================================================================================
 # Created
@@ -105,7 +105,7 @@ def _plotSDM(pdf):
 
     axJ0.errorbar(x, J0, yerr=J0_ERR, fmt="o", color=lineColour, ms=scatterSize, ecolor=lineErrorColour, elinewidth=lineErrorLW,
                   capsize=lineErrorCapsize, capthick=lineErrorCapthick)
-    axJwh.errorbar(x, JWH, yerr=JWH_ERR, fmt="o", color=lineColour, ms=scatterSize, ecolor=lineErrorColour,
+    axJwh.errorbar(x, JWH087, yerr=JWH087_ERR, fmt="o", color=lineColour, ms=scatterSize, ecolor=lineErrorColour,
                    elinewidth=lineErrorLW, capsize=lineErrorCapsize, capthick=lineErrorCapthick)
     axJwx.errorbar(x, JWN, yerr=JWN_ERR, fmt="o", color=lineColour, ms=scatterSize, ecolor=lineErrorColour,
                    elinewidth=lineErrorLW, capsize=lineErrorCapsize, capthick=lineErrorCapthick)
@@ -115,11 +115,11 @@ def _plotSDM(pdf):
     axJwx.set_ylim(ymin=0)
 
     axJ0.set_title(L_J0, fontsize=fontTitleSize, color=titleColor)
-    axJwh.set_title(L_JWH, fontsize=fontTitleSize, color='blue')
+    axJwh.set_title(L_JWH087, fontsize=fontTitleSize, color='blue')
     axJwx.set_title(L_JWN, fontsize=fontTitleSize, color=titleColor)
 
     axJ0.set_ylabel(f'{L_J0} {L_SR}', fontsize=fontYSize)
-    axJwh.set_ylabel(f'{L_JWH} {L_SR}', fontsize=fontYSize)
+    axJwh.set_ylabel(f'{L_JWH087} {L_SR}', fontsize=fontYSize)
     axJwx.set_ylabel(f'{L_JWN} {L_SR}', fontsize=fontYSize)
 
     macrosLib._setJoinedX(axss, [axJ0, axJwh, axJwx])
@@ -166,24 +166,25 @@ def _plotScatters(pdf):
     axj0_jwx.set_ylim(ymin=0, ymax=maxY)
 
     ##  jwH vs J0
-    axj0_jwh.scatter(J0, JWH, s=1, color=lineColour, )
-    axj0_jwh.plot(rcts, jwHTheoretical, theoreticalLineColour, linewidth=plotLinewidth)
+    axj0_jwh.scatter(J0, JWH087, s=1, color=lineColour, )
+    axj0_jwh.plot(rcts, jwH087Theoretical, theoreticalLineColour, linewidth=plotLinewidth)
+
     for i, txt in enumerate(x):
-        axj0_jwh.annotate(str(txt), (J0[i], JWH[i]), fontsize=3)
-    axj0_jwh.set_title(f'{L_JWH} vs {L_J0}', fontsize=fontTitleSize, color=titleColor)
+        axj0_jwh.annotate(str(txt), (J0[i], JWH087[i]), fontsize=3)
+    axj0_jwh.set_title(f'{L_JWH087} vs {L_J0}', fontsize=fontTitleSize, color=titleColor)
     axj0_jwh.set_xlabel(f'{L_J0} {L_SR}', fontsize=fontYSize, )
-    axj0_jwh.set_ylabel(f'{L_JWH} {L_SR}', fontsize=fontYSize)
+    axj0_jwh.set_ylabel(f'{L_JWH087} {L_SR}', fontsize=fontYSize)
     maxY = np.max(jwHTheoretical) + np.max(jwHTheoretical)/2
     axj0_jwh.set_xlim(xmin=0, xmax=30)
     axj0_jwh.set_ylim(ymin=0, ymax=maxY)
     axj0_jwh.get_shared_x_axes().join(axj0_jwh, axj0_jwx)
 
     ##  jwN vs  jwH
-    axjwh_jwx.scatter(JWH, JWN, s=1, color=lineColour, )
+    axjwh_jwx.scatter(JWH087, JWN, s=1, color=lineColour, )
     for i, txt in enumerate(x):
-        axjwh_jwx.annotate(str(txt), (JWH[i], JWN[i]), fontsize=3)
-    axjwh_jwx.set_title(f'{L_JWN} vs {L_JWH}', fontsize=fontTitleSize, color=titleColor)
-    axjwh_jwx.set_xlabel(f'{L_JWH} {L_SR}', fontsize=fontYSize, )
+        axjwh_jwx.annotate(str(txt), (JWH087[i], JWN[i]), fontsize=3)
+    axjwh_jwx.set_title(f'{L_JWN} vs {L_JWH087}', fontsize=fontTitleSize, color=titleColor)
+    axjwh_jwx.set_xlabel(f'{L_JWH087} {L_SR}', fontsize=fontYSize, )
     axjwh_jwx.set_ylabel(f'{L_JWN} {L_SR}', fontsize=fontYSize)
 
     for ax in [axj0_jwh, axj0_jwx, axjwh_jwx]:
@@ -233,17 +234,20 @@ JWN = data[sv.JwX].values / scalingFactor
 JWN087 = JWN*0.87
 J0_ERR = np.abs(data[sv.J0_ERR].values)
 JWH_ERR = np.abs(data[sv.JwH_ERR].values)
+JWH087_ERR = JWH_ERR*0.87
 JWN_ERR = np.abs(data[sv.JwX_ERR].values)
 
 # calculate the theoretical JW Lines
 rcts, jwHTheoretical, jwNTheoretical = sdl.calculateJW_at_Tc(spectrometerFrequency=spectrometerFrequency)
 jwNTheoretical = np.array(jwNTheoretical) / scalingFactor
 jwHTheoretical = np.array(jwHTheoretical) / scalingFactor
+jwH087Theoretical = jwHTheoretical*0.87
 
 ## matex  labels
 L_J0 = '$J_{0}$'
 L_JWN = '$J(\omega_{N})$'
 L_JWH = '$J(\omega_{H})$'
+L_JWH087 = '$J(0.87\omega_{H})$'
 L_SR = '(nsec/rad)'
 
 

@@ -17,7 +17,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2023-11-10 15:58:41 +0000 (Fri, November 10, 2023) $"
+__dateModified__ = "$dateModified: 2023-11-16 15:56:50 +0000 (Thu, November 16, 2023) $"
 __version__ = "$Revision: 3.2.0 $"
 #=========================================================================================
 # Created
@@ -241,33 +241,28 @@ def _calculateNOEp(A, gammaHN, t1, jHpN, jHmN):
     """
     return 1.0 + (A * gammaHN * t1 * ((6 * jHpN) - jHmN))
 
-def _Jw(t, w):
+def _calculateJOmegas(t, w):
     """
     eq 10 from Krizova  et al, Journal of Biomolecular NMR 28: 369–384, 2004.  Temperature-dependent spectral density analysis ...
     :param t: total correlation time
     :param w: wH or wX
     :return: jw at a particular w
     """
-    jo  = 0.4 * t
-    jw = jo / ( 1 + 6.25 * (w * jo)**2)
+    j0  = 0.4 * t
+    j0 = t
+    jw = j0 / ( 1 + 6.25 * (w * j0)**2)
     return jw
 
 def calculateJW_at_Tc(spectrometerFrequency=600.130,
   minRct=0,  maxRct=30.0, stepRct=0.1, rctScalingFactor =  1e-9,  ):
     """
     Calculate JW at a range of rotational correlation times.
-
     :param spectrometerFrequency:  default 600.130
-    :param lenNh: NH bond Length. default 1.0150 Armstrong
-    :param ict: the internalCorrelationTime Te
-    :param csaN: value of the axially symmetric chemical shift tensor for 15N. Default -160 ppm
-    :param minS2: minimum S2 contours value
-    :param maxS2: max S2 contours value
-    :param stepS2: single step on the curve
     :param minRct: minimum rotational correlation Time  (rct) contours value
     :param maxRct: max rct contours value
     :param stepRct: single step on the curve
-    :return: tuple  rctLines, s2Lines
+    :return: tuple  jwHs, jwNs.
+    Note is JWH  not JWH0.87
     """
     omegaH = calculateOmegaH(spectrometerFrequency, scalingFactor=1e6)  # Rad/s
     omegaN = calculateOmegaN(spectrometerFrequency, scalingFactor=1e6)
@@ -277,10 +272,11 @@ def calculateJW_at_Tc(spectrometerFrequency=600.130,
     rcts = []
     while rct >= minRct:
         rctB = rct * rctScalingFactor  # Seconds
-        jN = _Jw(rctB,  omegaN)
-        jH = _Jw(rctB,  omegaH)
+        jN = _calculateJOmegas(rctB, omegaN)
+        jH = _calculateJOmegas(rctB, omegaH)
+        jH087 = jH*0.87
         jwNs.append(jN)
-        jwHs.append(jH)
+        jwHs.append(jH087)
         rct -= stepRct
         rcts.append(rct)
     return np.array(rcts), np.array(jwHs),  np.array(jwNs)
