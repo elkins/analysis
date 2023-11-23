@@ -40,7 +40,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2023-11-16 15:56:50 +0000 (Thu, November 16, 2023) $"
+__dateModified__ = "$dateModified: 2023-11-23 17:38:01 +0000 (Thu, November 23, 2023) $"
 __version__ = "$Revision: 3.2.0 $"
 #=========================================================================================
 # Created
@@ -128,7 +128,7 @@ def _calculateNxyRatio(n, b, t):
     :param t:  float. experiment time
     :return: float
     """
-    nxy = (1 / 2 * t) * np.log(abs(n / b))
+    nxy = (1 / (2 * t)) * np.log(abs(n / b))
     return nxy
 
 def _calculateZRatio(n, l, t):
@@ -188,7 +188,8 @@ if False:
             dataTableName = mapSpectrumGroupsToInputData.get(spectrumGroup)
             ## Create collections
             msg = f'Progress {i+1}/{len(spectrumGroups)}'
-            newCollection = spectrumGroup.copyAndCollectPeaksInSeries(sourcePL,  refit=True,  useSliceColour=True,  newTargetPeakList=False, topCollectionName=collectionName, progressHandlerTitle=msg)
+            # newCollection = spectrumGroup.copyAndCollectPeaksInSeries(sourcePL,  refit=True,  useSliceColour=True,  newTargetPeakList=False, topCollectionName=collectionName, progressHandlerTitle=msg)
+            newCollection = get(f'CO:{collectionName}')
             backend.inputCollection = newCollection
             ## Create Input Data
             experimentName = experimentsDataDict.get(dataTableName)
@@ -256,11 +257,12 @@ meanXyAData = xyAData.groupby(sv.NMRRESIDUEPID)[sv._HEIGHT]
 meanXyBData = xyBData.groupby(sv.NMRRESIDUEPID)[sv._HEIGHT]
 meanZBData = zData.groupby(sv.NMRRESIDUEPID)[sv._HEIGHT]
 tauXy = 0.108 #xyAData[sv.SERIES_STEP_X].values[0]
-tauZ = 0.108 # zData[sv.SERIES_STEP_X].values[0]
+tauZ = 0.216 # zData[sv.SERIES_STEP_X].values[0]
 R2values = r2Data[sv.RATE].values
 trimmedR2 = stats.trim_mean(R2values,  proportiontocut= 0.1)
 
 rexs = []
+REXs = []
 for xyA, xyB, z in zip(meanXyAData, meanXyBData, meanZBData):
     xyAmean = xyA[1].unique().mean()
     xyBmean = xyB[1].unique().mean()
@@ -270,9 +272,19 @@ for xyA, xyB, z in zip(meanXyAData, meanXyBData, meanZBData):
     nz = _calculateZRatio(xyAmean, zMean, tauZ)
     k = trimmedR2 / nxy
     r1Value = r1Data[r1Data[sv.NMRRESIDUEPID] == nmrResiduePid][sv.RATE].values[0]
+    r2Value = r2Data[r2Data[sv.NMRRESIDUEPID] == nmrResiduePid][sv.RATE].values[0]
     r2Ex = _calculateRexViaTrosy(trimmedR2, r1Value, nxy, nz)
-    print(nmrResiduePid, f'nxy: {nxy}, nz: {nz}, k: {k},   r2Ex: {r2Ex}')
+
+    # Fred calculations
+
+    ETAxy = (1 / (2 * tauXy)) * np.log(xyAmean / xyBmean)
+    ETAz = (1 / tauZ) * np.log((zMean * (0.216 / 2)) / (xyAmean * tauZ))
+    K = r2Value / ETAxy
+    Rex = ETAz / 2 - ((K - 1) * ETAxy)
+
     rexs.append(r2Ex)
+    REXs.append(Rex)
+    print(nmrResiduePid, f'nxy: {nxy},ETAxy:{ETAxy},  nz: {nz}, ETAz:{ETAz},   k: {k}, K: {K} , r2Ex: {r2Ex}, RexFred: {Rex}')
 
 
 suffix1 = f'_{sv.R1}'
