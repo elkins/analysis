@@ -29,7 +29,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2023-11-09 09:49:32 +0000 (Thu, November 09, 2023) $"
+__dateModified__ = "$dateModified: 2023-11-10 15:58:42 +0000 (Fri, November 10, 2023) $"
 __version__ = "$Revision: 3.2.0 $"
 #=========================================================================================
 # Created
@@ -47,7 +47,7 @@ __date__ = "$Date: 2023-02-03 10:04:03 +0000 (Fri, February 03, 2023) $"
 #####################    User Settings      #######################
 ############################################################
 
-dataTableName = 'RSDM_results'
+dataTableName = 'RSDMresults'
 
 ##  demo sequence for the GB1 protein . Replace with an empty str if not available, e.g.: sequence  = ''
 sequence  = 'KLILNGKTLKGETTTEAVDAATAEKVFKQYANDNGVDGEWTYDAATKTFTVTE'
@@ -176,7 +176,9 @@ R1_ERR = data[sv.R1_ERR]
 R2_ERR  = data[sv.R2_ERR]
 NOE_ERR = data[sv.HETNOE_VALUE_ERR]
 
-otherAnalysis, meanAnalysis = sdl._fitIsotropicModelFromT1T2NOE(data, spectrometerFrequency=spectrometerFrequency)
+from ccpn.framework.lib.experimentAnalysis.calculationModels.relaxation.modelFreeLib import  _fitIsotropicModelFromT1T2NOE
+
+otherAnalysis, meanAnalysis = _fitIsotropicModelFromT1T2NOE(data, spectrometerFrequency=spectrometerFrequency)
 S2 = otherAnalysis[sv.S2].values
 TE = otherAnalysis[sv.TE].values
 REX = otherAnalysis[sv.REX].values

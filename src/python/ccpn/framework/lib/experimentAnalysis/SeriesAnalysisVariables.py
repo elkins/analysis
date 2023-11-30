@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2023-11-10 15:58:40 +0000 (Fri, November 10, 2023) $"
+__dateModified__ = "$dateModified: 2023-11-30 15:34:15 +0000 (Thu, November 30, 2023) $"
 __version__ = "$Revision: 3.2.0 $"
 #=========================================================================================
 # Created
@@ -89,7 +89,7 @@ EXCLUDED_PEAKPID        = f'{EXCLUDED_}{PEAKPID}'
 EXCLUDED_SPECTRUMPID    = f'{EXCLUDED_}{SPECTRUMPID}'
 EXCLUDED_NMRATOMPID     = f'{EXCLUDED_}{NMRATOMPID}'
 EXCLUDED_COLLECTIONPID  = f'{EXCLUDED_}{COLLECTIONPID}'
-ALL_EXCLUDED            = [EXCLUDED_PEAKPID, EXCLUDED_SPECTRUMPID, EXCLUDED_NMRATOMPID, EXCLUDED_COLLECTIONPID]
+EXCLUDED_NMRRESIDUEPID  = f'{EXCLUDED_}{NMRRESIDUEPID}'
 
 # fitting output Stat variables
 MINIMISER        = 'minimiser'
@@ -201,7 +201,7 @@ GROUPBYAssignmentHeaders = [NMRCHAINNAME, NMRRESIDUECODE, NMRRESIDUETYPE]
 PidHeaders = [COLLECTIONID, COLLECTIONPID, SPECTRUMPID, PEAKPID, NMRATOMPID, NMRRESIDUEPID]
 
 MERGINGHEADERS = [COLLECTIONID, COLLECTIONPID, NMRCHAINNAME, NMRRESIDUECODE, NMRRESIDUETYPE]
-EXCLUDED_OBJECTS = [EXCLUDED_COLLECTIONPID, EXCLUDED_COLLECTIONPID, EXCLUDED_NMRATOMPID, EXCLUDED_SPECTRUMPID]
+EXCLUDED_OBJECTS = [EXCLUDED_COLLECTIONPID, EXCLUDED_NMRRESIDUEPID, EXCLUDED_NMRATOMPID, EXCLUDED_SPECTRUMPID]
 
 ############################################################################################
 ### Used in SeriesFrame tables ABCs

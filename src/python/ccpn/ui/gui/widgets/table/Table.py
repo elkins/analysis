@@ -218,6 +218,8 @@ def main():
             table.setBackground(row, col, QtGui.QColor(random.randint(0, 256**3) & 0x3f3f3f | 0x404040))
             table.setForeground(row, col, QtGui.QColor(random.randint(0, 256**3) & 0x3f3f3f | 0x808080))
 
+    table.setForeground(0,0, QtCore.Qt.green)
+
     # set some background colours
     cells = ((0, 0, '#80c0ff', '#ffe055'),
              (1, 1, '#fe83cc', '#90efab'), (1, 2, '#fe83cc', '#90efab'),

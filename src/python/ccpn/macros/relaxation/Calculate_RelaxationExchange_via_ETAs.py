@@ -30,7 +30,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2023-11-10 15:58:41 +0000 (Fri, November 10, 2023) $"
+__dateModified__ = "$dateModified: 2023-11-30 15:34:16 +0000 (Thu, November 30, 2023) $"
 __version__ = "$Revision: 3.2.0 $"
 #=========================================================================================
 # Created
@@ -237,6 +237,18 @@ rexSigma = R2 - r2oSigma
 r2o_error = (R1_ERR+(1.249*SigmaNHErr) + (1.079*SigmaNHErr) + (((ETAxy_err/ETAxy) + (ETAz_err/ETAz)) * (ETAxy/ETAz)))
 rexSigma_error = R2_ERR + r2o_error
 
+# ReX from Eq 27 doi:10.1016/j.pnmrs.2004.01.001.  R.A Atkinson, B. Kieffer  The role of protein motions in molecular recognition... 44:141-187. 2004
+# Model:
+# Rex = (3A + B) * [ 2/3J0 - (nxy/nz - 1/2) * jWN]
+
+A = 1 #TODO find where is coming from
+B = 1 #TODO find where is coming from
+
+AB = (3*A + B)
+AB = 1 # TODO changeME
+etaRatio = ETAxy/ETAz
+rexViaEtas = AB * ((2/3*J0) - ((etaRatio-1/2)* JWN))
+print(rexViaEtas)
 
 ############################################################
 ##############                Plotting              #########################
@@ -250,6 +262,8 @@ def _ploteExchangeRates(pdf):
 
     ax.plot(x, [0]*len(x), '--', linewidth=0.5)
     ax.errorbar(x, rexFromExpR2, yerr=rexSigma_error, color=scatterColor, ms=scatterSize, fmt='o', ecolor=scatterColorError, elinewidth=scatterErrorLinewidth, capsize=scatterErrorCapSize)
+    ax.plot(x, rexViaEtas, 'o', ms=1, label='eq. 27')
+
     ax.set_title('R$_{ex}$ via Experimental R2 and η$_{xy}$', fontsize=fontTitleSize, color=titleColor, pad=1)
     ax.set_ylabel('R$_{ex}$', fontsize=fontYSize)
     macrosLib._setXTicks(ax, labelMajorSize, labelMinorSize)
@@ -276,6 +290,7 @@ globals().update(args.__dict__)
 
 
 ####################     end data preparation     ##################
+
 
 ##  init the plot and save to pdf
 
@@ -304,6 +319,7 @@ if reply == open:
 if reply == copy:
     from ccpn.util.Common import copyToClipboard
     copyToClipboard([filePath])
+
 
 ###################      end macro        #########################
 

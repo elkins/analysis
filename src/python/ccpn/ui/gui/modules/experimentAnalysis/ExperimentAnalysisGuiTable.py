@@ -12,6 +12,9 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
+__modifiedBy__ = "$modifiedBy: Luca Mureddu $"
+__dateModified__ = "$dateModified: 2023-11-30 15:34:16 +0000 (Thu, November 30, 2023) $"
+__version__ = "$Revision: 3.2.0 $"
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
 __dateModified__ = "$dateModified: 2024-06-21 19:48:44 +0100 (Fri, June 21, 2024) $"
 __version__ = "$Revision: 3.2.4 $"
@@ -32,8 +35,12 @@ import numpy as np
 ######## gui/ui imports ########
 from ccpn.ui.gui.modules.experimentAnalysis.ExperimentAnalysisGuiPanel import GuiPanel
 import ccpn.ui.gui.modules.experimentAnalysis.ExperimentAnalysisGuiNamespaces as guiNameSpaces
+import ccpn.framework.lib.experimentAnalysis.SeriesAnalysisVariables as seriesVariables
 from ccpn.ui.gui.widgets.table.Table import Table
 from ccpn.ui.gui.widgets.MessageDialog import showWarning
+
+
+
 
 class _NavigateTrigger(DataEnum):
     """
@@ -200,6 +207,31 @@ class _ExperimentalAnalysisTableABC(Table):
     # Table context menu
     #=========================================================================================
 
+    def _raiseTableContextMenu(self, pos):
+        """
+        Re-implementation to dynamically grey-out items before popping
+        """
+        exclusionHandler = self.guiModule.backendHandler.exclusionHandler
+        excludedNmrResidues = exclusionHandler.getExcludedNmrResidues()
+        selectedNmrResidues = self.getSelectedNmrResidues()
+        if len(selectedNmrResidues) > 0:
+            print(f"SELECTED nmrResidues to be excluded: {selectedNmrResidues}")
+            areSelectedAlsoExcluded = [nr for nr in selectedNmrResidues if nr in excludedNmrResidues]
+            if (menu := self._thisTableMenu):
+                excludeNmrResidueAction = menu.getActionByName(guiNameSpaces.EXCLUDE_NMRRESIDUES)
+                includeNmrResidueAction = menu.getActionByName(guiNameSpaces.INCLUDE_NMRRESIDUES)
+
+                if len(areSelectedAlsoExcluded)>0:
+                    print('excludeNmrResidueAction', excludeNmrResidueAction, excludedNmrResidues)
+                    if includeNmrResidueAction:
+                        includeNmrResidueAction.setEnabled(True)
+                        excludeNmrResidueAction.setEnabled(False)
+                else:
+                    includeNmrResidueAction.setEnabled(False)
+                    excludeNmrResidueAction.setEnabled(True)
+
+        super()._raiseTableContextMenu(pos)
+
     # add edit/add parameters to meta-data table
     def addTableMenuOptions(self, menu):
         super().addTableMenuOptions(menu)
@@ -208,6 +240,9 @@ class _ExperimentalAnalysisTableABC(Table):
         refitGroup = menu.addAction('Refit Collection(s) Group...')
         refitGroup.setEnabled(False)
         _separator = menu.insertSeparator(editCollection)
+        excludeNmrResidue = menu.addAction(guiNameSpaces.EXCLUDE_NMRRESIDUES, self._excludeNmrResidues)
+        includeNmrResidue = menu.addAction(guiNameSpaces.INCLUDE_NMRRESIDUES, self._includeNmrResidues)
+        _separator = menu.insertSeparator(excludeNmrResidue)
 
     def _refitSeletected(self):
         collections = self.getSelectedCollections()
@@ -229,6 +264,28 @@ class _ExperimentalAnalysisTableABC(Table):
                 popup.exec()
                 popup.raise_()
 
+    def _excludeNmrResidues(self):
+        nmrResidues = self.getSelectedNmrResidues()
+        if len(nmrResidues) > 0:
+            print(f"SELECTED nmrResidues to be excluded: {nmrResidues}")
+            exclusionHandler = self.guiModule.backendHandler.exclusionHandler
+            excludedNmrResidues = exclusionHandler.getExcludedNmrResidues()
+            newExclusion = set(excludedNmrResidues+nmrResidues)
+            exclusionHandler.setExcludedNmrResidues(nmrResidues)
+            print(f"newExclusion: {newExclusion}")
+
+
+    def _includeNmrResidues(self):
+        nmrResidues = self.getSelectedNmrResidues()
+        if len(nmrResidues) > 0:
+            print(f"SELECTED to be _includeNmrResidues: {nmrResidues}")
+            exclusionHandler = self.guiModule.backendHandler.exclusionHandler
+            excludedNmrResidues = exclusionHandler.getExcludedNmrResidues()
+            newExclusion = [nr for nr in excludedNmrResidues if nr not in nmrResidues]
+            exclusionHandler.setExcludedNmrResidues(newExclusion)
+            print(f"newExclusion: {newExclusion}")
+
+
     def getSelectedCollections(self):
         selectedRowsDf = self.selectedRows()
         collections = set()
@@ -237,6 +294,15 @@ class _ExperimentalAnalysisTableABC(Table):
             co = self.project.getByPid(coPid)
             collections.add(co)
         return list(collections)
+
+    def getSelectedNmrResidues(self):
+        selectedRowsDf = self.selectedRows()
+        nmrResidues = set()
+        for ix, selectedRow in selectedRowsDf.iterrows():
+            nmrResiduePid = selectedRow[sv.NMRRESIDUEPID]
+            nmrResidue = self.project.getByPid(nmrResiduePid)
+            nmrResidues.add(nmrResidue)
+        return list(nmrResidues)
 
     def _currentCollectionCallback(self, *args):
         # select collection on table.

@@ -15,7 +15,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2023-11-13 10:25:55 +0000 (Mon, November 13, 2023) $"
+__dateModified__ = "$dateModified: 2023-11-30 15:34:16 +0000 (Thu, November 30, 2023) $"
 __version__ = "$Revision: 3.2.0 $"
 #=========================================================================================
 # Created
@@ -641,26 +641,26 @@ class ExclusionHandler(TraitBase):
     def __init__(self, dataTable=None, *args, **kwargs):
         super().__init__()
         self._dataTable = dataTable # used to store/restore exclusions as metadata
+        self.project = getProject()
         for name in self._traitNames:
             self.add_traits(**{name:List()})
             self.update({name:[]}) ## ensures all starts correctly and a list works as a list!
+
+    def getExcludedNmrResidues(self):
+
+        excludedNmrResiduePids = self.excluded_nmrResiduePids
+        nmrResidues = [self.project.getByPid(nr) for nr in excludedNmrResiduePids]
+        return nmrResidues
+
+    def setExcludedNmrResidues(self, nmrResidues):
+
+        nmrResiduesPids = [nr.pid for nr in nmrResidues]
+        self.excluded_nmrResiduePids = nmrResiduesPids
 
     def clear(self):
         """Reset all to empty """
         for name in self._traitNames:
             self.update({name:[]})
-
-    def updataDataTable(self):
-        """ Update the datatable data flags
-         to do, update the dataFrame with True/False if the pid is in Data
-            syntax DataFrame.loc[condition, (column_1, column_2)] = new_value
-        """
-        df = self._dataTable.data
-        ## eg: for peaks to be like:
-        # for pid in self.excluded_peakPids:
-        #     df.loc[df[sv.PEAKPID] == pid, 'excluded_peakPids'] = True
-        # self._dataTable.data = df
-        pass
 
     def save(self):
         """Save metadata do the dataTable """
@@ -709,7 +709,7 @@ class GroupingBackboneNmrAtoms(GroupingNmrAtomABC):
 
     groupType = 'Backbone'
     groupInfo = 'Follow the backbone atoms in a series Analysis'
-    nmrAtomNames = ['H', 'N', 'CA', 'C', 'HA',]
+    nmrAtomNames = ['H', 'N', 'CA', 'C ', 'HA',]
     excludeResidueTypes = ['Proline']
     includedResidueTypes = None
 
