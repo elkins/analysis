@@ -13,7 +13,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2023-12-01 14:28:45 +0000 (Fri, December 01, 2023) $"
+__dateModified__ = "$dateModified: 2023-12-01 17:34:21 +0000 (Fri, December 01, 2023) $"
 __version__ = "$Revision: 3.2.0 $"
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
 __dateModified__ = "$dateModified: 2024-06-21 19:48:44 +0100 (Fri, June 21, 2024) $"
@@ -264,18 +264,20 @@ class _ExperimentalAnalysisTableABC(Table):
         if len(nmrResidues) > 0:
             exclusionHandler = self.guiModule.backendHandler.exclusionHandler
             outputData = self.guiModule.backendHandler.resultDataTable
-            excludedNmrResidues = self._getExcludedNmrResidues()
+            excludedNmrResidues = exclusionHandler.getExcludedNmrResidues(dataTable=outputData)
             newExclusion = set(excludedNmrResidues+nmrResidues)
-            exclusionHandler.setExcludedNmrResidues(newExclusion, dataTables=[outputData])
+            exclusionHandler.setExcludedNmrResidues(newExclusion, dataTable=outputData)
+            self.guiModule.updateAll()
 
     def _includeNmrResidues(self):
         nmrResidues = self.getSelectedNmrResidues()
         if len(nmrResidues) > 0:
             exclusionHandler = self.guiModule.backendHandler.exclusionHandler
             outputData = self.guiModule.backendHandler.resultDataTable
-            excludedNmrResidues = exclusionHandler.getExcludedNmrResidues(dataTables=[outputData])
+            excludedNmrResidues = exclusionHandler.getExcludedNmrResidues(dataTable=outputData)
             newExclusion = [nr for nr in excludedNmrResidues if nr not in nmrResidues]
-            exclusionHandler.setExcludedNmrResidues(newExclusion, dataTables=[outputData])
+            exclusionHandler.setExcludedNmrResidues(newExclusion, dataTable=outputData)
+            self.guiModule.updateAll()
 
     def getSelectedCollections(self):
         selectedRowsDf = self.selectedRows()
@@ -317,10 +319,36 @@ class _ExperimentalAnalysisTableABC(Table):
         self._setVisibleColumns(headers, False)
 
     def _setExclusionColours(self):
-        exclusionHandler = self.guiModule.backendHandler.exclusionHandler
-        outputData = self.guiModule.backendHandler.resultDataTable
-        excludedNmrResidues = exclusionHandler.getExcludedNmrResidues(dataTables=[outputData])
-        excludedNmrResiduesPids = self.project.getByPids(excludedNmrResidues)
+
+        self.setRowsForegroundByValues(['True'], sv.EXCLUDED_NMRRESIDUEPID, '#8c0307')
+
+    def setRowsForegroundByValues(self, values, headerName, hexColour):
+        """
+        Select rows if the given values are present in the table.
+        :param values: list of value to select
+        :param headerName: the column name for the column where to search the values
+        :param scrollToSelection: navigate to the table to show the result
+        :return: None
+        """
+        if self._df is None or self._df.empty:
+            return
+        if headerName not in self._df.columns:
+            return
+
+        model = self.model()
+        columnTextIx = self.headerColumnMenu.columnTexts.index(headerName)
+        for i in model._sortIndex:
+            cell = model.index(i, columnTextIx)
+            if cell is None:
+                continue
+            tableValue = cell.data()
+            for valueToSelect in values:
+                if tableValue == valueToSelect:
+                    rowIndex = model.index(i, 0)
+                    if rowIndex is None:
+                        continue
+                    for columnIndex, value in enumerate(self.headerColumnMenu.columnTexts):
+                        self.setForeground(i, columnIndex, hexColour)
 
 
     def _setBlankModelColumns(self):
@@ -442,7 +470,7 @@ class TablePanel(GuiPanel):
 
     def updatePanel(self, *args, **kwargs):
 
-        dataFrame = self.guiModule.backendHandler.getResultDataFrame()
+        dataFrame = self.guiModule.backendHandler.getResultDataFrame(useFiltered=True)
         self.setInputData(dataFrame)
         # update here the X-Y selectors on the settings. Has to be done here because the mainplot has to be in sync with the table.
         appearance = self.guiModule.settingsPanelHandler.getTab(guiNameSpaces.Label_GeneralAppearance)

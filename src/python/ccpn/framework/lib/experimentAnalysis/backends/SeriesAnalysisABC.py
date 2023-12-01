@@ -15,7 +15,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2023-12-01 14:28:44 +0000 (Fri, December 01, 2023) $"
+__dateModified__ = "$dateModified: 2023-12-01 17:34:21 +0000 (Fri, December 01, 2023) $"
 __version__ = "$Revision: 3.2.0 $"
 #=========================================================================================
 # Created
@@ -105,6 +105,41 @@ class SeriesAnalysisABC(ABC):
     def resultDataTable(self, dataTable):
         self._resultDataTable = dataTable
 
+
+    @property
+    def _resultDataFrameWithExclusions(self):
+        """ The dataFrame  which containes filtered out values based on user's exclusions.
+         This method is necessary to do not override the data on the output ResultData table"""
+        _resultDataTable = self._resultDataTable
+        df = _resultDataTable.data.copy()
+        if sv.NMRRESIDUEPID not in df:
+            return df
+
+        blankColumns = []
+        if sv.MODEL_NAME in df:
+            modelName = df.modelName.values[-1]
+            fittingModelClass = self.getFittingModelByName(modelName)
+            if fittingModelClass:
+                model = fittingModelClass()
+                blankColumns += model.modelStatsNames
+                blankColumns += model.modelArgumentNames
+                blankColumns += model.modelArgumentErrorNames
+
+        if sv.CALCULATION_MODEL in df:
+            calculationName = df.calculationModel.values[-1]
+            calculationModelClass = self.getCalculationModelByName(calculationName)
+            if calculationModelClass:
+                model = calculationModelClass()
+                blankColumns += model.modelArgumentNames
+                blankColumns += model.modelArgumentErrorNames
+
+        excludedNmrResiduesPids = self.exclusionHandler._getExcludedNmrResiduePids(dataTable=_resultDataTable)
+        excludedNmrResiduesDf = df[df[sv.NMRRESIDUEPID].isin(excludedNmrResiduesPids)]
+        excludedIndexes = excludedNmrResiduesDf.index
+        df.loc[excludedIndexes, blankColumns] = np.nan
+
+        return df
+
     def _fetchOutputDataTable(self, name=None):
         """
         Interanl. Called after 'fit()' to get a valid Datatable to attach the fitting output SeriesFrame
@@ -118,23 +153,23 @@ class SeriesAnalysisABC(ABC):
 
         if not dataTable:
             dataTable = self.project.newDataTable(name)
-        ## update the exclusionHandler
-        if not self._exclusionHandler._dataTable:
-            self._exclusionHandler._dataTable = dataTable
-        self._exclusionHandler.save()
         ## update the DATATABLETYPE
         dataTable.setMetadata(sv.DATATABLETYPE, sv.SERIESANALYSISOUTPUTDATA)
         dataTable.setMetadata(sv.SERIESFRAMETYPE,  sv.SERIESANALYSISOUTPUTDATA)
         return dataTable
 
-    def getResultDataFrame(self) -> pd.DataFrame:
+    def getResultDataFrame(self, useFiltered=True) -> pd.DataFrame:
         """
         Get the SelectedOutputDataTable and merge rows by the collection pid
         """
+
         dataTable = self.resultDataTable
         if dataTable is None:
             return pd.DataFrame()
-        dataFrame = dataTable.data
+        if useFiltered:
+            dataFrame = self._resultDataFrameWithExclusions
+        else:
+            dataFrame = dataTable.data
         if len(dataFrame)==0:
             return pd.DataFrame()
         if not sv.COLLECTIONPID in dataFrame:
@@ -614,7 +649,6 @@ class SeriesAnalysisABC(ABC):
         self._registerModels()
 
     def close(self):
-        # self.exclusionHandler.save()
         self.clearInputDataTables()
         self._currentCalculationModel = None
         self._currentFittingModel = None
@@ -645,35 +679,35 @@ class ExclusionHandler(TraitBase):
             self.add_traits(**{name:List()})
             self.update({name:[]}) ## ensures all starts correctly and a list works as a list!
 
-    def getExcludedNmrResidues(self, dataTables):
+    def getExcludedNmrResidues(self, dataTable):
         """
         Get the excluded NmrResidues from specified dataTables or globally for the backend  if  dataTables are not given.
-        :param dataTables:
+        :param dataTable:
         :return:
         """
-        excludedNmrResiduePids = []
-        for dataTable in dataTables:
-            df = dataTable.data
-            if sv.NMRRESIDUEPID in df and sv.EXCLUDED_NMRRESIDUEPID in df:
-                excluded = df[df[sv.EXCLUDED_NMRRESIDUEPID]==True]
-                excludedNmrResiduePids = excluded[sv.NMRRESIDUEPID].values
-
+        excludedNmrResiduePids = self._getExcludedNmrResiduePids(dataTable)
         nmrResidues = [self.project.getByPid(nr) for nr in excludedNmrResiduePids]
         return nmrResidues
 
-    def setExcludedNmrResidues(self, nmrResidues, dataTables):
+    def _getExcludedNmrResiduePids(self, dataTable):
+        excludedNmrResiduePids = []
+        df = dataTable.data
+        if sv.NMRRESIDUEPID in df and sv.EXCLUDED_NMRRESIDUEPID in df:
+            excluded = df[df[sv.EXCLUDED_NMRRESIDUEPID] == True]
+            excludedNmrResiduePids = excluded[sv.NMRRESIDUEPID].unique()
+        return list(excludedNmrResiduePids)
+
+    def setExcludedNmrResidues(self, nmrResidues, dataTable):
         """Add an exclusion tag to the dataTables containing the specified residues """
         nmrResiduesPids = [nr.pid for nr in nmrResidues]
-
-        for dataTable in dataTables:
-            # amend table in place. Don't need to resave to dataTable
-            df = dataTable.data
-            if sv.NMRRESIDUEPID in df:
-                excludedNmrResiduesDf = df[df[sv.NMRRESIDUEPID].isin(nmrResiduesPids)]
-                excludedIndexes = excludedNmrResiduesDf.index
-                includedIndexes = [ix for ix in df.index if ix not in excludedIndexes]
-                df.loc[excludedIndexes, sv.EXCLUDED_NMRRESIDUEPID] = True
-                df.loc[includedIndexes, sv.EXCLUDED_NMRRESIDUEPID] = False
+        # amend table in place. Don't need to resave to dataTable
+        df = dataTable.data
+        if sv.NMRRESIDUEPID in df:
+            excludedNmrResiduesDf = df[df[sv.NMRRESIDUEPID].isin(nmrResiduesPids)]
+            excludedIndexes = excludedNmrResiduesDf.index
+            includedIndexes = [ix for ix in df.index if ix not in excludedIndexes]
+            df.loc[excludedIndexes, sv.EXCLUDED_NMRRESIDUEPID] = True
+            df.loc[includedIndexes, sv.EXCLUDED_NMRRESIDUEPID] = False
 
 
 

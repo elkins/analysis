@@ -12,7 +12,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2023-11-10 16:12:24 +0000 (Fri, November 10, 2023) $"
+__dateModified__ = "$dateModified: 2023-12-01 17:34:21 +0000 (Fri, December 01, 2023) $"
 __version__ = "$Revision: 3.2.0 $"
 #=========================================================================================
 # Created
@@ -123,7 +123,7 @@ class FitPlotPanel(GuiPanel):
             return
 
         ## Check if the current Collection pids are in the Table. If Pids not on table, return.
-        dataFrame = outputData.data
+        dataFrame = backend._resultDataFrameWithExclusions
         pids = [co.pid for co in self.current.collections]
         filtered = dataFrame.getByHeader(sv.COLLECTIONPID, pids)
         if filtered.empty:
@@ -219,6 +219,11 @@ class FitPlotPanel(GuiPanel):
         self.bindingPlot.scene().sigMouseMoved.connect(self.bindingPlot.mouseMoved)
         self.bindingPlot.setTitle(f'Fitting Model: {modelName}')
         self.bindingPlot.zoomFull()
+
+        if sv.EXCLUDED_NMRRESIDUEPID in filteredDf:
+            isResidueExcluded = filteredDf[sv.EXCLUDED_NMRRESIDUEPID].values
+            if any(isResidueExcluded):
+                self.bindingPlot.setTitle(f'Fitting not available. Selected NmrResidue is excluded from Fittings')
 
     def _isOkToPlot(self):
         """ Do the initial check if is ok to continue ith the plotting """
