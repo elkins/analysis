@@ -1547,14 +1547,12 @@ class GuiMainWindow(Shortcuts, QtWidgets.QMainWindow):
                 deleteItems.append(('Additional Multiplet-Peaks', attachedPeaks, False))
                 foundSets += _MULTIPLET_PEAKS
 
-            if foundSets & (_INTEGRAL_PEAKS | _MULTIPLET_PEAKS):
-                # if there are additional peaks that have been missed then show popup - add more conditions?
-                popup = DeleteItemsPopup(parent=self, mainWindow=self, items=deleteItems)
-                popup.exec()
+            ## Please always show the popup! Because we could have selected current objects that are not obviously displayed as selected in tables/or displays and
+            ## could delete objects without being aware of this operation.
+            ## This shortcut should be removed from here, and enabled only on displays/tables as a localised shortcut
+            popup = DeleteItemsPopup(parent=self, mainWindow=self, items=deleteItems)
+            popup.exec()
 
-            else:
-                # don't show the popup
-                self.project.deleteObjects(*(obj for _name, itms, _check in deleteItems for obj in itms))
 
     @logCommand('mainWindow.')
     def propagateAssignments(self):
