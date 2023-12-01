@@ -13,7 +13,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2023-11-30 15:34:16 +0000 (Thu, November 30, 2023) $"
+__dateModified__ = "$dateModified: 2023-12-01 14:28:45 +0000 (Fri, December 01, 2023) $"
 __version__ = "$Revision: 3.2.0 $"
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
 __dateModified__ = "$dateModified: 2024-06-21 19:48:44 +0100 (Fri, June 21, 2024) $"
@@ -146,6 +146,7 @@ class _ExperimentalAnalysisTableABC(Table):
             self.headerColumnMenu.setDefaultColumns(self._hiddenColumns)
             self._setBlankModelColumns()
             self._hideExcludedColumns()
+            self._setExclusionColours()
 
 
     #=========================================================================================
@@ -211,25 +212,17 @@ class _ExperimentalAnalysisTableABC(Table):
         """
         Re-implementation to dynamically grey-out items before popping
         """
-        exclusionHandler = self.guiModule.backendHandler.exclusionHandler
-        excludedNmrResidues = exclusionHandler.getExcludedNmrResidues()
-        selectedNmrResidues = self.getSelectedNmrResidues()
-        if len(selectedNmrResidues) > 0:
-            print(f"SELECTED nmrResidues to be excluded: {selectedNmrResidues}")
-            areSelectedAlsoExcluded = [nr for nr in selectedNmrResidues if nr in excludedNmrResidues]
-            if (menu := self._thisTableMenu):
-                excludeNmrResidueAction = menu.getActionByName(guiNameSpaces.EXCLUDE_NMRRESIDUES)
-                includeNmrResidueAction = menu.getActionByName(guiNameSpaces.INCLUDE_NMRRESIDUES)
+        outputData = self.guiModule.backendHandler.resultDataTable
+        if outputData is None:
+            super()._raiseTableContextMenu(pos)
 
-                if len(areSelectedAlsoExcluded)>0:
-                    print('excludeNmrResidueAction', excludeNmrResidueAction, excludedNmrResidues)
-                    if includeNmrResidueAction:
-                        includeNmrResidueAction.setEnabled(True)
-                        excludeNmrResidueAction.setEnabled(False)
-                else:
-                    includeNmrResidueAction.setEnabled(False)
-                    excludeNmrResidueAction.setEnabled(True)
-
+        if (menu := self._thisTableMenu):
+            excludeNmrResidueAction = menu.getActionByName(guiNameSpaces.EXCLUDE_NMRRESIDUES)
+            includeNmrResidueAction = menu.getActionByName(guiNameSpaces.INCLUDE_NMRRESIDUES)
+            selectedNmrResidues = self.getSelectedNmrResidues()
+            enable = len(selectedNmrResidues) > 0
+            includeNmrResidueAction.setEnabled(enable)
+            excludeNmrResidueAction.setEnabled(enable)
         super()._raiseTableContextMenu(pos)
 
     # add edit/add parameters to meta-data table
@@ -242,6 +235,8 @@ class _ExperimentalAnalysisTableABC(Table):
         _separator = menu.insertSeparator(editCollection)
         excludeNmrResidue = menu.addAction(guiNameSpaces.EXCLUDE_NMRRESIDUES, self._excludeNmrResidues)
         includeNmrResidue = menu.addAction(guiNameSpaces.INCLUDE_NMRRESIDUES, self._includeNmrResidues)
+        excludeNmrResidue.setEnabled(False)
+        includeNmrResidue.setEnabled(False)
         _separator = menu.insertSeparator(excludeNmrResidue)
 
     def _refitSeletected(self):
@@ -267,24 +262,20 @@ class _ExperimentalAnalysisTableABC(Table):
     def _excludeNmrResidues(self):
         nmrResidues = self.getSelectedNmrResidues()
         if len(nmrResidues) > 0:
-            print(f"SELECTED nmrResidues to be excluded: {nmrResidues}")
             exclusionHandler = self.guiModule.backendHandler.exclusionHandler
-            excludedNmrResidues = exclusionHandler.getExcludedNmrResidues()
+            outputData = self.guiModule.backendHandler.resultDataTable
+            excludedNmrResidues = self._getExcludedNmrResidues()
             newExclusion = set(excludedNmrResidues+nmrResidues)
-            exclusionHandler.setExcludedNmrResidues(nmrResidues)
-            print(f"newExclusion: {newExclusion}")
-
+            exclusionHandler.setExcludedNmrResidues(newExclusion, dataTables=[outputData])
 
     def _includeNmrResidues(self):
         nmrResidues = self.getSelectedNmrResidues()
         if len(nmrResidues) > 0:
-            print(f"SELECTED to be _includeNmrResidues: {nmrResidues}")
             exclusionHandler = self.guiModule.backendHandler.exclusionHandler
-            excludedNmrResidues = exclusionHandler.getExcludedNmrResidues()
+            outputData = self.guiModule.backendHandler.resultDataTable
+            excludedNmrResidues = exclusionHandler.getExcludedNmrResidues(dataTables=[outputData])
             newExclusion = [nr for nr in excludedNmrResidues if nr not in nmrResidues]
-            exclusionHandler.setExcludedNmrResidues(newExclusion)
-            print(f"newExclusion: {newExclusion}")
-
+            exclusionHandler.setExcludedNmrResidues(newExclusion, dataTables=[outputData])
 
     def getSelectedCollections(self):
         selectedRowsDf = self.selectedRows()
@@ -324,6 +315,13 @@ class _ExperimentalAnalysisTableABC(Table):
             if columnText.startswith(sv.EXCLUDED_):
                 headers.append(columnText)
         self._setVisibleColumns(headers, False)
+
+    def _setExclusionColours(self):
+        exclusionHandler = self.guiModule.backendHandler.exclusionHandler
+        outputData = self.guiModule.backendHandler.resultDataTable
+        excludedNmrResidues = exclusionHandler.getExcludedNmrResidues(dataTables=[outputData])
+        excludedNmrResiduesPids = self.project.getByPids(excludedNmrResidues)
+
 
     def _setBlankModelColumns(self):
         # if a blank model: toggle the columns from table (no point in showing empty columns)

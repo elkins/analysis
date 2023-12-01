@@ -15,7 +15,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2023-11-30 15:34:16 +0000 (Thu, November 30, 2023) $"
+__dateModified__ = "$dateModified: 2023-12-01 14:28:44 +0000 (Fri, December 01, 2023) $"
 __version__ = "$Revision: 3.2.0 $"
 #=========================================================================================
 # Created
@@ -638,45 +638,44 @@ class ExclusionHandler(TraitBase):
 
     _traitNames = [f'{tag}s' for tag in sv.EXCLUDED_OBJECTS]
 
-    def __init__(self, dataTable=None, *args, **kwargs):
+    def __init__(self, *args, **kwargs):
         super().__init__()
-        self._dataTable = dataTable # used to store/restore exclusions as metadata
         self.project = getProject()
         for name in self._traitNames:
             self.add_traits(**{name:List()})
             self.update({name:[]}) ## ensures all starts correctly and a list works as a list!
 
-    def getExcludedNmrResidues(self):
+    def getExcludedNmrResidues(self, dataTables):
+        """
+        Get the excluded NmrResidues from specified dataTables or globally for the backend  if  dataTables are not given.
+        :param dataTables:
+        :return:
+        """
+        excludedNmrResiduePids = []
+        for dataTable in dataTables:
+            df = dataTable.data
+            if sv.NMRRESIDUEPID in df and sv.EXCLUDED_NMRRESIDUEPID in df:
+                excluded = df[df[sv.EXCLUDED_NMRRESIDUEPID]==True]
+                excludedNmrResiduePids = excluded[sv.NMRRESIDUEPID].values
 
-        excludedNmrResiduePids = self.excluded_nmrResiduePids
         nmrResidues = [self.project.getByPid(nr) for nr in excludedNmrResiduePids]
         return nmrResidues
 
-    def setExcludedNmrResidues(self, nmrResidues):
-
+    def setExcludedNmrResidues(self, nmrResidues, dataTables):
+        """Add an exclusion tag to the dataTables containing the specified residues """
         nmrResiduesPids = [nr.pid for nr in nmrResidues]
-        self.excluded_nmrResiduePids = nmrResiduesPids
 
-    def clear(self):
-        """Reset all to empty """
-        for name in self._traitNames:
-            self.update({name:[]})
+        for dataTable in dataTables:
+            # amend table in place. Don't need to resave to dataTable
+            df = dataTable.data
+            if sv.NMRRESIDUEPID in df:
+                excludedNmrResiduesDf = df[df[sv.NMRRESIDUEPID].isin(nmrResiduesPids)]
+                excludedIndexes = excludedNmrResiduesDf.index
+                includedIndexes = [ix for ix in df.index if ix not in excludedIndexes]
+                df.loc[excludedIndexes, sv.EXCLUDED_NMRRESIDUEPID] = True
+                df.loc[includedIndexes, sv.EXCLUDED_NMRRESIDUEPID] = False
 
-    def save(self):
-        """Save metadata do the dataTable """
-        if not self._dataTable:
-            getLogger().warn('Impossible to save to DataTable. No DataTable available.')
-            return
-        self._dataTable.updateMetadata(self.asDict())
 
-    def restore(self):
-        """Restore metadata from the dataTable """
-        if not self._dataTable:
-            getLogger().warn('Impossible restore from DataTable. No DataTable available.')
-            return
-        for name, value in self._dataTable.metadata.items():
-            if name in self._traitNames:
-                self.update({name: value})
 
 
 ####
