@@ -25,7 +25,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2023-11-10 15:58:42 +0000 (Fri, November 10, 2023) $"
+__dateModified__ = "$dateModified: 2023-12-02 18:05:55 +0000 (Sat, December 02, 2023) $"
 __version__ = "$Revision: 3.2.0 $"
 #=========================================================================================
 # Created
@@ -230,7 +230,9 @@ globals().update(args.__dict__)
 
 #### Data #####
 dataTable = macrosLib._getDataTableForMacro(dataTableName)
-data =  dataTable.data
+nanColumns = [sv.R1, sv.R2, sv.HETNOE_VALUE,]
+data =  macrosLib._getFilteredDataFrame(dataTable.data, nanColumns)
+
 x = data[sv.NMRRESIDUECODE]
 x = x.astype(int)
 x = x.values

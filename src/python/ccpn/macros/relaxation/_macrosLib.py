@@ -18,7 +18,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2023-11-09 09:49:32 +0000 (Thu, November 09, 2023) $"
+__dateModified__ = "$dateModified: 2023-12-02 18:05:55 +0000 (Sat, December 02, 2023) $"
 __version__ = "$Revision: 3.2.0 $"
 #=========================================================================================
 # Created
@@ -39,6 +39,7 @@ from matplotlib.ticker import MultipleLocator
 from ccpn.ui.gui.widgets.MessageDialog import showWarning
 from ccpn.util.floatUtils import fExp, fMan
 import ccpn.framework.lib.experimentAnalysis.SeriesAnalysisVariables as sv
+from ccpn.util.Logging import getLogger
 
 def _prettyFormat4Legend(value, rounding=3):
     """ Format mantissa to (rounding) round  and exponent for matplotlib """
@@ -128,6 +129,23 @@ def _getDataTableForMacro(dataTableName):
         showWarning('Datatable not found', errorMess)
         raise RuntimeError(errorMess)
     return dataTable
+
+def _getFilteredDataFrame(dataFrame, nanColumns):
+    """
+    Filtered a dataFrame with replaced  excluded NmrResidues.
+    :param dataFrame:
+    :param nanColumns: list of rolumns whose values need to be replaced with nan
+    :return: copy of original dataFrame
+    """
+    data = dataFrame.copy()
+    if sv.EXCLUDED_NMRRESIDUEPID in data:
+        exc = data[data[sv.EXCLUDED_NMRRESIDUEPID] == True].index
+        for column in nanColumns:
+            if column in data:
+                data.loc[exc, column] = np.nan
+            else:
+                getLogger().warn(f'Cannot find {column} in the given dataFrame')
+    return data
 
 def getArgs():
     defaultOutputPath = aPath(__file__).filepath

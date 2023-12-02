@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2023-11-30 15:34:15 +0000 (Thu, November 30, 2023) $"
+__dateModified__ = "$dateModified: 2023-12-02 18:05:54 +0000 (Sat, December 02, 2023) $"
 __version__ = "$Revision: 3.2.0 $"
 #=========================================================================================
 # Created
@@ -84,7 +84,7 @@ COLLECTIONPID    = 'collectionPid'
 PID              = 'pid'
 ASSIGNEDNMRATOMS = 'assignedNmrAtoms'
 
-# NOT yet enbled.
+
 EXCLUDED_PEAKPID        = f'{EXCLUDED_}{PEAKPID}'
 EXCLUDED_SPECTRUMPID    = f'{EXCLUDED_}{SPECTRUMPID}'
 EXCLUDED_NMRATOMPID     = f'{EXCLUDED_}{NMRATOMPID}'

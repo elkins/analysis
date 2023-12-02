@@ -12,7 +12,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2023-11-08 11:20:00 +0000 (Wed, November 08, 2023) $"
+__dateModified__ = "$dateModified: 2023-12-02 18:05:55 +0000 (Sat, December 02, 2023) $"
 __version__ = "$Revision: 3.2.0 $"
 #=========================================================================================
 # Created
@@ -738,6 +738,7 @@ class ErrorBarsHandler(PlotItemHandlerABC):
         errorsItem = pg.ErrorBarItem(x=xValues, y=yValues, top=yErrorValues, beam=None, pen=penColour)
         self.viewBox.addItem(errorsItem)
         self.items.append(errorsItem)
+        print('yErrorValues===', yErrorValues)
         self._rawData.append((xValues, yValues+yErrorValues))
 
 

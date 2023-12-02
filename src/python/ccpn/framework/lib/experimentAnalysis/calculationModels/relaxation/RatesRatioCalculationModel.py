@@ -15,7 +15,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2023-11-13 10:25:55 +0000 (Mon, November 13, 2023) $"
+__dateModified__ = "$dateModified: 2023-12-02 18:05:54 +0000 (Sat, December 02, 2023) $"
 __version__ = "$Revision: 3.2.0 $"
 #=========================================================================================
 # Created
@@ -108,6 +108,13 @@ class R2R1RatesCalculation(CalculationModel):
         ratesErrorRatio = (er1 / r1 + er2 / r2) * r2 / r1
         r1r2_err = lf.calculateUncertaintiesProductError(r1, r2, er1, er2)
 
+        # need to propagate the exclusions. if any in df1 or df2, then the resulting row is excluded
+        exclusions = [False]*len(merged) #default in case the tag is missing.
+        if sv.EXCLUDED_NMRRESIDUEPID in merged:
+            excluded1 = merged[f'{sv.EXCLUDED_NMRRESIDUEPID}{suffix1}'] == True
+            excluded2 = merged[f'{sv.EXCLUDED_NMRRESIDUEPID}{suffix2}'] == True
+            exclusions = [any([ex1,ex2]) for ex1, ex2 in zip(excluded1.values, excluded2.values)]
+
         # clean up suffixes
         merged.columns = merged.columns.str.rstrip(suffix1)
         columnsToDrop = [c for c in merged.columns if suffix2 in c]
@@ -125,6 +132,8 @@ class R2R1RatesCalculation(CalculationModel):
         outputFrame[sv.R1R2_ERR] = r1r2_err
         outputFrame[sv._ROW_UID] = merged[sv._ROW_UID].values
         outputFrame[sv.PEAKPID] = merged[sv.PEAKPID].values
+        outputFrame[sv.NMRRESIDUEPID] = merged[sv.NMRRESIDUEPID].values
+        outputFrame[sv.EXCLUDED_NMRRESIDUEPID] = exclusions
         outputFrame[sv.SERIES_STEP_X] = None
         outputFrame[sv.SERIES_STEP_Y] = None
         outputFrame[sv.CONSTANT_STATS_OUTPUT_TABLE_COLUMNS] = None

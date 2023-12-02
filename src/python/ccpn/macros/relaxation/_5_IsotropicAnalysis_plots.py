@@ -29,7 +29,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2023-11-10 15:58:42 +0000 (Fri, November 10, 2023) $"
+__dateModified__ = "$dateModified: 2023-11-30 15:34:16 +0000 (Thu, November 30, 2023) $"
 __version__ = "$Revision: 3.2.0 $"
 #=========================================================================================
 # Created
@@ -162,7 +162,8 @@ globals().update(args.__dict__)
 ## data preparation
 ## get the various values  and perform the needed calculations
 dataTable = macrosLib._getDataTableForMacro(dataTableName)
-data =  dataTable.data
+nanColumns = [sv.R1, sv.R2, sv.HETNOE_VALUE,]
+data =  macrosLib._getFilteredDataFrame(dataTable.data, nanColumns)
 x = data[sv.NMRRESIDUECODE]
 x = x.astype(int)
 x = x.values

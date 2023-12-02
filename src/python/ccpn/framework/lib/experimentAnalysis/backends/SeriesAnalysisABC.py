@@ -15,7 +15,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2023-12-01 17:34:21 +0000 (Fri, December 01, 2023) $"
+__dateModified__ = "$dateModified: 2023-12-02 18:05:54 +0000 (Sat, December 02, 2023) $"
 __version__ = "$Revision: 3.2.0 $"
 #=========================================================================================
 # Created
@@ -108,7 +108,7 @@ class SeriesAnalysisABC(ABC):
 
     @property
     def _resultDataFrameWithExclusions(self):
-        """ The dataFrame  which containes filtered out values based on user's exclusions.
+        """ The dataFrame  which contains filtered out values based on user's exclusions.
          This method is necessary to do not override the data on the output ResultData table"""
         _resultDataTable = self._resultDataTable
         df = _resultDataTable.data.copy()
@@ -131,7 +131,6 @@ class SeriesAnalysisABC(ABC):
             if calculationModelClass:
                 model = calculationModelClass()
                 blankColumns += model.modelArgumentNames
-                blankColumns += model.modelArgumentErrorNames
 
         excludedNmrResiduesPids = self.exclusionHandler._getExcludedNmrResiduePids(dataTable=_resultDataTable)
         excludedNmrResiduesDf = df[df[sv.NMRRESIDUEPID].isin(excludedNmrResiduesPids)]
