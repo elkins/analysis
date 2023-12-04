@@ -30,7 +30,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2023-12-04 09:57:01 +0000 (Mon, December 04, 2023) $"
+__dateModified__ = "$dateModified: 2023-12-04 11:00:18 +0000 (Mon, December 04, 2023) $"
 __version__ = "$Revision: 3.2.0 $"
 #=========================================================================================
 # Created
@@ -95,6 +95,8 @@ outputPath = None
 import ccpn.framework.lib.experimentAnalysis.SeriesAnalysisVariables as sv
 from ccpn.framework.lib.experimentAnalysis.ExperimentConstants import N15gyromagneticRatio, HgyromagneticRatio
 import ccpn.framework.lib.experimentAnalysis.calculationModels.relaxation.spectralDensityLib as sdl
+from ccpn.framework.lib.experimentAnalysis.calculationModels._libraryFunctions import calculateUncertaintiesError, peakErrorBySNRs
+
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
@@ -204,13 +206,13 @@ NOE_ERR = RSDMdf[sv.HETNOE_VALUE_ERR].values
 
 scalingFactor = 1e9
 J0 = RSDMdf[sv.J0].values * scalingFactor
-J0_ERR = RSDMdf[sv.J0_ERR].values
+J0_ERR = RSDMdf[sv.J0_ERR].values* scalingFactor
 JWH = RSDMdf[sv.JwH].values * scalingFactor
-JWH_ERR = RSDMdf[sv.JwH_ERR].values
+JWH_ERR = RSDMdf[sv.JwH_ERR].values* scalingFactor
 JWH7over4 = 7/4*JWH
 JWH13over8 = 13/8*JWH
 JWN = RSDMdf[sv.JwX].values * scalingFactor
-JWN_ERR = RSDMdf[sv.JwX_ERR].values
+JWN_ERR = RSDMdf[sv.JwX_ERR].values* scalingFactor
 
 ETAz = ETAzdf[sv.CROSSRELAXRATIO_VALUE].values
 ETAz_err = ETAzdf[sv.CROSSRELAXRATIO_VALUE_ERR].values
@@ -247,17 +249,24 @@ rexSigma = R2 - r2oSigma
 r2o_error = (R1_ERR+(1.249*SigmaNHErr) + (1.079*SigmaNHErr) + (((ETAxy_err/ETAxy) + (ETAz_err/ETAz)) * (ETAxy/ETAz)))
 rexSigma_error = R2_ERR + r2o_error
 
+scalingFactor = 1e9
+wN = sdl.calculateOmegaN(spectrometerFrequency, scalingFactor)
+csaN = -160 / scalingFactor
 # ReX from Eq 27 doi:10.1016/j.pnmrs.2004.01.001.  R.A Atkinson, B. Kieffer  The role of protein motions in molecular recognition... 44:141-187. 2004
 # Model:
 # Rex = (3A + B) * [ 2/3J0 - (nxy/nz - 1/2) * jWN]
+# A = d factor from the RSDM lib
+# B = c factor
 
-A = 1 #TODO find where is coming from
-B = 1 #TODO find where is coming from
+c = sdl.calculate_c_factor(wN, csaN)
+d = sdl.calculate_d_factor()
 
-AB = (3*A + B)
-AB = 1 # TODO changeME
+AB = ((3*d) + c)/scalingFactor
 etaRatio = ETAxy/ETAz
 rexViaEtas = AB * ((2/3*J0) - ((etaRatio-1/2)* JWN))
+
+etaRatioErrors = calculateUncertaintiesError(ETAxy, ETAz, ETAxy_err, ETAz_err)
+rexViaEtasErrors = AB * ((2/3*J0_ERR) - ((etaRatioErrors-1/2)* JWN_ERR))
 
 ############################################################
 ##############                Plotting              #########################
@@ -270,14 +279,16 @@ def _ploteExchangeRates(pdf):
     ax, ax2, axss = axes
 
     ax.plot(x, [0]*len(x), '--', linewidth=0.5)
-    ax.errorbar(x, rexFromExpR2, yerr=rexSigma_error, color=scatterColor, ms=scatterSize, fmt='o', ecolor=scatterColorError, elinewidth=scatterErrorLinewidth, capsize=scatterErrorCapSize)
-    ax.plot(x, rexViaEtas, 'o', ms=1, label='eq. 27')
+    # ax.errorbar(x, rexFromExpR1, yerr=rexSigma_error, label='ReX From R1', color='green', ms=scatterSize, fmt='o', ecolor=scatterColorError, elinewidth=scatterErrorLinewidth, capsize=scatterErrorCapSize)
+    ax.errorbar(x, rexFromExpR2, yerr=rexSigma_error, label='ReX From R2', color=scatterColor, ms=scatterSize, fmt='o', ecolor=scatterColorError, elinewidth=scatterErrorLinewidth, capsize=scatterErrorCapSize)
+    ax.errorbar(x, rexViaEtas, yerr=rexViaEtasErrors, label='ReX From Etas',  color='red', ms=scatterSize, fmt='o', ecolor=scatterColorError, elinewidth=scatterErrorLinewidth, capsize=scatterErrorCapSize)
 
-    ax.set_title('R$_{ex}$ via Experimental R2 and η$_{xy}$', fontsize=fontTitleSize, color=titleColor, pad=1)
+
+    ax.set_title('R$_{ex}$ via η$_{xy}$ -Testing-', fontsize=fontTitleSize, color=titleColor, pad=1)
     ax.set_ylabel('R$_{ex}$', fontsize=fontYSize)
     macrosLib._setXTicks(ax, labelMajorSize, labelMinorSize)
     # macrosLib._setCommonYLim(axRexSDM, rexSigma)
-    ax.legend(loc='lower right', prop={'size': 4})
+    ax.legend(loc='best', prop={'size': 4})
     ax.spines[['right', 'top']].set_visible(False)
 
     ## plot Secondary structure
