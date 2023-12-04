@@ -30,7 +30,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2023-11-30 15:34:16 +0000 (Thu, November 30, 2023) $"
+__dateModified__ = "$dateModified: 2023-12-04 09:57:01 +0000 (Mon, December 04, 2023) $"
 __version__ = "$Revision: 3.2.0 $"
 #=========================================================================================
 # Created
@@ -180,7 +180,17 @@ if not all([ETAxyData, ETAzData, RSDMdata]):
 
 ## calculate the model values.
 
-RSDMdf = RSDMdata.data
+
+nanColumns = [sv.R1,
+              sv.R2,
+              sv.HETNOE_VALUE,
+              sv.J0,
+              sv.JwH,
+              sv.JwX,
+              sv.J0_ERR,
+              sv.JwH_ERR,
+              sv.JwX_ERR]
+RSDMdf =  macrosLib._getFilteredDataFrame(RSDMdata.data, nanColumns)
 ETAzdf = ETAzData.data.groupby([sv.COLLECTIONID]).first()
 ETAxydf = ETAxyData.data.groupby([sv.COLLECTIONID]).first()
 
@@ -248,7 +258,6 @@ AB = (3*A + B)
 AB = 1 # TODO changeME
 etaRatio = ETAxy/ETAz
 rexViaEtas = AB * ((2/3*J0) - ((etaRatio-1/2)* JWN))
-print(rexViaEtas)
 
 ############################################################
 ##############                Plotting              #########################

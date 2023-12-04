@@ -17,7 +17,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2023-11-16 15:56:50 +0000 (Thu, November 16, 2023) $"
+__dateModified__ = "$dateModified: 2023-12-04 09:57:01 +0000 (Mon, December 04, 2023) $"
 __version__ = "$Revision: 3.2.0 $"
 #=========================================================================================
 # Created
@@ -216,7 +216,7 @@ def _calculateR20viaETAxy(r2, ETAxy):
 
     :return: r20 array
     """
-    r20 = ETAxy * np.mean((r2/ETAxy))
+    r20 = ETAxy * np.nanmean((r2/ETAxy))
     return r20
 
 def _calculateR20viaR1(r2, r1):
@@ -226,7 +226,7 @@ def _calculateR20viaR1(r2, r1):
     Mathias A. S. Hass and Jens J. Led. Magn. Reson. Chem.2006;44: 761 – 769. DOI: 10.1002/mrc.1845
     :return: R20
     """
-    r20 = r1 * np.mean((r2/r1))
+    r20 = r1 * np.nanmean((r2/r1))
     return r20
 
 def _calculateNOEp(A, gammaHN, t1, jHpN, jHmN):

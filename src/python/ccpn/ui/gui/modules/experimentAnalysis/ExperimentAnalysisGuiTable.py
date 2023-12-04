@@ -13,7 +13,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2023-12-02 18:05:55 +0000 (Sat, December 02, 2023) $"
+__dateModified__ = "$dateModified: 2023-12-04 09:57:01 +0000 (Mon, December 04, 2023) $"
 __version__ = "$Revision: 3.2.0 $"
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
 __dateModified__ = "$dateModified: 2024-06-21 19:48:44 +0100 (Fri, June 21, 2024) $"
@@ -291,14 +291,15 @@ class _ExperimentalAnalysisTableABC(Table):
     def getSelectedNmrResidues(self):
         selectedRowsDf = self.selectedRows()
         nmrResidues = set()
-        if not sv.NMRRESIDUEPID in selectedRowsDf:
-            showWarning(f'This table does not contain the requeired field {sv.NMRRESIDUEPID}',
-                        'You might need to recreate this dataTable for some features to be available.' )
-            return []
+        # if not sv.NMRRESIDUEPID in selectedRowsDf:
+        #     showWarning(f'This table does not contain the requeired field {sv.NMRRESIDUEPID}',
+        #                 'You might need to recreate this dataTable for some features to be available.' )
+
         for ix, selectedRow in selectedRowsDf.iterrows():
-            nmrResiduePid = selectedRow[sv.NMRRESIDUEPID]
-            nmrResidue = self.project.getByPid(nmrResiduePid)
-            nmrResidues.add(nmrResidue)
+            if sv.NMRRESIDUEPID in selectedRowsDf:
+                nmrResiduePid = selectedRow[sv.NMRRESIDUEPID]
+                nmrResidue = self.project.getByPid(nmrResiduePid)
+                nmrResidues.add(nmrResidue)
         return list(nmrResidues)
 
     def _currentCollectionCallback(self, *args):
