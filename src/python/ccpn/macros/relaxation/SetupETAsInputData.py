@@ -42,7 +42,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2023-11-09 09:49:31 +0000 (Thu, November 09, 2023) $"
+__dateModified__ = "$dateModified: 2023-12-05 09:48:04 +0000 (Tue, December 05, 2023) $"
 __version__ = "$Revision: 3.2.0 $"
 #=========================================================================================
 # Created
@@ -166,6 +166,8 @@ with busyHandler(title=title, text=text):
     backend.addInputDataTable(project.getDataTable(ETAxy_IP_InputData))
     backend.addInputDataTable(project.getDataTable(ETAxy_AP_InputData))
     ## Create  the ETAxy Result Data
+    fittingModel = backend.getFittingModelByName('ScaledOnePhaseDecayModel')
+    backend.currentFittingModel = fittingModel()
     backend.outputDataTableName = ETAxyResultDataName
     ETAxyResultData = backend.fitInputData()
 

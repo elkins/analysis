@@ -61,7 +61,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2023-11-13 10:25:55 +0000 (Mon, November 13, 2023) $"
+__dateModified__ = "$dateModified: 2023-12-05 09:48:04 +0000 (Tue, December 05, 2023) $"
 __version__ = "$Revision: 3.2.0 $"
 #=========================================================================================
 # Created
@@ -98,7 +98,8 @@ class FittingModelABC(ABC):
     peakProperty               = sv._HEIGHT              # The peak property to fit. One of ['height', 'lineWidth', 'volume', 'ppmPosition']
     _minimisedProperty      = sv._HEIGHT             # Similarly to peakProperty, The same as peakProperty for most of the models.
                                                                              # Added because models can be fitted using any properties (data) e.g. ratios.   This will appear as  Y label in the fitting plot.
-    isEnabled                        = True                       # True to enable on the UI and be selected/used
+    isEnabled                        = True                       # True to enable selection on the GUI. False to show but greyed-out and unselectable
+    isGUIVisible                     = True                      # True to show on GUI. False to don't display on widgets but still available from backend. (good for testing)
     requiredInputData            = 1                           # ensure there is the correct amount of input data. Should also check the types (?)
     _autoRegisterModel        = True                      # Register to the Backend when dynamically loading its Python module from disk
 

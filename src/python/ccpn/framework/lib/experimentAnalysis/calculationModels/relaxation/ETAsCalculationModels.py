@@ -15,7 +15,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2023-11-13 10:25:55 +0000 (Mon, November 13, 2023) $"
+__dateModified__ = "$dateModified: 2023-12-05 09:48:04 +0000 (Tue, December 05, 2023) $"
 __version__ = "$Revision: 3.2.0 $"
 #=========================================================================================
 # Created
@@ -46,6 +46,8 @@ class ETACalculation(CalculationModel):
 
     description = '''Model:
     Measure cross-correlation rates by calculating the ratio of two separate series: in-phase (IP) and anti-phase (AP) (IP/AP) 
+    ETAxy and ETAz rates are determined directly from fitting the time dependence of the ratio of the IP/AP peak heights
+    to a scaled exponential decay function.
                  '''
     references = '''
               1) Direct measurement of the 15 N CSA/dipolar relaxation interference from coupled HSQC spectra. 
@@ -106,7 +108,6 @@ class ETACalculation(CalculationModel):
             inphase = groupDf[groupDf[PHASE] == _IP]
             antiphase = groupDf[groupDf[PHASE] == _AP]
             # makesure the sorting is correct
-
             groupDf.sort_values([self.xSeriesStepHeader], inplace=True, ascending=isSeriesAscending)
             xs = []
             ys = []

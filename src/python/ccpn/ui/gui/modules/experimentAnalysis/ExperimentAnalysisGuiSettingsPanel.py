@@ -12,7 +12,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2023-11-10 17:12:51 +0000 (Fri, November 10, 2023) $"
+__dateModified__ = "$dateModified: 2023-12-05 09:48:04 +0000 (Tue, December 05, 2023) $"
 __version__ = "$Revision: 3.2.0 $"
 #=========================================================================================
 # Created
@@ -571,6 +571,7 @@ class GuiCalculationPanel(GuiSettingPanel):
 
         ))
         calculationModels = backendHandler.calculationModels
+        calculationModels = {m: n for (m,n) in calculationModels.items() if n.isGUIVisible}
         ## autogenerate labels/tiptexts from the calculationModes.
         extraLabels_ddCalculationsModes = [model.maTex for modelName, model in
                                            calculationModels.items()]
@@ -716,6 +717,7 @@ class GuiFittingPanel(GuiSettingPanel):
     def setWidgetDefinitions(self):
         """Common fitting Widgets"""
         models = list(self.guiModule.backendHandler.fittingModels.values())
+        models = [model for model in models if model.isGUIVisible]
         currentFittingModel = self.guiModule.backendHandler.currentFittingModel
         currentFittingModelName = currentFittingModel.modelName if currentFittingModel is not None else None
         self.widgetDefinitions = od((

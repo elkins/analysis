@@ -15,7 +15,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2023-11-13 10:25:55 +0000 (Mon, November 13, 2023) $"
+__dateModified__ = "$dateModified: 2023-12-05 09:48:04 +0000 (Tue, December 05, 2023) $"
 __version__ = "$Revision: 3.2.0 $"
 #=========================================================================================
 # Created
@@ -47,6 +47,18 @@ def onePhaseDecay_func(x, rate=1.0, amplitude=1.0):
     """
     rate = ls.not_zero(rate)
     result = amplitude * np.exp(-rate * x)
+    return result
+
+def scaledOnePhaseDecay_func(x, rate=1.0, amplitude=1.0):
+    """
+    Function used to describe the  decay rate in an exponential decay model
+    :param x: 1d array. If X is in seconds, then rate is expressed in inverse seconds, (Spower-1)
+    :param rate: float. The rate constant, expressed in reciprocal of the X axis time units.
+    :param amplitude:  float.
+    :return: 1d array of  the lineshape describing this function
+    """
+    rate = ls.not_zero(rate)
+    result = amplitude * np.exp(-4*rate* x)
     return result
 
 def onePhaseDecayPlateau_func(x, rate=1.0, amplitude=1.0, plateau=0.0):
@@ -94,6 +106,33 @@ class _OnePhaseDecayMinimiser(MinimiserModel):
         params = self.make_params(amplitude=np.exp(oval), rate=abs(sval))
         return update_param_vals(params, self.prefix, **kwargs)
 
+class _ScaledOnePhaseDecayMinimiser(MinimiserModel):
+
+    MODELNAME = 'ScaledOnePhaseDecayMinimiser'
+    FITTING_FUNC = scaledOnePhaseDecay_func
+    AMPLITUDE = sv.AMPLITUDE
+    RATE = sv.RATE
+    # _defaultParams must be set. They are required. Also Strings must be exactly as they are defined in the FITTING_FUNC arguments!
+    # There is a clever signature inspection that set the args as class attributes. This was too hard/dangerous to change!
+    defaultParams = {
+                        AMPLITUDE : 1.0,
+                        RATE            :1.5
+                      }
+
+    def __init__(self, independent_vars=['x'], prefix='', nan_policy=sv.OMIT_MODE, **kwargs):
+        kwargs.update({'prefix': prefix, 'nan_policy': nan_policy, 'independent_vars': independent_vars})
+        super().__init__(_ScaledOnePhaseDecayMinimiser.FITTING_FUNC, **kwargs)
+        self.name = self.MODELNAME
+        self.params = self.make_params(**self.defaultParams)
+
+    def guess(self, data, x, **kwargs):
+        """Estimate initial model parameter values from data."""
+        try:
+            sval, oval = np.polyfit(x, np.log(abs(data)+1.e-15), 1)
+        except TypeError:
+            sval, oval = 1., np.log(abs(max(data)+1.e-9))
+        params = self.make_params(amplitude=np.exp(oval), rate=abs(sval))
+        return update_param_vals(params, self.prefix, **kwargs)
 
 class _OnePhaseDecayPlateauMinimiser(MinimiserModel):
 
@@ -201,6 +240,23 @@ class OnePhaseDecayModel(_ExponentialBaseModel):
         """  Private only used in UI mode."""
 
         return self.Minimiser.RATE
+
+class ScaledOnePhaseDecayModel(_ExponentialBaseModel):
+    """
+    FittingModel model class containing fitting equation and fitting information
+    """
+    modelName   = 'ScaledOnePhaseDecayModel'
+    modelInfo        = '''A model to describe the rate of a decay.  '''
+    description = '''Model:\nY=amplitude*exp(-4*rate*X)      
+                 X:the various times values
+                 amplitude: the Y value when X (time) is zero. Same units as Y
+                 rate: the rate constant, expressed in reciprocal of the X axis time units,  e.g.: Second-1.
+                  '''
+    references  = '''Direct measurement of the transverse and longitudinal 15N CSA- dipolar cross-correlation rate constants using 1H-coupled HSQC spectra. 
+    Hall and Fushman. 41:837-842. 2003. Mag Res in Chem.'''
+    Minimiser = _ScaledOnePhaseDecayMinimiser
+    isGUIVisible = False #This model is only used from a macro/custom setup
+
 
 class OnePhaseDecayPlateauModel(_ExponentialBaseModel):
     """

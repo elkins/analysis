@@ -30,7 +30,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2023-12-04 11:00:18 +0000 (Mon, December 04, 2023) $"
+__dateModified__ = "$dateModified: 2023-12-05 09:48:04 +0000 (Tue, December 05, 2023) $"
 __version__ = "$Revision: 3.2.0 $"
 #=========================================================================================
 # Created
@@ -214,13 +214,13 @@ JWH13over8 = 13/8*JWH
 JWN = RSDMdf[sv.JwX].values * scalingFactor
 JWN_ERR = RSDMdf[sv.JwX_ERR].values* scalingFactor
 
-ETAz = ETAzdf[sv.CROSSRELAXRATIO_VALUE].values
-ETAz_err = ETAzdf[sv.CROSSRELAXRATIO_VALUE_ERR].values
-ETAxy = ETAxydf[sv.CROSSRELAXRATIO_VALUE].values
-ETAxy_err = ETAxydf[sv.CROSSRELAXRATIO_VALUE_ERR].values
+ETAz = ETAzdf[sv.RATE].values
+ETAz_err = ETAzdf[sv.RATE_ERR].values
+ETAxy = ETAxydf[sv.RATE].values
+ETAxy_err = ETAxydf[sv.RATE_ERR].values
 
 # apply scaling factor
-ETAz = ETAz * ETAzScalingFactor
+ETAz= ETAz * ETAzScalingFactor
 ETAxy = ETAxy * ETAxyScalingFactor
 
 
@@ -261,6 +261,7 @@ csaN = -160 / scalingFactor
 c = sdl.calculate_c_factor(wN, csaN)
 d = sdl.calculate_d_factor()
 
+
 AB = ((3*d) + c)/scalingFactor
 etaRatio = ETAxy/ETAz
 rexViaEtas = AB * ((2/3*J0) - ((etaRatio-1/2)* JWN))
@@ -282,6 +283,7 @@ def _ploteExchangeRates(pdf):
     # ax.errorbar(x, rexFromExpR1, yerr=rexSigma_error, label='ReX From R1', color='green', ms=scatterSize, fmt='o', ecolor=scatterColorError, elinewidth=scatterErrorLinewidth, capsize=scatterErrorCapSize)
     ax.errorbar(x, rexFromExpR2, yerr=rexSigma_error, label='ReX From R2', color=scatterColor, ms=scatterSize, fmt='o', ecolor=scatterColorError, elinewidth=scatterErrorLinewidth, capsize=scatterErrorCapSize)
     ax.errorbar(x, rexViaEtas, yerr=rexViaEtasErrors, label='ReX From Etas',  color='red', ms=scatterSize, fmt='o', ecolor=scatterColorError, elinewidth=scatterErrorLinewidth, capsize=scatterErrorCapSize)
+    ax.errorbar(x, rex_from_RSDM, yerr=rexViaEtasErrors, label='ReX From RSDM',  color='pink', ms=scatterSize, fmt='o', ecolor=scatterColorError, elinewidth=scatterErrorLinewidth, capsize=scatterErrorCapSize)
 
 
     ax.set_title('R$_{ex}$ via η$_{xy}$ -Testing-', fontsize=fontTitleSize, color=titleColor, pad=1)
@@ -329,16 +331,17 @@ else:
 copy = 'Copy Path to Clipboard'
 open = 'Open File'
 close = 'Close'
-reply = showMulti('Report Ready',
-                  f'Report saved in {filePath}',
-                  texts=[copy, open, close],
-                  )
-if reply == open:
-    application._systemOpen(filePath)
+if False:
+    reply = showMulti('Report Ready',
+                      f'Report saved in {filePath}',
+                      texts=[copy, open, close],
+                      )
+    if reply == open:
+        application._systemOpen(filePath)
 
-if reply == copy:
-    from ccpn.util.Common import copyToClipboard
-    copyToClipboard([filePath])
+    if reply == copy:
+        from ccpn.util.Common import copyToClipboard
+        copyToClipboard([filePath])
 
 
 ###################      end macro        #########################
