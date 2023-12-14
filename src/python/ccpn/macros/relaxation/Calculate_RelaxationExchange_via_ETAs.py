@@ -30,7 +30,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2023-12-05 09:48:04 +0000 (Tue, December 05, 2023) $"
+__dateModified__ = "$dateModified: 2023-12-14 19:24:28 +0000 (Thu, December 14, 2023) $"
 __version__ = "$Revision: 3.2.0 $"
 #=========================================================================================
 # Created
@@ -52,7 +52,7 @@ __date__ = "$Date: 2023-02-03 10:04:03 +0000 (Fri, February 03, 2023) $"
 ETAxyDataName = 'ETAxyResultData'
 ETAzDataName = 'ETAzResultData'
 RSDMdataTableName = 'RSDMResults'
-ETAzScalingFactor = 1.07
+ETAzScalingFactor = 1.10
 ETAxyScalingFactor = 1.08
 
 ##  demo sequence for the GB1 protein . Replace with an empty str if not available, e.g.: sequence  = ''
@@ -96,6 +96,7 @@ import ccpn.framework.lib.experimentAnalysis.SeriesAnalysisVariables as sv
 from ccpn.framework.lib.experimentAnalysis.ExperimentConstants import N15gyromagneticRatio, HgyromagneticRatio
 import ccpn.framework.lib.experimentAnalysis.calculationModels.relaxation.spectralDensityLib as sdl
 from ccpn.framework.lib.experimentAnalysis.calculationModels._libraryFunctions import calculateUncertaintiesError, peakErrorBySNRs
+from scipy import stats
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -205,8 +206,8 @@ R2_ERR  = RSDMdf[sv.R2_ERR].values
 NOE_ERR = RSDMdf[sv.HETNOE_VALUE_ERR].values
 
 scalingFactor = 1e9
-J0 = RSDMdf[sv.J0].values * scalingFactor
-J0_ERR = RSDMdf[sv.J0_ERR].values* scalingFactor
+J0 = RSDMdf[sv.J0].values * scalingFactor * 0.87
+J0_ERR = RSDMdf[sv.J0_ERR].values* scalingFactor * 0.87
 JWH = RSDMdf[sv.JwH].values * scalingFactor
 JWH_ERR = RSDMdf[sv.JwH_ERR].values* scalingFactor
 JWH7over4 = 7/4*JWH
@@ -263,11 +264,22 @@ d = sdl.calculate_d_factor()
 
 
 AB = ((3*d) + c)/scalingFactor
-etaRatio = ETAxy/ETAz
+etaRatio = (ETAxy/ETAz) *1.35
 rexViaEtas = AB * ((2/3*J0) - ((etaRatio-1/2)* JWN))
 
 etaRatioErrors = calculateUncertaintiesError(ETAxy, ETAz, ETAxy_err, ETAz_err)
 rexViaEtasErrors = AB * ((2/3*J0_ERR) - ((etaRatioErrors-1/2)* JWN_ERR))
+
+
+ratioR2R1 = R2/R1
+kR2R1 = stats.trim_mean(ratioR2R1, proportiontocut=0.1)
+DKR2R1 = np.std(ratioR2R1)
+minRexR2R1 = sdl._calculateMinimumRex(kR2R1, R1, DKR2R1, R1_ERR)
+# EtaXY
+ratioR2ETAxy = R2/ETAxy
+kETAxy = stats.trim_mean(ratioR2ETAxy, proportiontocut=0.1)
+DK = np.std(ratioR2ETAxy)
+minRexR2ETAxy = sdl._calculateMinimumRex(kETAxy, ETAxy, DK, ETAxy_err)
 
 ############################################################
 ##############                Plotting              #########################
@@ -283,7 +295,8 @@ def _ploteExchangeRates(pdf):
     # ax.errorbar(x, rexFromExpR1, yerr=rexSigma_error, label='ReX From R1', color='green', ms=scatterSize, fmt='o', ecolor=scatterColorError, elinewidth=scatterErrorLinewidth, capsize=scatterErrorCapSize)
     ax.errorbar(x, rexFromExpR2, yerr=rexSigma_error, label='ReX From R2', color=scatterColor, ms=scatterSize, fmt='o', ecolor=scatterColorError, elinewidth=scatterErrorLinewidth, capsize=scatterErrorCapSize)
     ax.errorbar(x, rexViaEtas, yerr=rexViaEtasErrors, label='ReX From Etas',  color='red', ms=scatterSize, fmt='o', ecolor=scatterColorError, elinewidth=scatterErrorLinewidth, capsize=scatterErrorCapSize)
-    ax.errorbar(x, rex_from_RSDM, yerr=rexViaEtasErrors, label='ReX From RSDM',  color='pink', ms=scatterSize, fmt='o', ecolor=scatterColorError, elinewidth=scatterErrorLinewidth, capsize=scatterErrorCapSize)
+    # ax.plot(x, minRexR2R1, 'o', label = 'R2R1')
+    # ax.errorbar(x, rex_from_RSDM, yerr=rexViaEtasErrors, label='ReX From RSDM',  color='pink', ms=scatterSize, fmt='o', ecolor=scatterColorError, elinewidth=scatterErrorLinewidth, capsize=scatterErrorCapSize)
 
 
     ax.set_title('R$_{ex}$ via η$_{xy}$ -Testing-', fontsize=fontTitleSize, color=titleColor, pad=1)

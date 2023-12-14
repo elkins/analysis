@@ -17,7 +17,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2023-12-04 09:57:01 +0000 (Mon, December 04, 2023) $"
+__dateModified__ = "$dateModified: 2023-12-14 19:24:28 +0000 (Thu, December 14, 2023) $"
 __version__ = "$Revision: 3.2.0 $"
 #=========================================================================================
 # Created
@@ -143,7 +143,7 @@ def estimateAverageS2(r1, r2, noe=None, noeExclusionLimit=0.65, method='median',
     if method=='median':
         p1 = np.median(_pr)
     else:
-        p1 = stats.trim_mean(_pr,  proportiontocut= proportiontocut)
+        p1 = stats.trim_mean(_pr,  proportiontocut=proportiontocut)
     _max = np.max(_pr)
     sAv = np.sqrt(p1/_max)
     return sAv
@@ -197,6 +197,8 @@ def calculateOmegaC(spectrometerFrequency, scalingFactor=1e6):
     omegaC = omegaH * constants.GAMMA_C / constants.GAMMA_H
     return omegaC
 
+## Exchange lib. Functions to be moded in the correct lib file.
+
 def _calculateR20(d, c, J0, JWH, JWN):
     """
     d, c:  constants, float.
@@ -228,6 +230,23 @@ def _calculateR20viaR1(r2, r1):
     """
     r20 = r1 * np.nanmean((r2/r1))
     return r20
+
+def _calculateMinimumRex(K, R, deltaK, deltaR):
+    """
+
+    :param k: float, either the trimmed average <R2/R1> or the trimmed average <R2/Nxy>
+    :param R: 1D array, R1 rate or Nxy rate
+    :param deltaK: standard deviation of the <R2/R1> or <R2/Nxy>
+    :param deltaR: experimental uncertainty of R1 or Nxy
+    :return: 1D array
+    Use R1 and R2 when the system is rigid and tumble fast and nearly isotropically (in solution).
+    Use R2/Nxy when the system is flexible or highly non-spherical.
+    Ref: DOI:10.1002/mrc.1845. Hass 2006
+    """
+    a = np.power(deltaK / K , 2)
+    b = np.power(deltaR / R , 2)
+    rex = K * R * np.sqrt(a+b)
+    return rex
 
 def _calculateNOEp(A, gammaHN, t1, jHpN, jHmN):
     """
