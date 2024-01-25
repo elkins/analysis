@@ -6,7 +6,7 @@ Spectral density mapping  in the Series Analysis module.
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2023"
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
 __credits__ = ("Ed Brooksbank, Joanna Fox, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
                "Timothy J Ragan, Brian O Smith, Gary S Thompson & Geerten W Vuister")
 __licence__ = ("CCPN licence. See https://ccpn.ac.uk/software/licensing/")
@@ -17,7 +17,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2023-12-14 19:24:28 +0000 (Thu, December 14, 2023) $"
+__dateModified__ = "$dateModified: 2024-01-25 12:33:46 +0000 (Thu, January 25, 2024) $"
 __version__ = "$Revision: 3.2.0 $"
 #=========================================================================================
 # Created
@@ -245,8 +245,8 @@ def _calculateMinimumRex(K, R, deltaK, deltaR):
     """
     a = np.power(deltaK / K , 2)
     b = np.power(deltaR / R , 2)
-    rex = K * R * np.sqrt(a+b)
-    return rex
+    minimumRex = K * R * (np.sqrt(a+b))
+    return minimumRex
 
 def _calculateNOEp(A, gammaHN, t1, jHpN, jHmN):
     """
