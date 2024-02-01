@@ -18,9 +18,9 @@ Macro created for Analysis Version 3.1.1
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2023"
-__credits__ = ("Ed Brooksbank, Joanna Fox, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
-               "Timothy J Ragan, Brian O Smith, Gary S Thompson & Geerten W Vuister")
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__credits__ = ("Ed Brooksbank, Joanna Fox, Morgan Hayward, Victoria A Higman, Luca Mureddu",
+               "Eliza Płoskoń, Timothy J Ragan, Brian O Smith, Gary S Thompson & Geerten W Vuister")
 __licence__ = ("CCPN licence. See https://ccpn.ac.uk/software/licensing/")
 __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, L.G., & Vuister, G.W.",
                  "CcpNmr AnalysisAssign: a flexible platform for integrated NMR analysis",
@@ -29,8 +29,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2023-11-30 15:34:16 +0000 (Thu, November 30, 2023) $"
-__version__ = "$Revision: 3.2.0 $"
+__dateModified__ = "$dateModified: 2024-02-01 18:03:43 +0000 (Thu, February 01, 2024) $"
+__version__ = "$Revision: 3.2.2 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -47,7 +47,7 @@ __date__ = "$Date: 2023-02-03 10:04:03 +0000 (Fri, February 03, 2023) $"
 #####################    User Settings      #######################
 ############################################################
 
-dataTableName = 'RSDMresults'
+dataTableName = 'RSDMResults'
 
 ##  demo sequence for the GB1 protein . Replace with an empty str if not available, e.g.: sequence  = ''
 sequence  = 'KLILNGKTLKGETTTEAVDAATAEKVFKQYANDNGVDGEWTYDAATKTFTVTE'
@@ -177,7 +177,7 @@ R1_ERR = data[sv.R1_ERR]
 R2_ERR  = data[sv.R2_ERR]
 NOE_ERR = data[sv.HETNOE_VALUE_ERR]
 
-from ccpn.framework.lib.experimentAnalysis.calculationModels.relaxation.modelFreeLib import  _fitIsotropicModelFromT1T2NOE
+from ccpn.framework.lib.experimentAnalysis.calculationModels.relaxation.modelFree.modelFreeLib import  _fitIsotropicModelFromT1T2NOE
 
 otherAnalysis, meanAnalysis = _fitIsotropicModelFromT1T2NOE(data, spectrometerFrequency=spectrometerFrequency)
 S2 = otherAnalysis[sv.S2].values

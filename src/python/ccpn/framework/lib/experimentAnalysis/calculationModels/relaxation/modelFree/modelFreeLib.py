@@ -6,9 +6,9 @@ Spectral density mapping  in the Series Analysis module.
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2023"
-__credits__ = ("Ed Brooksbank, Joanna Fox, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
-               "Timothy J Ragan, Brian O Smith, Gary S Thompson & Geerten W Vuister")
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__credits__ = ("Ed Brooksbank, Joanna Fox, Morgan Hayward, Victoria A Higman, Luca Mureddu",
+               "Eliza Płoskoń, Timothy J Ragan, Brian O Smith, Gary S Thompson & Geerten W Vuister")
 __licence__ = ("CCPN licence. See https://ccpn.ac.uk/software/licensing/")
 __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, L.G., & Vuister, G.W.",
                  "CcpNmr AnalysisAssign: a flexible platform for integrated NMR analysis",
@@ -17,8 +17,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2023-11-10 15:58:41 +0000 (Fri, November 10, 2023) $"
-__version__ = "$Revision: 3.2.0 $"
+__dateModified__ = "$dateModified: 2024-02-01 18:03:43 +0000 (Thu, February 01, 2024) $"
+__version__ = "$Revision: 3.2.2 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -210,11 +210,22 @@ def calculateSpectralDensityContourLines(spectrometerFrequency=600.130,
 
     return rctLines, s2Lines
 
-def fitIsotropicModel(t1, t2, noe, sf, tmFix=None, teFix=None, s2Fix=None,
+def fitIsotropicModel(t1, t2, noe, sf=600, tmFix=None, teFix=None, s2Fix=None,
                       tmMin=1e-9, tmMax=100e-9, teMin=1e-12, teMax=1e-9,
                       csaN = 160 * 1e-6 , rNH = 1.015,
                       rexFix=None, rexMax=15.0, niter=10000):
+    """
+    Fit the IsotropicModel of Lipari Szabo using a genetic algorithm-like approach for optimization.
+    - Calculation of various factors and initialization of parameters.
+    - Creation of an ensemble of solutions with different combinations of initial parameter values.
+    - Calculation of scores for each solution in the ensemble based on the fitness criteria.
+    - Sorting and selecting the top 10 solutions with the lowest scores.
+    - Iterative optimization using a mutation process to generate new solutions.
+    - Updating the ensemble with the new solutions if they have better scores.
+    - The optimization process continues for a specified number of iterations (niter).
+    - The final result is a tuple containing the number of iterations performed and the top 10 solutions with their respective scores.
 
+    """
     # rNH = 1.015
     # csaN = 160 * 1e-6  # 160 ppm
     omegaH = sdl.calculateOmegaH(sf, scalingFactor=1e6)
