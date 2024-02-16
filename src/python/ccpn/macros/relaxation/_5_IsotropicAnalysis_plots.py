@@ -29,7 +29,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-02-01 18:03:43 +0000 (Thu, February 01, 2024) $"
+__dateModified__ = "$dateModified: 2024-02-16 17:53:11 +0000 (Fri, February 16, 2024) $"
 __version__ = "$Revision: 3.2.2 $"
 #=========================================================================================
 # Created
@@ -179,7 +179,8 @@ NOE_ERR = data[sv.HETNOE_VALUE_ERR]
 
 from ccpn.framework.lib.experimentAnalysis.calculationModels.relaxation.modelFree.modelFreeLib import  _fitIsotropicModelFromT1T2NOE
 
-otherAnalysis, meanAnalysis = _fitIsotropicModelFromT1T2NOE(data, spectrometerFrequency=spectrometerFrequency)
+otherAnalysis, meanAnalysis = _fitIsotropicModelFromT1T2NOE(data, spectrometerFrequency=600.13)
+
 S2 = otherAnalysis[sv.S2].values
 TE = otherAnalysis[sv.TE].values
 REX = otherAnalysis[sv.REX].values

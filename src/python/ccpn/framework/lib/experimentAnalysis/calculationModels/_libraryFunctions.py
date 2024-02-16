@@ -6,9 +6,9 @@ Some functions are vectorised and called recursively by the Minimiser (see Minim
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2023"
-__credits__ = ("Ed Brooksbank, Joanna Fox, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
-               "Timothy J Ragan, Brian O Smith, Gary S Thompson & Geerten W Vuister")
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__credits__ = ("Ed Brooksbank, Joanna Fox, Morgan Hayward, Victoria A Higman, Luca Mureddu",
+               "Eliza Płoskoń, Timothy J Ragan, Brian O Smith, Gary S Thompson & Geerten W Vuister")
 __licence__ = ("CCPN licence. See https://ccpn.ac.uk/software/licensing/")
 __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, L.G., & Vuister, G.W.",
                  "CcpNmr AnalysisAssign: a flexible platform for integrated NMR analysis",
@@ -17,8 +17,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2023-11-13 10:25:55 +0000 (Mon, November 13, 2023) $"
-__version__ = "$Revision: 3.2.0 $"
+__dateModified__ = "$dateModified: 2024-02-16 17:53:11 +0000 (Fri, February 16, 2024) $"
+__version__ = "$Revision: 3.2.2 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -119,3 +119,39 @@ def aad(data, axis=None):
      Called AAD to don't be confused with the -- median absolute difference --, also known as MAD!"""
     return np.mean(np.absolute(data - np.mean(data, axis)), axis)
 
+
+# Error scoring. Also used in ModelFree calculations
+
+def reduced_chi_squared(observed, predictions):
+    residuals = observed - predictions
+    chi_squared = np.sum(residuals**2)
+    dof = len(observed) - len(predictions)
+    return chi_squared / dof
+
+
+def aic(observed, predictions, errors=None):
+    """
+    Calculate the Akaike Information Criterion (AIC) with optional inclusion of experimental errors.
+    If errors are provided, it calculates AIC with errors. Otherwise, it calculates standard AIC.
+    """
+    if errors is None:
+        residuals = observed - predictions
+    else:
+        residuals = (observed - predictions) / errors
+    chi_squared = np.sum(residuals**2)
+    num_params = len(predictions)
+    return chi_squared + 2 * num_params
+
+def bic(observed, predictions):
+    residuals = observed - predictions
+    chi_squared = np.sum(residuals**2)
+    num_params = len(predictions)
+    return chi_squared + num_params * np.log(len(observed))
+
+def sse(observed, predictions):
+    residuals = observed - predictions
+    return np.sum(residuals**2)
+
+def rmse(observed, predictions):
+    residuals = observed - predictions
+    return np.sqrt(np.mean(residuals**2))

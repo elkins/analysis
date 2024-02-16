@@ -1,18 +1,19 @@
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (http://www.ccpn.ac.uk) 2014 - 2021"
-__credits__ = ("Ed Brooksbank, Luca Mureddu, Timothy J Ragan & Geerten W Vuister")
-__licence__ = ("CCPN licence. See http://www.ccpn.ac.uk/v3-software/downloads/license")
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__credits__ = ("Ed Brooksbank, Joanna Fox, Morgan Hayward, Victoria A Higman, Luca Mureddu",
+               "Eliza Płoskoń, Timothy J Ragan, Brian O Smith, Gary S Thompson & Geerten W Vuister")
+__licence__ = ("CCPN licence. See https://ccpn.ac.uk/software/licensing/")
 __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, L.G., & Vuister, G.W.",
                  "CcpNmr AnalysisAssign: a flexible platform for integrated NMR analysis",
-                 "J.Biomol.Nmr (2016), 66, 111-124, http://doi.org/10.1007/s10858-016-0060-y")
+                 "J.Biomol.Nmr (2016), 66, 111-124, https://doi.org/10.1007/s10858-016-0060-y")
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2021-03-01 11:22:53 +0000 (Mon, March 01, 2021) $"
-__version__ = "$Revision: 3.0.3 $"
+__modifiedBy__ = "$modifiedBy: Luca Mureddu $"
+__dateModified__ = "$dateModified: 2024-02-16 17:53:11 +0000 (Fri, February 16, 2024) $"
+__version__ = "$Revision: 3.2.2 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -115,3 +116,29 @@ def _getSpUnitConversionArguments(spectrum):
     refppm = spectrum.referenceValues
     refpt = spectrum.referencePoints
     return npoints, sf, sw, refppm, refpt
+
+
+class TimeConverter:
+    @staticmethod
+    def secToNs(seconds):
+        return seconds * 1e9
+
+    @staticmethod
+    def nsToSec(nanoseconds):
+        return nanoseconds / 1e9
+
+    @staticmethod
+    def secToPs(seconds):
+        return seconds * 1e12
+
+    @staticmethod
+    def psToSec(picoseconds):
+        return picoseconds / 1e12
+
+    @staticmethod
+    def nsToPs(nanoseconds):
+        return nanoseconds * 1e3
+
+    @staticmethod
+    def psToNs(picoseconds):
+        return picoseconds / 1e3
