@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-02-16 17:53:11 +0000 (Fri, February 16, 2024) $"
+__dateModified__ = "$dateModified: 2024-02-20 09:24:53 +0000 (Tue, February 20, 2024) $"
 __version__ = "$Revision: 3.2.2 $"
 #=========================================================================================
 # Created
@@ -179,6 +179,9 @@ J0_ERR = f'{J0}{_ERR}'
 JwX_ERR = f'{JwX}{_ERR}'
 JwH_ERR = f'{JwH}{_ERR}'
 S2 = 'S2'
+Ti = 'Ti'
+Ci = 'Ci'
+W = 'w'
 TE = 'TE'
 REX = 'REX'
 TM = 'TM'

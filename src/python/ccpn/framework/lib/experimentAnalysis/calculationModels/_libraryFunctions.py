@@ -17,7 +17,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-02-16 17:53:11 +0000 (Fri, February 16, 2024) $"
+__dateModified__ = "$dateModified: 2024-02-20 09:24:54 +0000 (Tue, February 20, 2024) $"
 __version__ = "$Revision: 3.2.2 $"
 #=========================================================================================
 # Created
@@ -121,6 +121,14 @@ def aad(data, axis=None):
 
 
 # Error scoring. Also used in ModelFree calculations
+
+def calculateChiSquared(observed, predictions, errors):
+    """
+    Calculate the Chi-squared (χ²) statistic given observed and expected values.
+    """
+    squaredDifferences = (observed - predictions)**2
+    chiSquared = np.sum(squaredDifferences / errors**2)
+    return chiSquared
 
 def reduced_chi_squared(observed, predictions):
     residuals = observed - predictions

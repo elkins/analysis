@@ -17,7 +17,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-02-16 17:53:11 +0000 (Fri, February 16, 2024) $"
+__dateModified__ = "$dateModified: 2024-02-20 09:24:54 +0000 (Tue, February 20, 2024) $"
 __version__ = "$Revision: 3.2.2 $"
 #=========================================================================================
 # Created
@@ -33,347 +33,11 @@ from numba import jit
 import ccpn.framework.lib.experimentAnalysis.SeriesAnalysisVariables as sv
 import ccpn.framework.lib.experimentAnalysis.ExperimentConstants as constants
 import ccpn.framework.lib.experimentAnalysis.calculationModels.relaxation.spectralDensityLib as sdl
-from ccpn.util.decorators import requireDictKeys
+from ccpn.framework.lib.experimentAnalysis.calculationModels.relaxation.modelFree.modelFuncs import _jwTerm
 from random import random, randint
 from math import sqrt, exp
 import pandas as pd
-from ccpn.util.DataEnum import DataEnum
 
-
-
-
-#### -----------   Lipari-Szabo (Model Free) analysis  ----------- #####
-
-"""
-    Calculate the spectral density J(ω) value(s) for the original Lipari-Szabo, 
-    Model equations in Latex:
-        J(w) = \frac{2}{5} \biggl[ \sum_{i=1}^{3} \frac{c_i \cdot \tau_i}{1+(\tau_i\omega)^2}\biggr]
-        J(w) = \frac{2}{5} \biggl[ S^2 \sum_{i=1}^{3} \frac{c_i \cdot \tau_i}{1+(\tau_i\omega)^2}\biggr]
-        J(w) = \frac{2}{5} \biggl[ S^2 \sum_{i=1}^{3} \frac{c_i \cdot \tau_i}{1+(\tau_i\omega)^2} + \frac{ (1-S^2)\tau}{1+(\tau\omega)^2}\biggr]
-        J(w) = \frac{2}{5} \biggl[ S^2 \sum_{i=1}^{3} \frac{c_i \cdot \tau_i}{1+(\tau_i\omega)^2}\biggr] + R_{ex}
-        J(w) = \frac{2}{5} \biggl[ S^2 \sum_{i=1}^{3} \frac{c_i \cdot \tau_i}{1+(\tau_i\omega)^2} + \frac{ (1-S^2)\tau_i}{1+(\tau\omega)^2}\biggr]+ R_{ex}
-
-"""
-
-
-def _jwTerm(ci, ti, w):
-    return np.sum(ci*ti / (1+(w* ti)**2))
-
-def _calculateJwModel0(ti, ci, w, s2=None, te=None, rex=None):
-    tTerm = _jwTerm(ci, ti, w)
-    return 2/5 * (tTerm)
-
-def _calculateJwModel1(ti, ci, w, s2, te=None, rex=None):
-    tTerm = _jwTerm(ci, ti, w)
-    return 2/5 * (s2*tTerm)
-
-def _calculateJwModel2(ti, ci, w, s2, te, rex=None):
-    tTerm = _jwTerm(ci, ti, w)
-    s2Term = _jwTerm((1 - s2), te, w)
-    return 2/5 * (s2 * tTerm + s2Term)
-
-def _calculateJwModel3(ti, ci, w, s2=None, te=None, rex=None):
-    m1 = _calculateJwModel1(ti, ci, w, s2)
-    return m1 + rex
-
-def _calculateJwModel4(ti, ci, w, s2=None, te=None, rex=None):
-    m2 = _calculateJwModel1(ti, ci, w, s2)
-    return m2 + rex
-
-
-
-
-# -----------   Original Isotropic model  ----------- #
-
-@jit(nopython=True)
-def calculate_Jw_isotropic(S_square, tau_c, tau, omega):
-
-    """
-    Calculate the spectral density function J(omega) using the original isotropic model described by Lipari-Szabo.
-
-    Reference:
-    E.q 1 and 2.  Model-Free Approach to the Interpretation of Nuclear Magnetic Resonance Relaxation in Macromolecules. .1
-                Theory and Range of Validity. Giovanni Lipari and Attila Szabo. Am. Chem. Soc. 1982, 104, 4546-4559
-    or Eq 8 The role of protein motions in molecular recognition: insights from heteronuclear NMR relaxation measurements. R. Andrew Atkinson, Bruno Kieffer.
-    Progress in Nuclear Magnetic Resonance Spectroscopy 44 (2004) 141–187.
-
-    Latex:
-        1)   J(\omega) = \frac{2}{5} \biggl[\frac { S^2 \tau_c} {1+(\tau_c\omega)^2} + \frac {(1-S^2)\tau} {1+(\omega\tau)^2} \biggr]
-        2)   \tau^{-1} = \tau_c^{-1} + \tau_e^{-1}
-    
-
-    :param S_square:  (float): Generalised order parameter squared (S^2).
-    :param tau_c:  (float): Correlation time (\tau_c).
-    :param tau: (float): effective correlation time (\tau).
-    :param omega:  (float): Value of omega (\omega).
-
-    Returns:
-        float: Spectral density function J(omega) calculated using the provided parameters.
-
-    """
-    tPrime = t = 1 / (1/tau_c + 1/tau)
-    aTerm = _calculateJOmegaTerm(S_square, tau_c, omega)
-    bTerm = _calculateJOmegaTerm((1-S_square), tPrime, omega)
-    Jw =  (2/5) * (aTerm + bTerm)
-    return Jw
-
-
-# -----------   Axially Symmetric model  ----------- #
-
-@jit(nopython=True)
-def calculate_Jw_anisotropic(x,y,z, R1, R2, R3, omega):
-    """
-    Calculate the spectral density function J(omega) using the fully  anisotropic rotational Diffusion model
-
-    Reference:
-    E.q 11 The role of protein motions in molecular recognition: insights from heteronuclear NMR relaxation measurements. R. Andrew Atkinson, Bruno Kieffer.
-    Progress in Nuclear Magnetic Resonance Spectroscopy 44 (2004) 141–187.
-
-    Latex
-        J(w) eq. 11 of reference
-        J(\omega) = \frac{2}{5} \biggl[ C_1 \frac {\tau_1}
-                                                    {1+\omega^2\tau_1^2} + C_2 \frac {\tau_2}
-                                                    {1+\omega^2\tau_2^2} + C_3 \frac {\tau_3}
-                                                    {1+\omega^2\tau_3^2} + C_+ \frac {\tau_+}
-                                                    {1+\omega^2\tau_+^2} + C_- \frac {\tau_-}
-                                                    {1+\omega^2\tau_-^2}
-                                                \biggr]
-        where C1 C2 C3 C+ C-:
-         C_1 = 6y^2z^2
-         C_2 = 6x^2z^2
-         C_3 = 6x^2y^2
-         C_+ = d + e
-         C_- = d - e
-
-        where d and e:
-        d = \frac{1}{2} \biggl[ 3(x^4 + y^4 + z^4) - 1  \biggr]
-        e = \frac{1}{6} \biggl[\delta_1 (3x^4 + 6y^2z^2 -1) + (3y^4 + 6x^2z^2 -1) + (3z^4 + 6x^2y^2 -1) \biggr]
-
-        Deltas:
-        \delta_x = \frac{(R_x - R)}{(R_2 - L^2)^{1/2}} x = 1, 2, 3 respectively
-        R = \frac{1}{3}(R_1 + R_2 + R_3)
-        L^2 = \frac{1}{3}(R_1R_2 + R_1R_3 + R_2R_3)
-
-        The five correlation times characterising overall rotation are defined by:
-        {\tau_1^{-1}} = 4R_1 + R_2 + R_3
-        {\tau_2^{-1}} = R_1 + 4R_2 + R_3
-        {\tau_3^{-1}} = R_1 + R_2 + 4R_3
-        {\tau_+^{-1}} = 6\biggl[R+{(R^2 - L^2)^{1/2}}\biggr]
-        {\tau_-^{-1}} = 6\biggl[R-{(R^2 - L^2)^{1/2}}\biggr]
-
-    Returns:
-        float: Spectral density function J(omega) calculated using the provided parameters.
-    """
-
-    # Calculate R and L^2
-    R = (R1 + R2 + R3) / 3
-    L2 = (R1 * R2 + R1 * R3 + R2 * R3) / 3
-
-    # Calculate deltas
-    delta1 = (R1 - R) / np.sqrt(R2 - L2)
-    delta2 = (R2 - R) / np.sqrt(R1 - L2)
-    delta3 = (R3 - R) / np.sqrt(R2 - L2)
-
-    # Calculate C1, C2, C3
-    C1 = 6 * y**2 * z**2
-    C2 = 6 * x**2 * z**2
-    C3 = 6 * x**2 * y**2
-
-    # Calculate e and d
-    _et1 = delta1 * (3*x**4 + 6*y**2*z**2 - 1)
-    _et2 = delta2 * (3*y**4 + 6*x**2*z**2 - 1)
-    _et3 = delta3 * (3*z**4 + 6*x**2*y**2 - 1)
-
-    e = ( _et1 + _et2 + _et3) / 6
-    d = 0.5 * (3 * (x**4 + y**4 + z**4) - 1)
-
-    # Calculate C+, C-
-    Cplus = d + e
-    Cminus = d - e
-
-    # Calculate correlation times
-    tau1 = 1 / (4 * R1 + R2 + R3)
-    tau2 = 1 / (R1 + 4 * R2 + R3)
-    tau3 = 1 / (R1 + R2 + 4 * R3)
-    tauPlus = 6 * (R + np.sqrt(R**2 - L2))
-    tauMinus = 6 * (R - np.sqrt(R**2 - L2))
-
-    # calculate the single terms for Jw
-    c1Term = _calculateJOmegaTerm(C1, tau1, omega)
-    c2Term = _calculateJOmegaTerm(C2, tau2, omega)
-    c3Term = _calculateJOmegaTerm(C3, tau3, omega)
-    cPlusTerm = _calculateJOmegaTerm(Cplus, tauPlus, omega)
-    cMenusTerm = _calculateJOmegaTerm(Cminus, tauMinus, omega)
-
-    Jw = (2 / 5) * (c1Term + c2Term + c3Term + cPlusTerm + cMenusTerm)
-
-    return Jw
-
-@jit(nopython=True)
-def calculate_Jw_AxiallySymmetric(Dperpendicular, Dparallel, omega, theta):
-    """
-    Calculate the spectral density function J(omega) using the Axially Symmetric rotational Diffusion model
-
-    Reference:
-    E.q 12 The role of protein motions in molecular recognition: insights from heteronuclear NMR relaxation measurements. R. Andrew Atkinson, Bruno Kieffer.
-    Progress in Nuclear Magnetic Resonance Spectroscopy 44 (2004) 141–187.
-
-    Latex
-        J(w) eq. 12 of reference
-        J(\omega) = \frac{2}{5} \biggl[ A \frac {\tau_A} {1+\omega^2\tau_A^2} + B \frac {\tau_B} {1+\omega^2\tau_B^2} + C \frac {\tau_C} {1+\omega^2\tau_C^2} \biggr]
-
-        Coefficients
-        A = \frac{1}{4} \: (3 \cos^2 \theta -1)^2
-        B = 3 \sin^2 \theta \cos^2 \theta
-        C = \frac{3}{4} \: \sin^4 \theta
-
-        TAUs
-        {\tau_A} = \frac{1}{6R_2}
-        {\tau_B} = \frac{1}{R_1 + 5R_2}
-        {\tau_C} = \frac{1}{4R_1 + 2R_2}
-
-        where theta is the angle between the N-H vector and the unique axis of the diffusion tensor
-
-    Returns:
-        float: Spectral density function J(omega) calculated using the provided parameters.
-    """
-    R1 = Dperpendicular
-    R2 = Dparallel
-    A = (1/4) * (3 * np.cos(theta)**2 - 1)**2
-    B = 3 * np.sin(theta)**2 * np.cos(theta)**2
-    C = (3/4) * np.sin(theta)**4
-
-    tauA = 1 / (6 * R2)
-    tauB = 1 / (R1 + 5 * R2)
-    tauC = 1 / (4 * R1 + 2 * R2)
-
-    aTerm = _calculateJOmegaTerm(A, tauA, omega)
-    bTerm = _calculateJOmegaTerm(B, tauB, omega)
-    cTerm = _calculateJOmegaTerm(C, tauC, omega)
-
-    return (2/5) * (aTerm + bTerm + cTerm)
-
-@jit(nopython=True)
-def calculate_Jw_isotropicModelExtended(s2, rct, w, s2f=1.0, ictfast=0, ictslow=0 ):
-    """
-    Calculate the J(w) using the extended  Lipari-Szabo model
-    for an isotropic system .
-    eq 8.  Backbone dynamics of Barstar: A 15N NMR relaxation study.
-    Udgaonkar et al 2000. Proteins: 41:460-474
-    :param s2:  The generalised order parameter
-    :param rct:  or tm, the global rotational correlation time
-    :param ict:  or te, The effective internal correlation time
-    :param w: omega w for a given nuclei (eg. wN)
-    :param s2f: The generalised order parameter for the faster motion
-    :param ictfast: The effective internal correlation time for the faster motion.
-    :param ictslow: The effective internal correlation time for the slower motion.
-    :return: j
-    """
-    if ictfast == 0.0:
-        ict_fast_p = 0.0
-    else:
-        ict_fast_p = 1.0 / (1.0 / rct + 1.0 / ictfast)
-
-    if ictslow == 0.0:
-        ict_slow_p = 0.0
-    else:
-        ict_slow_p = 1.0 / (1.0 / rct + 1.0 / ictslow)
-
-    # The spectral density value
-    _1 = s2 * rct / (1.0 + (rct * w) ** 2)
-    _2 = (1.0 - s2f) * ict_fast_p / (1.0 + (ict_fast_p * w) ** 2)
-    _3 = (s2f - s2) * ict_slow_p / (1.0 + (ict_slow_p * w) ** 2)
-    j = 0.4 * (_1 + _2 + _3)
-    
-    return j
-
-
-def angle_between_vectors(vector1, vector2):
-    """
-    Calculate the angle (in radians) between two vectors.
-
-    Args:
-    - vector1: First vector as a numpy array.
-    - vector2: Second vector as a numpy array.
-
-    Returns:
-    - angle: Angle between the vectors in radians.
-    """
-    # Calculate dot product and magnitudes
-    dot_product = np.dot(vector1, vector2)
-    magnitude1 = np.linalg.norm(vector1)
-    magnitude2 = np.linalg.norm(vector2)
-
-    # Calculate angle in radians
-    angle = np.arccos(dot_product / (magnitude1 * magnitude2))
-
-    return angle
-
-
-def calculate_Dperpendicular_Dparallel(diffusion_tensor):
-    # Compute eigenvalues and eigenvectors
-    eigenvalues, eigenvectors = np.linalg.eigh(diffusion_tensor)
-
-    # Sort eigenvalues in descending order
-    eigenvalues_sorted = np.sort(eigenvalues)[::-1]
-
-    # Extract Dparallel (largest eigenvalue) and Dperpendicular (average of the two smaller eigenvalues)
-    Dparallel = eigenvalues_sorted[0]
-    Dperpendicular = np.mean(eigenvalues_sorted[1:])
-
-    return Dperpendicular, Dparallel
-
-
-def calculate_axially_symmetric_rotational_diffusion_tensor(R1, R2):
-    """
-        Calculate the principal components for an axially symmetric rotational diffusion tensor using the Lipari-Szabo model.
-
-    :param R1: float,  Longitudinal relaxation rates (1/s)
-    :param R2: float: Transverse relaxation rates (1/s)
-    :return: tuple  - Dxx, Dyy, Dzz: Principal components of the rotational diffusion tensor (s^-1)
-    """
-    # Convert relaxation rates to rad/s
-    omega_r1 = 2 * np.pi * R1
-    omega_r2 = 2 * np.pi * R2
-    # Calculate principal components of the rotational diffusion tensor using Lipari-Szabo model
-    Dxx = (2/5) * (1/omega_r2)
-    Dyy = (2/5) * (1/(0.5 * (1/omega_r1 + 5/omega_r2)))
-    Dzz = (2/5) * (1/(0.25 * (1/omega_r1 + 2/omega_r2)))
-
-    return Dxx, Dyy, Dzz
-
-
-def calculate_nh_vector(residue):
-    """
-    Calculate the N-H vector for a residue.
-
-    Parameters:
-        residue (Bio.PDB.Residue): Residue object containing N and H atoms.
-
-    Returns:
-        numpy.array: Vector representing the N-H bond.
-    """
-    n_atom = residue['N']  # Assuming N atom is labeled as 'N' in the PDB file
-    h_atom = residue['H']  # Assuming H atom is labeled as 'H' in the PDB file
-    nh_vector = h_atom.get_vector() - n_atom.get_vector()
-    return nh_vector.get_array()
-
-def calculate_theta(nh_vector, diffusion_axis):
-    """
-    Calculate the angle theta between the N-H vector and the diffusion axis.
-
-    Parameters:
-        nh_vector (numpy.array): Vector representing the N-H bond.
-        diffusion_axis (numpy.array): Vector representing the unique axis of the diffusion tensor.
-
-    Returns:
-        float: Angle theta in degrees.
-    """
-    nh_unit = nh_vector / np.linalg.norm(nh_vector)
-    axis_unit = diffusion_axis / np.linalg.norm(diffusion_axis)
-    cos_theta = np.dot(nh_unit, axis_unit)
-    theta = np.arccos(cos_theta) * (180 / np.pi)  # Convert radians to degrees
-    return theta
 
 
 @jit(nopython = True)
@@ -420,7 +84,45 @@ def _calculateNOEp(A, gammaHN, t1, jHpN, jHmN):
     """
     return 1.0 + (A * gammaHN * t1 * ((6 * jHpN) - jHmN))
 
-##### calculate the Ssquared, Te and Exchange from T1 T2 NOE using the original model-free
+
+
+# ~~~ calculate the Ssquared, Te and Exchange from T1 T2 NOE using the original model-free z ~~~
+
+# -----------   Original Isotropic model  ----------- #
+
+
+def calculate_Jw_isotropic(S_square, tau_c, tau, omega):
+
+    """
+    Calculate the spectral density function J(omega) using the original isotropic model described by Lipari-Szabo.
+
+    Reference:
+    E.q 1 and 2.  Model-Free Approach to the Interpretation of Nuclear Magnetic Resonance Relaxation in Macromolecules. .1
+                Theory and Range of Validity. Giovanni Lipari and Attila Szabo. Am. Chem. Soc. 1982, 104, 4546-4559
+    or Eq 8 The role of protein motions in molecular recognition: insights from heteronuclear NMR relaxation measurements. R. Andrew Atkinson, Bruno Kieffer.
+    Progress in Nuclear Magnetic Resonance Spectroscopy 44 (2004) 141–187.
+
+    Latex:
+        1)   J(\omega) = \frac{2}{5} \biggl[\frac { S^2 \tau_c} {1+(\tau_c\omega)^2} + \frac {(1-S^2)\tau} {1+(\omega\tau)^2} \biggr]
+        2)   \tau^{-1} = \tau_c^{-1} + \tau_e^{-1}
+
+
+    :param S_square:  (float): Generalised order parameter squared (S^2).
+    :param tau_c:  (float): Correlation time (\tau_c).
+    :param tau: (float): effective correlation time (\tau).
+    :param omega:  (float): Value of omega (\omega).
+
+    Returns:
+        float: Spectral density function J(omega) calculated using the provided parameters.
+
+    """
+
+    tPrime = t = 1 / ( 1 /tau_c + 1/ tau)
+    aTerm = _jwTerm(S_square, tau_c, omega)
+    bTerm = _jwTerm((1 - S_square), tPrime, omega)
+    Jw = (2 / 5) * (aTerm + bTerm)
+    return Jw
+
 
 def calculateSpectralDensityContourLines(spectrometerFrequency=600.130,
                                          lenNh=1.0150,   ict=50.0,  csaN=-160.0,
