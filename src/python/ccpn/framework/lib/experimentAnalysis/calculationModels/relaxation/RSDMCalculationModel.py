@@ -4,9 +4,9 @@
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2023"
-__credits__ = ("Ed Brooksbank, Joanna Fox, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
-               "Timothy J Ragan, Brian O Smith, Gary S Thompson & Geerten W Vuister")
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__credits__ = ("Ed Brooksbank, Joanna Fox, Morgan Hayward, Victoria A Higman, Luca Mureddu",
+               "Eliza Płoskoń, Timothy J Ragan, Brian O Smith, Gary S Thompson & Geerten W Vuister")
 __licence__ = ("CCPN licence. See https://ccpn.ac.uk/software/licensing/")
 __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, L.G., & Vuister, G.W.",
                  "CcpNmr AnalysisAssign: a flexible platform for integrated NMR analysis",
@@ -15,8 +15,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2023-12-04 11:00:17 +0000 (Mon, December 04, 2023) $"
-__version__ = "$Revision: 3.2.0 $"
+__dateModified__ = "$dateModified: 2024-02-29 10:26:55 +0000 (Thu, February 29, 2024) $"
+__version__ = "$Revision: 3.2.2 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -118,6 +118,10 @@ class SDMCalculation(CalculationModel):
         noeHeder = sv.HETNOE_VALUE
         noeHederErr = sv.HETNOE_VALUE_ERR
 
+        # need to propagate the exclusions. if any in df1 or df2, then the resulting row is excluded
+        dfs = [r1df, r2df, noedf]
+        excludedPids = self._getExcludedPidsForDataFrames(dfs, sv.EXCLUDED_NMRRESIDUEPID, sv.NMRRESIDUEPID)
+
         R1 = merged[rate1].values
         R2 = merged[rate2].values
         NOE = merged[noeHeder].values
@@ -138,11 +142,7 @@ class SDMCalculation(CalculationModel):
         jwh_ERR = sdl.calculateJWH(NOE_err, R1_err, R2_err, D1, C1, N15gyromagneticRatio, HgyromagneticRatio)
 
         # need to propagate the exclusions. if any in df1 or df2, then the resulting row is excluded
-        exclusions = [False]*len(merged)
-        if sv.EXCLUDED_NMRRESIDUEPID in merged:
-            excluded1 = merged[f'{sv.EXCLUDED_NMRRESIDUEPID}{suffix1}'] == True
-            excluded2 = merged[f'{sv.EXCLUDED_NMRRESIDUEPID}{suffix2}'] == True
-            exclusions = [any([ex1,ex2]) for ex1, ex2 in zip(excluded1.values, excluded2.values)]
+
         # keep these columns: MERGINGHEADERS, ROW_UID
         # make the merged dataFrame the correct output type
         outputFrame = RSDMOutputFrame()
@@ -167,7 +167,6 @@ class SDMCalculation(CalculationModel):
         outputFrame[sv._ROW_UID] = merged[sv._ROW_UID].values
         outputFrame[sv.PEAKPID] = merged[sv.PEAKPID].values
         outputFrame[sv.NMRRESIDUEPID] = merged[sv.NMRRESIDUEPID].values
-        outputFrame[sv.EXCLUDED_NMRRESIDUEPID] = exclusions
         outputFrame[sv.SERIES_STEP_X] = None
         outputFrame[sv.SERIES_STEP_Y] = None
         outputFrame[sv.CONSTANT_STATS_OUTPUT_TABLE_COLUMNS] = None
@@ -175,4 +174,7 @@ class SDMCalculation(CalculationModel):
         outputFrame[sv.PeakPropertiesHeaders] = None
         outputFrame[sv.CALCULATION_MODEL] = self.modelName
 
+        # propagate the Exclusions
+        for i, row in outputFrame.iterrows():
+             outputFrame.loc[i, sv.EXCLUDED_NMRRESIDUEPID] = row[sv.NMRRESIDUEPID] in excludedPids
         return outputFrame
