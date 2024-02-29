@@ -17,7 +17,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-02-20 09:24:54 +0000 (Tue, February 20, 2024) $"
+__dateModified__ = "$dateModified: 2024-02-29 13:00:57 +0000 (Thu, February 29, 2024) $"
 __version__ = "$Revision: 3.2.2 $"
 #=========================================================================================
 # Created
@@ -55,7 +55,7 @@ def _calculateR1(A, jN, jHpN, jHmN, C):
     return r1
 
 @jit(nopython = True)
-def _calculateR2(A, C, j0, jH, jHmN, jHpN, jN, rex=0.0):
+def _calculateR2(A, C, j0, jH, jHmN, jHpN, jN, rex=None):
     """
     Calculate the transverse relaxation rate (R2)
     :param A: d_factor
@@ -68,6 +68,7 @@ def _calculateR2(A, C, j0, jH, jHmN, jHpN, jN, rex=0.0):
     :param rex:
     :return:  R2
     """
+    rex = rex or 0
     r2 = 0.5 * A * ((4 * j0) + (3 * jN) + (6 * jHpN) + (6 * jH) + jHmN) + C * (2 * j0 / 3.0 + 0.5 * jN) + rex
     return r2
 
