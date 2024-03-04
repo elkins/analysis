@@ -22,7 +22,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-03-04 12:06:44 +0000 (Mon, March 04, 2024) $"
+__dateModified__ = "$dateModified: 2024-03-04 17:37:18 +0000 (Mon, March 04, 2024) $"
 __version__ = "$Revision: 3.2.2 $"
 #=========================================================================================
 # Created
@@ -304,6 +304,8 @@ def _countCloseValuesForB(A, B, tolerance):
 def _countNearUnpickedMaxima(peaks, tolerancePpm = 0.5, snrThreshold=3.5):
     """
     """
+    if len(peaks) == 0:
+        return []
     spectrum = peaks[0].spectrum
     x, y = np.array(spectrum.positions), np.array(spectrum.intensities)
     _noiseSD = spectrum._noiseSD
