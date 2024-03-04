@@ -12,7 +12,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-01-16 17:48:56 +0000 (Tue, January 16, 2024) $"
+__dateModified__ = "$dateModified: 2024-03-04 14:52:52 +0000 (Mon, March 04, 2024) $"
 __version__ = "$Revision: 3.2.2 $"
 #=========================================================================================
 # Created
@@ -147,6 +147,9 @@ class  Scale1DPipe(SpectraPipe):
                 else:
                     scaleSpectraByRegion(spectra, referenceRegion, engine,)
                 getLogger().info('Scale 1D completed')
+                rawDataDict = self.pipeline._set1DRawDataDict(force=True)
+                self.pipeline._updateTheNoiseSDBase(spectra, rawDataDict)
+
                 return spectra
             else:
                 getLogger().warning('Spectra not present. Add spectra first')

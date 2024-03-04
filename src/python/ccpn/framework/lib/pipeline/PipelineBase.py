@@ -15,7 +15,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-03-01 16:17:35 +0000 (Fri, March 01, 2024) $"
+__dateModified__ = "$dateModified: 2024-03-04 14:52:52 +0000 (Mon, March 04, 2024) $"
 __version__ = "$Revision: 3.2.2 $"
 #=========================================================================================
 # Created
@@ -99,7 +99,7 @@ class Pipeline(object):
         return self._filePath
 
     @staticmethod
-    def _updateTheNoiseSDBase(spectra, rawDataDict):
+    def _updateTheNoiseSDBase(spectra, rawDataDict, force=True):
         for spectrum in spectra:
             if spectrum is None or spectrum.dimensionCount > 1:
                 continue
@@ -107,7 +107,7 @@ class Pipeline(object):
                 x, y = np.array(spectrum.positions), np.array(spectrum.intensities)
             else:
                 x, y = rawDataDict.get(spectrum)
-            if not spectrum._noiseSD:
+            if not spectrum._noiseSD or force:
                 _noiseSD = float(np.median(y) + np.std(y))
                 spectrum._noiseSD = _noiseSD
                 if spectrum.noiseLevel is None:
@@ -120,6 +120,7 @@ class Pipeline(object):
         from ccpn.core.lib.SpectrumLib import _1DRawDataDict
         if force or self._rawDataDict is None:
             self._rawDataDict = _1DRawDataDict(self.inputData)
+        return self._rawDataDict
 
     def runPipeline(self):
         '''Run all pipes in the specified order '''
