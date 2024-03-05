@@ -15,7 +15,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-01-18 11:46:43 +0000 (Thu, January 18, 2024) $"
+__dateModified__ = "$dateModified: 2024-03-05 16:20:06 +0000 (Tue, March 05, 2024) $"
 __version__ = "$Revision: 3.2.2 $"
 #=========================================================================================
 # Created
@@ -57,7 +57,7 @@ from ccpn.ui.gui.widgets.ListWidget import ListWidget
 from ccpn.ui.gui.popups.Dialog import CcpnDialog
 from ccpn.ui.gui.widgets.SpectraSelectionWidget import SpectraSelectionWidget
 from ccpn.ui.gui.widgets.PipelineWidgets import GuiPipe, PipesTree
-from ccpn.ui.gui.widgets.MessageDialog import showWarning, _stoppableProgressBar, progressManager
+from ccpn.ui.gui.widgets.MessageDialog import showWarning, showInfo, _stoppableProgressBar, progressManager
 from ccpn.ui.gui.widgets.Frame import Frame
 from ccpn.pipes import loadedPipes as LP
 from ccpn.util.Path import aPath, joinPath
@@ -587,6 +587,7 @@ class GuiPipeline(CcpnModule, Pipeline,):
             self._setThreadStyle(False)
             self._pipelineProcess.run()
             self.pipelineProgressLabel.setText('Ready')
+            showInfo('Done', 'Pipeline completed')
 
     def _stopPipeline(self, thread=None):
         self.pipelineProgressLabel.setText('Stopped')
