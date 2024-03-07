@@ -17,7 +17,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-02-20 09:24:54 +0000 (Tue, February 20, 2024) $"
+__dateModified__ = "$dateModified: 2024-03-07 09:24:56 +0000 (Thu, March 07, 2024) $"
 __version__ = "$Revision: 3.2.2 $"
 #=========================================================================================
 # Created
@@ -30,7 +30,7 @@ __date__ = "$Date: 2022-02-02 14:08:56 +0000 (Wed, February 02, 2022) $"
 
 import numpy as np
 from ccpn.util.Logging import getLogger
-
+from ccpn.util.Common import percentage
 
 def _checkValidValues(values):
     """
@@ -125,36 +125,52 @@ def aad(data, axis=None):
 def calculateChiSquared(observed, predictions, errors):
     """
     Calculate the Chi-squared (χ²) statistic given observed and expected values.
+    The Chi-squared   is a measure of the difference between observed and expected frequencies of a dataset.
+     It is commonly used in statistics to assess the goodness of fit of a model to the data.
+     Latex:
+        \chi^2 = \sum \frac{(observed - predictions)^2}{errors^2}
+
     """
     squaredDifferences = (observed - predictions)**2
-    chiSquared = np.sum(squaredDifferences / errors**2)
-    return chiSquared
+    x2 = np.sum(squaredDifferences / errors**2)
+    return x2
 
-def reduced_chi_squared(observed, predictions):
-    residuals = observed - predictions
-    chi_squared = np.sum(residuals**2)
-    dof = len(observed) - len(predictions)
-    return chi_squared / dof
-
-
-def aic(observed, predictions, errors=None):
+def calculateReducedChiSquared(x2, dof):
     """
-    Calculate the Akaike Information Criterion (AIC) with optional inclusion of experimental errors.
-    If errors are provided, it calculates AIC with errors. Otherwise, it calculates standard AIC.
+    The reduced Chi-squared provides a way to compare the goodness of fit of models with different numbers of parameters or to compare different datasets.
+    It is particularly useful when comparing models with different complexities, as it accounts for the different degrees of freedom in the models.
+    A smaller reduced Chi-squared value indicates a better fit of the model to the data.
+    :param x2: float,  Chi-squared  value
+    :param dof: int, the degrees of freedom (dof). dof is given by dof=N−k, where N is the number of observations and k is the number of parameters estimated from the data.
+    :return: float. Reduced Chi-squared
     """
-    if errors is None:
-        residuals = observed - predictions
-    else:
-        residuals = (observed - predictions) / errors
-    chi_squared = np.sum(residuals**2)
-    num_params = len(predictions)
-    return chi_squared + 2 * num_params
+    return x2 / dof
 
-def bic(observed, predictions):
-    residuals = observed - predictions
-    chi_squared = np.sum(residuals**2)
-    num_params = len(predictions)
-    return chi_squared + num_params * np.log(len(observed))
+
+def _calculateAIC(x2, numParams, ):
+    """
+    Calculate the Akaike Information Criterion (AIC) from a given chiSquared.
+    """
+    return x2 + 2 * numParams
+
+def _calculateAICcorrected(x2, observationsCount, paramsCount ):
+    """
+    Calculate the Akaike Information Criterion (AIC) corrected.
+    The AICc is used for model selection when dealing with a relatively small sample size.
+    It corrects for the bias that can occur in the AIC when the sample size is small relative to the number of parameters being estimated in the model.
+    """
+    AICc =  x2 + 2 * paramsCount * (paramsCount + 1) / (observationsCount - paramsCount - 1)
+    return AICc
+
+def calculateAIC(observed, predictions, numParams, errors=None):
+    """
+    Calculate the Akaike Information Criterion (AIC)  from data.
+    """
+    x2 = calculateChiSquared(observed, predictions, errors)
+    return  _calculateAIC(x2, numParams)
+
+
+
 
 def sse(observed, predictions):
     residuals = observed - predictions
@@ -163,3 +179,50 @@ def sse(observed, predictions):
 def rmse(observed, predictions):
     residuals = observed - predictions
     return np.sqrt(np.mean(residuals**2))
+
+
+def _montecarloSim(minimiserCls, params, objectiveFunc, minimiserMethod, percentageScaleChange=0.05, nSamples=10, **minimiserKwargs ):
+    """
+    # Perform Monte Carlo simulations for parameter uncertainties
+
+    :param minimiserCls:
+    :param minimiserResult:
+    :param objectiveFunc:
+    :param minimiserMethod:
+    :param percentageScaleChange:
+    :param minimiserKwargs:
+    :return:
+    """
+    from lmfit import Parameter, Parameters
+    from tqdm import tqdm
+    parameterSamples = np.zeros((len(params), nSamples))
+
+    for i in tqdm(range(nSamples), desc='Monte Carlo simulations'):
+        # Generate random samples around the optimised parameter values
+        rand_params = Parameters()
+        for param in params:
+            value = param.value
+            scale = percentage(percentageScaleChange, value)
+            randValue = np.random.normal([value], scale=scale)[0]
+            rand_param = Parameter(name=param.name, value=randValue)
+            # update limits
+            if param.min is not None:
+                rand_param.min = param.min
+            rand_params.add_many(rand_param)
+        # Re-optimize parameters with updated values
+        mcMinimizer = minimiserCls(objectiveFunc, rand_params, method=minimiserMethod, **minimiserKwargs)
+        mcResult = mcMinimizer.minimize(method=minimiserMethod)
+        # Store parameter values from Monte Carlo sample
+        for j, paramName in enumerate(mcResult.params):
+            parameterSamples[j, i] = mcResult.params[paramName].value
+    # Calculate parameter  from Monte Carlo samples
+    parameterMedians = np.median(parameterSamples, axis=1)
+    parameterUncertainties = np.std(parameterSamples, axis=1)
+
+    # Make the new params obj from the median/std
+    newParams = Parameters()
+    for i, (name, param) in enumerate(params.items()):
+        param = Parameter(name=name, value= parameterMedians[i])
+        param.stderr = parameterUncertainties[i]
+        newParams.add_many(param)
+    return newParams

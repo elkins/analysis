@@ -63,7 +63,8 @@ def _calculateJwModel1(ti, ci, w, s2, te=None, rex=None):
 
 def _calculateJwModel2(ti, ci, w, s2, te, rex=None):
     """See module documentation above"""
-    return (2/5) * (s2 * _jwTerm(ci, ti, w) + _jwTerm((1 - s2), te, w))
+    t = 1/ (1/ti + 1/te)
+    return (2/5) * (s2 * _jwTerm(ci, ti, w) + _jwTerm((1 - s2), t, w))
 
 def _calculateJwModel3(ti, ci, w, s2=None, te=None, rex=None):
     """See module documentation above"""
