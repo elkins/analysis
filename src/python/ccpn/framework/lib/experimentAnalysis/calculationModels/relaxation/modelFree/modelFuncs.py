@@ -68,9 +68,9 @@ def _calculateJwModel2(ti, ci, w, s2, te, rex=None):
 
 def _calculateJwModel3(ti, ci, w, s2=None, te=None, rex=None):
     """See module documentation above"""
-    return _calculateJwModel1(ti, ci, w, s2) + rex
+    return _calculateJwModel1(ti, ci, w, s2) # + rex
 
 def _calculateJwModel4(ti, ci, w, s2=None, te=None, rex=None):
     """See module documentation above"""
-    return _calculateJwModel2(ti, ci, w, s2, te) + rex
+    return _calculateJwModel2(ti, ci, w, s2, te) #+ rex
 

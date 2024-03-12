@@ -17,7 +17,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-03-07 09:24:56 +0000 (Thu, March 07, 2024) $"
+__dateModified__ = "$dateModified: 2024-03-12 14:40:05 +0000 (Tue, March 12, 2024) $"
 __version__ = "$Revision: 3.2.2 $"
 #=========================================================================================
 # Created
@@ -180,49 +180,3 @@ def rmse(observed, predictions):
     residuals = observed - predictions
     return np.sqrt(np.mean(residuals**2))
 
-
-def _montecarloSim(minimiserCls, params, objectiveFunc, minimiserMethod, percentageScaleChange=0.05, nSamples=10, **minimiserKwargs ):
-    """
-    # Perform Monte Carlo simulations for parameter uncertainties
-
-    :param minimiserCls:
-    :param minimiserResult:
-    :param objectiveFunc:
-    :param minimiserMethod:
-    :param percentageScaleChange:
-    :param minimiserKwargs:
-    :return:
-    """
-    from lmfit import Parameter, Parameters
-    from tqdm import tqdm
-    parameterSamples = np.zeros((len(params), nSamples))
-
-    for i in tqdm(range(nSamples), desc='Monte Carlo simulations'):
-        # Generate random samples around the optimised parameter values
-        rand_params = Parameters()
-        for param in params:
-            value = param.value
-            scale = percentage(percentageScaleChange, value)
-            randValue = np.random.normal([value], scale=scale)[0]
-            rand_param = Parameter(name=param.name, value=randValue)
-            # update limits
-            if param.min is not None:
-                rand_param.min = param.min
-            rand_params.add_many(rand_param)
-        # Re-optimize parameters with updated values
-        mcMinimizer = minimiserCls(objectiveFunc, rand_params, method=minimiserMethod, **minimiserKwargs)
-        mcResult = mcMinimizer.minimize(method=minimiserMethod)
-        # Store parameter values from Monte Carlo sample
-        for j, paramName in enumerate(mcResult.params):
-            parameterSamples[j, i] = mcResult.params[paramName].value
-    # Calculate parameter  from Monte Carlo samples
-    parameterMedians = np.median(parameterSamples, axis=1)
-    parameterUncertainties = np.std(parameterSamples, axis=1)
-
-    # Make the new params obj from the median/std
-    newParams = Parameters()
-    for i, (name, param) in enumerate(params.items()):
-        param = Parameter(name=name, value= parameterMedians[i])
-        param.stderr = parameterUncertainties[i]
-        newParams.add_many(param)
-    return newParams
