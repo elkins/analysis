@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-02-20 09:24:53 +0000 (Tue, February 20, 2024) $"
+__dateModified__ = "$dateModified: 2024-04-15 15:38:24 +0100 (Mon, April 15, 2024) $"
 __version__ = "$Revision: 3.2.2 $"
 #=========================================================================================
 # Created
@@ -189,14 +189,17 @@ S2_ERR = f'{S2}{_ERR}'
 TE_ERR = f'{TE}{_ERR}'
 REX_ERR = f'{REX}{_ERR}'
 TM_ERR = f'{TM}{_ERR}'
-
+ETAXY = 'ETAxy'
+ETAZ = 'ETAz'
+ETAXY_ERR = f'{ETAXY}{_ERR}'
+ETAZ_ERR = f'{ETAZ}{_ERR}'
 ISOTROPIC = 'Isotropic'
 ANISOTROPIC = 'Anisotropic '
 DIFFUSION = 'Diffusion'
 
 FLAG = 'Flag'
 SERIAL = 'Serial'
-
+SF = 'SF' # spectrometer frequency in Mhz
 CONSTANT_STATS_OUTPUT_TABLE_COLUMNS = [MINIMISER_METHOD, MINIMISER_MODEL, RSQR, CHISQR, REDCHI, AIC, BIC]
 SpectrumPropertiesHeaders = [DIMENSION, ISOTOPECODE, SERIES_STEP_X, SERIESUNIT, EXPERIMENT]
 PeakPropertiesHeaders = [_PPMPOSITION, _HEIGHT, _LINEWIDTH, _VOLUME]
@@ -292,6 +295,7 @@ ARGB_VALUE_ERR = f'{ARGB}{_ERR}'
 ### Relaxation Calculation Models
 HETNOE_VALUE = f'{HETNOE}'
 HETNOE_VALUE_ERR = f'{HETNOE_VALUE}{_ERR}'
+HETNOE_ERR = HETNOE_VALUE_ERR
 
 CROSSRELAXRATIO_VALUE = f'{CROSSCORRELRATIO}'
 CROSSRELAXRATIO_VALUE_ERR = f'{CROSSCORRELRATIO}{_ERR}'

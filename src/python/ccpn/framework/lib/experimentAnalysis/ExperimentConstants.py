@@ -5,9 +5,9 @@ This module defines the various constants used in the ExperimentAnalysis models
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2023"
-__credits__ = ("Ed Brooksbank, Joanna Fox, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
-               "Timothy J Ragan, Brian O Smith, Gary S Thompson & Geerten W Vuister")
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__credits__ = ("Ed Brooksbank, Joanna Fox, Morgan Hayward, Victoria A Higman, Luca Mureddu",
+               "Eliza Płoskoń, Timothy J Ragan, Brian O Smith, Gary S Thompson & Geerten W Vuister")
 __licence__ = ("CCPN licence. See https://ccpn.ac.uk/software/licensing/")
 __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, L.G., & Vuister, G.W.",
                  "CcpNmr AnalysisAssign: a flexible platform for integrated NMR analysis",
@@ -16,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2023-11-09 09:49:30 +0000 (Thu, November 09, 2023) $"
-__version__ = "$Revision: 3.2.0 $"
+__dateModified__ = "$dateModified: 2024-04-15 15:38:24 +0100 (Mon, April 15, 2024) $"
+__version__ = "$Revision: 3.2.2 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -67,14 +67,14 @@ GAMMA_H = 42.576 * 1e6 * 2 * pi             # Hz/T
 GAMMA_N = -4.3156 * 1e6 * 2 * pi            # Hz/T
 GAMMA_C =  6.728 * 1e7                          # Hz/T
 REDUCED_PERM_VACUUM = 1e-7
+GAMMA_HN = GAMMA_H / GAMMA_N
 
-## Magnetogyric Ratio
+## Magnetogyric Ratio ->  Ɣ in rad s^-1*T^-1
 HgyromagneticRatio = 26.7522212 * 1e7   # Ɣ in rad s^-1*T^-1
 N15gyromagneticRatio = -2.7126 * 1e7
 C13gyromagneticRatio = 6.728 * 1e7
 
 ## Chemical shift anisotropy (CSA) and bond lengths.
-N15_CSA = -172 * 1e-6                               # ppm
+N15_CSA = -172 * 1e-6
 NH_BOND_LENGTH = 1.02 * 1e-10
-InternalCorrelationTime = 50                        # double check
 

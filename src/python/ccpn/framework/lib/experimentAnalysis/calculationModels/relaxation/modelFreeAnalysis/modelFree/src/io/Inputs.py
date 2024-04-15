@@ -1,0 +1,96 @@
+"""
+I/O module
+"""
+#=========================================================================================
+# Licence, Reference and Credits
+#=========================================================================================
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__credits__ = ("Ed Brooksbank, Joanna Fox, Morgan Hayward, Victoria A Higman, Luca Mureddu",
+               "Eliza Płoskoń, Timothy J Ragan, Brian O Smith, Gary S Thompson & Geerten W Vuister")
+__licence__ = ("CCPN licence. See https://ccpn.ac.uk/software/licensing/")
+__reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, L.G., & Vuister, G.W.",
+                 "CcpNmr AnalysisAssign: a flexible platform for integrated NMR analysis",
+                 "J.Biomol.Nmr (2016), 66, 111-124, https://doi.org/10.1007/s10858-016-0060-y")
+#=========================================================================================
+# Last code modification
+#=========================================================================================
+__modifiedBy__ = "$modifiedBy: Luca Mureddu $"
+__dateModified__ = "$dateModified: 2024-04-15 15:38:25 +0100 (Mon, April 15, 2024) $"
+__version__ = "$Revision: 3.2.2 $"
+#=========================================================================================
+# Created
+#=========================================================================================
+__author__ = "$Author: Luca Mureddu $"
+__date__ = "$Date: 2024-04-04 12:39:28 +0100 (Thu, April 04, 2024) $"
+
+import pandas as pd
+
+#=========================================================================================
+# Start of code
+#=========================================================================================
+
+from ccpn.util.Path import aPath
+from ccpn.util.traits.CcpNmrJson import Constants, update, CcpNmrJson
+from ccpn.util.traits.CcpNmrTraits import Unicode, Dict, List, Bool, Int
+from ccpn.util.traits.TraitBase import TraitBase
+from ccpn.util.traits.CcpNmrTraits import Unicode, Int, Float, Bool, List, RecursiveDict, Dict, RecursiveList, CTuple, CString
+import ccpn.framework.lib.experimentAnalysis.SeriesAnalysisVariables as sv
+from ccpn.framework.lib.experimentAnalysis.calculationModels.relaxation.modelFreeAnalysis.modelFree.src.io._mfDataLoader import MF_Excel_DataLoader
+
+class InputsHandler(CcpNmrJson):
+    """
+    Input handler for the ModelFree plugin
+    """
+
+    # _internal
+    _JSON_FILE = None
+    classVersion = 3.1
+    saveAllTraitsToJson = True
+
+    # general settings
+    runName = Unicode(allow_none=False, default_value='ccpn_mf').tag(info='The name of the calculation run')
+    useTimeStamp = Bool(default_value=True).tag(info='flag to indicate if a timestamp should be used in generating the run directory')
+    timeStampFormat = Unicode(allow_none=True, default_value="%d-%m-%y_%H:%M").tag(info='The timestamp format. Default day-month-year_hour:minute')
+    _timeStamp = Unicode(allow_none=True, default_value=None).tag(info='The timestamp of the calculation run')
+    # rates settings
+    rates_path = Unicode(allow_none=True, default_value='rates.xlsx').tag(info='The abs excel Path for the file containing the rates')
+    # molecules
+    molecularStructure_path = Unicode(allow_none=True, default_value='molecule.pdb').tag(info='The abs Path for the file containing the molecular structure information.')
+    outputDir_path = Unicode(allow_none=True, default_value='outputs').tag(info='Path for the directory where to save the results.')
+
+
+    def __init__(self, parent, inputsPath):
+        super().__init__()
+        self.parent = parent
+        self._settingsHandler = self.parent.settingsHandler
+        self._ratesData = None
+        self._JSON_FILE = inputsPath
+        self.loadFromFile(self._JSON_FILE )
+        self._loadRates()
+
+    def loadFromFile(self, filePath):
+        if filePath is None:
+            return
+        self.restore(filePath)
+
+    @property
+    def ratesData(self):
+        return self._ratesData
+
+    def _loadRates(self):
+        """Load the rates from the defined files in the input file. Implemented Only Excel so far"""
+        ratesPath = aPath(self.rates_path)
+        if ratesPath.suffix in MF_Excel_DataLoader.suffixes:
+            reader = MF_Excel_DataLoader(ratesPath)
+            data = reader.load()
+            self._ratesData = data
+
+    def _validateRates(self):
+        """
+        Check if the required rates Columns are in the data
+        :return: df
+        """
+        _useRates = self._settingsHandler._useRates
+        # TODO
+
+

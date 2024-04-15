@@ -10,8 +10,8 @@ work of loading the data into the project.
 # Licence, Reference and Credits
 #=========================================================================================
 __copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
-__credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
-               "Timothy J Ragan, Brian O Smith, Daniel Thompson",
+__credits__ = ("Ed Brooksbank, Morgan Hayward, Morgan Hayward, Victoria A Higman, Luca Mureddu",
+               "Eliza Płoskoń, Timothy J Ragan, Brian O Smith, Daniel Thompson",
                "Gary S Thompson & Geerten W Vuister")
 __licence__ = ("CCPN licence. See https://ccpn.ac.uk/software/licensing/")
 __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, L.G., & Vuister, G.W.",
@@ -72,7 +72,7 @@ def getDataLoaders() -> OrderedDict:
     from ccpn.framework.lib.DataLoaders.StarDataLoader import StarDataLoader
     from ccpn.framework.lib.DataLoaders.FastaDataLoader import FastaDataLoader
     from ccpn.framework.lib.DataLoaders.ChemCompDataLoader import ChemCompDataLoader
-    from ccpn.framework.lib.DataLoaders.ExelDataLoader import ExcelDataLoader
+    from ccpn.framework.lib.DataLoaders.ExcelDataLoader import ExcelDataLoader
     from ccpn.framework.lib.DataLoaders.PdbDataLoader import PdbDataLoader
     from ccpn.framework.lib.DataLoaders.TextDataLoader import TextDataLoader
     from ccpn.framework.lib.DataLoaders.PythonDataLoader import PythonDataLoader

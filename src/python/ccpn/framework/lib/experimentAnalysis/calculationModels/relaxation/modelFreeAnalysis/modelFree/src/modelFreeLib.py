@@ -17,7 +17,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-02-29 13:00:57 +0000 (Thu, February 29, 2024) $"
+__dateModified__ = "$dateModified: 2024-04-15 15:38:25 +0100 (Mon, April 15, 2024) $"
 __version__ = "$Revision: 3.2.2 $"
 #=========================================================================================
 # Created
@@ -33,57 +33,11 @@ from numba import jit
 import ccpn.framework.lib.experimentAnalysis.SeriesAnalysisVariables as sv
 import ccpn.framework.lib.experimentAnalysis.ExperimentConstants as constants
 import ccpn.framework.lib.experimentAnalysis.calculationModels.relaxation.spectralDensityLib as sdl
-from ccpn.framework.lib.experimentAnalysis.calculationModels.relaxation.modelFree.modelFuncs import _jwTerm
+from ccpn.framework.lib.experimentAnalysis.calculationModels.relaxation.modelFreeAnalysis.modelFuncs import _jwTerm
 from random import random, randint
 from math import sqrt, exp
 import pandas as pd
 
-
-
-@jit(nopython = True)
-def _calculateR1(A, jN, jHpN, jHmN, C):
-    """
-    Calculate the longitudinal relaxation rate (R1)
-    :param A: d_factor
-    :param jN:
-    :param jHpN:
-    :param jHmN:
-    :param C: c_factor
-    :return:  R1
-    """
-    r1 = A * ((3 * jN) + (6 * jHpN) + jHmN) + C * jN
-    return r1
-
-@jit(nopython = True)
-def _calculateR2(A, C, j0, jH, jHmN, jHpN, jN, rex=None):
-    """
-    Calculate the transverse relaxation rate (R2)
-    :param A: d_factor
-    :param C: c_factor
-    :param j0:
-    :param jH:
-    :param jHmN:
-    :param jHpN:
-    :param jN:
-    :param rex:
-    :return:  R2
-    """
-    rex = rex or 0
-    r2 = 0.5 * A * ((4 * j0) + (3 * jN) + (6 * jHpN) + (6 * jH) + jHmN) + C * (2 * j0 / 3.0 + 0.5 * jN) + rex
-    return r2
-
-@jit(nopython = True)
-def _calculateNOEp(A, gammaHN, t1, jHpN, jHmN):
-    """
-    Calculate the steady-state NOE enhancement
-    :param A: d_factor
-    :param gammaHN:
-    :param t1:
-    :param jHpN:
-    :param jHmN:
-    :return:
-    """
-    return 1.0 + (A * gammaHN * t1 * ((6 * jHpN) - jHmN))
 
 
 
