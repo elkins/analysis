@@ -15,7 +15,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-04-15 15:38:25 +0100 (Mon, April 15, 2024) $"
+__dateModified__ = "$dateModified: 2024-04-21 16:02:32 +0100 (Sun, April 21, 2024) $"
 __version__ = "$Revision: 3.2.2 $"
 #=========================================================================================
 # Created
@@ -35,7 +35,7 @@ from ccpn.util.traits.CcpNmrTraits import Unicode, Dict, List, Bool, Int
 from ccpn.util.traits.TraitBase import TraitBase
 from ccpn.util.traits.CcpNmrTraits import Unicode, Int, Float, Bool, List, RecursiveDict, Dict, RecursiveList, CTuple, CString
 import ccpn.framework.lib.experimentAnalysis.SeriesAnalysisVariables as sv
-from ccpn.framework.lib.experimentAnalysis.calculationModels.relaxation.modelFreeAnalysis.modelFree.src.io._mfDataLoader import MF_Excel_DataLoader
+from ccpn.framework.lib.experimentAnalysis.calculationModels.relaxation.modelFreeAnalysis.modelFree.src.io._inputDataLoader import Rates_Excel_DataLoader
 
 class InputsHandler(CcpNmrJson):
     """
@@ -77,11 +77,22 @@ class InputsHandler(CcpNmrJson):
     def ratesData(self):
         return self._ratesData
 
+    def getGroupedRatesDataByFrequency(self) -> dict:
+        """Return a dict with the spectrometer Frequency as key and DataFrame as value. """
+        if self.ratesData.empty:
+            return {}
+        if sv.SF not in self.ratesData:
+            raise RuntimeError(f'Error in handling the Rates data. Ensure the column {sv.SF} is present and filled.')
+        sorted_df = self.ratesData.sort_values(by=sv.SF)
+        ratesBySF = {name: group for name, group in sorted_df.groupby(sv.SF)}
+        return ratesBySF
+
+
     def _loadRates(self):
         """Load the rates from the defined files in the input file. Implemented Only Excel so far"""
         ratesPath = aPath(self.rates_path)
-        if ratesPath.suffix in MF_Excel_DataLoader.suffixes:
-            reader = MF_Excel_DataLoader(ratesPath)
+        if ratesPath.suffix in Rates_Excel_DataLoader.suffixes:
+            reader = Rates_Excel_DataLoader(ratesPath)
             data = reader.load()
             self._ratesData = data
 

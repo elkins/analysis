@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-04-15 15:38:24 +0100 (Mon, April 15, 2024) $"
+__dateModified__ = "$dateModified: 2024-04-21 16:02:31 +0100 (Sun, April 21, 2024) $"
 __version__ = "$Revision: 3.2.2 $"
 #=========================================================================================
 # Created
@@ -35,10 +35,7 @@ from ccpn.framework.Application import getApplication, getCurrent, getProject
 from src.io.Settings import SettingsHandler
 from src.io.Inputs import InputsHandler
 from src.io.Outputs import OutputsHandler
-from src.RateModels import RatesHandler
-from src.SpectralDensityFunctions import SDFHandler
-from src.diffusionModels.DiffusionModelABC import LipariSzaboModel
-from ccpn.util.Path import aPath
+from src.diffusionModels.DiffusionModelABC import DiffusionModelHandler
 
 
 class ModelFree(object):
@@ -48,16 +45,14 @@ class ModelFree(object):
         self.settingsHandler = SettingsHandler(self, settingsPath=settingsJsonPath)
         self.inputsHandler = InputsHandler(self, inputsPath=inputJsonPath)
         self.outputsHandler = OutputsHandler(self, outPutDirPath=self.inputsHandler.outputDir_path)
-        # self.unitsHandler = UnitsHandler(*args, **kwrgs)
-        self.rateModelsHandler = RatesHandler()
-        self.diffusionModels = [LipariSzaboModel]
+        self.diffusionModelHandler = DiffusionModelHandler(settingsHandler=self.settingsHandler, inputsHandler=self.inputsHandler, outputsHandler=self.outputsHandler)
 
     def runFittings(self):
         # run the first iteration of fitting.
         # for each diffusion model
         # for each spectral density function
-        ratesData =  self.inputsHandler.ratesData
-        print('ratesData ===> ',ratesData)
+        result = self.diffusionModelHandler.startMinimisation()
+        print('ratesData ===> ',result)
 
         pass
 

@@ -58,7 +58,7 @@ class TestObj2(CcpNmrJson):
 TestObj2.register()
 
 
-def test():
+def atest():
     "Test it; returns two objects"
 
     obj1 = TestObj(id='obj1')
@@ -97,4 +97,4 @@ def test():
 
 if __name__ == '__main__':
 
-    test()
+    atest()

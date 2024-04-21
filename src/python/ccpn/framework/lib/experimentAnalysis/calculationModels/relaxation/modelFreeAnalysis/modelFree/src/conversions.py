@@ -14,7 +14,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-04-15 15:38:24 +0100 (Mon, April 15, 2024) $"
+__dateModified__ = "$dateModified: 2024-04-21 16:02:31 +0100 (Sun, April 21, 2024) $"
 __version__ = "$Revision: 3.2.2 $"
 #=========================================================================================
 # Created
@@ -47,6 +47,14 @@ def frequencyToTesla(frequency, gamma):
     :return: Magnetic field strength in Tesla.
     """
     return (2 * np.pi * frequency) / gamma
+
+
+def _latex2matplotlib(latex):
+    """
+    Convert a LaTeX math expression to Matplotlib format.
+    Returns:str: Matplotlib format of the LaTeX expression
+    """
+    return r"${}$".format(latex)
 
 
 if __name__ == '__main__':

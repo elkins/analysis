@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-04-15 15:38:24 +0100 (Mon, April 15, 2024) $"
+__dateModified__ = "$dateModified: 2024-04-21 16:02:31 +0100 (Sun, April 21, 2024) $"
 __version__ = "$Revision: 3.2.2 $"
 #=========================================================================================
 # Created
@@ -27,10 +27,6 @@ __date__ = "$Date: 2022-02-02 14:08:56 +0000 (Wed, February 02, 2022) $"
 # Start of code
 #=========================================================================================
 
-from collections import OrderedDict
-import ccpn.util.Constants as constants
-import ccpn.core.lib.peakUtils as pu
-from ccpn.core.lib.AssignmentLib import CCP_CODES_SORTED
 
 ############################################################################################
 ##  SeriesDataTable common definitions. Used in I/O tables columns and throughtout modules
@@ -102,20 +98,30 @@ MINIMISER_METHOD = 'Method'
 MINIMISER_MODEL  = 'Model'
 
 ## Peak properties. Used to get nmrAtom assigned-peak by dimension and build tables.
-_POINTPOSITION  = pu._POSITION
-_PPMPOSITION    = pu._PPMPOSITION
-_PPMPOSITIONS   = pu.PPMPOSITIONS
-_LINEWIDTH      = pu._LINEWIDTH
-_LINEWIDTHS     = pu.LINEWIDTHS
-_HEIGHT         = pu.HEIGHT
-_VOLUME         = pu.VOLUME
+_POSITION = 'position'
+_POINTPOSITION = 'pointPosition'
+_PPMPOSITION = 'ppmPosition'
+_LINEWIDTH = 'lineWidth'
+HEIGHT = 'height'
+VOLUME = 'volume'
+POSITIONS = f'{_POSITION}s'
+LINEWIDTHS = f'{_LINEWIDTH}s'
+POINTPOSITIONS = f'{_POINTPOSITION}s'
+PPMPOSITIONS = f'{_PPMPOSITION}s'
+_LINEWIDTHS     = LINEWIDTHS
+_HEIGHT         =  HEIGHT
+_VOLUME         =  VOLUME
 _SNR            = 'signalToNoiseRatio'
 
 ## ATOM Names
-_H = pu.H
-_N = pu.N
-_C = pu.C
-_OTHER = pu.OTHER
+OTHER = 'Other'
+H = 'H'
+N = 'N'
+C = 'C'
+_H = H
+_N = N
+_C = C
+_OTHER = OTHER
 
 ## IsotopeCode Names
 
@@ -179,6 +185,10 @@ J0_ERR = f'{J0}{_ERR}'
 JwX_ERR = f'{JwX}{_ERR}'
 JwH_ERR = f'{JwH}{_ERR}'
 S2 = 'S2'
+S2s = 'S2s'
+S2f = 'S2f'
+Ts = 'Ts'
+Tf = 'Tf'
 Ti = 'Ti'
 Ci = 'Ci'
 W = 'w'
@@ -196,6 +206,9 @@ ETAZ_ERR = f'{ETAZ}{_ERR}'
 ISOTROPIC = 'Isotropic'
 ANISOTROPIC = 'Anisotropic '
 DIFFUSION = 'Diffusion'
+LIPARISZABO = 'Lipari-Szabo'
+LIPARISZABO_Original = 'Lipari-Szabo Original'
+LIPARISZABO_Extended = 'Lipari-Szabo Extended'
 
 FLAG = 'Flag'
 SERIAL = 'Serial'
@@ -248,9 +261,6 @@ PCSAnalysis = 'PseudoContactShiftAnalysis'
 PREAnalysis = 'ParamagneticRelaxationEnhancementAnalysis'
 
 ## Series Units
-SERIES_TIME_UNITS = constants.TIME_UNITS
-SERIES_CONCENTRATION_UNITS = constants.CONCENTRATION_UNITS
-SERIES_UNITS = constants.ALL_SERIES_UNITS
 
 STD = 'Std'
 MEAN = 'Mean'
@@ -275,7 +285,7 @@ DEFAULT_H_ALPHAFACTOR = 1
 DEFAULT_N_ALPHAFACTOR = 0.142
 DEFAULT_C_ALPHAFACTOR = 0.25
 DEFAULT_OTHER_ALPHAFACTOR = 1
-DEFAULT_ALPHA_FACTORS = OrderedDict((
+DEFAULT_ALPHA_FACTORS = dict((
                             (_1H, DEFAULT_H_ALPHAFACTOR),
                             (_15N, DEFAULT_N_ALPHAFACTOR),
                             (_13C, DEFAULT_C_ALPHAFACTOR),
@@ -324,7 +334,6 @@ FRACTION_BINDING_WITHTARGETMODEL = 'Fraction Binding with [Target]'
 COOPERATIVITY_BINDING_MODEL = 'Cooperativity Binding'
 FMNOYERROR = 'Fitting Model not implemented yet'
 #### residues names
-CCP_3LETTER_CODES = CCP_CODES_SORTED
 EXCLUDEDRESIDUETYPES = 'ExcludedResidueTypes'
 
 LEASTSQ = 'leastsq'

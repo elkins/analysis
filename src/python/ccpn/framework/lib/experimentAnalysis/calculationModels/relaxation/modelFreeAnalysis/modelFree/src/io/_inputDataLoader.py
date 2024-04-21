@@ -15,7 +15,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-04-15 15:38:25 +0100 (Mon, April 15, 2024) $"
+__dateModified__ = "$dateModified: 2024-04-21 16:02:32 +0100 (Sun, April 21, 2024) $"
 __version__ = "$Revision: 3.2.2 $"
 #=========================================================================================
 # Created
@@ -38,7 +38,7 @@ from ccpn.framework.lib.DataLoaders.PdbDataLoader import PdbDataLoader
 from ccpn.framework.lib.DataLoaders.TextDataLoader import TextDataLoader
 
 
-class MF_CSV_DataLoader(CsvDataLoader):
+class Rates_CSV_DataLoader(CsvDataLoader):
     """The csv file data-loader.
     """
     loadFunction = (None, None)
@@ -51,7 +51,7 @@ class MF_CSV_DataLoader(CsvDataLoader):
             raise RuntimeError(f'Error loading "{self.path}": {es}') from es
 
 
-class MF_NEF_DataLoader(ExcelDataLoader):
+class Rates_NEF_DataLoader(ExcelDataLoader):
     """The NEF file data-loader for ModelFree plugin.
     """
     loadFunction = (None, None)
@@ -59,7 +59,7 @@ class MF_NEF_DataLoader(ExcelDataLoader):
     def load(self):
         raise RuntimeError('Not Implemented')
 
-class MF_Excel_DataLoader(ExcelDataLoader):
+class Rates_Excel_DataLoader(ExcelDataLoader):
     """The excel file data-loader.
     """
     loadFunction = (None, None)

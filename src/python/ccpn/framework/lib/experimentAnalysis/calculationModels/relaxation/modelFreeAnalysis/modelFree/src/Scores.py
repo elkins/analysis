@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-04-15 15:38:24 +0100 (Mon, April 15, 2024) $"
+__dateModified__ = "$dateModified: 2024-04-21 16:02:31 +0100 (Sun, April 21, 2024) $"
 __version__ = "$Revision: 3.2.2 $"
 #=========================================================================================
 # Created
@@ -57,13 +57,14 @@ def calculateReducedChiSquared(x2, dof):
     """
     return x2 / dof
 
-@jit(nopython=True)
-def calculateAIC(observed, predictions, numParams, errors=None):
+# @jit(nopython=True)
+def calculateAIC(x2, paramsCount, n):
     """
     Calculate the Akaike Information Criterion (AIC)  from data.
     """
-    x2 = calculateChiSquared(observed, predictions, errors)
-    return x2 + 2 * numParams
+    AIC = 2 * paramsCount + n * np.log(x2)
+
+    return AIC
 
 @jit(nopython=True)
 def calculateAICcorrected(x2, observationsCount, paramsCount ):
