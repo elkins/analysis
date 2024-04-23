@@ -15,7 +15,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-04-21 16:02:32 +0100 (Sun, April 21, 2024) $"
+__dateModified__ = "$dateModified: 2024-04-23 12:58:39 +0100 (Tue, April 23, 2024) $"
 __version__ = "$Revision: 3.2.2 $"
 #=========================================================================================
 # Created
@@ -27,7 +27,33 @@ __date__ = "$Date: 2024-04-04 12:39:28 +0100 (Thu, April 04, 2024) $"
 #=========================================================================================
 
 import numpy as np
+from ccpn.util.decorators import singleton
+from ccpn.util.Path import aPath
+
+@singleton
+class OutputContainer():
+    """A singleton class used to register output Paths and other output related object.
+    """
+    outputHandler = None
+
+    def register(self, outputHandler):
+        self.outputHandler = outputHandler
+
+    @property
+    def outputDir(self):
+        return self.outputHandler.outputDirPath
+
+
+def getOutputDir():
+    container = OutputContainer()
+    if container.outputHandler is not None:
+        return container.outputDir
 
 class OutputsHandler(object):
-    def __init__(self, *args, **kwrgs):
-        pass
+
+    def __init__(self, parent, outputDirPath, **kwrgs):
+        self.parent = parent
+        self.outputDirPath = aPath(outputDirPath)
+        _container = OutputContainer().register(self)
+
+

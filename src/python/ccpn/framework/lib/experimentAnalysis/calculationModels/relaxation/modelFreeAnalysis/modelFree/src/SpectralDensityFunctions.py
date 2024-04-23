@@ -129,9 +129,9 @@ class _Model0(_Jmod):
     @staticmethod
     def calculate(**kwargs):
         """See module above"""
-        ci = kwargs.get('ci')
-        ti = kwargs.get('ti')
-        w = kwargs.get('w')
+        ci = kwargs.get(sv.Ci)
+        ti = kwargs.get(sv.Ti)
+        w = kwargs.get(sv.W)
         return (2/5) * _Jmod._jwTerm(ci, ti, w)
 
 class _Model1(_Jmod):
@@ -146,10 +146,10 @@ class _Model1(_Jmod):
     @staticmethod
     def calculate(**kwargs):
         """See module above"""
-        s2 = kwargs.get('s2')
-        ci = kwargs.get('ci')
-        ti = kwargs.get('ti')
-        w = kwargs.get('w')
+        s2 = kwargs.get(sv.S2)
+        ci = kwargs.get(sv.Ci)
+        ti = kwargs.get(sv.Ti)
+        w = kwargs.get(sv.W)
         return (2 / 5) * (s2 * _Jmod._jwTerm(ci, ti, w))
 
 class _Model2(_Jmod):
@@ -164,11 +164,11 @@ class _Model2(_Jmod):
     @staticmethod
     def calculate(**kwargs):
         """See module above"""
-        s2 = kwargs.get('s2')
-        ci = kwargs.get('ci')
-        ti = kwargs.get('ti')
-        te = kwargs.get('te')
-        w = kwargs.get('w')
+        s2 = kwargs.get(sv.S2)
+        ci = kwargs.get(sv.Ci)
+        ti = kwargs.get(sv.Ti)
+        te = kwargs.get(sv.TE)
+        w = kwargs.get(sv.W)
         t = 1 / (1/ti + 1/te)
         term1 = _Jmod._jwTerm(ci, ti, w)
         term2 =  _Jmod._jwTerm((1 - s2), t, w)
@@ -219,8 +219,14 @@ class _Model5(_Jmod):
     category = [sv.LIPARISZABO_Extended]
 
     @staticmethod
-    def calculate(ti, ci, w, s2, te, s2f, ts, *args, **kwargs):
+    def calculate(**kwargs):
         """See module above"""
+        s2 = kwargs.get(sv.S2)
+        ci = kwargs.get(sv.Ci)
+        ti = kwargs.get(sv.Ti)
+        ts = kwargs.get(sv.Tf)
+        w = kwargs.get(sv.W)
+        s2f = kwargs.get(sv.W)
         term1 = _Jmod._jwTerm(ci, ti, w)
         term2num = ((s2f -s2) * (ts + ti)) * ts          # nominator
         term2den= (ts + ti)**2 + (ts*ti*w)**2           # denominator
@@ -240,8 +246,15 @@ class _Model6(_Jmod):
      + \frac{ (S^2_f-S^2)(\tau_s+\tau_i)\tau_s} {(\tau_s+\tau_i)^2 +(\tau_s\tau_i\omega)^2} \biggr] '''
 
     @staticmethod
-    def calculate(ti, ci, w, s2, te, s2f, ts, tf, *args, **kwargs):
+    def calculate(**kwargs):
         """See module above"""
+        s2 = kwargs.get(sv.S2)
+        ci = kwargs.get(sv.Ci)
+        ti = kwargs.get(sv.Ti)
+        tf = kwargs.get(sv.Tf)
+        ts = kwargs.get(sv.Tf)
+        w = kwargs.get(sv.W)
+        s2f = kwargs.get(sv.W)
         term1 = _Jmod._jwTerm(ci, ti, w)
         # Term 2
         term2num = ((1-s2f) * (tf + ti)) * tf
@@ -266,9 +279,9 @@ class _Model7(_Jmod):
      + \frac{ (S^2_f-S^2)(\tau_s+\tau_i) \tau_s} {(\tau_s+\tau_i)^2 +(\tau_s\tau_i\omega)^2}\biggr] + R_{ex}'''
 
     @staticmethod
-    def calculate(ti, ci, w, s2, te, s2f, ts, *args, **kwargs):
+    def calculate(**kwargs):
         """See module above"""
-        return _Model5.calculate(ti, ci, w, s2, te, s2f, ts, *args, **kwargs)
+        return _Model5.calculate(**kwargs)
 
 
 class _Model8(_Jmod):
@@ -285,9 +298,9 @@ class _Model8(_Jmod):
      + \frac{ (S^2_f-S^2)(\tau_s+\tau_i)\tau_s} {(\tau_s+\tau_i)^2 +(\tau_s\tau_i\omega)^2} \biggr] + R_{ex}'''
 
     @staticmethod
-    def calculate(ti, ci, w, s2, te, s2f, ts, tf, *args, **kwargs):
+    def calculate(**kwargs):
         """See module above"""
-        return _Model6.calculate(ti, ci, w, s2, te, s2f, ts, *args, **kwargs)
+        return _Model6.calculate(**kwargs)
 
 class _Model9(_Jmod):
     name = 'model 9'

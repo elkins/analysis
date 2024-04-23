@@ -15,7 +15,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-04-21 16:02:32 +0100 (Sun, April 21, 2024) $"
+__dateModified__ = "$dateModified: 2024-04-23 12:58:39 +0100 (Tue, April 23, 2024) $"
 __version__ = "$Revision: 3.2.2 $"
 #=========================================================================================
 # Created
@@ -37,6 +37,15 @@ from ccpn.util.traits.CcpNmrTraits import Unicode, Int, Float, Bool, List, Recur
 import ccpn.framework.lib.experimentAnalysis.SeriesAnalysisVariables as sv
 from ccpn.framework.lib.experimentAnalysis.calculationModels.relaxation.modelFreeAnalysis.modelFree.src.io._inputDataLoader import Rates_Excel_DataLoader
 
+
+class _Rates(CcpNmrJson):
+    """
+    Input handler for the ModelFree plugin
+    """
+
+    rates_path = Unicode(allow_none=True, default_value='rates.xlsx').tag(info='The abs excel Path for the file containing the rates')
+
+
 class InputsHandler(CcpNmrJson):
     """
     Input handler for the ModelFree plugin
@@ -50,10 +59,11 @@ class InputsHandler(CcpNmrJson):
     # general settings
     runName = Unicode(allow_none=False, default_value='ccpn_mf').tag(info='The name of the calculation run')
     useTimeStamp = Bool(default_value=True).tag(info='flag to indicate if a timestamp should be used in generating the run directory')
-    timeStampFormat = Unicode(allow_none=True, default_value="%d-%m-%y_%H:%M").tag(info='The timestamp format. Default day-month-year_hour:minute')
+    timeStampFormat = Unicode(allow_none=True, default_value="%d-%m-%y_%H-%M").tag(info='The timestamp format. Default day-month-year_hour:minute')
     _timeStamp = Unicode(allow_none=True, default_value=None).tag(info='The timestamp of the calculation run')
     # rates settings
     rates_path = Unicode(allow_none=True, default_value='rates.xlsx').tag(info='The abs excel Path for the file containing the rates')
+    # rates = TList(itemTrait=Dict(), default_value=[]).
     # molecules
     molecularStructure_path = Unicode(allow_none=True, default_value='molecule.pdb').tag(info='The abs Path for the file containing the molecular structure information.')
     outputDir_path = Unicode(allow_none=True, default_value='outputs').tag(info='Path for the directory where to save the results.')

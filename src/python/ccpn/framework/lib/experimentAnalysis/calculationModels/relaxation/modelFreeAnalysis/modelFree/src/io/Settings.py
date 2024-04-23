@@ -15,7 +15,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-04-21 16:02:32 +0100 (Sun, April 21, 2024) $"
+__dateModified__ = "$dateModified: 2024-04-23 12:58:39 +0100 (Tue, April 23, 2024) $"
 __version__ = "$Revision: 3.2.2 $"
 #=========================================================================================
 # Created
@@ -53,22 +53,13 @@ class SettingsHandler(CcpNmrJson):
                                                                                                                                 Allowed: auto, Isotropic, Axially-Symmetric, Fully-Anisotropic, Partially-Anisotropic.''')
     minimisationAlgorithm = Unicode(allow_none=False, default_value='differential_evolution').tag(info='The name of the minimisation Algorithm. Allowed: Differential_evolution, grid_search')
 
+    maxfev = Int(allow_none=False, default_value=100000).tag(info='The number of function evaluation during the Minimisation')
 
-    # rates column definitions for tabular input data.
     _useRates = List(allow_none=False, default_value=[sv.R1, sv.R2, sv.HETNOE]).tag(info='The default rates to use in the calculations.')
     _useRateErrors = List(allow_none=False, default_value=[sv.R1_ERR, sv.R2_ERR, sv.HETNOE_ERR]).tag(info='The default rates to use in the calculations.')
 
-    _R1ColumnName = Unicode(allow_none=True, default_value=sv.R1).tag(info='The column name where the R1 data is described')
-    _R2ColumnName = Unicode(allow_none=True, default_value=sv.R2).tag(info='The column name where the R2 data is described')
-    _HETNOEColumnName = Unicode(allow_none=True, default_value=sv.HETNOE).tag(info='The column name where the HetNoe data is described')
-    _ETAXYColumnName = Unicode(allow_none=True, default_value=sv.ETAXY).tag(info='The column name where the ETAyx data is described')
-    _ETAZColumnName = Unicode(allow_none=True, default_value=sv.ETAZ).tag(info='The column name where the ETAz data is described')
 
-    _R1errColumnName = Unicode(allow_none=False, default_value=sv.R1_ERR).tag(info='The column name where the R1 error data is described')
-    _R2errColumnName = Unicode(allow_none=True, default_value=sv.R2_ERR).tag(info='The column name where the R2 data error is described')
-    _HETNOEerrColumnName = Unicode(allow_none=True, default_value=sv.HETNOE_ERR).tag(info='The column name where the HetNoe error data is described')
-    _ETAXYerrColumnName = Unicode(allow_none=True, default_value=sv.ETAXY).tag(info='The column name where the ETAyx error data is described')
-    _ETAZerrColumnName = Unicode(allow_none=True, default_value=sv.ETAZ).tag(info='The column name where the ETAz error data is described')
+
 
     def __init__(self, parent, settingsPath):
         super().__init__()

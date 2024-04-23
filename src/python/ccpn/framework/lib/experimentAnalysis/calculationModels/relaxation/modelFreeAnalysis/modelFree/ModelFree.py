@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-04-21 16:02:31 +0100 (Sun, April 21, 2024) $"
+__dateModified__ = "$dateModified: 2024-04-23 12:58:39 +0100 (Tue, April 23, 2024) $"
 __version__ = "$Revision: 3.2.2 $"
 #=========================================================================================
 # Created
@@ -44,7 +44,7 @@ class ModelFree(object):
 
         self.settingsHandler = SettingsHandler(self, settingsPath=settingsJsonPath)
         self.inputsHandler = InputsHandler(self, inputsPath=inputJsonPath)
-        self.outputsHandler = OutputsHandler(self, outPutDirPath=self.inputsHandler.outputDir_path)
+        self.outputsHandler = OutputsHandler(self, outputDirPath=self.inputsHandler.outputDir_path)
         self.diffusionModelHandler = DiffusionModelHandler(settingsHandler=self.settingsHandler, inputsHandler=self.inputsHandler, outputsHandler=self.outputsHandler)
 
     def runFittings(self):

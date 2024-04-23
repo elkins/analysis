@@ -18,7 +18,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-04-15 15:38:24 +0100 (Mon, April 15, 2024) $"
+__dateModified__ = "$dateModified: 2024-04-23 12:58:39 +0100 (Tue, April 23, 2024) $"
 __version__ = "$Revision: 3.2.2 $"
 #=========================================================================================
 # Created
@@ -143,7 +143,10 @@ def _calculateHetNoe(d2, c2, j0, jH, jHmN, jHpN, jN):
     :param t1: float 1 over R1, experimental R1.
     :return: float theoretical Noe
     """
-    t1 = 1/_calculateR1(d2, c2, j0, jH, jHmN, jHpN, jN )
+    r1 = _calculateR1(d2, c2, j0, jH, jHmN, jHpN, jN )
+    if r1 == 0:
+        return 0
+    t1 = 1/r1
     hetNoe =  1.0 + (d2 * GAMMA_HN * t1 * ((6 * jHpN) - jHmN))
     return hetNoe
 
