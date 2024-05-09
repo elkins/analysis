@@ -9,9 +9,9 @@ from __future__ import annotations
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2023"
-__credits__ = ("Ed Brooksbank, Joanna Fox, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
-               "Timothy J Ragan, Brian O Smith, Gary S Thompson & Geerten W Vuister")
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__credits__ = ("Ed Brooksbank, Joanna Fox, Morgan Hayward, Victoria A Higman, Luca Mureddu",
+               "Eliza Płoskoń, Timothy J Ragan, Brian O Smith, Gary S Thompson & Geerten W Vuister")
 __licence__ = ("CCPN licence. See https://ccpn.ac.uk/software/licensing/")
 __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, L.G., & Vuister, G.W.",
                  "CcpNmr AnalysisAssign: a flexible platform for integrated NMR analysis",
@@ -20,8 +20,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2023-11-10 15:58:42 +0000 (Fri, November 10, 2023) $"
-__version__ = "$Revision: 3.2.0 $"
+__dateModified__ = "$dateModified: 2024-05-09 15:51:21 +0100 (Thu, May 09, 2024) $"
+__version__ = "$Revision: 3.2.2 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -286,11 +286,11 @@ class Path(_Path_):
         return self.isValidFilePath() and \
             self.isValidBasename(allowSpace=False, suffixes=suffixes if suffixes is not None else ['.ccpn', ])
 
-    def addTimeStamp(self) -> Path:
+    def addTimeStamp(self, timeFormat='%Y-%m-%d-%H%M%S', sep='-' ) -> Path:
         """Return a Path instance with path.timeStamp-suffix profile
         """
-        now = datetime.datetime.now().strftime('%Y-%m-%d-%H%M%S')
-        return self.parent / (self.stem + '-' + str(now) + self.suffix)
+        now = datetime.datetime.now().strftime(timeFormat)
+        return self.parent / (self.stem + sep + str(now) + self.suffix)
 
     def incrementVersion(self) -> Path:
         """return: a Path instance with directory/basename(version).suffixes profile
