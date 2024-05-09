@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-04-21 16:02:31 +0100 (Sun, April 21, 2024) $"
+__dateModified__ = "$dateModified: 2024-05-09 15:50:51 +0100 (Thu, May 09, 2024) $"
 __version__ = "$Revision: 3.2.2 $"
 #=========================================================================================
 # Created
@@ -43,9 +43,6 @@ def main():
     settingsFilePath = args.settings
     mf = ModelFree(inputJsonPath=inputFilePath, settingsJsonPath=settingsFilePath)
     mf.runFittings()
-    # inputDataDict = loadSettings(inputFilePath)
-    # settingsDict = loadSettings(settingsFilePath)
-    # runModelFree(inputDataDict, settingsDict)
     return mf
 
 if __name__ == "__main__":

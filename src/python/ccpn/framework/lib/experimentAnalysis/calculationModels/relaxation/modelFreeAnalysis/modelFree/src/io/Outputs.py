@@ -15,7 +15,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-04-23 12:58:39 +0100 (Tue, April 23, 2024) $"
+__dateModified__ = "$dateModified: 2024-05-09 15:50:51 +0100 (Thu, May 09, 2024) $"
 __version__ = "$Revision: 3.2.2 $"
 #=========================================================================================
 # Created
@@ -26,9 +26,8 @@ __date__ = "$Date: 2024-04-04 12:39:28 +0100 (Thu, April 04, 2024) $"
 # Start of code
 #=========================================================================================
 
-import numpy as np
 from ccpn.util.decorators import singleton
-from ccpn.util.Path import aPath
+from ccpn.util.Path import aPath, fetchDir
 
 @singleton
 class OutputContainer():
@@ -39,21 +38,57 @@ class OutputContainer():
     def register(self, outputHandler):
         self.outputHandler = outputHandler
 
-    @property
-    def outputDir(self):
-        return self.outputHandler.outputDirPath
 
-
-def getOutputDir():
+def getOutputHandler():
     container = OutputContainer()
     if container.outputHandler is not None:
-        return container.outputDir
+        return container.outputHandler
+    else:
+        raise RuntimeError('The OutputsHandler was never instantiated.')
+
 
 class OutputsHandler(object):
 
-    def __init__(self, parent, outputDirPath, **kwrgs):
-        self.parent = parent
-        self.outputDirPath = aPath(outputDirPath)
+    _sep = '_'
+    TABLES = 'tables'
+    PLOTS = 'plots'
+
+    def __init__(self, parent):
+        """
+        :param parent: The main parent object.
+        """
+        self._parent = parent
+        self._settingsHandler = self._parent.settingsHandler
+        self._inputsHandler = self._parent.inputsHandler
+        self.outputDirPath = aPath(self._inputsHandler.getOutputDirPath())
+        self._workingOutputDirPath = None # the subdir of the outputDirPath, usually with the added timestamp.
+
+        # get some general preference from the input handler
+        self._runName = self._inputsHandler.runName
+        self._useTimeStamp = self._inputsHandler.useTimeStamp
+        self._timeStampFormat = self._inputsHandler.timeStampFormat
+
+        # register the Singleton
         _container = OutputContainer().register(self)
 
+    def _fetchWorkingOutputDirPath(self):
+        """
+        Get the full output dir path, if exists or create a new one, relative to the top output dir path.
+        :return: the newly created Working outputPath.
+        """
+        name = self._runName
+        newDir = aPath(fetchDir(self.outputDirPath, name))
+        if self._useTimeStamp:
+            newDir = newDir.addTimeStamp(timeFormat=self._timeStampFormat, sep=self._sep)
+        self._workingOutputDirPath = newDir
+        return self._workingOutputDirPath
 
+    def _fetchTablesDirPath(self, diffusionModelName):
+        wodp = self._fetchWorkingOutputDirPath()
+        dmdp = fetchDir(wodp, diffusionModelName)
+        return fetchDir(dmdp, self.TABLES)
+
+    def _fetchPlotsDirPath(self, diffusionModelName):
+        wodp = self._fetchWorkingOutputDirPath()
+        dmdp = fetchDir(wodp, diffusionModelName)
+        return fetchDir(dmdp, self.PLOTS)

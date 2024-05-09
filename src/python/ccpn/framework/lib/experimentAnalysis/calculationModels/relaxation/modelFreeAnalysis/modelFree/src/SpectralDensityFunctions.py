@@ -9,7 +9,6 @@ Module containing implementation functions for calculating  the spectral density
 
     ~~ Function Signature, Parameters ~~
 
-        All the classic models (Not the extended) containing the following arguments: ti, ci, w, s2, te, rex
         Functions can be used with or without the tensor information.
         Functions are of the same construction regardless the rotational diffusion model: e.g.: Isotropic, Axially Symmetric, Fully anisotropic.
         Models with the Flag plusRex are the same as the  parent model, except that when evoked to calculate the rate of interest that requires the Rex term, e.g.: R2 , then Rex is added to the

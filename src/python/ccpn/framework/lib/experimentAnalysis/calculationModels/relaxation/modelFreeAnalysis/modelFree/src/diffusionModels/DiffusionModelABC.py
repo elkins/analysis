@@ -9,6 +9,18 @@ This module contains the diffusion models  used in the Lipari-Szabo conventions:
 
     3) Fully Anisotropic (Rhombic Model):
         The fully anisotropic or rhombic model is used when the probe molecule has no preferred axis of rotation, and its rotational diffusion is fully anisotropic.
+
+
+    Minimiser settings:
+
+    Methods: differential evolution (DE). https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.differential_evolution.html#scipy.optimize.differential_evolution
+    Convergence criteria:
+        ftol (Function Tolerance): The relative tolerance for convergence of the cost function. The optimisation process stops when the relative reduction in the cost function is less than ftol.
+        xtol (Parameter Tolerance): The relative tolerance for convergence of the parameters. The optimisation process stops when the relative change in the parameters is less than xtol.
+        maxiter (Maximum Iterations): The maximum number of iterations allowed during optimisation. Increasing maxiter allows the optimisation process to continue for a longer time, potentially improving convergence.
+        popsize (Population Size): The number of candidate solutions (individuals) in each generation of the evolutionary algorithm. Increasing popsize can help explore the parameter space more thoroughly but may also increase computation time.
+        Note: There is no gradient in the DE  like the Grid-search.  therefore criteria like ftol, xtol, and gtol, are not applicable.
+
 """
 #=========================================================================================
 # Licence, Reference and Credits
@@ -24,7 +36,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-04-23 12:58:39 +0100 (Tue, April 23, 2024) $"
+__dateModified__ = "$dateModified: 2024-05-09 15:50:51 +0100 (Thu, May 09, 2024) $"
 __version__ = "$Revision: 3.2.2 $"
 #=========================================================================================
 # Created
@@ -37,22 +49,51 @@ __date__ = "$Date: 2024-04-04 12:39:28 +0100 (Thu, April 04, 2024) $"
 
 from abc import ABC
 from collections import defaultdict
+from ccpn.util.Path import aPath, fetchDir
 import numpy as np
 import pandas as pd
-from collections import OrderedDict
-from lmfit import Parameters, minimize, Minimizer, fit_report
-from ccpn.core.lib.Cache import cached
+from lmfit import Parameters, Minimizer
 import ccpn.framework.lib.experimentAnalysis.calculationModels.relaxation.spectralDensityLib as sdl
 import ccpn.framework.lib.experimentAnalysis.ExperimentConstants as constants
 import ccpn.framework.lib.experimentAnalysis.SeriesAnalysisVariables as sv
-from datetime import datetime
-
+from ccpn.framework.lib.experimentAnalysis.fittingModels.UncertaintyEstimationABC import MonteCarloSimulation
+from .MinimiserLib import MinimiserSettingsPreset, _DefaultParameters
 from ..RateModels import RatesHandler
 from ..SpectralDensityFunctions import SDFHandler
-from ..Scores import calculateChiSquared, calculateAIC
-from ..io.Outputs import getOutputDir
+from ..Scores import calculateChiSquared, _modelSelectionScoringFuncs
 
-CACHEDATA       = '_cachedData'
+
+class SDMConstants:
+    """
+    Class to hold the factors and constants needed during the minimizations.
+    """
+
+    def __init__(self, spectrometerFrequency=600.05):
+        self._spectrometerFrequency = spectrometerFrequency
+        self._calculate_factors()
+
+    def _calculate_factors(self):
+        self.omegaH = sdl.calculateOmegaH(self._spectrometerFrequency, scalingFactor=1e6)
+        self.omegaN = sdl.calculateOmegaN(self._spectrometerFrequency, scalingFactor=1e6)
+        self.omegaC = sdl.calculateOmegaC(self._spectrometerFrequency, scalingFactor=1e6)
+        self.gammaHN = constants.GAMMA_H / constants.GAMMA_N
+        self.dFactor = sdl.calculate_d_factor(constants.rNH)
+        self.cFactor = sdl.calculate_c_factor(self.omegaN, constants.N15_CSA)
+
+    def __iter__(self):
+        for key, value in vars(self).items():
+            if not key.startswith('_'):
+                yield key, value
+
+    def __getitem__(self, key):
+        return getattr(self, key)
+
+    def __repr__(self):
+        return repr(dict(self))
+
+    def __str__(self):
+        return str(dict(self))
+
 
 class DiffusionModelHandler(object):
     """
@@ -90,7 +131,6 @@ class DiffusionModelHandler(object):
         self.activeModel = None
         self._initModelFromSettings()
 
-
     def _getSDFmodel_ids(self):
         return self.settingsHandler.spectralDensityFuncModels
 
@@ -101,25 +141,6 @@ class DiffusionModelHandler(object):
         """get grouped by Spectrometer Frequency """
         return self.inputsHandler.getGroupedRatesDataByFrequency()
 
-    @cached(CACHEDATA, maxItems=20000, debug=False)
-    def _getSDMdict(self, spectrometerFrequency=600.05):
-        """ Get the factors and constants needed during the minimisations """
-        omegaH = sdl.calculateOmegaH(spectrometerFrequency, scalingFactor=1e6)
-        omegaN = sdl.calculateOmegaN(spectrometerFrequency, scalingFactor=1e6)
-        omegaC = sdl.calculateOmegaC(spectrometerFrequency, scalingFactor=1e6)
-        gammaHN = constants.GAMMA_H / constants.GAMMA_N
-        dFactor = sdl.calculate_d_factor(constants.rNH)
-        cFactor = sdl.calculate_c_factor(omegaN, constants.N15_CSA)
-        SDMdict = {
-                   'dFactor': dFactor,
-                   'cFactor': cFactor,
-                   'omegaH': omegaH,
-                   'omegaN': omegaN,
-                    'omegaC': omegaC,
-                    'gammaHN': gammaHN
-                    }
-        return SDMdict
-
     def getModelByName(self, name):
         for model_id, model in self.models.items():
             if model.name == name:
@@ -129,43 +150,15 @@ class DiffusionModelHandler(object):
         modelName = self.settingsHandler.diffusionModel
 
         if model := self.getModelByName(modelName):
-            print(f'Starting Minimisations {model} -- {modelName}')
+            print(f'Starting Minimisation {model} -- {modelName}')
             self.activeModel = model(self)
         else:
             print(f'This model is not yet available -- {modelName}')
 
     def startMinimisation(self):
-
         if self.activeModel:
             # for i in range(3):
                 self.activeModel.startMinimisation()
-
-
-# Define a callback function to store the progress in a Pandas DataFrame
-progress_data = pd.DataFrame(columns=['Iteration', sv.S2, sv.TE, sv.TM,sv.REX])
-def store_progress(params, iteration, resid,  neededRates, expRates, expErrors, constantsDict, *args, **kwargs):
-    global progress_data
-    s2 = params[sv.S2].value
-    te = params[sv.TE].value
-    tm = params[sv.TM].value
-    rex = params[sv.REX].value
-    ratesPredicted = defaultdict(list)
-    ...
-    progress_data = progress_data.append(
-                                            {'Iteration': iteration,
-                                          sv.S2: s2,
-                                          sv.TE: te,
-                                          sv.TM: tm,
-                                          sv.REX:rex,
-                                            'r1':expRates[0],
-                                             'r2':expRates[1],
-                                             'noe': expRates[2],
-                                              'r1p':ratesPredicted.get(sv.R1)[0],
-                                           'r2p': ratesPredicted.get(sv.R2)[0],
-                                             'noep': ratesPredicted.get(sv.HETNOE)[0]
-                                             },
-
-                                         ignore_index=True)
 
 
 class LipariSzaboModel(ABC):
@@ -177,60 +170,54 @@ class LipariSzaboModel(ABC):
         self.params = {}
         self._diffusionModelHandler = diffusionModelHandler
         self._settingsHandler = self._diffusionModelHandler.settingsHandler
+        self._outputsHandler = self._diffusionModelHandler.outputsHandler
         self.rateColumns = self._settingsHandler._useRates
         self.rateErrColumns = self._settingsHandler._useRateErrors
-        self.maxfev =  self._settingsHandler.maxfev
+        self._errIter = self._settingsHandler.errorCalculationIterations
+        self._defaultMinimiserParams = _DefaultParameters()
         self._storeMinimiserProgress = False # store each evaluation result in a separate file. (use only for testing)
-
-    def _validateRateColumns(self):
-        """ Ensure that the requested rates from the settings are available in the given dataFrame column."""
-        # TODO move this at higher level
-        ratesData = self._diffusionModelHandler.getRatesData()
-        for r, e in zip(self.rateColumns, self.rateErrColumns):
-            if r not in ratesData.columns:
-                raise ValueError(f'Cannot proceed with the minimisation. Requested calculation rate: {r} but experimental data is not found.')
-            elif e not in ratesData.columns:
-                raise ValueError(f'Cannot proceed with the minimisation. Requested calculation rate: {e} but experimental data is not found.')
-        return True
-
-    def _getParamValue(self, params, name):
-        """
-        :param params: the minimiser parameters
-        :param name: the required param name
-        :return: float
-        """
-        param = params.get(name)
-        if param is None:
-            return
-        else:
-            return param.value
+        self._progressData = {} #this will be a dict of dict of DataFrames! {residueCode1: {model_1: data, model_2: data}}
+        self._storeInterimModelResults = False # store the statistical result for each model selection
+        self._globalParamOptimisations = self._settingsHandler._globalParamOptimisations
+        self._interimModelResults = pd.DataFrame(columns=[])  #a large dataframe containing optimised params, score results per residue for each evaluated model
+        self._minimiserAccuracyPreset = self._settingsHandler.minimisationAccuracy
+        self._modelSelectionMethod = self._settingsHandler._modelSelectionMethod
 
     @staticmethod
     def _calculateRatesFromParams(params, sdModel, neededRates, constantsDict):
-        # calculate the predicted rates from J(omega) at new given values from the Minimiser
-        paramDict = params.valuesdict()
+        """
+        :param params: obj. Parameters object containing the minimised values e.g.: tm, te, rex etc.
+        :param sdModel: class, the spectralDensityFunction model. it contains the function to execute. e.g. Model 1 which optimise for the S2. see class documentation.
+        :param neededRates: list. list of names for rate to calculate, e.g.: ['R1', 'R2'...]
+        :param constantsDict: a dict of objs. key: spectrometer Frequency , value an obj (dict represented) containing the field dependent constants. e.g.: omegaH
+        :return: array of floats, the newly predicted rates per given model, params and constants.
+        """
+
+        paramDict = params.valuesdict() # these are the optimised params from the minimiser: tm, te, rex etc. as a dict
         paramDict[sv.Ci] = 1  # for the isotropic => testing
         paramDict[sv.Ti] = paramDict[sv.TM]
         ratesP = []
-        for sf, consDict in constantsDict.items():
-            jH = sdModel.calculate(**{**paramDict, sv.W: consDict['omegaH']})
-            jN = sdModel.calculate(**{**paramDict, sv.W: consDict['omegaN']})
-            jHpN = sdModel.calculate(**{**paramDict, sv.W: consDict['omegaH'] + consDict['omegaN']})
-            jHmN = sdModel.calculate(**{**paramDict, sv.W: consDict['omegaH'] + consDict['omegaN']})
+        for sf, constants in constantsDict.items():
+            # calculate the j(w) as required
+            jH = sdModel.calculate(**{**paramDict, sv.W: constants.omegaH})
+            jN = sdModel.calculate(**{**paramDict, sv.W: constants.omegaN})
+            jHpN = sdModel.calculate(**{**paramDict, sv.W: constants.omegaH + constants.omegaN})
+            jHmN = sdModel.calculate(**{**paramDict, sv.W: constants.omegaH - constants.omegaN})
             j0 = sdModel.calculate(**{**paramDict, sv.W: 0.0})
-            for rateDef in neededRates:  #loop over the required rate definition, e.g.: R1, R2 etc
+            # loop over the required rate definition, e.g.: R1, R2 etc and compute the predicted value given the j(w)
+            for rateDef in neededRates:
                 if rateDef == sv.R2 and sdModel.plusRex:
                     rex = params[sv.REX].value
-                    ratep = RatesHandler.calculate(rateDef, consDict['dFactor'], consDict['cFactor'], j0, jH, jHmN, jHpN, jN, rex=rex)
+                    ratep = RatesHandler.calculate(rateDef, constants.dFactor, constants.cFactor, j0, jH, jHmN, jHpN, jN, rex=rex)
                 else:
-                    ratep = RatesHandler.calculate(rateDef, consDict['dFactor'], consDict['cFactor'], j0, jH, jHmN, jHpN, jN)
+                    ratep = RatesHandler.calculate(rateDef, constants.dFactor, constants.cFactor, j0, jH, jHmN, jHpN, jN)
                 ratesP.append(ratep)
-        # now concatenate the newly predicted values
         return np.array(ratesP)
 
     @staticmethod
-    def objectiveFunction(params, sdModel, neededRates, expRates, expErrors, constantsDict):
+    def _localObjectiveFunction(params, sdModel, neededRates, expRates, expErrors, constantsDict, residueCode):
         """
+        The local minimisation function which optimise the densityFunction models parameters per residue.
         Called by the minimiser
         :param params: minimiser Parameter object
         :param expRates: 1d array with the experimental rates by rate type, e.g.: R1 per ascending field strength ,e.g.: r1at600,  r2at600, ... r1at800, r2at800...
@@ -243,6 +230,25 @@ class LipariSzaboModel(ABC):
         score = calculateChiSquared(expRates, predictions, expErrors)
         return score
 
+    @staticmethod
+    def _globalObjectiveFunction(params, globalDataFrame, constantsDict):
+        """
+        The global minimisation function which optimise the global Tm for all residues.
+        :return: the total sum of the individual chi-squared value obtained between the experimental values and the theoretical values calculated by the selected model per residue
+        """
+        totalScore = 0
+        for ix, row in globalDataFrame.iterrows():
+            residueCode = row[sv.NMRRESIDUECODE]
+            expRates = row['rates']
+            expErrors = row[f'rates{sv._ERR}']
+            sdModel = row['sdModel']
+            neededRates = row['rateColumns']
+            _localParams = _DefaultParameters.extractLocalParams(params, residueCode)
+            _localParams.add(params[sv.TM])
+            score = LipariSzaboModel._localObjectiveFunction(_localParams, sdModel, neededRates, expRates, expErrors, constantsDict, residueCode)
+            totalScore += score
+        return totalScore
+
     def _getConstantsDict(self):
         """
         Get the various constants field dependent based on the Rates dataFrame
@@ -252,60 +258,58 @@ class LipariSzaboModel(ABC):
         frequencies = ratesData[sv.SF].unique()
         SDMdict = {}
         for sf in frequencies:
-            SDM = self._diffusionModelHandler._getSDMdict(sf)
+            SDM = SDMConstants(sf)
             SDMdict[sf] = SDM
         return SDMdict
 
-    def _getDefaultParamsDict(self) -> dict:
-        """
-        TODO get proper estimates from the other lib funcs. Could make as traits class
-        :return:  dict with the default params as a dict
-        """
-        defaults = OrderedDict((
-            (sv.S2, {'name': sv.S2, 'value': 0.5, 'min': 0.1, 'max': 1, 'vary': True, 'multiplier':1}),
-            ( sv.S2f, {'name': sv.S2f, 'value': 0.5, 'min': 0.1, 'max': 1, 'vary': True, 'multiplier':1}),
-            ( sv.S2s, {'name': sv.S2s, 'value': 0.5, 'min': 0.1, 'max': 1, 'vary': True, 'multiplier':1}),
+    def _storeInterimModels(self, residueCode, model, result, n, iterationCount=1):
+        hasConverged = result.success
+        chisqr = result.chisqr
+        _resultParams = {}
+        _resultParams[sv.NMRRESIDUECODE] = residueCode
+        _resultParams['model_id'] = model.model_id
+        _resultParams[sv.CHISQR] = chisqr
+        _resultParams[sv.RESIDUAL] = result.residual[-1]
+        _resultParams['dataSize'] = n
+        _resultParams['iterationCount'] = iterationCount
+        _resultParams['converged'] = hasConverged
+        for funcName, func in _modelSelectionScoringFuncs.items():
+            score = func(model.model_id, n, chisqr)
+            _resultParams[funcName] = score
+        _rowRes = self._defaultMinimiserParams.asEmptyDict
+        _resultParams.update(_rowRes)
+        for paramName, param in result.params.items():
+            _resultParams[paramName] = param.value
+            _resultParams[f'{paramName}{sv._ERR}'] = param.stderr
 
-            ( sv.TE , {'name': sv.TE, 'value': 2e-11, 'min': 1e-14, 'max': 1e-10, 'vary': True, 'multiplier':1e12}),
-            ( sv.Ts , {'name': sv.Ts, 'value': 2e-11, 'min': 1e-14, 'max': 1e-10, 'vary': True,  'multiplier':1e12}),
-            (sv.Tf , {'name': sv.Tf, 'value': 2e-11, 'min': 1e-14, 'max': 1e-10, 'vary': True,  'multiplier':1e12}),
+        x = len(self._interimModelResults)
+        for k,v in _resultParams.items():
+            self._interimModelResults.loc[x, k] = v
 
-            ( sv.REX, {'name': sv.REX, 'value': 0, 'min': -1, 'max': 1000, 'vary': True,  'multiplier':1}),
-            ( sv.TM , {'name': sv.TM, 'value': 1e-8, 'min': 1e-9, 'max': 1e-8, 'vary': True,  'multiplier':1e9}),
-            ))
-        return defaults
+        return self._interimModelResults
 
-    def _getParamDictMapping(self):
-        _dict = self._getDefaultParamsDict()
-        return {_dict[i]['name']:i for i in _dict}
+    def _getModelSelectionFunction(self):
+        fun = _modelSelectionScoringFuncs.get(self._modelSelectionMethod, _modelSelectionScoringFuncs.get(sv.BICc))
+        return fun
 
-    def _getMinimiserInitialParams(self, paramsNeeded):
-        """
-        :return:
-        """
-        params = Parameters()
-        for need in paramsNeeded:
-            default = self._getDefaultParamsDict().get(need)
-            default.pop('multiplier', None)
-            params.add(**default)
-        return params
-
-    def getBestModel(self, models, minimiserResults, n):
+    def _getBestModel(self, residueCode, models, minimiserResults, n, iterationCount=1):
         """ Calculate the AIC for each minimiser result and return the lowest AIC minimiserResult and the utilised model"""
         results = np.array(minimiserResults)
         models = np.array(models)
-        aics = []
+        scores = []
+        modelSelectFunc =  self._getModelSelectionFunction()
         for result, model in zip(results, models):
+            if self._storeInterimModelResults:
+                self._storeInterimModels(residueCode, model, result, n, iterationCount)
             chisqr = result.chisqr
-            aic = calculateAIC(chisqr, len(model.optimisedParams), n)
-            aics.append(aic)
-        aics = np.array(aics)
-        bestIX = np.argmin(aics)
+            score = modelSelectFunc(model.model_id, n, chisqr)
+            scores.append(score)
+        scores = np.array(scores)
+        bestIX = np.argmin(scores)# self.prioritiseScoreByDeltas(scores)# np.argmin(scores)
         bestResult = results[bestIX]
-
         return bestResult
 
-    def _minimiseResidue(self, residueData, tmValue=None, varyTm=True):
+    def _minimiseResidue(self, residueData, tmValue=None, varyTm=True, iterationCount=1):
         """Minimise the optimisation params based on the setting models for a residue.
          :param: ResidueData: pandas dataFrame for one residue at single/ multiple field rates
          """
@@ -317,23 +321,31 @@ class LipariSzaboModel(ABC):
         # create a 1D array of rates at different fields. e.g.: R1s, R2s, NOEs in ascending field strength  (r1_600, r2_600, hetNoe_600,  r1_800, r2_800, hetNoe_800,  etc...)
         ratesExp = residueData[self.rateColumns].values.flatten()
         errorsExp = residueData[self.rateErrColumns].values.flatten()
+        residueCode =  residueData[sv.NMRRESIDUECODE].values[0]
         # calculate the predicted values at each field and make the same array construct as per the ExpRates.
         results = []
         usedModels = []
+
+        if self._storeMinimiserProgress:
+            self._progressData[residueCode] = {}
+
         for model_id in sdfModels:
             sdModel = sdfHandler.getById(model_id)
-            params = self._getMinimiserInitialParams([sv.TM] + sdModel.optimisedParams)
+            neededParams = [sv.TM] + sdModel.optimisedParams
+            params = self._defaultMinimiserParams.getNewParamsByNames(neededParams)
             if tmValue:
                 params[sv.TM].set(value=tmValue, vary=varyTm)
-            print('Calculating with Params ===> ',params)
             if self._storeMinimiserProgress:
-                minimizer = Minimizer(self.objectiveFunction, params, fcn_args=(sdModel, self.rateColumns, ratesExp, errorsExp, constantsDict),
-                                      method='differential_evolution', iter_cb=store_progress)  #this is a callback for each minimisation step sent by the minimiser
+                progressDict = self._progressData[residueCode]
+                progressDict[model_id] = pd.DataFrame(columns=self._defaultMinimiserParams.names)
+                minimizer = Minimizer(self._localObjectiveFunction, params, fcn_args=(sdModel, self.rateColumns, ratesExp, errorsExp, constantsDict, residueCode),
+                                      method='differential_evolution', iter_cb=self._storeProgress)  #this is a callback for each minimisation step sent by the minimiser
             else:
-                minimizer = Minimizer(self.objectiveFunction, params, fcn_args=(sdModel, self.rateColumns, ratesExp, errorsExp, constantsDict), method='differential_evolution', )
+                minimizer = Minimizer(self._localObjectiveFunction, params, fcn_args=(sdModel, self.rateColumns, ratesExp, errorsExp, constantsDict, residueCode), method='differential_evolution', )
 
             # Perform the optimisation
-            result = minimizer.minimize(method='differential_evolution', max_nfev=self.maxfev)
+            minSettings = MinimiserSettingsPreset.getPreset(self._minimiserAccuracyPreset)
+            result = minimizer.minimize(method='differential_evolution', **minSettings)
             result.model_id = model_id
             usedModels.append(sdModel)
             # Report the optimized parameters and uncertainties
@@ -341,60 +353,194 @@ class LipariSzaboModel(ABC):
             if hasConverged:
                 results.append(result)
         n = len(ratesExp)
-        bestMinimiserResult = self.getBestModel(usedModels, results, n)
+        bestMinimiserResult = self._getBestModel(residueCode, usedModels, results, n, iterationCount=iterationCount)
         return bestMinimiserResult
         
     def startMinimisation(self):
         ratesData = self._diffusionModelHandler.getRatesData()
-        resultRows = []
+        resultFrames = []
         dataGroupedByResidue = ratesData.groupby(sv.NMRRESIDUECODE)
-        # we loop residue by residue and we do the first optimisation with Tm variable
-        for residueCode, residueData in dataGroupedByResidue:
-            minimiserResult = self._minimiseResidue(residueData)
-            print(f'RES: {residueCode} --Best Model --------{minimiserResult.model_id}')
-            _rowRes =  {key: None for key in self._getDefaultParamsDict()}
-            for i, (paramName, param) in enumerate(minimiserResult.params.items()):
-                print(f'{paramName}: {param.value} +/- {param.stderr}')
-                _rowRes[sv.NMRRESIDUECODE] = residueCode
-                _rowRes[paramName] = param.value
-                _rowRes['model_id'] = minimiserResult.model_id
-                _rowRes[sv.CHISQR] = minimiserResult.chisqr
-            resultRows.append(_rowRes)
+        calc = LipariSzaboModel._calculateRatesFromParams
 
-            # progress_data.to_csv('fitting_progress.csv', index=False)
-        _result = pd.DataFrame(resultRows)
-        ##  Get the median or mean TM and re optimised tith Tm fixed
-        outputdir = getOutputDir()
-        now = datetime.now()
-        formatted_time = now.strftime("%H-%M_%d-%m-%y")
-        _result.to_csv(f'{outputdir}/fitting_result_TM_fixed_{formatted_time}.csv')
-        tm = _result[sv.TM].median()
-
+        # ~~~~~~~ Step 1): Local Minimisation for initial TM estimation ~~~~~~~~~~~~ #
+        ## we loop residue by residue and we do the first optimisation with Tm variable
         resultRows = []
         for residueCode, residueData in dataGroupedByResidue:
-            minimiserResult = self._minimiseResidue(residueData, tmValue=tm, varyTm=False)
-            print(f'RES: {residueCode} --Best Model --------{minimiserResult.model_id}')
-            _rowRes = {key: None for key in self._getDefaultParamsDict()}
+            minimiserResult = self._minimiseResidue(residueData, iterationCount=1)
+            _rowRes = self._defaultMinimiserParams.asEmptyDict
             for i, (paramName, param) in enumerate(minimiserResult.params.items()):
                 print(f'{paramName}: {param.value} +/- {param.stderr}')
                 _rowRes[sv.NMRRESIDUECODE] = residueCode
                 _rowRes[paramName] = param.value
+                _rowRes[f'{paramName}{sv._ERR}'] = 0
                 _rowRes['model_id'] = minimiserResult.model_id
                 _rowRes[sv.CHISQR] = minimiserResult.chisqr
-            # show the original rates
-            residueData.sort_values(by=sv.SF, inplace=True)
-            ratesExp = residueData[self.rateColumns].values.flatten()
-            errorsExp = residueData[self.rateErrColumns].values.flatten()
-            calc = LipariSzaboModel._calculateRatesFromParams
-            sdModel = self._diffusionModelHandler.sdfHandler.getById(minimiserResult.model_id)
-            predictions = calc(minimiserResult.params, sdModel, neededRates=self.rateColumns, constantsDict=self._getConstantsDict())
-            _rowRes['rates'] = ratesExp
-            _rowRes['errorsExp'] = errorsExp
-            _rowRes['predictions'] = predictions
+                # show the original rates
+                residueData.sort_values(by=sv.SF, inplace=True)
+                ratesExp = residueData[self.rateColumns].values.flatten()
+                errorsExp = residueData[self.rateErrColumns].values.flatten()
+                sdModel = self._diffusionModelHandler.sdfHandler.getById(minimiserResult.model_id)
+                predictions = calc(minimiserResult.params, sdModel, neededRates=self.rateColumns, constantsDict=self._getConstantsDict())
+                _rowRes['rates'] = ratesExp
+                _rowRes[f'rates{sv._ERR}'] = errorsExp
+                _rowRes['predictions'] = predictions
+                _rowRes['_minimiser'] = minimiserResult
+                _rowRes['sdModel'] = sdModel
+                _rowRes['neededRates'] = self.rateColumns
             resultRows.append(_rowRes)
 
+        # store data
         _result = pd.DataFrame(resultRows)
-        _result.to_csv(f'{outputdir}/fitting_result_TM_vary_{formatted_time}.csv')
+        resultFrames.append(_result)
+        _result.name = 'TM_vary'
+        outputdir = self._outputsHandler._fetchTablesDirPath(self.name)
+        _result.to_csv(f'{outputdir}/fitting_result_TM_vary.csv')
+
+        # ~~~~ Step 2): Local Minimisation for final Model selection.  ~~~~ #
+        ##  Get the median TM  as the initial value, keep it fix and do a model selection.
+        print('Computing step 2....')
+        tm = _result[sv.TM].median()
+        tm_err = _result[sv.TM].std()
+        resultRows = []
+        globalParams = Parameters() #needed for next step in the protocol
+        print(f'Starting model Selection. Estimated initial Tm: {tm} ...')
+        for residueCode, residueData in dataGroupedByResidue:
+            minimiserResult = self._minimiseResidue(residueData, tmValue=tm, varyTm=False,  iterationCount=2)
+            print(f'RES: {residueCode} --Best Model --------{minimiserResult.model_id}')
+            _rowRes = self._defaultMinimiserParams.asEmptyDict
+            for i, (paramName, param) in enumerate(minimiserResult.params.items()):
+                print(f'{paramName}: {param.value} +/- {param.stderr}')
+                _rowRes[sv.NMRRESIDUECODE] = residueCode
+                _rowRes[paramName] = param.value
+                _rowRes[f'{paramName}{sv._ERR}'] = 0
+                _rowRes['model_id'] = minimiserResult.model_id
+                _rowRes[sv.CHISQR] = minimiserResult.chisqr
+                # show the original rates
+                residueData.sort_values(by=sv.SF, inplace=True)
+                ratesExp = residueData[self.rateColumns].values.flatten()
+                errorsExp = residueData[self.rateErrColumns].values.flatten()
+                sdModel = self._diffusionModelHandler.sdfHandler.getById(minimiserResult.model_id)
+                predictions = calc(minimiserResult.params, sdModel, neededRates=self.rateColumns, constantsDict=self._getConstantsDict())
+                _rowRes['rates'] = ratesExp
+                _rowRes[f'rates{sv._ERR}'] = errorsExp
+                _rowRes['predictions'] = predictions
+                _rowRes['_minimiser'] = minimiserResult
+                _rowRes['sdModel'] = sdModel
+                _rowRes['rateColumns'] = self.rateColumns
+                for paramName, param in minimiserResult.params.items():
+                    if paramName == sv.TM:
+                        globalParams.add(paramName, value=param.value, min=param.min, max=param.max, vary=True)
+                    else:
+                        newParamName = f'{paramName}_{residueCode}'
+                        globalParams.add(newParamName, value=param.value, min=param.min, max=param.max, vary=True)
+            resultRows.append(_rowRes)
+        globalDataFrame = pd.DataFrame(resultRows)
+        globalDataFrame.to_csv(f'{outputdir}/fitting_result_Model_selection.csv')
+        if self._storeInterimModelResults:
+            outputPath = f'{outputdir}/interim_results.csv'
+            self._interimModelResults.to_csv(outputPath)
+
+        # ~~~~ Step 3) individual residues with Tm variable, global X2~~~~ #
+        ##  Get the median TM  as the initial value, keep it fix and do a model selection.
+        print('Computing step 3....')
+        finalResultRows = []
+        print(f'Starting final optimisation. Tm variable: {tm} ...')
+        for ix, row in globalDataFrame.iterrows():
+            residueCode = row[sv.NMRRESIDUECODE]
+            minimiserResult = row['_minimiser']
+            # we need to unfix Tm
+            params = minimiserResult.params
+            params[sv.TM].set(value=tm, vary=True)
+            print('----> Starting MC Param:',params)
+            ratesExp = row['rates']
+            errorsExp = row[f'rates{sv._ERR}']
+            sdModel = self._diffusionModelHandler.sdfHandler.getById(minimiserResult.model_id)
+            minimiserKwargs = {'fcn_args': (sdModel, self.rateColumns, ratesExp, errorsExp, self._getConstantsDict(), residueCode)}
+            mc = MonteCarloSimulation(Minimizer, params, self._localObjectiveFunction, minimiserMethod='differential_evolution', nSamples=self._errIter, **minimiserKwargs)
+            mcParams = mc.estimateUncertainties(prefixMessage=f'Computing {residueCode}. ')
+            _mcRowRes = self._defaultMinimiserParams.asEmptyDict
+            for i, (paramName, param) in enumerate(mcParams.items()):
+                print('+++> Final MC Param:', paramName, param.value)
+                _mcRowRes[sv.NMRRESIDUECODE] = residueCode
+                _mcRowRes[paramName] = param.value
+                _mcRowRes[f'{paramName}{sv._ERR}'] = param.stderr
+                _mcRowRes['model_id'] = minimiserResult.model_id
+            predictions = calc(mcParams, sdModel, neededRates=self.rateColumns, constantsDict=self._getConstantsDict())
+            _mcRowRes['rates'] = ratesExp
+            _mcRowRes[f'rates{sv._ERR}'] = errorsExp
+            _mcRowRes['predictions'] = predictions
+            finalResultRows.append(_mcRowRes)
+        _mcResult = pd.DataFrame(finalResultRows)
+        _mcResult[sv.TM] = _mcResult[sv.TM].median()
+        _mcResult[sv.TM_ERR] = _mcResult[sv.TM].std()
+
+        _mcResult.name = 'Final'
+        resultFrames.append(_mcResult)
+        outputPath = f'{outputdir}/fitting_result_final.csv'
+        _mcResult.to_csv(outputPath)
+
+        # ~~~~ Step 3b optinal): Global Minimisation. Tm variable, global X2 minimisation for all residues ~~~~ #
+        print('Computing step 3...')
+        if self._globalParamOptimisations:
+            print('paramsList', globalParams)
+            minSettings = MinimiserSettingsPreset.getPreset(self._minimiserAccuracyPreset)
+            minimizer = Minimizer(self._globalObjectiveFunction, params=globalParams, fcn_args=[globalDataFrame, self._getConstantsDict()])
+            result = minimizer.minimize(method='differential_evolution', **minSettings)
+            resultDict = defaultdict(dict)
+            tmValues = []
+            tmErrValues = []
+            for i, (paramName, param) in enumerate(result.params.items()):
+                print(f'GLOBAL ==> {paramName}: {param.value} +/- {param.stderr}')
+                if '_' in paramName:
+                    parts = paramName.split('_')
+                    resCode = parts[-1]
+                    _paramName = ''.join(parts[:-1])
+                    resultDict[resCode].update(  {_paramName:param.value, f'{_paramName}{sv._ERR}':param.stderr})
+                else:
+                    tmValues.append(param.value)
+                    tmErrValues.append(param.stderr)
+            finalGlobalDf = pd.DataFrame(resultDict)
+            finalGlobalDf = finalGlobalDf.transpose()
+            finalGlobalDf[sv.TM] = tmValues[0]
+            finalGlobalDf[f'{sv.TM}{sv._ERR}'] = tmErrValues[0]
+            finalGlobalDf.name = 'TM_global'
+            outputdir = self._outputsHandler._fetchTablesDirPath(self.name)
+            finalGlobalDf.to_csv(f'{outputdir}/fitting_result_TM_global.csv')
+
+
+        if self._storeMinimiserProgress:
+            for residueCode, _progressData in self._progressData.items():
+                outputDir = aPath(fetchDir(outputdir, str(residueCode)))
+                for modId, df in _progressData.items():
+                    fname = outputDir / f'{residueCode}_Model_{modId}.csv'
+                    df.to_csv(fname)
+                    print('exported: ', fname)
+
+    # Define a callback function to store the progress in a Pandas DataFrame
+    def _storeProgress(self, params, iter, resid, sdModel, neededRates, expRates, expErrors, constantsDict, residueCode, *args, **kwargs):
+        """ This is for testing only. Might be fully removed or needs cleanup"""
+
+        calc = LipariSzaboModel._calculateRatesFromParams
+        predictions = calc(params, sdModel, neededRates=neededRates, constantsDict=constantsDict)
+        dfDict = self._progressData[residueCode]
+        df = dfDict[sdModel.model_id]
+        x2 = calculateChiSquared(expRates, predictions, expErrors)
+        scoreFunc = self._getModelSelectionFunction()
+        score = scoreFunc(sdModel.model_id, len(expRates), x2)
+        df.loc[iter, sv.CHISQR] = x2
+        df.loc[iter, self._modelSelectionMethod] = score
+        for paramName, param in params.items():
+            df.loc[iter,paramName] = param.value
+        for i, field in enumerate(constantsDict):
+            for j, rate in enumerate(neededRates):
+                ix = i * len(neededRates) + j
+                expValue = expRates[ix]
+                expError = expErrors[ix]
+                pValue = predictions[ix]
+                df.loc[iter, f'{rate}_{field}'] = expValue
+                df.loc[iter, f'{rate}{sv._ERR}_{field}'] = expError
+                df.loc[iter, f'{rate}_{field}_p'] = pValue
+                df.loc[iter, f'model_id'] = sdModel.model_id
 
 class IsotropicModel(LipariSzaboModel):
     name = 'Isotropic'

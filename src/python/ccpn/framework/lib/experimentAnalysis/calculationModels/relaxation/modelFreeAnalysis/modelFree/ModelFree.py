@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-04-23 12:58:39 +0100 (Tue, April 23, 2024) $"
+__dateModified__ = "$dateModified: 2024-05-09 15:50:51 +0100 (Thu, May 09, 2024) $"
 __version__ = "$Revision: 3.2.2 $"
 #=========================================================================================
 # Created
@@ -40,20 +40,15 @@ from src.diffusionModels.DiffusionModelABC import DiffusionModelHandler
 
 class ModelFree(object):
 
-    def __init__(self, inputJsonPath,  outPutDirPath=None, settingsJsonPath=None, *args, **kwrgs):
+    def __init__(self, inputJsonPath, settingsJsonPath=None, *args, **kwrgs):
 
         self.settingsHandler = SettingsHandler(self, settingsPath=settingsJsonPath)
         self.inputsHandler = InputsHandler(self, inputsPath=inputJsonPath)
-        self.outputsHandler = OutputsHandler(self, outputDirPath=self.inputsHandler.outputDir_path)
+        self.outputsHandler = OutputsHandler(self)
         self.diffusionModelHandler = DiffusionModelHandler(settingsHandler=self.settingsHandler, inputsHandler=self.inputsHandler, outputsHandler=self.outputsHandler)
 
     def runFittings(self):
-        # run the first iteration of fitting.
-        # for each diffusion model
-        # for each spectral density function
         result = self.diffusionModelHandler.startMinimisation()
-        print('ratesData ===> ',result)
 
-        pass
 
 

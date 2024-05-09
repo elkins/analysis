@@ -15,7 +15,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-04-23 12:58:39 +0100 (Tue, April 23, 2024) $"
+__dateModified__ = "$dateModified: 2024-05-09 15:50:51 +0100 (Thu, May 09, 2024) $"
 __version__ = "$Revision: 3.2.2 $"
 #=========================================================================================
 # Created
@@ -58,15 +58,16 @@ class InputsHandler(CcpNmrJson):
 
     # general settings
     runName = Unicode(allow_none=False, default_value='ccpn_mf').tag(info='The name of the calculation run')
+    comment = Unicode(allow_none=False, default_value='A text comment').tag(info='A text comment')
     useTimeStamp = Bool(default_value=True).tag(info='flag to indicate if a timestamp should be used in generating the run directory')
     timeStampFormat = Unicode(allow_none=True, default_value="%d-%m-%y_%H-%M").tag(info='The timestamp format. Default day-month-year_hour:minute')
     _timeStamp = Unicode(allow_none=True, default_value=None).tag(info='The timestamp of the calculation run')
     # rates settings
-    rates_path = Unicode(allow_none=True, default_value='rates.xlsx').tag(info='The abs excel Path for the file containing the rates')
+    rates_path = Unicode(allow_none=True, default_value='inputs/rates.xlsx').tag(info='The relative file Path (from the input json file) for the file containing the rates')
     # rates = TList(itemTrait=Dict(), default_value=[]).
     # molecules
-    molecularStructure_path = Unicode(allow_none=True, default_value='molecule.pdb').tag(info='The abs Path for the file containing the molecular structure information.')
-    outputDir_path = Unicode(allow_none=True, default_value='outputs').tag(info='Path for the directory where to save the results.')
+    molecularStructure_path = Unicode(allow_none=True, default_value='inputs/molecule.pdb').tag(info='The relative file Path (from the input json file) for the file containing the molecular structure information.')
+    outputDir_path = Unicode(allow_none=True, default_value='outputs').tag(info='The relative file Path (from the input json file) or abs Path for the directory where to save the results.')
 
 
     def __init__(self, parent, inputsPath):
@@ -98,9 +99,27 @@ class InputsHandler(CcpNmrJson):
         return ratesBySF
 
 
+    def _validatePath(self, path):
+        """
+        Check if is a relative or abs path and if exists
+        :param path:
+        :return: the absolute path
+        """
+        inputJsonPathParent = aPath(self._JSON_FILE).parent #the dir for the json path
+
+        _path = aPath(path)
+        if not _path.is_absolute():
+            fullPath = inputJsonPathParent / _path
+        else:
+            fullPath = _path
+        if not fullPath.exists():
+            raise ValueError(f'The given path is not valid: {path}')
+        return fullPath
+
+
     def _loadRates(self):
         """Load the rates from the defined files in the input file. Implemented Only Excel so far"""
-        ratesPath = aPath(self.rates_path)
+        ratesPath = self._validatePath(self.rates_path)
         if ratesPath.suffix in Rates_Excel_DataLoader.suffixes:
             reader = Rates_Excel_DataLoader(ratesPath)
             data = reader.load()
@@ -115,3 +134,5 @@ class InputsHandler(CcpNmrJson):
         # TODO
 
 
+    def getOutputDirPath(self):
+        return self._validatePath(self.outputDir_path)

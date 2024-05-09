@@ -18,7 +18,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-04-23 12:58:39 +0100 (Tue, April 23, 2024) $"
+__dateModified__ = "$dateModified: 2024-05-09 15:50:51 +0100 (Thu, May 09, 2024) $"
 __version__ = "$Revision: 3.2.2 $"
 #=========================================================================================
 # Created
@@ -98,10 +98,12 @@ class RatesHandler:
 
 # --------- Define the various Equations --------- #
 
-@jit(nopython=True)
-def _calculateR1(d2, c2, j0, jH, jHmN, jHpN, jN ):
+# @jit(nopython=True)
+def _calculateR1(d2, c2, j0, jH, jHmN, jHpN, jN):
     """
     Calculate the longitudinal relaxation rate (R1)
+    Eq. 1 The role of protein motions in molecular recognition: insights from heteronuclear NMR relaxation measurements. R. Andrew Atkinson, Bruno Kieffer.
+    Progress in Nuclear Magnetic Resonance Spectroscopy 44 (2004) 141–187.
     :param d2: float, the d^2 factor
     :param c2: float, the c^2 factor
     :param jN: float, the JWN
@@ -109,12 +111,14 @@ def _calculateR1(d2, c2, j0, jH, jHmN, jHpN, jN ):
     :param jHmN: float, the JWH - JWN
     :return:  theoretical R1
     """
-    r1 = d2 * ((3 * jN) + (6 * jHpN) + jHmN) + c2 * jN
+    r1 = (3*d2*jN) + (d2*jHmN) + (6*d2*jHpN) + (c2*jN)
     return r1
 
-@jit(nopython=True)
+# @jit(nopython=True)
 def _calculateR2(d2, c2, j0, jH, jHmN, jHpN, jN, rex=None):
     """
+    Eq. 2 The role of protein motions in molecular recognition: insights from heteronuclear NMR relaxation measurements. R. Andrew Atkinson, Bruno Kieffer.
+    Progress in Nuclear Magnetic Resonance Spectroscopy 44 (2004) 141–187.
     Calculate the transverse relaxation rate (R2)
      :param d2: float, the d^2 factor
     :param c2: float, the c^2 factor
@@ -124,13 +128,19 @@ def _calculateR2(d2, c2, j0, jH, jHmN, jHpN, jN, rex=None):
     :param rex: float the Rex value
     :return:  theoretical R2
     """
+    _a = (2 * d2 * j0)
+    _b = ((3 * d2) / 2) * jN
+    _c = (d2 / 2) * jHmN
+    _d = 3 * d2 * jH
+    _e = 3 * d2 * jHpN
+    _f = ((2 * c2) / 3) * j0
+    _g = (c2 / 2) * jN
+    r2 = _a + _b + _c + _d + _e + _f + _g
     if rex is not None:
-        r2 = 0.5 * d2 * ((4 * j0) + (3 * jN) + (6 * jHpN) + (6 * jH) + jHmN) + c2 * (2 * j0 / 3.0 + 0.5 * jN) + rex
-    else:
-        r2 = 0.5 * d2 * ((4 * j0) + (3 * jN) + (6 * jHpN) + (6 * jH) + jHmN) + c2 * (2 * j0 / 3.0 + 0.5 * jN)
+        r2 += rex
     return r2
 
-@jit(nopython=True)
+# @jit(nopython=True)
 def _calculateHetNoe(d2, c2, j0, jH, jHmN, jHpN, jN):
     """
     Calculate the steady-state NOE enhancement
@@ -143,14 +153,14 @@ def _calculateHetNoe(d2, c2, j0, jH, jHmN, jHpN, jN):
     :param t1: float 1 over R1, experimental R1.
     :return: float theoretical Noe
     """
-    r1 = _calculateR1(d2, c2, j0, jH, jHmN, jHpN, jN )
+    r1 = _calculateR1(d2, c2, j0, jH, jHmN, jHpN, jN)
     if r1 == 0:
-        return 0
+        return 1
     t1 = 1/r1
-    hetNoe =  1.0 + (d2 * GAMMA_HN * t1 * ((6 * jHpN) - jHmN))
+    hetNoe = 1.0 + (d2 * GAMMA_HN * t1 * ((6 * jHpN) - jHmN))
     return hetNoe
 
-@jit(nopython=True)
+# @jit(nopython=True)
 def _legendreP2(x):
     """
     Calculate the 2nd degree Legendre polynomial of x. Convenient function used in calculateETAxy, calculateETAz
@@ -159,7 +169,7 @@ def _legendreP2(x):
     """
     return 0.5 * (3 * x**2 - 1)
 
-@jit(nopython=True)
+# @jit(nopython=True)
 def calculateETAxy(d2, c2, j0, jH, jHmN, jHpN, jN, beta=20):
     """
     Calculate the transverse relaxation rate etaXy.
@@ -179,7 +189,7 @@ def calculateETAxy(d2, c2, j0, jH, jHmN, jHpN, jN, beta=20):
     ETAxy = - (np.sqrt(3)/6) * p2 * np.sqrt(d2) * np.sqrt(c2) * (4*j0 + 3*jN)
     return ETAxy
 
-@jit(nopython=True)
+# @jit(nopython=True)
 def calculateETAz(d2, c2, j0, jH, jHmN, jHpN, jN, beta=20):
     """
     Calculate the transverse relaxation rate etaZ.
@@ -197,7 +207,7 @@ def calculateETAz(d2, c2, j0, jH, jHmN, jHpN, jN, beta=20):
     ETAz = - (np.sqrt(3)) * p2 * np.sqrt(d2) * (np.sqrt(c2)*jN)
     return ETAz
 
-@jit(nopython=True)
+# @jit(nopython=True)
 def calculateREX(d2, c2, j0, jH, jHmN, jHpN, jN):
     """
     Calculate the transverse relaxation rate etaZ.

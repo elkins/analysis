@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-04-21 16:02:31 +0100 (Sun, April 21, 2024) $"
+__dateModified__ = "$dateModified: 2024-05-09 15:50:51 +0100 (Thu, May 09, 2024) $"
 __version__ = "$Revision: 3.2.2 $"
 #=========================================================================================
 # Created
@@ -45,36 +45,94 @@ def calculateChiSquared(observed, predictions, errors):
     x2 = np.sum(squaredDifferences / errors**2)
     return x2
 
-@jit(nopython=True)
-def calculateReducedChiSquared(x2, dof):
+def calculateAIC(k, n, max_likelihood):
     """
-    The reduced Chi-squared provides a way to compare the goodness of fit of models with different numbers of parameters or to compare different datasets.
-    It is particularly useful when comparing models with different complexities, as it accounts for the different degrees of freedom in the models.
-    A smaller reduced Chi-squared value indicates a better fit of the model to the data.
-    :param x2: float,  Chi-squared  value
-    :param dof: int, the degrees of freedom (dof). dof is given by dof=N−k, where N is the number of observations and k is the number of parameters estimated from the data.
-    :return: float. Reduced Chi-squared
-    """
-    return x2 / dof
+    Calculate the Akaike Information Criterion (AIC).
 
-# @jit(nopython=True)
-def calculateAIC(x2, paramsCount, n):
-    """
-    Calculate the Akaike Information Criterion (AIC)  from data.
-    """
-    AIC = 2 * paramsCount + n * np.log(x2)
+    Parameters:
+    - k: Number of free parameters in the model.
+    - max_likelihood: Maximum value of the likelihood function for the model.
 
+    Returns:
+    - AIC: Akaike Information Criterion value.
+    """
+    AIC = 2 * k + 2 * np.log(max_likelihood)
     return AIC
 
-@jit(nopython=True)
-def calculateAICcorrected(x2, observationsCount, paramsCount ):
+def calculateAIC_s(k, n, x2):
     """
-    Calculate the Akaike Information Criterion (AIC) corrected.
-    The AICc is used for model selection when dealing with a relatively small sample size.
-    It corrects for the bias that can occur in the AIC when the sample size is small relative to the number of parameters being estimated in the model.
+    Calculate the Akaike Information Criterion (AIC).
+
+    Parameters:
+    - k: Number of free parameters in the model.
+    - max_likelihood: Maximum value of the likelihood function for the model.
+
+    Returns:
+    - AIC: Akaike Information Criterion value.
     """
-    AICc =  x2 + 2 * paramsCount * (paramsCount + 1) / (observationsCount - paramsCount - 1)
+    AIC = (2*k) + x2
+    return AIC
+
+def calculateAICc(k, n, max_likelihood):
+    """
+    Calculate the corrected Akaike Information Criterion (AICc).
+    Parameters:
+    - AIC: Akaike Information Criterion.
+    - k: Number of free parameters in the model.
+    - n: Number of data points.
+
+    Returns:
+    - AICc: Corrected Akaike Information Criterion value.
+    """
+    AIC =  calculateAIC(k, n, max_likelihood)
+    AICc = AIC + (2 * k * (k + 1)) / (n - k - 1)
     return AICc
+
+def calculateBIC(k, n, x2):
+    """
+    Calculate the Bayesian Information Criterion (BIC).
+
+    Parameters:
+    - k: Number of free parameters in the model.
+    - n: Number of data points.
+    - max_likelihood: Maximum value of the likelihood function for the model. e.g. Chi-squared
+
+    Returns:
+    - BIC: Bayesian Information Criterion value.
+    """
+    BIC = k * np.log(n) + 2 * np.log(x2)
+    return BIC
+
+def calculateBIC_s(k, n, x2):
+    """
+    Calculate the Bayesian Information Criterion (BIC).
+
+    Parameters:
+    - k: Number of free parameters in the model.
+    - n: Number of data points.
+    - max_likelihood: Maximum value of the likelihood function for the model. e.g. Chi-squared
+
+    Returns:
+    - BIC: Bayesian Information Criterion value.
+    """
+    BIC = (k*np.log(n)) + x2
+    return BIC
+
+def calculateBICc(k, n, max_likelihood):
+    """
+    The additional term in the corrected Bayesian Information Criterion (BICc) formula,
+     is an adjustment for finite sample sizes. It was proposed by Hurvich and Tsai in 1989 to address potential bias in the BIC when applied to small datasets.
+    Parameters:
+    - k: Number of free parameters in the model.
+    - n: Number of data points.
+    - max_likelihood: Maximum value of the likelihood function for the model. e.g. Chi-squared
+    Returns:
+    - BICc: Corrected Bayesian Information Criterion value.
+    """
+    BIC =  calculateBIC(k, n, max_likelihood)
+    factor = (k * (k + 1) / 2) * np.log(n) / (n - k - 1)
+    BICc = BIC + factor
+    return BICc
 
 @jit(nopython=True)
 def sse(observed, predictions):
@@ -86,7 +144,15 @@ def rmse(observed, predictions):
     residuals = observed - predictions
     return np.sqrt(np.mean(residuals**2))
 
+import ccpn.framework.lib.experimentAnalysis.SeriesAnalysisVariables as sv
 
+_modelSelectionScoringFuncs = {sv.AIC: calculateAIC,
+                          sv.AICc: calculateAICc,
+                          sv.BIC: calculateBIC,
+                          sv.BICc: calculateBICc,
+                               'AIC_s': calculateAIC_s,
+                               'BIC_s' : calculateBIC_s,
+                               }
 
 ## Quick testing
 if __name__ == "__main__":
