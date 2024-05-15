@@ -15,7 +15,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-05-09 15:50:51 +0100 (Thu, May 09, 2024) $"
+__dateModified__ = "$dateModified: 2024-05-15 19:54:04 +0100 (Wed, May 15, 2024) $"
 __version__ = "$Revision: 3.2.2 $"
 #=========================================================================================
 # Created
@@ -26,7 +26,7 @@ __date__ = "$Date: 2024-04-04 12:39:28 +0100 (Thu, April 04, 2024) $"
 # Start of code
 #=========================================================================================
 
-from ccpn.util.Path import aPath
+import pandas as pd
 from ccpn.util.traits.CcpNmrJson import Constants, update, CcpNmrJson
 from ccpn.util.traits.CcpNmrTraits import Unicode, Dict, List, Bool, Int, Float
 import ccpn.framework.lib.experimentAnalysis.SeriesAnalysisVariables as sv
@@ -49,18 +49,12 @@ class SettingsHandler(CcpNmrJson):
     initialFittingIterations = Int(allow_none=False, default_value=2).tag(info='The number of  initial fitting iterations to compute for determine the Spectral density function model.')
     spectralDensityFuncModels = List(allow_none=False, default_value=[1,2,3,4]).tag(info='The Spectral density function models to be evaluated. See docs.')
     minimisationAccuracy = Unicode(allow_none=False, default_value='low').tag(info='The level of minimisation accuracy to reach the convergence. Allowed: low, medium, high')
-    _modelSelectionMethod = Unicode(allow_none=False, default_value='bicc').tag(info='The name of the (Spectral Density Functions) model selection method. Allowed: aic, aicc, bic, bicc')
-    _globalParamOptimisations = Bool(allow_none=False, default_value=False).tag(info='Compute a global minimisation of the model Parameters.')
-
+    modelSelectionMethod = Unicode(allow_none=False, default_value='bicc').tag(info='The name of the (Spectral Density Functions) model selection method. Allowed: aic, aicc, bic, bicc')
     useExtendedSpectralDensityFuncModels = Bool(allow_none=False, default_value=False).tag(info='Include the Extended Spectral density function models. See docs.')
-    diffusionModel = Unicode(allow_none=False, default_value='generic').tag(info='''The name of the diffusion Model to be evaluated. 
-                                                                                                                                Allowed: auto, Isotropic, Axially-Symmetric, Fully-Anisotropic, Partially-Anisotropic.''')
+    diffusionModel = Unicode(allow_none=False, default_value='Isotropic').tag(info='''The name of the diffusion Model to be evaluated.  Allowed: auto, Isotropic, Axially-Symmetric, Fully-Anisotropic, Partially-Anisotropic.''')
     minimisationAlgorithm = Unicode(allow_none=False, default_value='differential_evolution').tag(info='The name of the minimisation Algorithm. Allowed: Differential_evolution, grid_search')
-    _useRates = List(allow_none=False, default_value=[sv.R1, sv.R2, sv.HETNOE]).tag(info='The default rates to use in the calculations.')
-    _useRateErrors = List(allow_none=False, default_value=[sv.R1_ERR, sv.R2_ERR, sv.HETNOE_ERR]).tag(info='The default rates to use in the calculations.')
-
-
-
+    computingRates = List(allow_none=False, default_value=[sv.R1, sv.R2, sv.HETNOE]).tag(info='The default rates to use in the calculations.')
+    computingRateErrors = List(allow_none=False, default_value=[sv.R1_ERR, sv.R2_ERR, sv.HETNOE_ERR]).tag(info='The default rates to use in the calculations.')
 
     def __init__(self, parent, settingsPath):
         super().__init__()

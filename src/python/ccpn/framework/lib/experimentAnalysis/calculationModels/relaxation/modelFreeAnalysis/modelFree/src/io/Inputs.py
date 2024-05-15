@@ -15,7 +15,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-05-09 15:50:51 +0100 (Thu, May 09, 2024) $"
+__dateModified__ = "$dateModified: 2024-05-15 19:54:04 +0100 (Wed, May 15, 2024) $"
 __version__ = "$Revision: 3.2.2 $"
 #=========================================================================================
 # Created
@@ -23,16 +23,13 @@ __version__ = "$Revision: 3.2.2 $"
 __author__ = "$Author: Luca Mureddu $"
 __date__ = "$Date: 2024-04-04 12:39:28 +0100 (Thu, April 04, 2024) $"
 
-import pandas as pd
-
 #=========================================================================================
 # Start of code
 #=========================================================================================
 
 from ccpn.util.Path import aPath
+import pandas as pd
 from ccpn.util.traits.CcpNmrJson import Constants, update, CcpNmrJson
-from ccpn.util.traits.CcpNmrTraits import Unicode, Dict, List, Bool, Int
-from ccpn.util.traits.TraitBase import TraitBase
 from ccpn.util.traits.CcpNmrTraits import Unicode, Int, Float, Bool, List, RecursiveDict, Dict, RecursiveList, CTuple, CString
 import ccpn.framework.lib.experimentAnalysis.SeriesAnalysisVariables as sv
 from ccpn.framework.lib.experimentAnalysis.calculationModels.relaxation.modelFreeAnalysis.modelFree.src.io._inputDataLoader import Rates_Excel_DataLoader
@@ -61,14 +58,11 @@ class InputsHandler(CcpNmrJson):
     comment = Unicode(allow_none=False, default_value='A text comment').tag(info='A text comment')
     useTimeStamp = Bool(default_value=True).tag(info='flag to indicate if a timestamp should be used in generating the run directory')
     timeStampFormat = Unicode(allow_none=True, default_value="%d-%m-%y_%H-%M").tag(info='The timestamp format. Default day-month-year_hour:minute')
-    _timeStamp = Unicode(allow_none=True, default_value=None).tag(info='The timestamp of the calculation run')
     # rates settings
     rates_path = Unicode(allow_none=True, default_value='inputs/rates.xlsx').tag(info='The relative file Path (from the input json file) for the file containing the rates')
-    # rates = TList(itemTrait=Dict(), default_value=[]).
     # molecules
     molecularStructure_path = Unicode(allow_none=True, default_value='inputs/molecule.pdb').tag(info='The relative file Path (from the input json file) for the file containing the molecular structure information.')
     outputDir_path = Unicode(allow_none=True, default_value='outputs').tag(info='The relative file Path (from the input json file) or abs Path for the directory where to save the results.')
-
 
     def __init__(self, parent, inputsPath):
         super().__init__()
@@ -97,7 +91,6 @@ class InputsHandler(CcpNmrJson):
         sorted_df = self.ratesData.sort_values(by=sv.SF)
         ratesBySF = {name: group for name, group in sorted_df.groupby(sv.SF)}
         return ratesBySF
-
 
     def _validatePath(self, path):
         """
@@ -130,9 +123,8 @@ class InputsHandler(CcpNmrJson):
         Check if the required rates Columns are in the data
         :return: df
         """
-        _useRates = self._settingsHandler._useRates
+        _useRates = self._settingsHandler.computingRates
         # TODO
-
 
     def getOutputDirPath(self):
         return self._validatePath(self.outputDir_path)

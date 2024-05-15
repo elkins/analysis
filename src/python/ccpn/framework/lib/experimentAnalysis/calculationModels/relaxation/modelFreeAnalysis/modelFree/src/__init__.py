@@ -1,6 +1,5 @@
 """
-This module contains the main class for the ModelFree Plugin
-It is the backend and defines the various handlers to settings and fittings
+init file
 """
 #=========================================================================================
 # Licence, Reference and Credits
@@ -26,26 +25,4 @@ __date__ = "$Date: 2024-04-04 12:39:28 +0100 (Thu, April 04, 2024) $"
 #=========================================================================================
 # Start of code
 #=========================================================================================
-
-
-
-from src.io.Settings import SettingsHandler
-from src.io.Inputs import InputsHandler
-from src.io.Outputs import OutputsHandler
-from src.diffusionModels.DiffusionModelABC import DiffusionModelHandler
-
-
-class ModelFree(object):
-
-    def __init__(self, inputJsonPath, settingsJsonPath=None, *args, **kwrgs):
-
-        self.settingsHandler = SettingsHandler(self, settingsPath=settingsJsonPath)
-        self.inputsHandler = InputsHandler(self, inputsPath=inputJsonPath)
-        self.outputsHandler = OutputsHandler(self)
-        self.diffusionModelHandler = DiffusionModelHandler(settingsHandler=self.settingsHandler, inputsHandler=self.inputsHandler, outputsHandler=self.outputsHandler)
-
-    def runFittings(self):
-        result = self.diffusionModelHandler.startMinimisation()
-
-
 

@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-05-09 15:50:50 +0100 (Thu, May 09, 2024) $"
+__dateModified__ = "$dateModified: 2024-05-15 19:54:03 +0100 (Wed, May 15, 2024) $"
 __version__ = "$Revision: 3.2.2 $"
 #=========================================================================================
 # Created
@@ -101,6 +101,7 @@ BICc              = 'bicc'
 RESIDUAL = 'residual'
 MINIMISER_METHOD = 'Method'
 MINIMISER_MODEL  = 'Model'
+MINIMISER_OBJ  = '_minimiserObj'
 
 ## Peak properties. Used to get nmrAtom assigned-peak by dimension and build tables.
 _POSITION = 'position'

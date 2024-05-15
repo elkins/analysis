@@ -1,6 +1,5 @@
 """
-This module contains the main class for the ModelFree Plugin
-It is the backend and defines the various handlers to settings and fittings
+logger module
 """
 #=========================================================================================
 # Licence, Reference and Credits
@@ -16,36 +15,54 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-05-15 19:54:03 +0100 (Wed, May 15, 2024) $"
+__dateModified__ = "$dateModified: 2024-05-15 19:54:04 +0100 (Wed, May 15, 2024) $"
 __version__ = "$Revision: 3.2.2 $"
 #=========================================================================================
 # Created
 #=========================================================================================
 __author__ = "$Author: Luca Mureddu $"
 __date__ = "$Date: 2024-04-04 12:39:28 +0100 (Thu, April 04, 2024) $"
+
 #=========================================================================================
 # Start of code
 #=========================================================================================
 
+import logging
 
+class MFLogger:
+    _instance = None
+    _logFile = None
 
-from src.io.Settings import SettingsHandler
-from src.io.Inputs import InputsHandler
-from src.io.Outputs import OutputsHandler
-from src.diffusionModels.DiffusionModelABC import DiffusionModelHandler
+    def __new__(cls, logFile=None):
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+            cls._logFile = logFile
+            cls._instance._logger = cls._setupLogger(logFile)
+        elif logFile is not None and cls._logFile != logFile:
+            cls._instance._logger.warning("Ignoring logFile parameter since logger is already initialized with a different log file path.")
+        return cls._instance
 
+    @staticmethod
+    def _setupLogger(logFile=None):
+        logger = logging.getLogger('_MF_Logger')
+        logger.setLevel(logging.DEBUG)
+        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+        if logFile:
+            fileHandler = logging.FileHandler(logFile)
+            fileHandler.setLevel(logging.DEBUG)
+            fileHandler.setFormatter(formatter)
+            logger.addHandler(fileHandler)
+        consoleHandler = logging.StreamHandler()
+        consoleHandler.setLevel(logging.INFO)
+        consoleHandler.setFormatter(formatter)
+        logger.addHandler(consoleHandler)
 
-class ModelFree(object):
+        return logger
 
-    def __init__(self, inputJsonPath, settingsJsonPath=None, *args, **kwrgs):
+    @property
+    def logger(self):
+        return self._logger
 
-        self.settingsHandler = SettingsHandler(self, settingsPath=settingsJsonPath)
-        self.inputsHandler = InputsHandler(self, inputsPath=inputJsonPath)
-        self.outputsHandler = OutputsHandler(self)
-        self.diffusionModelHandler = DiffusionModelHandler(settingsHandler=self.settingsHandler, inputsHandler=self.inputsHandler, outputsHandler=self.outputsHandler)
-
-    def runFittings(self):
-        result = self.diffusionModelHandler.startMinimisation()
-
-
+def getLogger():
+    return MFLogger().logger
 

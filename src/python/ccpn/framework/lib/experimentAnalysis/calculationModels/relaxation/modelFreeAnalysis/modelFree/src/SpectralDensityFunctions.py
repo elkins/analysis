@@ -107,7 +107,13 @@ class _Jmod(ABC):
 
     @staticmethod
     def _jwTerm(ci, ti, w):
-        """Convenient method. The inner term in any Lipari-Szabo model """
+        """
+        Convenient method. The inner term in any Lipari-Szabo model
+        :param ci: 1d array
+        :param ti:  1d array
+        :param w: float. omega
+        :return: j(w) inner term
+        """
         return np.sum(ci * ti / (1 + (w * ti)**2))
 
     def __repr__(self):
