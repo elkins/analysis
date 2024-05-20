@@ -15,7 +15,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-04-21 16:02:32 +0100 (Sun, April 21, 2024) $"
+__dateModified__ = "$dateModified: 2024-05-20 09:41:35 +0100 (Mon, May 20, 2024) $"
 __version__ = "$Revision: 3.2.2 $"
 #=========================================================================================
 # Created
@@ -65,7 +65,7 @@ class Rates_Excel_DataLoader(ExcelDataLoader):
     loadFunction = (None, None)
 
     def load(self):
-        """ Load the excel file and concat all tables in one single dataFrame. """
+        """ Load the Excel file and concat all tables in one single dataFrame. """
         try:
             excelPath = aPath(self.path)
             pandasFile = pd.ExcelFile(excelPath)

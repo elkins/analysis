@@ -36,7 +36,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-05-15 19:54:04 +0100 (Wed, May 15, 2024) $"
+__dateModified__ = "$dateModified: 2024-05-20 09:41:34 +0100 (Mon, May 20, 2024) $"
 __version__ = "$Revision: 3.2.2 $"
 #=========================================================================================
 # Created
@@ -133,8 +133,9 @@ class DiffusionModelHandler(object):
 
 class LipariSzaboModel(ABC):
     name = 'generic'
-    model_id = 0
-    TcCount = 0  # rotational correlation time count
+    diffusionModel_id = -1
+    TiCount = 1  # rotational correlation time count
+    _varyCi = True
 
     def __init__(self, diffusionModelHandler, **kwargs):
         self.params = {}
@@ -144,7 +145,7 @@ class LipariSzaboModel(ABC):
         self.rateColumns = self._settingsHandler.computingRates
         self.rateErrColumns = self._settingsHandler.computingRateErrors
         self._errIter = self._settingsHandler.errorCalculationIterations
-        self._defaultMinimiserParams = _DefaultParameters()
+        self._defaultMinimiserParams = _DefaultParameters(self.TiCount, varyCi=self._varyCi )
         self._storeMinimiserProgress = False # store each evaluation result in a separate file. (use only for testing)
         self._progressData = {} #this will be a dict of dict of DataFrames! {residueCode1: {model_1: data, model_2: data}}
         self._minimiserAccuracyPreset = self._settingsHandler.minimisationAccuracy
@@ -404,18 +405,20 @@ class LipariSzaboModel(ABC):
 
 class IsotropicModel(LipariSzaboModel):
     name = 'Isotropic'
-    model_id = 1
-    TcCount = 1  # described total rotational correlation time count
+    diffusionModel_id = 1
+    TiCount = 1  # described total rotational correlation time count
+    _varyCi = False  # Ci is 1 for the Isotropic
+
 
 class AxialSymmetricModel(LipariSzaboModel):
     name = 'Axially-Symmetric'
-    model_id = 2
-    TcCount = 3
+    diffusionModel_id = 2
+    TiCount = 3
 
 class FullyAnisotropicModel(LipariSzaboModel):
     name = 'Fully-Anisotropic'
-    model_id = 3
-    TcCount = 5
+    diffusionModel_id = 3
+    TiCount = 5
 
 
 # ~~~~~~~~~ Register the Models ~~~~~~~~~~ #

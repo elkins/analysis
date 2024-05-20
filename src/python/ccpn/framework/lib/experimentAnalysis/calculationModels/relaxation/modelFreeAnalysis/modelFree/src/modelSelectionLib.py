@@ -1,5 +1,5 @@
 """
-This module contains the equations for calculating the various scoring functions, Eg.: AIC and chi Squared.
+This module contains the equations for calculating the various scoring functions, E.g.: AIC and chi Squared.
 
 """
 #=========================================================================================
@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-05-15 19:54:04 +0100 (Wed, May 15, 2024) $"
+__dateModified__ = "$dateModified: 2024-05-20 09:41:35 +0100 (Mon, May 20, 2024) $"
 __version__ = "$Revision: 3.2.2 $"
 #=========================================================================================
 # Created

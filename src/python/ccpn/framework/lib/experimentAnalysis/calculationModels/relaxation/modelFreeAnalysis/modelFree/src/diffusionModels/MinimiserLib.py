@@ -12,7 +12,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-05-15 19:54:04 +0100 (Wed, May 15, 2024) $"
+__dateModified__ = "$dateModified: 2024-05-20 09:41:34 +0100 (Mon, May 20, 2024) $"
 __version__ = "$Revision: 3.2.2 $"
 #=========================================================================================
 # Created
@@ -91,7 +91,7 @@ class MinimiserSettingsPreset(DataEnum):
         'gtol'    : 1e-8,
         'max_nfev': 1e9,
         'popsize' : 1e2,
-        'workers' : -1 #-1 to set the multi process
+        'workers' : -1 #-1 to set the multiprocess
         }
     @staticmethod
     def getPreset(key):
@@ -123,7 +123,7 @@ class _DefaultParameters(Parameters):
     Note, this is a container only, not all parameters are need at each minimisation.
     """
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, TiCount=1, varyCi=False,  *args, **kwargs):
         super().__init__(*args, **kwargs)
 
         # S2
@@ -131,12 +131,11 @@ class _DefaultParameters(Parameters):
         self.add(name=sv.S2f, value=0.5, min=0.01, max=0.9, vary=True)
         self.add(name=sv.S2s, value=0.5, min=0.01, max=0.9, vary=True)
 
-        # Tm
-        self.add(name=sv.TM, value=1e-8, min=1e-9, max=1e-8, vary=True)
-
-        # Ci
-        self.add(name=sv.Ci, value=1, min=.99, max=1.01, vary=False)
-
+        # Ti add the Ti based on the diffusion model
+        for i in range(1, TiCount+1):
+            self.add(name=f'{sv.Ti}_{i}', value=1e-8, min=1e-9, max=1e-8, vary=True)
+            # Ci
+            self.add(name=f'{sv.Ci}_{i}', value=1, min=.99, max=1.01, vary=varyCi)
 
         # Te
         self.add(name=sv.TE, value=2e-11, min=1e-14, max=1e-10, vary=True)
@@ -180,3 +179,4 @@ class _DefaultParameters(Parameters):
                 _name = name.split(f'_{residueCode}')[0]
                 localParams.add(_name, value=param.value, min=param.min, max=param.max, vary=param.vary)
         return localParams
+
