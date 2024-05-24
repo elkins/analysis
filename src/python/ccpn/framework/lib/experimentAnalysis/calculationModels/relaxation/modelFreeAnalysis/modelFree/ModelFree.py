@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-05-15 19:54:03 +0100 (Wed, May 15, 2024) $"
+__dateModified__ = "$dateModified: 2024-05-24 16:14:10 +0100 (Fri, May 24, 2024) $"
 __version__ = "$Revision: 3.2.2 $"
 #=========================================================================================
 # Created
@@ -29,11 +29,11 @@ __date__ = "$Date: 2024-04-04 12:39:28 +0100 (Thu, April 04, 2024) $"
 
 
 
-from src.io.Settings import SettingsHandler
-from src.io.Inputs import InputsHandler
-from src.io.Outputs import OutputsHandler
-from src.diffusionModels.DiffusionModelABC import DiffusionModelHandler
-
+from .src.io.Settings import SettingsHandler
+from .src.io.Inputs import InputsHandler
+from .src.io.Outputs import OutputsHandler
+from .src.diffusionModels.DiffusionModelABC import DiffusionModelHandler
+from .src.diffusionTensors.DiffusionTensor import StructureHandler
 
 class ModelFree(object):
 
@@ -42,7 +42,8 @@ class ModelFree(object):
         self.settingsHandler = SettingsHandler(self, settingsPath=settingsJsonPath)
         self.inputsHandler = InputsHandler(self, inputsPath=inputJsonPath)
         self.outputsHandler = OutputsHandler(self)
-        self.diffusionModelHandler = DiffusionModelHandler(settingsHandler=self.settingsHandler, inputsHandler=self.inputsHandler, outputsHandler=self.outputsHandler)
+        self.structureHandler = StructureHandler(self)
+        self.diffusionModelHandler = DiffusionModelHandler(self)
 
     def runFittings(self):
         result = self.diffusionModelHandler.startMinimisation()

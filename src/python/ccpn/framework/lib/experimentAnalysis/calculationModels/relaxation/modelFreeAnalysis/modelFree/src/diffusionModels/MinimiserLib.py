@@ -12,7 +12,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-05-20 09:41:34 +0100 (Mon, May 20, 2024) $"
+__dateModified__ = "$dateModified: 2024-05-24 16:14:10 +0100 (Fri, May 24, 2024) $"
 __version__ = "$Revision: 3.2.2 $"
 #=========================================================================================
 # Created
@@ -123,19 +123,30 @@ class _DefaultParameters(Parameters):
     Note, this is a container only, not all parameters are need at each minimisation.
     """
 
-    def __init__(self, TiCount=1, varyCi=False,  *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self, TiCount=1):
+        """
+        :param TiCount: int. the total number of required Tau per diffusion model needed to calculate the j(w) in the density function models.
+                Note this is only needed to initiate the parameter place-holder in the Minimiser.
+                Format Ti_1 for isotropic; Ti_1, Ti_2, Ti_3 axially-symmetric. Ti_1 to Ti_5 for anisotropic.
+                -   Given the TiCount, the C, coefficient is also added as parameter.
+                    C_1 is 1 for the isotropic model (as irrelevant).
+                    For axially-symmetric C_1 to 3 are calculated using the NH angles to the principal rotational axis in the gyroscopic tensor.
+                    See models for docs and references.
+
+        """
+        super().__init__()
 
         # S2
         self.add(name=sv.S2, value=0.5, min=0.01, max=1, vary=True)
         self.add(name=sv.S2f, value=0.5, min=0.01, max=0.9, vary=True)
         self.add(name=sv.S2s, value=0.5, min=0.01, max=0.9, vary=True)
 
-        # Ti add the Ti based on the diffusion model
+        # Ti add the Tau parameter based on the diffusion model.
         for i in range(1, TiCount+1):
             self.add(name=f'{sv.Ti}_{i}', value=1e-8, min=1e-9, max=1e-8, vary=True)
-            # Ci
-            self.add(name=f'{sv.Ci}_{i}', value=1, min=.99, max=1.01, vary=varyCi)
+            # Ci # the Coefficient C is never set to vary=True.
+            tiny = 1e-10
+            self.add(name=f'{sv.Ci}_{i}', value=1, min=1-tiny, max=1+tiny, vary=False)
 
         # Te
         self.add(name=sv.TE, value=2e-11, min=1e-14, max=1e-10, vary=True)

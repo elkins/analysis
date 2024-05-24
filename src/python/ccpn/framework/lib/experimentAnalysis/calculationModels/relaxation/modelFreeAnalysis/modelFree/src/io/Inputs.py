@@ -15,7 +15,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-05-15 19:54:04 +0100 (Wed, May 15, 2024) $"
+__dateModified__ = "$dateModified: 2024-05-24 16:14:10 +0100 (Fri, May 24, 2024) $"
 __version__ = "$Revision: 3.2.2 $"
 #=========================================================================================
 # Created
@@ -109,7 +109,6 @@ class InputsHandler(CcpNmrJson):
             raise ValueError(f'The given path is not valid: {path}')
         return fullPath
 
-
     def _loadRates(self):
         """Load the rates from the defined files in the input file. Implemented Only Excel so far"""
         ratesPath = self._validatePath(self.rates_path)
@@ -124,7 +123,7 @@ class InputsHandler(CcpNmrJson):
         :return: df
         """
         _useRates = self._settingsHandler.computingRates
-        # TODO
+
 
     def getOutputDirPath(self):
         return self._validatePath(self.outputDir_path)

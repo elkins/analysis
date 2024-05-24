@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-05-09 15:50:51 +0100 (Thu, May 09, 2024) $"
+__dateModified__ = "$dateModified: 2024-05-24 16:14:10 +0100 (Fri, May 24, 2024) $"
 __version__ = "$Revision: 3.2.2 $"
 #=========================================================================================
 # Created
@@ -37,6 +37,7 @@ def main():
     parser = argparse.ArgumentParser(description='Description of your script')
     parser.add_argument('--input', help='File path for the Json file containing the rates information and other inputs. See inputTemplate.json')
     parser.add_argument('--settings', help='File path for the Json file containing the running settings.')
+    # parser.add_argument('--version', help='TO DO.')
 
     args = parser.parse_args()
     inputFilePath = args.input

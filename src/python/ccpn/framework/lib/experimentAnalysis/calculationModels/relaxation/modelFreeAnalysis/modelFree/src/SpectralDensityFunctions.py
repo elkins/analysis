@@ -84,7 +84,6 @@ class SDFHandler(object):
         for model_id in model_ids:
             models += self.getModelsBy('model_id', model_id)
         self.activeModels = models
-        print(f'--->Model activated: {model_ids}')
 
 
 # ~~~~~~~~~~ ABC Model implementation ~~~~~~~~~~ #

@@ -36,7 +36,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-05-20 09:41:34 +0100 (Mon, May 20, 2024) $"
+__dateModified__ = "$dateModified: 2024-05-24 16:14:10 +0100 (Fri, May 24, 2024) $"
 __version__ = "$Revision: 3.2.2 $"
 #=========================================================================================
 # Created
@@ -88,10 +88,12 @@ class DiffusionModelHandler(object):
         if model.model_id in cls.models:
             cls.models.pop(model.model_id, None)
 
-    def __init__(self, settingsHandler, inputsHandler, outputsHandler):
-        self.settingsHandler = settingsHandler
-        self.inputsHandler = inputsHandler
-        self.outputsHandler = outputsHandler
+    def __init__(self, parent):
+        self.parent = parent
+        self.settingsHandler = self.parent.settingsHandler
+        self.inputsHandler = self.parent.inputsHandler
+        self.outputsHandler = self.parent.outputsHandler
+        self.structureHandler = self.parent.structureHandler
 
         self.rateModelsHandler = RatesHandler()
         self.sdfHandler = SDFHandler(self.settingsHandler) # the spectral density functions handler.
@@ -133,25 +135,29 @@ class DiffusionModelHandler(object):
 
 class LipariSzaboModel(ABC):
     name = 'generic'
-    diffusionModel_id = -1
+    model_id = -1
     TiCount = 1  # rotational correlation time count
-    _varyCi = True
+    molecularStructureNeeded = False
 
     def __init__(self, diffusionModelHandler, **kwargs):
         self.params = {}
         self._diffusionModelHandler = diffusionModelHandler
         self._settingsHandler = self._diffusionModelHandler.settingsHandler
         self._outputsHandler = self._diffusionModelHandler.outputsHandler
+        self._structureHandler = self._diffusionModelHandler.structureHandler
         self.rateColumns = self._settingsHandler.computingRates
         self.rateErrColumns = self._settingsHandler.computingRateErrors
         self._errIter = self._settingsHandler.errorCalculationIterations
-        self._defaultMinimiserParams = _DefaultParameters(self.TiCount, varyCi=self._varyCi )
-        self._storeMinimiserProgress = False # store each evaluation result in a separate file. (use only for testing)
+        self._defaultMinimiserParams = _DefaultParameters(self.TiCount )
+        self._storeMinimiserProgress = True # store each evaluation result in a separate file. (use only for testing)
         self._progressData = {} #this will be a dict of dict of DataFrames! {residueCode1: {model_1: data, model_2: data}}
         self._minimiserAccuracyPreset = self._settingsHandler.minimisationAccuracy
         self._modelSelectionMethod = self._settingsHandler.modelSelectionMethod
         self._modelSelectionObj = _ModelSelection(methodName=self._modelSelectionMethod, evaluationDataFrame=None, storeEvaluations=False)
         self.resultDataFrames = {}
+
+        if self._structureHandler.structureObj is None and self.molecularStructureNeeded:
+            raise RuntimeError('This model requires a valid molecular structure to compute the Parameters')
 
     @staticmethod
     def _calculateRatesFromParams(params, sdModel, neededRates, constantsDict):
@@ -167,11 +173,10 @@ class LipariSzaboModel(ABC):
         """
         paramDict = params.valuesdict()  # these are the optimised params from the minimiser: tm, te, rex etc. as a dict
         paramDict[sv.Ci] = np.array([p.value for n, p in params.items() if n.startswith(sv.Ci)])
-        paramDict[sv.Ti] = np.array([p.value for n, p in params.items() if n.startswith(sv.TM)])
-
+        paramDict[sv.Ti] = np.array([p.value for n, p in params.items() if n.startswith(sv.Ti)])
         predictedRates = []
         for sf, _ in constantsDict.items():
-            omegas = [ 0.0, _.omegaH, _.omegaH - _.omegaN,  _.omegaH + _.omegaN,  _.omegaN] # Order is important !!! It mirrors the args signature in the RatesHandler methods.
+            omegas = [0.0, _.omegaH, _.omegaH - _.omegaN,  _.omegaH + _.omegaN,  _.omegaN] # Order is important !!! It mirrors the args signature in the RatesHandler methods.
             jws = [sdModel.calculate(**{**paramDict, sv.W: w}) for w in omegas] # update the omega in the ParamDict and calculate the j(w)s:  j0, jH, jHmN, jHpN, jN at field
             for rateDef in neededRates: # loop over the required rate definition, e.g.: R1, R2 etc and compute the predicted rates value given the various j(w)
                 if rateDef == sv.R2 and sdModel.plusRex: #update Rex kwarg if R2 calculation.
@@ -182,7 +187,7 @@ class LipariSzaboModel(ABC):
         return np.array(predictedRates)
 
     @staticmethod
-    def _localObjectiveFunction(params, calcRatesFunc, sdModel, neededRates, expRates, expErrors, constantsDict):
+    def _localObjectiveFunction(params, calcRatesFunc, sdModel, neededRates, expRates, expErrors, constantsDict, residueCode):
         """
         The local minimisation function which optimise the densityFunction models parameters per residue.
         Called by the minimiser
@@ -191,6 +196,7 @@ class LipariSzaboModel(ABC):
         :param expRates: 1d array with the experimental rates by rate type, e.g.: R1 per ascending field strength ,e.g.: r1at600,  r2at600, ... r1at800, r2at800...
         :param expErrors: 1d array, same as expRates
         :param constantsDict: a dict of dict. {field:{constants}} e.g.: {600: {c_factor:float, ...}}. see above
+        :param residueCode: int. the source of the optimising parameters
         :return: the chi-squared value obtained between the experimental values and the theoretical values calculated by the selected model.
         """
         predictions = calcRatesFunc(params, sdModel, neededRates, constantsDict)
@@ -200,7 +206,7 @@ class LipariSzaboModel(ABC):
     @staticmethod
     def _globalObjectiveFunction(params, globalDataFrame, constantsDict):
         """
-        The global minimisation function which optimise the global Tm for all residues.
+        The global minimisation function which optimise the global Tc for all residues.
         :return: the total sum of the individual chi-squared value obtained between the experimental values and the theoretical values calculated by the selected model per residue
         """
         totalScore = 0
@@ -229,7 +235,7 @@ class LipariSzaboModel(ABC):
             SDMdict[sf] = SDM
         return SDMdict
 
-    def _minimiseResidue(self, residueData, tmValue=None, varyTm=True, iterationCount=1):
+    def _minimiseResidue(self, residueData, TiValues=None, CiValues=None, varyTensorParams=True, iterationCount=1):
         """Minimise the optimisation params based on the setting models for a residue.
          :param: ResidueData: pandas dataFrame for one residue at single/ multiple field rates
          """
@@ -250,17 +256,28 @@ class LipariSzaboModel(ABC):
             self._progressData[residueCode] = {}
         for model_id in sdfModels:
             sdModel = sdfHandler.getById(model_id)
-            neededParams = [sv.Ci, sv.TM] + sdModel.optimisedParams
+            neededParams = sdModel.optimisedParams
             params = self._defaultMinimiserParams.getNewParamsByNames(neededParams)
-            if tmValue:
-                params[sv.TM].set(value=tmValue, vary=varyTm)
+            for i in range(self.TiCount):
+                i+=1
+                tiParam = self._defaultMinimiserParams.get(f'{sv.Ti}_{i}')
+                ciParam = self._defaultMinimiserParams.get(f'{sv.Ci}_{i}')
+                params.add(tiParam)
+                params.add(ciParam)
+
+            if TiValues is not None and len(TiValues)==self.TiCount:
+                for i in range(self.TiCount):
+                    i += 1
+                    params[f'{sv.Ti}_{i}'].set(value=TiValues[i], vary=varyTensorParams)
+                    params[f'{sv.Ci}_{i}'].set(value=CiValues[i], vary=False)
+
             if self._storeMinimiserProgress:
                 progressDict = self._progressData[residueCode]
                 progressDict[model_id] = pd.DataFrame(columns=self._defaultMinimiserParams.names)
-                minimizer = Minimizer(self._localObjectiveFunction, params, fcn_args=(calcRatesFunc, sdModel, self.rateColumns, ratesExp, errorsExp, constantsDict),
+                minimizer = Minimizer(self._localObjectiveFunction, params, fcn_args=(calcRatesFunc, sdModel, self.rateColumns, ratesExp, errorsExp, constantsDict, residueCode),
                                       method='differential_evolution', iter_cb=self._storeMinimiserIterationProgress)  #this is a callback for each minimisation step sent by the minimiser
             else:
-                minimizer = Minimizer(self._localObjectiveFunction, params, fcn_args=(calcRatesFunc, sdModel, self.rateColumns, ratesExp, errorsExp, constantsDict), method='differential_evolution', )
+                minimizer = Minimizer(self._localObjectiveFunction, params, fcn_args=(calcRatesFunc, sdModel, self.rateColumns, ratesExp, errorsExp, constantsDict, residueCode), method='differential_evolution', )
 
             # Perform the optimisation
             minSettings = MinimiserSettingsPreset.getPreset(self._minimiserAccuracyPreset)
@@ -281,8 +298,8 @@ class LipariSzaboModel(ABC):
         dataGroupedByResidue = ratesData.groupby(sv.NMRRESIDUECODE)
         calcRatesFunc = self._calculateRatesFromParams
 
-        ## ~~~~~~~ Step 1): Local Minimisation for initial TM estimation ~~~~~~~~~~~~ #
-        ## we loop residue by residue and we do the first optimisation with Tm variable
+        ## ~~~~~~~ Step 1): Local Minimisation for initial Tc estimation ~~~~~~~~~~~~ #
+        ## we loop residue by residue and we do the first optimisation with Tc variable
         n = 1
         getLogger().info('Starting fitting...')
         resultRows = []
@@ -299,16 +316,17 @@ class LipariSzaboModel(ABC):
         # store data
         _result = pd.DataFrame(resultRows)
         self.resultDataFrames[n] = _result
-
+        _result.to_csv('/Users/luca/Documents/V3-testings/quickTestWithTi.csv')
         n += 1
         ## ~~~~ Step 2): Local Minimisation for final Model selection.  ~~~~ #
-        ##  Get the median TM  as the initial value, keep it fix and do a model selection.
+        ##  Get the median Tc  as the initial value, keep it fix and do a model selection.
         print('Computing step 2....')
-        tm = _result[sv.TM].median()
+        Ti_columns = _result.loc[:, _result.columns.str.startswith(sv.Ti)]
+        ti = Ti_columns.median()
         resultRows = []
-        print(f'Starting model Selection. Estimated initial Tm: {tm} ...')
+        print(f'Starting model Selection. Estimated initial Tc: {ti} ...')
         for residueCode, residueData in dataGroupedByResidue:
-            minimiserResult = self._minimiseResidue(residueData, tmValue=tm, varyTm=False,  iterationCount=2)
+            minimiserResult = self._minimiseResidue(residueData, TiValues=[ti], varyTensorParams=False,  iterationCount=2)
             _rowRes = self._defaultMinimiserParams.asEmptyDict
             _rowRes[sv.NMRRESIDUECODE] = residueCode
             _rowRes['model_id'] = minimiserResult.model_id
@@ -326,17 +344,17 @@ class LipariSzaboModel(ABC):
         self.resultDataFrames[n] = globalDataFrame
 
         n += 1
-        # ~~~~ Step 3) individual residues with Tm variable, global X2~~~~ #
+        # ~~~~ Step 3) individual residues with Tc variable, global X2~~~~ #
         ##  Get the median TM  as the initial value, keep it fix and do a model selection.
         print('Computing step 3....')
         finalResultRows = []
-        print(f'Starting final optimisation. Tm variable: {tm} ...')
+        print(f'Starting final optimisation. Tc variable: {ti} ...')
         for ix, row in globalDataFrame.iterrows():
             residueCode = row[sv.NMRRESIDUECODE]
             minimiserResult = row[sv.MINIMISER_OBJ]
-            # we need to unfix Tm
+            # we need to unfix Tc
             params = minimiserResult.params
-            params[sv.TM].set(value=tm, vary=True)
+            params[sv.Ti].set(value=ti, vary=True)
             ratesExp = row['rates']
             errorsExp = row[f'rates{sv._ERR}']
             sdModel = self._diffusionModelHandler.sdfHandler.getById(minimiserResult.model_id)
@@ -351,35 +369,38 @@ class LipariSzaboModel(ABC):
                 _mcRowRes[f'{paramName}{sv._ERR}'] = param.stderr
             finalResultRows.append(_mcRowRes)
         _mcResult = pd.DataFrame(finalResultRows)
-        _mcResult[sv.TM] = _mcResult[sv.TM].median()
-        _mcResult[sv.TM_ERR] = _mcResult[sv.TM].std()
+        _mcResult[sv.TM] = _mcResult[sv.Ti].median()
+        _mcResult[sv.TM_ERR] = _mcResult[sv.Ti].std()
         self.resultDataFrames[n] = _mcResult
 
 
-    def _storeMinimiserIterationProgress(self, params, iter, resid, sdModel, neededRates, expRates, expErrors, constantsDict, residueCode, *args, **kwargs):
+    def _storeMinimiserIterationProgress(self, params, iter, score, calcRateFunc , sdModel, neededRates, expRates, expErrors, constantsDict, residueCode, *args, **kwargs):
         """Internal to the minimiser. This is a special callback function to store the progress in a Pandas DataFrame and is only called from within the minimiser iter_cb argument.
         It has a specific defined signature. """
-        calc = LipariSzaboModel._calculateRatesFromParams
-        predictions = calc(params, sdModel, neededRates=neededRates, constantsDict=constantsDict)
-        dfDict = self._progressData[residueCode]
-        df = dfDict[sdModel.model_id]
-        x2 = calculateChiSquared(expRates, predictions, expErrors)
-        scoreFunc = self._modelSelectionObj.methodFunc
-        score = scoreFunc(sdModel.model_id, len(expRates), x2)
-        df.loc[iter, sv.CHISQR] = x2
-        df.loc[iter, self._modelSelectionMethod] = score
-        for paramName, param in params.items():
-            df.loc[iter,paramName] = param.value
-        for i, field in enumerate(constantsDict):
-            for j, rate in enumerate(neededRates):
-                ix = i * len(neededRates) + j
-                expValue = expRates[ix]
-                expError = expErrors[ix]
-                pValue = predictions[ix]
-                df.loc[iter, f'{rate}_{field}'] = expValue
-                df.loc[iter, f'{rate}{sv._ERR}_{field}'] = expError
-                df.loc[iter, f'{rate}_{field}_p'] = pValue
-                df.loc[iter, f'model_id'] = sdModel.model_id
+        try:
+            calc = LipariSzaboModel._calculateRatesFromParams
+            predictions = calc(params, sdModel, neededRates=neededRates, constantsDict=constantsDict)
+            dfDict = self._progressData[residueCode]
+            df = dfDict[sdModel.model_id]
+            x2 = calculateChiSquared(expRates, predictions, expErrors)
+            scoreFunc = self._modelSelectionObj.methodFunc
+            score = scoreFunc(sdModel.model_id, len(expRates), x2)
+            df.loc[iter, sv.CHISQR] = x2
+            df.loc[iter, self._modelSelectionMethod] = score
+            for paramName, param in params.items():
+                df.loc[iter,paramName] = param.value
+            for i, field in enumerate(constantsDict):
+                for j, rate in enumerate(neededRates):
+                    ix = i * len(neededRates) + j
+                    expValue = expRates[ix]
+                    expError = expErrors[ix]
+                    pValue = predictions[ix]
+                    df.loc[iter, f'{rate}_{field}'] = expValue
+                    df.loc[iter, f'{rate}{sv._ERR}_{field}'] = expError
+                    df.loc[iter, f'{rate}_{field}_p'] = pValue
+                    df.loc[iter, f'model_id'] = sdModel.model_id
+        except Exception as e:
+            getLogger().warn(f'Cannot store progress. {e}')
 
     def writeResults(self):
         """ Save the various frames."""
@@ -405,26 +426,184 @@ class LipariSzaboModel(ABC):
 
 class IsotropicModel(LipariSzaboModel):
     name = 'Isotropic'
-    diffusionModel_id = 1
+    model_id = 1
     TiCount = 1  # described total rotational correlation time count
-    _varyCi = False  # Ci is 1 for the Isotropic
+    molecularStructureNeeded = False
 
 
 class AxialSymmetricModel(LipariSzaboModel):
     name = 'Axially-Symmetric'
-    diffusionModel_id = 2
+    model_id = 2
     TiCount = 3
+    molecularStructureNeeded = True
+
+    @staticmethod
+    def calculateTensorCoefficientsFromTheta(theta):
+        """
+        Calculate the coefficients for an Axially Symmetric rotational Diffusion model
+
+        Reference:
+        E.q 12 The role of protein motions in molecular recognition: insights from heteronuclear NMR relaxation measurements. R. Andrew Atkinson, Bruno Kieffer.
+        Progress in Nuclear Magnetic Resonance Spectroscopy 44 (2004) 141–187.
+
+        Latex
+            J(w) eq. 12 of reference
+            J(\omega) = \frac{2}{5} \biggl[ A \frac {\tau_A} {1+\omega^2\tau_A^2} + B \frac {\tau_B} {1+\omega^2\tau_B^2} + C \frac {\tau_C} {1+\omega^2\tau_C^2} \biggr]
+
+            Coefficients
+            A = \frac{1}{4} \: (3 \cos^2 \theta -1)^2
+            B = 3 \sin^2 \theta \cos^2 \theta
+            C = \frac{3}{4} \: \sin^4 \theta
+            where theta is the angle between the N-H vector and the unique axis of the diffusion tensor
+        """
+
+        A = (1 / 4) * (3 * np.cos(theta)**2 - 1)**2
+        B = 3 * np.sin(theta)**2 * np.cos(theta)**2
+        C = (3 / 4) * np.sin(theta)**4
+        return np.array([A, B, C])
+
+    @staticmethod
+    def calculateDiffusionCoefficientsProlate(D_iso):
+        D_perp = 0.75 * D_iso
+        D_parallel = 1.25 * D_iso
+        return D_perp, D_perp, D_parallel
+
+    @staticmethod
+    def calculateDiffusionCoefficientsOblate(D_iso):
+        D_parallel = 1.25 * D_iso
+        D_perp = 0.75 * D_iso
+        return D_parallel, D_parallel, D_perp
+
+    def _calculateTiFromDiso(self, D_iso):
+        """
+        :param D_iso: Diffusion Isotropic value. Diso = 1/6TauC
+        :return: array of Ta, Tb, Tc
+        """
+        structureHandler = self._diffusionModelHandler.structureHandler
+        shape = structureHandler.getEllipsoidShape()
+        if shape == sv.PROLATE:
+            D_perp, D_perp, D_parallel = self.calculateDiffusionCoefficientsProlate(D_iso)
+        elif shape == sv.OBLATE:
+            D_parallel, D_parallel, D_perp = self.calculateDiffusionCoefficientsOblate(D_iso)
+        else:
+            raise RuntimeError(f'Undefined shape. Cannot Compute Ti for model {self.name}')
+
+        ta = 1/(6*D_parallel)
+        tb = 1/(D_perp+D_parallel)
+        tc = 1/(4*D_perp + 2*D_parallel)
+        return np.array([ta, tb, tc])
+
+    def startMinimisation(self):
+        getLogger().info(f'Active model: {self.name}')
+        structureHandler = self._diffusionModelHandler.structureHandler
+        _NH_anglesDict = structureHandler.get_NH_anglesByResidueDict()
+
+        ratesData = self._diffusionModelHandler.getRatesData()
+        dataGroupedByResidue = ratesData.groupby(sv.NMRRESIDUECODE)
+        calcRatesFunc = self._calculateRatesFromParams
+
+        ## ~~~~~~~ Step 1): Local Minimisation for initial TM estimation ~~~~~~~~~~~~ #
+        ## we loop residue by residue and we do the first optimisation with Tc variable
+        n = 1
+        getLogger().info('Starting fitting...')
+        resultRows = []
+        tc = 4e-9 # a hack for quick testing
+        Diso = (1/(6*tc))*1e-7
+        TiValues = self._calculateTiFromDiso(Diso)
+        for residueCode, residueData in dataGroupedByResidue:
+            print(f'Minimising residue {residueCode}')
+            theta, thetaStd = _NH_anglesDict.get(residueCode)
+            ciValues = self.calculateTensorCoefficientsFromTheta(theta)
+
+            sdfHandler = self._diffusionModelHandler.sdfHandler
+            constantsDict = self._getConstantsDict()
+            sdfModels = self._diffusionModelHandler._getSDFmodel_ids()
+            calcRatesFunc = self._calculateRatesFromParams
+            # we expect rates at multiple fields.  sort by ascending (low->high) the spectrometerFrequency value
+            residueData.sort_values(by=sv.SF, inplace=True)
+            # create a 1D array of rates at different fields. e.g.: R1s, R2s, NOEs in ascending field strength  (r1_600, r2_600, hetNoe_600,  r1_800, r2_800, hetNoe_800,  etc...)
+            ratesExp = residueData[self.rateColumns].values.flatten()
+            errorsExp = residueData[self.rateErrColumns].values.flatten()
+            residueCode = residueData[sv.NMRRESIDUECODE].values[0]
+            # calculate the predicted values at each field and make the same array construct as per the ExpRates.
+            results = []
+            usedModels = []
+            if self._storeMinimiserProgress:
+                self._progressData[residueCode] = {}
+            for model_id in sdfModels:
+                sdModel = sdfHandler.getById(model_id)
+                neededParams = sdModel.optimisedParams
+                params = self._defaultMinimiserParams.getNewParamsByNames(neededParams)
+                for i, (ci, ti) in enumerate(zip(ciValues, TiValues)):
+
+                    i += 1
+                    tiParam = self._defaultMinimiserParams.get(f'{sv.Ti}_{i}')
+                    ciParam = self._defaultMinimiserParams.get(f'{sv.Ci}_{i}')
+                    params.add(tiParam)
+                    params.add(ciParam)
+                    params[f'{sv.Ti}_{i}'].set(value=ti, vary=True)
+                    params[f'{sv.Ci}_{i}'].set(value=ci, min=0, max=ci*2, vary=False)
+                if self._storeMinimiserProgress:
+                    progressDict = self._progressData[residueCode]
+                    progressDict[model_id] = pd.DataFrame(columns=self._defaultMinimiserParams.names)
+                    minimizer = Minimizer(self._localObjectiveFunction, params, fcn_args=(calcRatesFunc, sdModel, self.rateColumns, ratesExp, errorsExp, constantsDict, residueCode),
+                                          method='differential_evolution', iter_cb=self._storeMinimiserIterationProgress)  #this is a callback for each minimisation step sent by the minimiser
+                else:
+                    minimizer = Minimizer(self._localObjectiveFunction, params, fcn_args=(calcRatesFunc, sdModel, self.rateColumns, ratesExp, errorsExp, constantsDict, residueCode), method='differential_evolution', )
+
+                # Perform the optimisation
+                minSettings = MinimiserSettingsPreset.getPreset(self._minimiserAccuracyPreset)
+                result = minimizer.minimize(method='differential_evolution', **minSettings)
+                for i, (paramName, param) in enumerate(result.params.items()):
+                    print(f'MODEL: {model_id}, paramName: {paramName} = {param.value}')
+                result.model_id = model_id
+                usedModels.append(sdModel)
+                hasConverged = result.success
+                # hasConverged =True
+                if hasConverged:  #keep the model for the selection only if it has converged
+                    results.append(result)
+                else:
+                    getLogger().warn(f'Residue: {residueCode}. MODEL: {model_id}, failed to converge. Iteration: {n}')
+            n = len(ratesExp)
+            try:
+                minimiserResult = self._modelSelectionObj._getBestModel(residueCode, usedModels, results, n, iterationCount=1)
+                _rowRes = self._defaultMinimiserParams.asEmptyDict
+                _rowRes[sv.NMRRESIDUECODE] = residueCode
+                _rowRes['model_id'] = minimiserResult.model_id
+                _rowRes[sv.MINIMISER_OBJ] = minimiserResult
+                for i, (paramName, param) in enumerate(minimiserResult.params.items()):
+                    _rowRes[paramName] = param.value
+                    _rowRes[f'{paramName}{sv._ERR}'] = None
+                resultRows.append(_rowRes)
+            except Exception as err:
+                print(f'Bad at {residueCode}, {err}')
+
+            if self._storeMinimiserProgress:
+                outputdir = self._outputsHandler._fetchTablesDirPath(self.name)
+                _progressData = self._progressData[residueCode]
+                interimDir = aPath(fetchDir(outputdir, 'minimiserProgress'))
+                outputDir = aPath(fetchDir(interimDir, str(residueCode)))
+                for modId, df in _progressData.items():
+                    outputPath = outputDir / f'{residueCode}_Model_{modId}.csv'
+                    df.to_csv(outputPath)
+                    getLogger().info(f'Exported Model ID: {modId} minimisation progress to {outputPath}')
+
+        _result = pd.DataFrame(resultRows)
+        _result.to_csv('/Users/luca/Documents/V3-testings/quickTestWithTiasym.csv')
+        self.resultDataFrames[n] = _result
+
 
 class FullyAnisotropicModel(LipariSzaboModel):
     name = 'Fully-Anisotropic'
-    diffusionModel_id = 3
+    model_id = 3
     TiCount = 5
+    molecularStructureNeeded = True
 
 
 # ~~~~~~~~~ Register the Models ~~~~~~~~~~ #
 
 DiffusionModelHandler.register(IsotropicModel)
-# DiffusionModelHandler.register(AxialSymmetricModel)
+DiffusionModelHandler.register(AxialSymmetricModel)
 # DiffusionModelHandler.register(FullyAnisotropicModel)
 
 
