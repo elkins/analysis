@@ -17,7 +17,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-05-09 15:50:51 +0100 (Thu, May 09, 2024) $"
+__dateModified__ = "$dateModified: 2024-05-24 16:22:29 +0100 (Fri, May 24, 2024) $"
 __version__ = "$Revision: 3.2.2 $"
 #=========================================================================================
 # Created
@@ -377,7 +377,7 @@ def _fitIsotropicModelFromT1T2NOE(resultRSDM_dataframe, spectrometerFrequency=50
     initialDf.loc['mean', sv.S2] = s2
     initialDf.loc['mean', sv.TE] = te0 * 1e12
     initialDf.loc['mean', sv.REX] = rex
-    initialDf.loc['mean', sv.TM] = tm0 * 1e9
+    initialDf.loc['mean', sv.TC] = tm0 * 1e9
     initialDf.loc['mean', 'score'] = score
 
     # Do the individual
@@ -415,7 +415,7 @@ def _fitIsotropicModelFromT1T2NOE(resultRSDM_dataframe, spectrometerFrequency=50
         resultDf.loc[j, sv.S2] = s2
         resultDf.loc[j, sv.TE] = te * 1e12
         resultDf.loc[j, sv.REX] = rex
-        resultDf.loc[j, sv.TM] = tm * 1e9
+        resultDf.loc[j, sv.TC] = tm * 1e9
         resultDf.loc[j, 'iteration'] = i
         resultDf.loc[j, 'score'] = score
 

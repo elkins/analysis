@@ -36,7 +36,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-05-24 16:14:10 +0100 (Fri, May 24, 2024) $"
+__dateModified__ = "$dateModified: 2024-05-24 16:22:29 +0100 (Fri, May 24, 2024) $"
 __version__ = "$Revision: 3.2.2 $"
 #=========================================================================================
 # Created
@@ -203,25 +203,6 @@ class LipariSzaboModel(ABC):
         score = calculateChiSquared(expRates, predictions, expErrors)
         return score
 
-    @staticmethod
-    def _globalObjectiveFunction(params, globalDataFrame, constantsDict):
-        """
-        The global minimisation function which optimise the global Tc for all residues.
-        :return: the total sum of the individual chi-squared value obtained between the experimental values and the theoretical values calculated by the selected model per residue
-        """
-        totalScore = 0
-        for ix, row in globalDataFrame.iterrows():
-            residueCode = row[sv.NMRRESIDUECODE]
-            expRates = row['rates']
-            expErrors = row[f'rates{sv._ERR}']
-            sdModel = row['sdModel']
-            neededRates = row['rateColumns']
-            _localParams = _DefaultParameters.extractLocalParams(params, residueCode)
-            _localParams.add(params[sv.TM])
-            score = LipariSzaboModel._localObjectiveFunction(_localParams, sdModel, neededRates, expRates, expErrors, constantsDict, residueCode)
-            totalScore += score
-        return totalScore
-
     def _getConstantsDict(self):
         """
         Get the various constants field dependent based on the Rates dataFrame
@@ -345,7 +326,7 @@ class LipariSzaboModel(ABC):
 
         n += 1
         # ~~~~ Step 3) individual residues with Tc variable, global X2~~~~ #
-        ##  Get the median TM  as the initial value, keep it fix and do a model selection.
+        ##  Get the median Tc  as the initial value, keep it fix and do a model selection.
         print('Computing step 3....')
         finalResultRows = []
         print(f'Starting final optimisation. Tc variable: {ti} ...')
@@ -369,8 +350,8 @@ class LipariSzaboModel(ABC):
                 _mcRowRes[f'{paramName}{sv._ERR}'] = param.stderr
             finalResultRows.append(_mcRowRes)
         _mcResult = pd.DataFrame(finalResultRows)
-        _mcResult[sv.TM] = _mcResult[sv.Ti].median()
-        _mcResult[sv.TM_ERR] = _mcResult[sv.Ti].std()
+        _mcResult[sv.Ti] = _mcResult[sv.Ti].median()
+        _mcResult[sv.Ti_ERR] = _mcResult[sv.Ti].std()
         self.resultDataFrames[n] = _mcResult
 
 
@@ -502,7 +483,7 @@ class AxialSymmetricModel(LipariSzaboModel):
         dataGroupedByResidue = ratesData.groupby(sv.NMRRESIDUECODE)
         calcRatesFunc = self._calculateRatesFromParams
 
-        ## ~~~~~~~ Step 1): Local Minimisation for initial TM estimation ~~~~~~~~~~~~ #
+        ## ~~~~~~~ Step 1): Local Minimisation for initial Tc estimation ~~~~~~~~~~~~ #
         ## we loop residue by residue and we do the first optimisation with Tc variable
         n = 1
         getLogger().info('Starting fitting...')
