@@ -12,7 +12,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-05-24 16:14:10 +0100 (Fri, May 24, 2024) $"
+__dateModified__ = "$dateModified: 2024-06-12 10:56:23 +0100 (Wed, June 12, 2024) $"
 __version__ = "$Revision: 3.2.2 $"
 #=========================================================================================
 # Created
@@ -123,7 +123,7 @@ class _DefaultParameters(Parameters):
     Note, this is a container only, not all parameters are need at each minimisation.
     """
 
-    def __init__(self, TiCount=1):
+    def __init__(self, TiCount=1, DiCount=1):
         """
         :param TiCount: int. the total number of required Tau per diffusion model needed to calculate the j(w) in the density function models.
                 Note this is only needed to initiate the parameter place-holder in the Minimiser.
@@ -142,11 +142,18 @@ class _DefaultParameters(Parameters):
         self.add(name=sv.S2s, value=0.5, min=0.01, max=0.9, vary=True)
 
         # Ti add the Tau parameter based on the diffusion model.
+        tval, tmin, tmax = 1e-8, 1e-9, 1e-8
         for i in range(1, TiCount+1):
-            self.add(name=f'{sv.Ti}_{i}', value=1e-8, min=1e-9, max=1e-8, vary=True)
+
+            self.add(name=f'{sv.Ti}_{i}', value=tval, min=tmin, max=tmax, vary=True)
             # Ci # the Coefficient C is never set to vary=True.
             tiny = 1e-10
             self.add(name=f'{sv.Ci}_{i}', value=1, min=1-tiny, max=1+tiny, vary=False)
+
+        for i in range(1, DiCount + 1):
+            # add the D params for the tensor.
+            dval, dmin, dmax = 1/(6*tval), 1/(6*tmin), 1/(6*tmax)
+            self.add(name=f'{sv.Di}_{i}', value=dval, min=dmin, max=dmax, vary=True)
 
         # Te
         self.add(name=sv.TE, value=2e-11, min=1e-14, max=1e-10, vary=True)

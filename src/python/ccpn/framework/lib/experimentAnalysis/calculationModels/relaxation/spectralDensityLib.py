@@ -17,7 +17,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-05-24 16:14:11 +0100 (Fri, May 24, 2024) $"
+__dateModified__ = "$dateModified: 2024-06-12 10:56:23 +0100 (Wed, June 12, 2024) $"
 __version__ = "$Revision: 3.2.2 $"
 #=========================================================================================
 # Created
@@ -184,7 +184,7 @@ def calculateOmegaN(spectrometerFrequency, scalingFactor=1e6):
     :return: float, OmegaN in Rad/s
     """
     omegaH = calculateOmegaH(spectrometerFrequency, scalingFactor)
-    omegaN = omegaH * constants.GAMMA_N / constants.GAMMA_H
+    omegaN = abs(omegaH * constants.GAMMA_N / constants.GAMMA_H)
     return omegaN
 
 def calculateOmegaC(spectrometerFrequency, scalingFactor=1e6):
@@ -197,7 +197,7 @@ def calculateOmegaC(spectrometerFrequency, scalingFactor=1e6):
     omegaC = omegaH * constants.GAMMA_C / constants.GAMMA_H
     return omegaC
 
-## Exchange lib. Functions to be moded in the correct lib file.
+## Exchange lib. Functions to be moved in the correct lib file.
 
 def _calculateR20(d, c, J0, JWH, JWN):
     """

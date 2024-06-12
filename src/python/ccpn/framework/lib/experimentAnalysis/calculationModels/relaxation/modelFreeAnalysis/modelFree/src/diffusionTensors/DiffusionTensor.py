@@ -15,7 +15,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-05-24 16:14:10 +0100 (Fri, May 24, 2024) $"
+__dateModified__ = "$dateModified: 2024-06-12 10:56:23 +0100 (Wed, June 12, 2024) $"
 __version__ = "$Revision: 3.2.2 $"
 #=========================================================================================
 # Created
@@ -127,8 +127,19 @@ class StructureHandler(object):
 
         principalAxis = lib._getPrincipalAxisDiffusion(self._eigenvalues, self._eigenvectors)
         vectorsByResidueDict = lib._calculate_NH_vectors(self._structureObj)
-        anglesByResidueDict = lib._calculateAnglesByVectors(vectorsByResidueDict, principalAxis)
+        anglesByResidueDict = lib._calculateThetaAnglesByVectors(vectorsByResidueDict, principalAxis)
         return anglesByResidueDict
+
+    def get_NH_cosineAnglesByResidueDict(self):
+        """For each residue, get the angles between the NH vector and the principal axis.
+         :return: dict {str : array(x,y,z)...}"""
+        vectorsDict = lib._calculate_NH_vectors(self._structureObj)
+        tensor = self.getGyrationTensor()
+        cosinesByResidueDict = lib._calculateDirectionCosinesByVectors(vectorsDict, tensor)
+        return cosinesByResidueDict
+
+    def _calculateAnisotropicCoeficients(self, directionCosineNHvector, Dxx, Dyy,Dzz):
+        return lib._calculateAnisotropicCoeficients(directionCosineNHvector, Dxx, Dyy,Dzz)
 
     def _setParser(self):
         """ Get the parser from filePath.

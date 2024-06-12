@@ -36,7 +36,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-05-24 16:22:29 +0100 (Fri, May 24, 2024) $"
+__dateModified__ = "$dateModified: 2024-06-12 10:56:23 +0100 (Wed, June 12, 2024) $"
 __version__ = "$Revision: 3.2.2 $"
 #=========================================================================================
 # Created
@@ -55,11 +55,13 @@ import pandas as pd
 from lmfit import Parameters, Minimizer
 import ccpn.framework.lib.experimentAnalysis.SeriesAnalysisVariables as sv
 from ccpn.framework.lib.experimentAnalysis.fittingModels.UncertaintyEstimationABC import MonteCarloSimulation
+from ccpn.framework.lib.experimentAnalysis.calculationModels.relaxation.spectralDensityLib import estimateOverallCorrelationTimeFromR1R2, estimateAverageS2
 from .MinimiserLib import MinimiserSettingsPreset, _DefaultParameters
 from ..RateModels import RatesHandler
 from ..SpectralDensityFunctions import SDFHandler
 from ..modelSelectionLib import _ModelSelection
 from ..minimisationScoringFunctions import calculateChiSquared
+from ..diffusionTensors.structureLib import _calculateAnisotropicCoeficients
 from ..SpectralDensityFunctionsConstants import SDMConstants
 from ..io.Logger import getLogger
 
@@ -137,6 +139,7 @@ class LipariSzaboModel(ABC):
     name = 'generic'
     model_id = -1
     TiCount = 1  # rotational correlation time count
+    DiCount = 1 # tensor D param count
     molecularStructureNeeded = False
 
     def __init__(self, diffusionModelHandler, **kwargs):
@@ -148,8 +151,8 @@ class LipariSzaboModel(ABC):
         self.rateColumns = self._settingsHandler.computingRates
         self.rateErrColumns = self._settingsHandler.computingRateErrors
         self._errIter = self._settingsHandler.errorCalculationIterations
-        self._defaultMinimiserParams = _DefaultParameters(self.TiCount )
-        self._storeMinimiserProgress = True # store each evaluation result in a separate file. (use only for testing)
+        self._defaultMinimiserParams = _DefaultParameters(self.TiCount , self.DiCount)
+        self._storeMinimiserProgress = False # store each evaluation result in a separate file. (use only for testing)
         self._progressData = {} #this will be a dict of dict of DataFrames! {residueCode1: {model_1: data, model_2: data}}
         self._minimiserAccuracyPreset = self._settingsHandler.minimisationAccuracy
         self._modelSelectionMethod = self._settingsHandler.modelSelectionMethod
@@ -350,16 +353,23 @@ class LipariSzaboModel(ABC):
                 _mcRowRes[f'{paramName}{sv._ERR}'] = param.stderr
             finalResultRows.append(_mcRowRes)
         _mcResult = pd.DataFrame(finalResultRows)
-        _mcResult[sv.Ti] = _mcResult[sv.Ti].median()
-        _mcResult[sv.Ti_ERR] = _mcResult[sv.Ti].std()
+        _mcResult[sv.TC] = _mcResult[sv.Ti].median()
+        _mcResult[sv.TC_ERR] = _mcResult[sv.Ti].std()
         self.resultDataFrames[n] = _mcResult
-
 
     def _storeMinimiserIterationProgress(self, params, iter, score, calcRateFunc , sdModel, neededRates, expRates, expErrors, constantsDict, residueCode, *args, **kwargs):
         """Internal to the minimiser. This is a special callback function to store the progress in a Pandas DataFrame and is only called from within the minimiser iter_cb argument.
         It has a specific defined signature. """
         try:
             calc = LipariSzaboModel._calculateRatesFromParams
+            cosVector = kwargs.get('cosVector')
+            Dis = np.array([p.value for n, p in params.items() if n.startswith(sv.Di)])
+            tiValues = FullyAnisotropicModel._calculateTiFromDiso(*Dis)
+            ciValues = _calculateAnisotropicCoeficients(cosVector, *Dis)
+            for i, (ti, ci) in enumerate(zip(tiValues, ciValues)):
+                i += 1
+                params.add(f'{sv.Ti}_{i}', value=ti)
+                params.add(f'{sv.Ci}_{i}', value=ci)
             predictions = calc(params, sdModel, neededRates=neededRates, constantsDict=constantsDict)
             dfDict = self._progressData[residueCode]
             df = dfDict[sdModel.model_id]
@@ -409,6 +419,7 @@ class IsotropicModel(LipariSzaboModel):
     name = 'Isotropic'
     model_id = 1
     TiCount = 1  # described total rotational correlation time count
+    DiCount = 1
     molecularStructureNeeded = False
 
 
@@ -416,10 +427,12 @@ class AxialSymmetricModel(LipariSzaboModel):
     name = 'Axially-Symmetric'
     model_id = 2
     TiCount = 3
+    DiCount = 3 # corresponds to  Di_1 -> Dperpendicular; Di_2 -> Dparallel
+
     molecularStructureNeeded = True
 
     @staticmethod
-    def calculateTensorCoefficientsFromTheta(theta):
+    def calculateTensorCoefficients(theta):
         """
         Calculate the coefficients for an Axially Symmetric rotational Diffusion model
 
@@ -488,13 +501,26 @@ class AxialSymmetricModel(LipariSzaboModel):
         n = 1
         getLogger().info('Starting fitting...')
         resultRows = []
-        tc = 4e-9 # a hack for quick testing
+
+        ratesDataBySF = self._diffusionModelHandler.getRatesDataBySF()
+        taucFields = []
+        for sf, df in ratesDataBySF.items():
+            r1 = df['R1'].values
+            r2 = df['R2'].values
+            noe = df[sv.HETNOE].values
+            # Calculate the overall correlation time
+            localTcs = estimateOverallCorrelationTimeFromR1R2(r1, r2, spectrometerFrequency=float(sf))
+            fieldTc = np.median(localTcs)
+            taucFields.append(fieldTc)
+            s2 = estimateAverageS2(r1, r2, noe=noe, noeExclusionLimit=0.65, method='median', proportiontocut=.1)
+        tc = np.mean(taucFields)
+
         Diso = (1/(6*tc))*1e-7
         TiValues = self._calculateTiFromDiso(Diso)
         for residueCode, residueData in dataGroupedByResidue:
-            print(f'Minimising residue {residueCode}')
+            getLogger().info(f'Minimising residue {residueCode}')
             theta, thetaStd = _NH_anglesDict.get(residueCode)
-            ciValues = self.calculateTensorCoefficientsFromTheta(theta)
+            ciValues = self.calculateTensorCoefficients(theta)
 
             sdfHandler = self._diffusionModelHandler.sdfHandler
             constantsDict = self._getConstantsDict()
@@ -516,7 +542,6 @@ class AxialSymmetricModel(LipariSzaboModel):
                 neededParams = sdModel.optimisedParams
                 params = self._defaultMinimiserParams.getNewParamsByNames(neededParams)
                 for i, (ci, ti) in enumerate(zip(ciValues, TiValues)):
-
                     i += 1
                     tiParam = self._defaultMinimiserParams.get(f'{sv.Ti}_{i}')
                     ciParam = self._defaultMinimiserParams.get(f'{sv.Ci}_{i}')
@@ -535,16 +560,12 @@ class AxialSymmetricModel(LipariSzaboModel):
                 # Perform the optimisation
                 minSettings = MinimiserSettingsPreset.getPreset(self._minimiserAccuracyPreset)
                 result = minimizer.minimize(method='differential_evolution', **minSettings)
-                for i, (paramName, param) in enumerate(result.params.items()):
-                    print(f'MODEL: {model_id}, paramName: {paramName} = {param.value}')
                 result.model_id = model_id
                 usedModels.append(sdModel)
                 hasConverged = result.success
-                # hasConverged =True
                 if hasConverged:  #keep the model for the selection only if it has converged
                     results.append(result)
-                else:
-                    getLogger().warn(f'Residue: {residueCode}. MODEL: {model_id}, failed to converge. Iteration: {n}')
+
             n = len(ratesExp)
             try:
                 minimiserResult = self._modelSelectionObj._getBestModel(residueCode, usedModels, results, n, iterationCount=1)
@@ -557,7 +578,7 @@ class AxialSymmetricModel(LipariSzaboModel):
                     _rowRes[f'{paramName}{sv._ERR}'] = None
                 resultRows.append(_rowRes)
             except Exception as err:
-                print(f'Bad at {residueCode}, {err}')
+                getLogger().warn(f'Could not minimise residue {residueCode}. Exit with error: {err}.')
 
             if self._storeMinimiserProgress:
                 outputdir = self._outputsHandler._fetchTablesDirPath(self.name)
@@ -570,7 +591,6 @@ class AxialSymmetricModel(LipariSzaboModel):
                     getLogger().info(f'Exported Model ID: {modId} minimisation progress to {outputPath}')
 
         _result = pd.DataFrame(resultRows)
-        _result.to_csv('/Users/luca/Documents/V3-testings/quickTestWithTiasym.csv')
         self.resultDataFrames[n] = _result
 
 
@@ -578,13 +598,180 @@ class FullyAnisotropicModel(LipariSzaboModel):
     name = 'Fully-Anisotropic'
     model_id = 3
     TiCount = 5
+    DiCount = 3 # expressed as Di_1 to Di_3 and correspond to   Dxx; Dyy; Dzz
+
+
     molecularStructureNeeded = True
+
+    @staticmethod
+    def _localObjectiveFunction(params, calcRatesFunc, sdModel, neededRates, expRates, expErrors, constantsDict, residueCode,  **kwargs):
+        """
+        The local minimisation function which optimise the densityFunction models parameters per residue.
+        Called by the minimiser
+        :param params: minimiser Parameter object
+        :param calcRatesFunc. the  LipariSzaboModel._calculateRatesFromParams function
+        :param expRates: 1d array with the experimental rates by rate type, e.g.: R1 per ascending field strength ,e.g.: r1at600,  r2at600, ... r1at800, r2at800...
+        :param expErrors: 1d array, same as expRates
+        :param constantsDict: a dict of dict. {field:{constants}} e.g.: {600: {c_factor:float, ...}}. see above
+        :param residueCode: int. the source of the optimising parameters
+        :return: the chi-squared value obtained between the experimental values and the theoretical values calculated by the selected model.
+        """
+        # need to build the Ti params from Di
+        cosVector = kwargs.get('cosVector')
+        Dis = np.array([p.value for n, p in params.items() if n.startswith(sv.Di)])
+        tiValues = FullyAnisotropicModel._calculateTiFromDiso(*Dis)
+        ciValues = _calculateAnisotropicCoeficients(cosVector, *Dis)
+        for i, (ti, ci) in enumerate(zip(tiValues,ciValues)):
+            # TODO replace params with its dict
+            i += 1
+            params.add(f'{sv.Ti}_{i}', value=ti)
+            params.add(f'{sv.Ci}_{i}', value=ci)
+        predictions = calcRatesFunc(params, sdModel, neededRates, constantsDict)
+        score = calculateChiSquared(expRates, predictions, expErrors)
+        for i, (ti, ci) in enumerate(zip(tiValues,ciValues)):
+            i += 1
+            params.pop(f'{sv.Ti}_{i}', None)
+            params.pop(f'{sv.Ci}_{i}', None)
+        return score
+
+    @staticmethod
+    def _calculateTiFromDiso(D1, D2, D3):
+        """
+        :param D_iso: Diffusion Isotropic value. Diso = 1/6TauC
+        :return: array of Tau1, tau2, tau3, tauPlus, tauMinus
+        """
+        R1, R2, R3 = D1, D2, D3
+        R = np.mean([R1, R2, R3])
+        L2 = np.mean([R1*R2, R1*R3, R2*R3])
+        tau1 = 1 / (4*R1 + R2 + R3)
+        tau2 = 1 / (R1 + 4*R2 + R3)
+        tau3 = 1 / (R1 + R2 + 4*R3)
+        tauPlus = 1/ (6 * (R + np.sqrt(R**2 - L2)))
+        tauMinus = 1/ (6 * (R - np.sqrt(R**2 - L2)))
+        return np.array([tau1, tau2, tau3, tauPlus, tauMinus])
+
+    from ccpn.util.decorators import profile
+    @profile('/Users/luca/Documents/V3-testings/profiling/')
+    def startMinimisation(self):
+        getLogger().info(f'Active model: {self.name}')
+        structureHandler = self._diffusionModelHandler.structureHandler
+        _NH_anglesDict = structureHandler.get_NH_cosineAnglesByResidueDict()
+
+        ratesData = self._diffusionModelHandler.getRatesData()
+        dataGroupedByResidue = ratesData.groupby(sv.NMRRESIDUECODE)
+        calcRatesFunc = self._calculateRatesFromParams
+
+        ## ~~~~~~~ Step 1): Local Minimisation for initial Tc estimation ~~~~~~~~~~~~ #
+        ## we loop residue by residue and we do the first optimisation with Tc variable
+        n = 1
+        getLogger().info('Starting fitting...')
+        resultRows = []
+
+        ratesDataBySF = self._diffusionModelHandler.getRatesDataBySF()
+        taucFields = []
+        for sf, df in ratesDataBySF.items():
+            r1 = df['R1'].values
+            r2 = df['R2'].values
+            noe = df[sv.HETNOE].values
+            # Calculate the overall correlation time
+            localTcs = estimateOverallCorrelationTimeFromR1R2(r1, r2, spectrometerFrequency=float(sf))
+            fieldTc = np.median(localTcs)
+            taucFields.append(fieldTc)
+            s2 = estimateAverageS2(r1, r2, noe=noe, noeExclusionLimit=0.65, method='median', proportiontocut=.1)
+        tc = np.mean(taucFields)
+
+        Diso = 1/(6*tc)
+
+        for residueCode, residueData in dataGroupedByResidue:
+            getLogger().info(f'Minimising residue {residueCode}')
+            cosVector = _NH_anglesDict.get(residueCode)
+            sdfHandler = self._diffusionModelHandler.sdfHandler
+            constantsDict = self._getConstantsDict()
+            sdfModels = self._diffusionModelHandler._getSDFmodel_ids()
+            calcRatesFunc = self._calculateRatesFromParams
+            # we expect rates at multiple fields.  sort by ascending (low->high) the spectrometerFrequency value
+            residueData.sort_values(by=sv.SF, inplace=True)
+            # create a 1D array of rates at different fields. e.g.: R1s, R2s, NOEs in ascending field strength  (r1_600, r2_600, hetNoe_600,  r1_800, r2_800, hetNoe_800,  etc...)
+            ratesExp = residueData[self.rateColumns].values.flatten()
+            errorsExp = residueData[self.rateErrColumns].values.flatten()
+            residueCode = residueData[sv.NMRRESIDUECODE].values[0]
+            # calculate the predicted values at each field and make the same array construct as per the ExpRates.
+            results = []
+            usedModels = []
+            if self._storeMinimiserProgress:
+                self._progressData[residueCode] = {}
+            for model_id in sdfModels:
+                sdModel = sdfHandler.getById(model_id)
+                neededParams = sdModel.optimisedParams
+                params = self._defaultMinimiserParams.getNewParamsByNames(neededParams)
+                # add the initial Tensor information to params
+                Dxx, Dyy, Dzz = 0.75 * Diso, Diso, 1.25 * Diso
+                for i, Di in enumerate([Dxx, Dyy, Dzz]):
+                    i += 1
+                    diParam = self._defaultMinimiserParams.get(f'{sv.Di}_{i}')
+                    params.add(diParam)
+                    params[f'{sv.Di}_{i}'].set(value=Di, min=Di/2, max=Di*2, vary=True)
+
+                if self._storeMinimiserProgress:
+                    progressDict = self._progressData[residueCode]
+                    progressDict[model_id] = pd.DataFrame(columns=self._defaultMinimiserParams.names)
+                    minimizer = Minimizer(self._localObjectiveFunction, params, fcn_args=(calcRatesFunc, sdModel, self.rateColumns, ratesExp, errorsExp, constantsDict, residueCode), fcn_kws={'cosVector':cosVector},
+                                          method='differential_evolution', iter_cb=self._storeMinimiserIterationProgress)  #this is a callback for each minimisation step sent by the minimiser
+                else:
+                    minimizer = Minimizer(self._localObjectiveFunction, params, fcn_args=(calcRatesFunc, sdModel, self.rateColumns, ratesExp, errorsExp, constantsDict, residueCode),  fcn_kws={'cosVector':cosVector},
+                                          method='differential_evolution', )
+
+                # Perform the optimisation
+                minSettings = MinimiserSettingsPreset.getPreset(self._minimiserAccuracyPreset)
+                # try:
+                result = minimizer.minimize(method='differential_evolution', **minSettings)
+                result.model_id = model_id
+                usedModels.append(sdModel)
+                hasConverged = result.success
+                if hasConverged:  #keep the model for the selection only if it has converged
+                    results.append(result)
+                # except Exception as err:
+                #     getLogger().warn(f'Could not minimise residue {residueCode}. Exit with error: {err}.')
+
+            n = len(ratesExp)
+            try:
+                minimiserResult = self._modelSelectionObj._getBestModel(residueCode, usedModels, results, n, iterationCount=1)
+                Dis = np.array([p.value for n, p in minimiserResult.params.items() if n.startswith(sv.Di)])
+                tiValues = FullyAnisotropicModel._calculateTiFromDiso(*Dis)
+                ciValues = _calculateAnisotropicCoeficients(cosVector, *Dis)
+                for i, (ti, ci) in enumerate(zip(tiValues, ciValues)):
+                    i += 1
+                    minimiserResult.params.add(f'{sv.Ti}_{i}', value=ti)
+                    minimiserResult.params.add(f'{sv.Ci}_{i}', value=ci)
+                _rowRes = self._defaultMinimiserParams.asEmptyDict
+                _rowRes[sv.NMRRESIDUECODE] = residueCode
+                _rowRes['model_id'] = minimiserResult.model_id
+                _rowRes[sv.MINIMISER_OBJ] = minimiserResult
+                for i, (paramName, param) in enumerate(minimiserResult.params.items()):
+                    _rowRes[paramName] = param.value
+                    _rowRes[f'{paramName}{sv._ERR}'] = None
+                resultRows.append(_rowRes)
+            except Exception as err:
+                getLogger().warn(f'Could not minimise residue {residueCode}. Exit with error: {err}.')
+
+            if self._storeMinimiserProgress:
+                outputdir = self._outputsHandler._fetchTablesDirPath(self.name)
+                _progressData = self._progressData[residueCode]
+                interimDir = aPath(fetchDir(outputdir, 'minimiserProgress'))
+                outputDir = aPath(fetchDir(interimDir, str(residueCode)))
+                for modId, df in _progressData.items():
+                    outputPath = outputDir / f'{residueCode}_Model_{modId}.csv'
+                    df.to_csv(outputPath)
+                    getLogger().info(f'Exported Model ID: {modId} minimisation progress to {outputPath}')
+
+        _result = pd.DataFrame(resultRows)
+        self.resultDataFrames[n] = _result
 
 
 # ~~~~~~~~~ Register the Models ~~~~~~~~~~ #
 
 DiffusionModelHandler.register(IsotropicModel)
 DiffusionModelHandler.register(AxialSymmetricModel)
-# DiffusionModelHandler.register(FullyAnisotropicModel)
+DiffusionModelHandler.register(FullyAnisotropicModel)
 
 

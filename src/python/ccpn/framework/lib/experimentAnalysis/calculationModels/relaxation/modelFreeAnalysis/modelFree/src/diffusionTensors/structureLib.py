@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-05-24 16:14:10 +0100 (Fri, May 24, 2024) $"
+__dateModified__ = "$dateModified: 2024-06-12 10:56:23 +0100 (Wed, June 12, 2024) $"
 __version__ = "$Revision: 3.2.2 $"
 #=========================================================================================
 # Created
@@ -76,6 +76,7 @@ def _getGyrationRadius(squaredDistances):
 
 def _calculateGyrationTensor(coords, com):
     """
+    Calculate the covariance matrix for the coords
     :param coords: array, all structure coord
     :param com: foat,  the center of mass
     :return: array, of shape 3X3.
@@ -184,6 +185,8 @@ def _calculate_NH_vectors(structure):
     return NH_vectorsByResidue
 
 
+
+
 def _calculateNHAngle(nhVector, principalAxis):
     """
     Calculate the angle between a vector and a principal axis.
@@ -196,10 +199,14 @@ def _calculateNHAngle(nhVector, principalAxis):
     cosTheta = np.dot(nhVector, principalAxis)
     cosTheta = np.clip(cosTheta, -1.0, 1.0)  # Ensure value is in valid range for arccos
     theta = np.arccos(cosTheta)
-    return np.degrees(theta)
+    return theta
 
-def _calculateAnglesByVectors(vectorsDict, principalAxis):
+def _radiansToDegree(value):
+    return np.degrees(value)
+
+def _calculateThetaAnglesByVectors(vectorsDict, principalAxis):
     """
+    Used in the Axially-Symmetric diffusion model.
     Calculate the angle between the NH vector and the principal axis. Note Could be an ensemble, in that case we take the mean.
     :param vectorsDict: {residue_id : [NH_vector, ...] }
     :return:  dict.  {residue_id : (mean angle in degree, std) }
@@ -215,7 +222,69 @@ def _calculateAnglesByVectors(vectorsDict, principalAxis):
         NH_anglesByResidue[residue_id] = (_mean, _std)
     return NH_anglesByResidue
 
+def _calculateDirectionCosineNHvector(nhVector, tensor):
+    """
+    :param nhVector: 1d array
+    :param tensor: nd array. 3x3 the Gyration Tensor calculated from the pdb coords and its centre of mass.
+    :return:
+    """
+    eigenvalues, eigenvectors = np.linalg.eigh(tensor)
+    nhDirectionCosines = eigenvectors.T @ nhVector  # the @ symbol is an operator for matrix multiplication.
+    return nhDirectionCosines
 
+
+def _calculateDirectionCosinesByVectors(vectorsDict, tensor):
+    """
+    Used in Fully anisotropic rotational diffusion model.
+    Calculate the Direction Cosines x,y,z for each NH vector to the tensor eigenVectors.
+    """
+    NH_cosCoordsByResidue = {}
+    for residue_id, vectors in vectorsDict.items():
+        for _vector in vectors:
+            nhVector = _vector.normalized()
+            vector = nhVector.get_array()
+            nhDirectionCosines = _calculateDirectionCosineNHvector(vector, tensor)
+            NH_cosCoordsByResidue[residue_id] = nhDirectionCosines
+            break
+    return NH_cosCoordsByResidue
+
+def calculateAnisotropicEnergy(x, y, z, delta1, delta2,  delta3):
+    ## Calculate energy
+    _et1 = delta1 * (3 * x**4 + 6 * y**2 * z**2 - 1)
+    _et2 = delta2 * (3 * y**4 + 6 * x**2 * z**2 - 1)
+    _et3 = delta3 * (3 * z**4 + 6 * x**2 * y**2 - 1)
+    energy = (_et1 + _et2 + _et3) / 6
+    return energy
+
+def _calculateAnisotropicCoeficients(directionCosineNHvector, Dxx, Dyy, Dzz):
+    """
+    :param directionCosineNHvector: 1D array of x,y,z direction Cosine NH vector
+    :param Dxx:
+    :param Dyy:
+    :param Dzz:
+    :return:
+    """
+
+    x, y, z = directionCosineNHvector
+    R1, R2, R3 = Dxx, Dyy, Dzz
+   ## Calculate R and L^2
+    R = (R1 + R2 + R3) / 3
+    L2 = ((R1*R2) + (R1*R3) + (R2*R3)) / 3
+    # ## Calculate deltas
+    delta1 = (R1 - R) / (np.sqrt(R**2 - L2))
+    delta2 = (R2 - R) / (np.sqrt(R**2 - L2))
+    delta3 = (R3 - R) / (np.sqrt(R**2 - L2))
+    ## Calculate C1, C2, C3
+    C1 = 6 * y**2 * z**2
+    C2 = 6 * x**2 * z**2
+    C3 = 6 * x**2 * y**2
+    ## Calculate e and d
+    e = calculateAnisotropicEnergy(x,y,z, delta1, delta2, delta3)
+    d = 0.5 * (3 * (x**4 + y**4 + z**4) - 1)
+    ## Calculate C+, C-
+    Cplus = d + e
+    Cminus = d - e
+    return np.array([C1, C2, C3, Cplus, Cminus])
 
 
 ## Quick testing
@@ -227,6 +296,9 @@ if __name__ == "__main__":
     il17f = '/Users/luca/Downloads/6hgo_s.pdb'
     ensemble = '/Users/luca/Downloads/6qf8_ensemble.pdb'
     ensemble_pep = '/Users/luca/Downloads/2juy.pdb'
+
+    Gb1TcIso = 4.40  #ns
+    Diso = 1 / (6 * Gb1TcIso)
 
     parser = PDBParser(QUIET=True,)
     structure = parser.get_structure("protein", str(gb1))
@@ -253,17 +325,24 @@ if __name__ == "__main__":
         shape = _determineEllipsoidShape(eigenvalues)
         print(f"The overall shape is  {shape}")
 
-    # Example usage:
+    # Example usage Axially symmetric rotational diffusion. :
     print('=='*10, 'ANGLES: ')
     Dperpendicular, Dparallel = _calculateDperpendicularDparallelEigenvalues(eigenvalues)
     print(f"_|_E_perpendicular:  {Dperpendicular};  // E_parallel : {Dparallel}")
 
-    pa =  _getPrincipalAxisDiffusion(eigenvalues, eigenvectors)
-    vbyRes = _calculate_NH_vectors(structure)
-    anglesByRes = _calculateAnglesByVectors(vbyRes, pa)
+    pa = _getPrincipalAxisDiffusion(eigenvalues, eigenvectors)
+    vectorsDict = _calculate_NH_vectors(structure)
+    anglesByRes = _calculateThetaAnglesByVectors(vectorsDict, pa)
     for residue_id, angleValues in anglesByRes.items():
         angle, std = angleValues
-        print(f'Residue {residue_id} angle: {angle}')
+        # print(f'Residue {residue_id} angle: {angle}')
+
+    cosines = _calculateDirectionCosinesByVectors(vectorsDict, tensor)
+
+    for residue_id, cosVector in cosines.items():
+        Dxx, Dyy, Dzz = 0.75*Diso, Diso, 1.25*Diso
+        coef = _calculateAnisotropicCoeficients(cosVector, Dxx, Dyy, Dzz)
+        print(f'Residue {residue_id} coef: {coef}')
 
 
     # GB1 example
@@ -282,3 +361,4 @@ if __name__ == "__main__":
     print(f'Gb1_TauA: {round(ta,3)} ns')
     print(f'Gb1_TauB: {round(tb,3)} ns')
     print(f'Gb1_TauC: {round(tc,3)} ns')
+

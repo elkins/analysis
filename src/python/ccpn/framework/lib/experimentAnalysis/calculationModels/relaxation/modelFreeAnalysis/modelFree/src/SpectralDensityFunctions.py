@@ -173,7 +173,7 @@ class _Model2(_Jmod):
         ti = kwargs.get(sv.Ti)
         te = kwargs.get(sv.TE)
         w = kwargs.get(sv.W)
-        t = 1 / (1/ti + 1/te)
+        t  = 1 / (1/np.mean(ti) + 1/te)
         term1 = _Jmod._jwTerm(ci, ti, w)
         term2 =  _Jmod._jwTerm((1 - s2), t, w)
         return (2 / 5) * (s2 * term1 + term2)

@@ -15,7 +15,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-05-24 16:14:11 +0100 (Fri, May 24, 2024) $"
+__dateModified__ = "$dateModified: 2024-06-12 10:56:23 +0100 (Wed, June 12, 2024) $"
 __version__ = "$Revision: 3.2.2 $"
 #=========================================================================================
 # Created
@@ -47,10 +47,10 @@ class SettingsHandler(CcpNmrJson):
     errorCalculationMethod = Unicode(allow_none=False, default_value='MonteCarlo').tag(info='The name of the error Calculation Method. Allowed: MonteCarlo, BootStrapping')
     errorCalculationIterations = Int(allow_none=False, default_value=20).tag(info='The number of iterations to compute for the error Calculation Method')
     spectralDensityFuncModels = List(allow_none=False, default_value=[1,2,3,4]).tag(info='The Spectral density function models to be evaluated. See docs.')
-    minimisationAccuracy = Unicode(allow_none=False, default_value='low').tag(info='The level of minimisation accuracy to reach the convergence. Allowed: low, medium, high')
+    minimisationAccuracy = Unicode(allow_none=False, default_value='high').tag(info='The level of minimisation accuracy to reach the convergence. Allowed: low, medium, high')
     modelSelectionMethod = Unicode(allow_none=False, default_value='bic').tag(info='The name of the (Spectral Density Functions) model selection method. Allowed: aic, aicc, bic, bicc')
     useExtendedSpectralDensityFuncModels = Bool(allow_none=False, default_value=False).tag(info='Include the Extended Spectral density function models. See docs.')
-    diffusionModel = Unicode(allow_none=False, default_value='Axially-Symmetric').tag(info='''The name of the diffusion Model to be evaluated.  Allowed: auto, Isotropic, Axially-Symmetric, Fully-Anisotropic, Partially-Anisotropic.''')
+    diffusionModel = Unicode(allow_none=False, default_value='Fully-Anisotropic').tag(info='''The name of the diffusion Model to be evaluated.  Allowed: auto, Isotropic, Axially-Symmetric, Fully-Anisotropic''')
     minimisationAlgorithm = Unicode(allow_none=False, default_value='differential_evolution').tag(info='The name of the minimisation Algorithm. Allowed: Differential_evolution, grid_search')
     computingRates = List(allow_none=False, default_value=[sv.R1, sv.R2, sv.HETNOE]).tag(info='The default rates to use in the calculations.')
     computingRateErrors = List(allow_none=False, default_value=[sv.R1_ERR, sv.R2_ERR, sv.HETNOE_ERR]).tag(info='The default rates to use in the calculations.')
