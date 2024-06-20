@@ -36,7 +36,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-06-12 10:56:23 +0100 (Wed, June 12, 2024) $"
+__dateModified__ = "$dateModified: 2024-06-20 13:30:50 +0100 (Thu, June 20, 2024) $"
 __version__ = "$Revision: 3.2.2 $"
 #=========================================================================================
 # Created
@@ -622,7 +622,6 @@ class FullyAnisotropicModel(LipariSzaboModel):
         tiValues = FullyAnisotropicModel._calculateTiFromDiso(*Dis)
         ciValues = _calculateAnisotropicCoeficients(cosVector, *Dis)
         for i, (ti, ci) in enumerate(zip(tiValues,ciValues)):
-            # TODO replace params with its dict
             i += 1
             params.add(f'{sv.Ti}_{i}', value=ti)
             params.add(f'{sv.Ci}_{i}', value=ci)
@@ -650,8 +649,7 @@ class FullyAnisotropicModel(LipariSzaboModel):
         tauMinus = 1/ (6 * (R - np.sqrt(R**2 - L2)))
         return np.array([tau1, tau2, tau3, tauPlus, tauMinus])
 
-    from ccpn.util.decorators import profile
-    @profile('/Users/luca/Documents/V3-testings/profiling/')
+
     def startMinimisation(self):
         getLogger().info(f'Active model: {self.name}')
         structureHandler = self._diffusionModelHandler.structureHandler
