@@ -36,7 +36,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-06-20 13:30:50 +0100 (Thu, June 20, 2024) $"
+__dateModified__ = "$dateModified: 2024-06-20 16:39:47 +0100 (Thu, June 20, 2024) $"
 __version__ = "$Revision: 3.2.2 $"
 #=========================================================================================
 # Created
@@ -300,15 +300,14 @@ class LipariSzaboModel(ABC):
         # store data
         _result = pd.DataFrame(resultRows)
         self.resultDataFrames[n] = _result
-        _result.to_csv('/Users/luca/Documents/V3-testings/quickTestWithTi.csv')
         n += 1
         ## ~~~~ Step 2): Local Minimisation for final Model selection.  ~~~~ #
         ##  Get the median Tc  as the initial value, keep it fix and do a model selection.
-        print('Computing step 2....')
+        getLogger().info('Computing step 2....')
         Ti_columns = _result.loc[:, _result.columns.str.startswith(sv.Ti)]
         ti = Ti_columns.median()
         resultRows = []
-        print(f'Starting model Selection. Estimated initial Tc: {ti} ...')
+        getLogger().info(f'Starting model Selection. Estimated initial Tc: {ti} ...')
         for residueCode, residueData in dataGroupedByResidue:
             minimiserResult = self._minimiseResidue(residueData, TiValues=[ti], varyTensorParams=False,  iterationCount=2)
             _rowRes = self._defaultMinimiserParams.asEmptyDict
@@ -330,9 +329,9 @@ class LipariSzaboModel(ABC):
         n += 1
         # ~~~~ Step 3) individual residues with Tc variable, global X2~~~~ #
         ##  Get the median Tc  as the initial value, keep it fix and do a model selection.
-        print('Computing step 3....')
+        getLogger().info('Computing step 3....')
         finalResultRows = []
-        print(f'Starting final optimisation. Tc variable: {ti} ...')
+        getLogger().info(f'Starting final optimisation. Tc variable: {ti} ...')
         for ix, row in globalDataFrame.iterrows():
             residueCode = row[sv.NMRRESIDUECODE]
             minimiserResult = row[sv.MINIMISER_OBJ]
@@ -450,7 +449,6 @@ class AxialSymmetricModel(LipariSzaboModel):
             C = \frac{3}{4} \: \sin^4 \theta
             where theta is the angle between the N-H vector and the unique axis of the diffusion tensor
         """
-
         A = (1 / 4) * (3 * np.cos(theta)**2 - 1)**2
         B = 3 * np.sin(theta)**2 * np.cos(theta)**2
         C = (3 / 4) * np.sin(theta)**4
@@ -464,8 +462,8 @@ class AxialSymmetricModel(LipariSzaboModel):
 
     @staticmethod
     def calculateDiffusionCoefficientsOblate(D_iso):
-        D_parallel = 1.25 * D_iso
         D_perp = 0.75 * D_iso
+        D_parallel = 1.25 * D_iso
         return D_parallel, D_parallel, D_perp
 
     def _calculateTiFromDiso(self, D_iso):
@@ -483,7 +481,7 @@ class AxialSymmetricModel(LipariSzaboModel):
             raise RuntimeError(f'Undefined shape. Cannot Compute Ti for model {self.name}')
 
         ta = 1/(6*D_parallel)
-        tb = 1/(D_perp+D_parallel)
+        tb = 1/(D_perp+5*D_parallel)
         tc = 1/(4*D_perp + 2*D_parallel)
         return np.array([ta, tb, tc])
 
@@ -648,7 +646,6 @@ class FullyAnisotropicModel(LipariSzaboModel):
         tauPlus = 1/ (6 * (R + np.sqrt(R**2 - L2)))
         tauMinus = 1/ (6 * (R - np.sqrt(R**2 - L2)))
         return np.array([tau1, tau2, tau3, tauPlus, tauMinus])
-
 
     def startMinimisation(self):
         getLogger().info(f'Active model: {self.name}')
