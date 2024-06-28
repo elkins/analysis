@@ -1,6 +1,5 @@
 """
-This module is the entry point to the ModelFree Plugin
-It defines the command-line arguments and parser for the No-gui usage.
+init file
 """
 #=========================================================================================
 # Licence, Reference and Credits
@@ -26,27 +25,4 @@ __date__ = "$Date: 2024-04-04 12:39:28 +0100 (Thu, April 04, 2024) $"
 #=========================================================================================
 # Start of code
 #=========================================================================================
-
-import argparse
-from ccpn.framework.lib.experimentAnalysis.calculationModels.relaxation.modelFreeAnalysis.modelFree.ModelFree import ModelFree
-MODELANALYSIS = __file__
-
-def main():
-    """
-    Entry point, defines the command-line arguments and starts the machinery based on the input settings.
-    """
-    parser = argparse.ArgumentParser(description='Description of your script')
-    parser.add_argument('--input', help='File path for the Json file containing the rates information and other inputs. See inputTemplate.json')
-    parser.add_argument('--settings', help='File path for the Json file containing the running settings.')
-    # parser.add_argument('--version', help=''')
-
-    args = parser.parse_args()
-    inputFilePath = args.input
-    settingsFilePath = args.settings
-    mf = ModelFree(inputJsonPath=inputFilePath, settingsJsonPath=settingsFilePath)
-    mf.runFittings()
-    return mf
-
-if __name__ == "__main__":
-    mf = main()
 

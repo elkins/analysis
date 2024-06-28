@@ -15,7 +15,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-06-12 10:56:23 +0100 (Wed, June 12, 2024) $"
+__dateModified__ = "$dateModified: 2024-06-28 10:33:01 +0100 (Fri, June 28, 2024) $"
 __version__ = "$Revision: 3.2.2 $"
 #=========================================================================================
 # Created
@@ -55,18 +55,21 @@ class StructureHandler(object):
         self.inputsHandler = self.parent.inputsHandler
         self.outputsHandler = self.parent.outputsHandler
         self._structureId = 'protein'  # the id that will be used for the structure object
+        self._parserType = 'pdb'
         self._structureFilePath = self.inputsHandler._validatePath(self.inputsHandler.molecularStructure_path)
         self._parser = None
         self._setParser()
-        self._structureObj = self._parseStructure()
-
+        self._structureObj = None
 
         ## store handles to data to avoid recalculating
         self._coords = None
         self._gyrationTensor = None
         self._eigenvalues = None
         self._eigenvectors = None
-        self._setEigenProperties()
+
+        if self._structureFilePath:
+            self._structureObj = self._parseStructure()
+            self._setEigenProperties()
 
     @property
     def structureObj(self):
@@ -144,11 +147,14 @@ class StructureHandler(object):
     def _setParser(self):
         """ Get the parser from filePath.
         Only PDB available at the moment"""
-        path = self._structureFilePath
-        if path.is_file() and len(path.suffixes) >= 1 and path.suffixes[-1] == '.pdb':
+        if self._parserType == 'pdb':
             self._parser = PDBParser(QUIET=True)
-        else:
-            getLogger().warn(f'Error loading file {path}. This file is not yet supported. Please use a .pdb file')
+        else: #get from path
+            path = self._structureFilePath
+            if path.is_file() and len(path.suffixes) >= 1 and path.suffixes[-1] == '.pdb':
+                self._parser = PDBParser(QUIET=True)
+            else:
+                getLogger().warn(f'Error loading file {path}. This file is not yet supported. Please use a .pdb file')
         return self._parser
 
     def _parseStructure(self):

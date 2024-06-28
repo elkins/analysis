@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-05-24 16:14:11 +0100 (Fri, May 24, 2024) $"
+__dateModified__ = "$dateModified: 2024-06-28 10:33:01 +0100 (Fri, June 28, 2024) $"
 __version__ = "$Revision: 3.2.2 $"
 #=========================================================================================
 # Created
@@ -120,7 +120,6 @@ class _ModelSelection(object):
             score = self.methodFunc(model.model_id, n, chisqr)
             scores.append(score)
         scores = np.array(scores)
-        print(scores, 'SCORES')
         bestIX = np.argmin(scores) # self.prioritiseScoreByDeltas(scores)
         bestResult = results[bestIX]
         return bestResult

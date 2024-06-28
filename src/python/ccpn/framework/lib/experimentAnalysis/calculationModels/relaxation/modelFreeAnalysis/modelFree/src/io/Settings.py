@@ -15,7 +15,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-06-20 13:32:53 +0100 (Thu, June 20, 2024) $"
+__dateModified__ = "$dateModified: 2024-06-28 10:33:01 +0100 (Fri, June 28, 2024) $"
 __version__ = "$Revision: 3.2.2 $"
 #=========================================================================================
 # Created
@@ -42,6 +42,7 @@ class SettingsHandler(CcpNmrJson):
     _JSON_FILE = None
     classVersion = 3.1
     saveAllTraitsToJson = True
+    _availableDiffusionModels = [sv.ISOTROPIC, sv.AXIALLY_SYMMETRIC, sv.ANISOTROPIC]
 
     # calculation settings
     errorCalculationMethod = Unicode(allow_none=False, default_value='MonteCarlo').tag(info='The name of the error Calculation Method. Allowed: MonteCarlo, BootStrapping')
@@ -55,9 +56,8 @@ class SettingsHandler(CcpNmrJson):
     computingRates = List(allow_none=False, default_value=[sv.R1, sv.R2, sv.HETNOE]).tag(info='The default rates to use in the calculations.')
     computingRateErrors = List(allow_none=False, default_value=[sv.R1_ERR, sv.R2_ERR, sv.HETNOE_ERR]).tag(info='The default rates to use in the calculations.')
 
-    def __init__(self, parent, settingsPath):
+    def __init__(self, settingsPath):
         super().__init__()
-        self.parent = parent
         self._JSON_FILE = settingsPath
         self.loadFromFile(self._JSON_FILE )
 
@@ -65,6 +65,14 @@ class SettingsHandler(CcpNmrJson):
         if filePath is None:
             return
         self.restore(filePath)
+
+    def saveToFile(self, filePath=None):
+        """
+        :param filePath: A valid path
+        :return: the filepath where the json has been saved
+        """
+        self.save(filePath)
+        return filePath
 
 SettingsHandler.register()
 

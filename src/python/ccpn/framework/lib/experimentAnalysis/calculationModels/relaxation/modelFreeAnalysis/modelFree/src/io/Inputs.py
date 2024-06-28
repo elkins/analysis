@@ -15,7 +15,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-05-24 16:14:10 +0100 (Fri, May 24, 2024) $"
+__dateModified__ = "$dateModified: 2024-06-28 10:33:01 +0100 (Fri, June 28, 2024) $"
 __version__ = "$Revision: 3.2.2 $"
 #=========================================================================================
 # Created
@@ -33,7 +33,7 @@ from ccpn.util.traits.CcpNmrJson import Constants, update, CcpNmrJson
 from ccpn.util.traits.CcpNmrTraits import Unicode, Int, Float, Bool, List, RecursiveDict, Dict, RecursiveList, CTuple, CString
 import ccpn.framework.lib.experimentAnalysis.SeriesAnalysisVariables as sv
 from ccpn.framework.lib.experimentAnalysis.calculationModels.relaxation.modelFreeAnalysis.modelFree.src.io._inputDataLoader import Rates_Excel_DataLoader
-
+from .Logger import getLogger
 
 class _Rates(CcpNmrJson):
     """
@@ -64,19 +64,32 @@ class InputsHandler(CcpNmrJson):
     molecularStructure_path = Unicode(allow_none=True, default_value='inputs/molecule.pdb').tag(info='The relative file Path (from the input json file) for the file containing the molecular structure information.')
     outputDir_path = Unicode(allow_none=True, default_value='outputs').tag(info='The relative file Path (from the input json file) or abs Path for the directory where to save the results.')
 
-    def __init__(self, parent, inputsPath):
+    def __init__(self, inputsPath=None):
         super().__init__()
-        self.parent = parent
-        self._settingsHandler = self.parent.settingsHandler
         self._ratesData = None
         self._JSON_FILE = inputsPath
-        self.loadFromFile(self._JSON_FILE )
+        if self._JSON_FILE:
+            self.loadFromFile(self._JSON_FILE )
+            self._loadRates()
+
+    def loadRatesFromFile(self):
         self._loadRates()
 
     def loadFromFile(self, filePath):
         if filePath is None:
             return
         self.restore(filePath)
+
+    def saveToFile(self, filePath=None):
+        """
+        :param filePath: A valid path or None to save in the outputPath
+        :return: the filepath where the json has been saved
+        """
+        if not filePath:
+            filePath = aPath(self.outputDir_path)
+            filePath = filePath / aPath('input.json')
+        self.save(filePath)
+        return filePath
 
     @property
     def ratesData(self):
@@ -106,7 +119,8 @@ class InputsHandler(CcpNmrJson):
         else:
             fullPath = _path
         if not fullPath.exists():
-            raise ValueError(f'The given path is not valid: {path}')
+            getLogger().warn(f'The given path is not valid: {path}')
+            return None
         return fullPath
 
     def _loadRates(self):
@@ -116,13 +130,6 @@ class InputsHandler(CcpNmrJson):
             reader = Rates_Excel_DataLoader(ratesPath)
             data = reader.load()
             self._ratesData = data
-
-    def _validateRates(self):
-        """
-        Check if the required rates Columns are in the data
-        :return: df
-        """
-        _useRates = self._settingsHandler.computingRates
 
 
     def getOutputDirPath(self):

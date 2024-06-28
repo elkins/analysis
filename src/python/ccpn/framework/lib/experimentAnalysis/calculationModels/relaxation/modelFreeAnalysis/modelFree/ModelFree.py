@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-05-24 16:14:10 +0100 (Fri, May 24, 2024) $"
+__dateModified__ = "$dateModified: 2024-06-28 10:33:01 +0100 (Fri, June 28, 2024) $"
 __version__ = "$Revision: 3.2.2 $"
 #=========================================================================================
 # Created
@@ -37,10 +37,10 @@ from .src.diffusionTensors.DiffusionTensor import StructureHandler
 
 class ModelFree(object):
 
-    def __init__(self, inputJsonPath, settingsJsonPath=None, *args, **kwrgs):
+    def __init__(self, inputJsonPath=None, settingsJsonPath=None, *args, **kwrgs):
 
-        self.settingsHandler = SettingsHandler(self, settingsPath=settingsJsonPath)
-        self.inputsHandler = InputsHandler(self, inputsPath=inputJsonPath)
+        self.settingsHandler = SettingsHandler(settingsPath=settingsJsonPath)
+        self.inputsHandler = InputsHandler(inputsPath=inputJsonPath)
         self.outputsHandler = OutputsHandler(self)
         self.structureHandler = StructureHandler(self)
         self.diffusionModelHandler = DiffusionModelHandler(self)

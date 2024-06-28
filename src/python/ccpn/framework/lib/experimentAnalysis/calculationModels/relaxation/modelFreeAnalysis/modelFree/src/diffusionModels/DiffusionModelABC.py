@@ -36,7 +36,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-06-20 16:39:47 +0100 (Thu, June 20, 2024) $"
+__dateModified__ = "$dateModified: 2024-06-28 10:33:01 +0100 (Fri, June 28, 2024) $"
 __version__ = "$Revision: 3.2.2 $"
 #=========================================================================================
 # Created
@@ -159,8 +159,8 @@ class LipariSzaboModel(ABC):
         self._modelSelectionObj = _ModelSelection(methodName=self._modelSelectionMethod, evaluationDataFrame=None, storeEvaluations=False)
         self.resultDataFrames = {}
 
-        if self._structureHandler.structureObj is None and self.molecularStructureNeeded:
-            raise RuntimeError('This model requires a valid molecular structure to compute the Parameters')
+        # if self._structureHandler.structureObj is None and self.molecularStructureNeeded:
+        #     raise RuntimeError('This model requires a valid molecular structure to compute the Parameters')
 
     @staticmethod
     def _calculateRatesFromParams(params, sdModel, neededRates, constantsDict):

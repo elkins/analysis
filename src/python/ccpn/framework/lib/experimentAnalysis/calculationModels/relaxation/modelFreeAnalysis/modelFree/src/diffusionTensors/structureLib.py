@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-06-12 10:56:23 +0100 (Wed, June 12, 2024) $"
+__dateModified__ = "$dateModified: 2024-06-28 10:33:01 +0100 (Fri, June 28, 2024) $"
 __version__ = "$Revision: 3.2.2 $"
 #=========================================================================================
 # Created
@@ -184,9 +184,6 @@ def _calculate_NH_vectors(structure):
 
     return NH_vectorsByResidue
 
-
-
-
 def _calculateNHAngle(nhVector, principalAxis):
     """
     Calculate the angle between a vector and a principal axis.
@@ -285,6 +282,21 @@ def _calculateAnisotropicCoeficients(directionCosineNHvector, Dxx, Dyy, Dzz):
     Cplus = d + e
     Cminus = d - e
     return np.array([C1, C2, C3, Cplus, Cminus])
+
+
+def _shapeFromPdb(path):
+    import ccpn.framework.lib.experimentAnalysis.SeriesAnalysisVariables as sv
+    parser = PDBParser(QUIET=True)
+    structure = parser.get_structure("protein", str(path))
+    coords = _getCoords(structure)
+    tensor = _calculateGyrationTensor(coords, _getCOM(coords))
+    eigenvalues = _getEigenvalues(tensor)
+    if _isStructureIsotropic(eigenvalues):
+        return sv.ISOTROPIC
+    elif _isStructureAxiallySymmetric(eigenvalues):
+        return sv.AXIALLY_SYMMETRIC
+    else:
+        return sv.ANISOTROPIC
 
 
 ## Quick testing
