@@ -14,8 +14,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-02-29 18:19:10 +0000 (Thu, February 29, 2024) $"
+__modifiedBy__ = "$modifiedBy: Luca Mureddu $"
+__dateModified__ = "$dateModified: 2024-06-28 10:33:21 +0100 (Fri, June 28, 2024) $"
 __version__ = "$Revision: 3.2.2 $"
 #=========================================================================================
 # Created
@@ -35,7 +35,6 @@ from ccpn.ui.gui.widgets.Label import Label, ActiveLabel
 from ccpn.ui.gui.guiSettings import getColours, BORDERFOCUS, BORDERNOFOCUS
 from ccpn.ui.gui.widgets.Font import setWidgetFont, getFontHeight
 from ccpn.util.Path import aPath
-from ccpn.ui.gui.widgets.MessageDialog import showMessage
 
 
 ATTRIBUTE_CHECK_LIST = ('_mouseStart', '_minimumWidth', '_widthStart', '_minimumHeight', '_heightStart')
@@ -325,6 +324,7 @@ class TextBrowser(QtWidgets.QTextBrowser, Base):
             self.setHtmlFilePath(self.htmlFilePath)
 
     def setHtmlFilePath(self, htmlFilePath):
+        from ccpn.ui.gui.widgets.MessageDialog import showMessage
         path = aPath(htmlFilePath)
         if not path.exists():
             showMessage('Path not found', f'Could not load {path}')
