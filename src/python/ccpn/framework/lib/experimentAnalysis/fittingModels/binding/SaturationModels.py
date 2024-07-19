@@ -3,9 +3,10 @@
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2023"
-__credits__ = ("Ed Brooksbank, Joanna Fox, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
-               "Timothy J Ragan, Brian O Smith, Gary S Thompson & Geerten W Vuister")
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
+               "Timothy J Ragan, Brian O Smith, Daniel Thompson",
+               "Gary S Thompson & Geerten W Vuister")
 __licence__ = ("CCPN licence. See https://ccpn.ac.uk/software/licensing/")
 __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, L.G., & Vuister, G.W.",
                  "CcpNmr AnalysisAssign: a flexible platform for integrated NMR analysis",
@@ -14,8 +15,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2023-11-13 10:25:55 +0000 (Mon, November 13, 2023) $"
-__version__ = "$Revision: 3.2.0 $"
+__dateModified__ = "$dateModified: 2024-07-19 16:25:51 +0100 (Fri, July 19, 2024) $"
+__version__ = "$Revision: 3.2.5 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -396,6 +397,9 @@ class TwoSiteBindingModel(BindingModelBC):
     Minimiser = _Binding2SiteMinimiser
     
     isEnabled = False
+    targetSeriesAnalyses = [
+                                            sv.ChemicalShiftMappingAnalysis
+                                            ]
 
     def fitSeries(self, inputData:TableFrame, rescale=True, *args, **kwargs) -> TableFrame:
         """
@@ -424,6 +428,9 @@ class OneSiteWithAllostericBindingModel(BindingModelBC):
     Minimiser = _Binding1SiteAllostericMinimiser
     
     isEnabled = False
+    targetSeriesAnalyses = [
+                                            sv.ChemicalShiftMappingAnalysis
+                                            ]
 
     def fitSeries(self, inputData:TableFrame, rescale=True, *args, **kwargs) -> TableFrame:
         """
@@ -479,6 +486,9 @@ class FractionBindingModel(BindingModelBC):
     
     Minimiser = _FractionBindingMinimiser
     isEnabled = True
+    targetSeriesAnalyses = [
+                                            sv.ChemicalShiftMappingAnalysis
+                                            ]
 
 class FractionBindingWithTargetConcentrModel(BindingModelBC):
     """
@@ -491,5 +501,8 @@ class FractionBindingWithTargetConcentrModel(BindingModelBC):
     # MaTex = ''
     Minimiser = _FractionBindingWitTargetConcentMinimiser
     isEnabled = True
+    targetSeriesAnalyses = [
+                                            sv.ChemicalShiftMappingAnalysis
+                                            ]
 
 

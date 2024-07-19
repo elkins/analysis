@@ -1,9 +1,10 @@
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2022"
-__credits__ = ("Ed Brooksbank, Joanna Fox, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
-               "Timothy J Ragan, Brian O Smith, Gary S Thompson & Geerten W Vuister")
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
+               "Timothy J Ragan, Brian O Smith, Daniel Thompson",
+               "Gary S Thompson & Geerten W Vuister")
 __licence__ = ("CCPN licence. See https://ccpn.ac.uk/software/licensing/")
 __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, L.G., & Vuister, G.W.",
                  "CcpNmr AnalysisAssign: a flexible platform for integrated NMR analysis",
@@ -11,9 +12,9 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2022-10-26 15:40:30 +0100 (Wed, October 26, 2022) $"
-__version__ = "$Revision: 3.1.0 $"
+__modifiedBy__ = "$modifiedBy: Luca Mureddu $"
+__dateModified__ = "$dateModified: 2024-07-19 16:25:51 +0100 (Fri, July 19, 2024) $"
+__version__ = "$Revision: 3.2.5 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -41,11 +42,43 @@ UNCHECKED = QtCore.Qt.Unchecked
 class RadioButtons(QtWidgets.QWidget, Base):
 
     def __init__(self, parent, texts=None, selectedInd=None, exclusive=True,
-
                  callback=None, direction='h', tipTexts=None, objectNames=None, squared=False,
                  extraLabels=None, extraLabelIcons=None, enabledTexts=None,
-                 icons=None, initButtons=True,
+                 icons=None, initButtons=True, numGridRows=1, numGridCols=None,
                  **kwds):
+
+        """
+
+        :param parent:
+        :param texts:
+        :param selectedInd:
+        :param exclusive:
+        :param callback:
+        :param direction: str: one of 'v', 'h', 'gv', 'gh'
+                                    - If direction is ‘gv’ (grid vertical), buttons are placed top to bottom until the number of rows (numGridRows) is reached, then move to the next column.
+                                    e.g. for ABCDEFGH, numGridRows=2:
+                                        | A C E G |
+                                        | B D F H |
+                                    - If direction is ‘gh’ (grid horizontal), buttons are placed left to right until the number of columns (numGridCols) is reached, then move to the next row.
+                                    e.g. for ABCDEFGH, numGridRows=2:
+                                        | A B C D |
+                                        | E F G H |
+                                    - If direction is ‘h’ (horizontal) buttons are placed left to right in 1 row with multiple columns
+                                        | A B C D E F G H |
+                                    - If direction is ‘v’ (vertical) buttons are placed top to bottom in multiple rows and one single column
+
+        :param tipTexts:
+        :param objectNames:
+        :param squared:
+        :param extraLabels:
+        :param extraLabelIcons:
+        :param enabledTexts:
+        :param icons:
+        :param initButtons:
+        :param numGridRows:
+        :param numGridCols:
+        :param kwds:
+        """
 
         super().__init__(parent)
         Base._init(self, setLayout=True, **kwds)
@@ -81,7 +114,7 @@ class RadioButtons(QtWidgets.QWidget, Base):
 
         self.radioButtons = []
         if initButtons:
-            self.setButtons(texts, selectedInd, direction, tipTexts, objectNames, icons=icons)
+            self.setButtons(texts, selectedInd, direction, tipTexts, objectNames, icons=icons, numGridRows=numGridRows, numGridCols=numGridCols)
 
         # for i, text in enumerate(texts):
         #   if 'h' in direction:
@@ -105,9 +138,8 @@ class RadioButtons(QtWidgets.QWidget, Base):
                 button.setEnabled(isEnabled)
 
     def setButtons(self, texts=None, selectedInd=None, direction='h', tipTexts=None, objectNames=None, silent=False,
-                   icons=None):
-        """Change the buttons in the button group
-        """
+                   icons=None, numGridRows=1, numGridCols=None):
+        """Change the buttons in the button group"""
         # clear the original buttons
         selected = self.getSelectedText()
 
@@ -116,9 +148,33 @@ class RadioButtons(QtWidgets.QWidget, Base):
             btn.deleteLater()
         self.radioButtons = []
 
+        # Calculate the grid dimensions if direction is 'gv' or 'gh'
+        numButtons = len(texts)
+        if direction in ['gv', 'gh']:
+            if numGridCols is None and direction == 'gh':
+                numGridCols = (numButtons + numGridRows - 1) // numGridRows  # Calculate the required number of columns for 'gh'
+            elif numGridCols is None and direction == 'gv':
+                numGridCols = numButtons // numGridRows + (numButtons % numGridRows > 0)  # Calculate the required number of columns for 'gv'
+
         # rebuild the button list
+        row = 0
+        col = 0
+
         for i, text in enumerate(texts):
-            grid = (0, i) if 'h' in direction else (i, 0)
+            if direction == 'gv':
+                grid = (row, col)
+                row += 1
+                if row == numGridRows:
+                    row = 0
+                    col += 1
+            elif direction == 'gh':
+                grid = (row, col)
+                col += 1
+                if col == numGridCols:
+                    col = 0
+                    row += 1
+            else:
+                grid = (0, i) if 'h' in direction else (i, 0)
 
             if self.extraLabels and len(self.extraLabels) == len(self.texts):
                 w = Widget(self, grid=grid, hAlign='l', setLayout=True)
@@ -625,7 +681,8 @@ def main():
         '$\\lambda_{soil}=k_{soil} / C_{soil}$']
 
     pixmaps = [maTex2Pixmap(ex) for ex in mathExamples]
-    radioButtons = RadioButtons(popup, texts=['fff', 'gggg'], extraLabels=['', ''], extraLabelIcons=pixmaps, grid=(1, 0))
+    # radioButtons = RadioButtons(popup, texts=['fff', 'gggg'], extraLabels=['', ''], extraLabelIcons=pixmaps, grid=(1, 0))
+    radioButtons = RadioButtons(popup, texts='ABCDEFGH', direction='gh', numGridRows=2, numGridCols=7, grid=(1, 0))
 
     popup.raise_()
     popup.exec()
