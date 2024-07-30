@@ -5,9 +5,10 @@ Module Documentation here
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2023"
-__credits__ = ("Ed Brooksbank, Joanna Fox, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
-               "Timothy J Ragan, Brian O Smith, Gary S Thompson & Geerten W Vuister")
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
+               "Timothy J Ragan, Brian O Smith, Daniel Thompson",
+               "Gary S Thompson & Geerten W Vuister")
 __licence__ = ("CCPN licence. See https://ccpn.ac.uk/software/licensing/")
 __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, L.G., & Vuister, G.W.",
                  "CcpNmr AnalysisAssign: a flexible platform for integrated NMR analysis",
@@ -16,8 +17,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2023-06-28 19:23:05 +0100 (Wed, June 28, 2023) $"
-__version__ = "$Revision: 3.2.0 $"
+__dateModified__ = "$dateModified: 2024-07-30 17:22:58 +0100 (Tue, July 30, 2024) $"
+__version__ = "$Revision: 3.2.5 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -48,9 +49,12 @@ from ccpn.ui.gui.widgets.Label import Label
 from ccpn.ui.gui.widgets.Frame import Frame
 from ccpn.ui.gui.widgets.PulldownListsForObjects import SpectrumGroupPulldown
 from ccpn.ui.gui.widgets.Spacer import Spacer
+from ccpn.ui.gui.widgets.SeriesUnitsWidget import SeriesUnitWidget, QUANTITY, TYPE, UNIT
+from ccpn.core.lib.SeriesUnitConverter import SERIESUNITS, GENERIC, UNITLESS, ARBITRARYUNIT, TEMPERATURE
 from ccpn.ui.gui.widgets.TextEditor import PlainTextEditor
-from ccpn.ui.gui.widgets.RadioButtons import RadioButtons
-from ccpn.ui.gui.widgets.CompoundWidgets import PulldownListCompoundWidget
+from ccpn.ui.gui.widgets.HLine import HLine, LabeledHLine
+from ccpn.ui.gui.guiSettings import COLOUR_SCHEMES, getColours, DIVIDER, setColourScheme, FONTLIST, ZPlaneNavigationModes
+from ccpn.ui.gui.widgets.CompoundWidgets import PulldownListCompoundWidget, DoubleSpinBoxCompoundWidget, ButtonListCompoundWidget, EntryCompoundWidget
 from ccpn.ui.gui.widgets.Icon import Icon
 from ccpn.ui.gui.widgets.ButtonList import ButtonList
 from ccpn.ui.gui.popups._GroupEditorPopupABC import _GroupEditorPopupABC
@@ -58,6 +62,8 @@ from ccpn.ui.gui.popups.SpectrumPropertiesPopup import ColourTab, ContoursTab, C
 from ccpn.util.AttrDict import AttrDict
 from ccpn.util.Constants import ALL_SERIES_UNITS
 from ccpn.ui.gui.lib.ChangeStateHandler import changeState, ChangeDict
+import re
+import numpy as np
 
 
 DEFAULTSPACING = (3, 3)
@@ -78,6 +84,108 @@ TAB_WARNING_MSG = f'This option is not available for Spectrum Groups containing 
 _PidsHeader = 'Pids'
 _WidgetsHeader = 'Widgets'
 _ValuesHeader = 'Values'
+_AdditionalValuesHeader = 'AdditionalValues'
+ASCENDINGDEF = ''' Reorder spectra by Ascending series values: smaller value to be on top. i.e. A... Z or 1... 10 '''
+DESCENDINGDEF = ''' Reorder spectra by Descending series values: larger value to be on top. i.e. Z.. A or 10... 1 '''
+SELECT = '< Select >'
+
+def _getEntryOrderValues(spectra):
+    """Get the entry order of the series spectra in the Project"""
+    project = spectra[0].project
+    allSpectraPids =  [str(x.pid) for x in project.spectra]
+    seriesSpectraPids =  [str(x.pid) for x in spectra]
+    longList = np.array(allSpectraPids)
+    values = [np.where(longList == pid)[0][0] for pid in seriesSpectraPids]
+
+    return values
+
+def _getEnumerateOrderValues(spectra):
+    """Get the enumeration of series spectra """
+    values = np.arange(start=1, stop=len(spectra)+1)
+    return values
+
+def _getPidNumberValues(spectra):
+    """Get the last group of number from the pid of series spectra """
+    values = []
+    pids = [x.pid for x in spectra]
+    for pid in pids:
+        # Find all groups of digits in the string
+        digits = re.findall(r'\d+', str(pid))
+        if digits:
+            # Take the last group of digits
+            number_str = digits[-1]
+            values.append(number_str)
+        else:
+            values.append('')
+    if len(pids) != len(values):
+        return [''] * len(pids)
+    return values
+
+def _getTemperatureValues(spectra):
+    values = [x.temperature if x.temperature else '' for x in spectra ]
+    return values
+
+def _getNoiseLevelValues(spectra):
+    values = [x.noiseLevel if x.noiseLevel else '' for x in spectra]
+    return values
+
+def _getSpinningRateValues(spectra):
+    values = [x.spinningRate if x.spinningRate else '' for x in spectra]
+    return values
+
+def _getEmptyValues(spectra):
+    values = ['']*len(spectra)
+    return values
+
+
+FILLING_BY_PROPERTIES = {
+                                    'Enumeration': {
+                                                        'callback': _getEnumerateOrderValues,
+                                                        'tipText' : 'Enumerate by the current order',
+                                                        QUANTITY  : GENERIC,
+                                                        TYPE      : SeriesTypes.INTEGER.description,
+                                                        UNIT      : ARBITRARYUNIT
+                                                        },
+                                    'Project Entry Order' :{
+                                                        'callback':_getEntryOrderValues,
+                                                        'tipText': 'Enumerate by the entry order in the project',
+                                                        QUANTITY: GENERIC,
+                                                        TYPE: SeriesTypes.INTEGER.description,
+                                                        UNIT: ARBITRARYUNIT
+                                                        },
+                                    'Pid Number': {
+                                                        'callback':_getPidNumberValues,
+                                                        'tipText': 'Use the last group of numbers defined in the Pid (if any)',
+                                                        QUANTITY: GENERIC,
+                                                        TYPE    : SeriesTypes.FLOAT.description,
+                                                        UNIT    : ARBITRARYUNIT
+                                                         },
+                                    'Temperature':{
+                                                        'callback':_getTemperatureValues,
+                                                        'tipText': 'Temperature',
+                                                        QUANTITY: TEMPERATURE,
+                                                        TYPE    : SeriesTypes.FLOAT.description,
+                                                        UNIT    :  'K'
+                                                         },
+                                    'Noise Level':{
+                                                        'callback':_getNoiseLevelValues,
+                                                        'tipText': 'Noise Level',
+                                                        QUANTITY: GENERIC,
+                                                        TYPE    : SeriesTypes.FLOAT.description,
+                                                        UNIT    : ARBITRARYUNIT
+                                                         },
+
+                                    'Clear All':{
+                                                        'callback': _getEmptyValues,
+                                                        'tipText': 'Remove all existing values',
+                                                        QUANTITY: GENERIC,
+                                                        TYPE    : SeriesTypes.FLOAT.description,
+                                                        UNIT    : ARBITRARYUNIT
+                                        },
+                                    }
+
+FILLINGBYOPTIONS = list(FILLING_BY_PROPERTIES.keys())
+FILLINGBYTIPTEXTS = [v.get('tipText') for k,v in FILLING_BY_PROPERTIES.items()]
 
 
 class SpectrumGroupEditor(_GroupEditorPopupABC):
@@ -180,6 +288,21 @@ class SpectrumGroupEditor(_GroupEditorPopupABC):
         # self._revertButton.setEnabled(True)
         return True
 
+    @staticmethod
+    def convertListToProperType(lst):
+        """A fallback attempt to convert to a proper type """
+        def convertType(value):
+            if value in ['', ' ', None, np.nan]:
+                return None
+            try:
+                return int(value)
+            except ValueError:
+                try:
+                    return float(value)
+                except ValueError:
+                    return value
+        return [convertType(item) for item in lst]
+
     def _groupInit(self):
         # apply the changes to the listed spectra spectraTab._changes
         if self.spectraTab._changes:
@@ -213,27 +336,38 @@ class SpectrumGroupEditor(_GroupEditorPopupABC):
 
         self._spectrumGroupSeriesEdited = OrderedDict()
         self._spectrumGroupSeriesValues = list(self.obj.series)
-        self._spectrumGroupSeriesUnitsEdited = None
-        self._spectrumGroupSeriesTypeEdited = None
+        self._spectrumGroupAdditionalSeriesValues = list(self.obj.additionalSeries)
 
         # set the series values - this may crash
         if self.seriesTab._changes:
             self._applyAllChanges(self.seriesTab._changes)
 
-        if self._spectrumGroupSeriesUnitsEdited is not None:
-            self.obj.seriesUnits = self._spectrumGroupSeriesUnitsEdited
-
-        if self._spectrumGroupSeriesTypeEdited is not None:
-            self.obj.seriesType = self._spectrumGroupSeriesTypeEdited
+        ## apply the units to the object. Could not use the _spectrumGroupSeriesUnitsEdited succesfully. gave up.
+        self.obj.seriesQuantity = self.seriesTab.seriesUnitWidget.getQuantity()
+        self.obj.seriesUnits = self.seriesTab.seriesUnitWidget.getUnit()
+        self.obj.seriesType = self.seriesTab.seriesUnitWidget.getTypeCode()
 
         df = self.seriesTab._getDFfromSeriesWidgets()
         if df.empty:
             return
 
-        seriesType = self.seriesTab.seriesType.getSelectedText()
-        neededType = SeriesTypes._dataTypesMapping().get(seriesType)
-        vv = [neededType(v) if v else None for v in df[_ValuesHeader].values  ]
-        self.obj.series = vv
+        seriesTypeCallable = self.seriesTab.seriesUnitWidget.getTypeCallable()
+        values = df[_ValuesHeader].values
+        if seriesTypeCallable is not None:
+            vv = [seriesTypeCallable(v) if v else None for v in values]
+        else:
+            vv = self.convertListToProperType(values)
+        if len(self.obj.spectra) == 0:
+            self.obj.series = []
+        else:
+            self.obj.series = vv
+
+        #add the additional values to the object
+        _allAdditionalValues = df[_AdditionalValuesHeader].values
+        _allAdditionalValues = self.convertListToProperType([_allAdditionalValues[0]])
+        _allAdditionalValues = tuple(_allAdditionalValues)
+        _allAdditionalValues = (_allAdditionalValues,)*len(self.obj.series)
+        self.obj.additionalSeries = _allAdditionalValues
 
     _groupEditorInitMethod = _groupInit
 
@@ -285,7 +419,7 @@ class SpectrumGroupEditor(_GroupEditorPopupABC):
             if tabFunc:
                 tabFunc()
 
-        self._populate()  # is not needed to populate again all.
+        self._populate(populateSeries=False)  # populateSeries MUST be False here. already done  1Line above  tabFunc(). It is not needed to populate again all!
         self.setDefaultButton(None)
 
         self.connectSignals()
@@ -410,7 +544,7 @@ class SpectrumGroupEditor(_GroupEditorPopupABC):
         with contextlib.suppress(Exception):
             self._groupNdColours._fillPullDowns()
 
-    def _populate(self):
+    def _populate(self, populateSeries=True):
         """Populate the widgets in the tabs
         """
         ## NOTE:ED - check that the  widgets are populated correctly - may be called exponentially from not
@@ -429,9 +563,11 @@ class SpectrumGroupEditor(_GroupEditorPopupABC):
         with contextlib.suppress(Exception):
             self._groupNdColours._populateColour()
 
-        with self.blockWidgetSignals():  # we already filled when calling _spectraChanged
-            self.seriesTab._fillSeriesFrame(self._defaultSpectra, spectrumGroup=self.obj)
-        self.seriesTab._populateSeries()
+
+        if populateSeries:
+            with self.blockWidgetSignals():  # we already filled when calling _spectraChanged
+                self.seriesTab._fillSeriesFrame(self._defaultSpectra, spectrumGroup=self.obj)
+                self.seriesTab._populateSeries()
 
     def _getChangeState(self):
         """Get the change state from the _changes dict
@@ -526,11 +662,9 @@ class SpectrumGroupEditor(_GroupEditorPopupABC):
 
         if len(self._newSpectra) > MAX_WIDGET_COUNT:
             self._setDisabledColourTab()
-            self.seriesTab._setDisabledSeriesTab()
             return
         self._colourTabs1d.show()
         self._colourDisabledFrame.hide()
-        self.seriesTab._seriesEnabled = True
         deleteSet = (set(self.currentSpectra) - set(self._newSpectra))
         newSet = (set(self.currentSpectra) - set(self._newSpectra))
 
@@ -579,6 +713,8 @@ class SpectrumGroupEditor(_GroupEditorPopupABC):
 
         # update the current list
         self.currentSpectra = self._newSpectra
+        self.seriesTab._setSeriesOptionsEnabled(len(self.currentSpectra) > 0)
+
 
     def _spectraChangedNd(self):
         self._newSpectra = self._getSpectraFromList()
@@ -632,6 +768,8 @@ class SpectrumGroupEditor(_GroupEditorPopupABC):
 
         # update the current list
         self.currentSpectra = self._newSpectra
+        self.seriesTab._setSeriesOptionsEnabled(len(self.currentSpectra) > 0)
+
 
     def copySpectra(self, fromSpectrum, toSpectra):
         """Copy the contents of tabs to other spectra
@@ -693,110 +831,155 @@ class SeriesFrame(Frame):
             self.defaultObject = _SpectrumGroupContainer()
             self.defaultObject.spectra = defaultItems
 
-        self._row = 0
-        self._col = 0
-        # seriesLabel = Label(self, text="Spectrum SeriesValues", grid=(self._row, self._col), gridSpan=(1, 3), hAlign='l')
-        # seriesLabel.setFixedHeight(30)
-        # seriesLabel.setSizePolicy(QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Fixed)
-        Spacer(self, 10, 10, QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed,
-               grid=(self._row, self._col))
+        ## Set widgets
+        self._operationFrames = [] #add a list of frames that need to be disabled if No spectra
+        self._mainLayoutRow = 0
+        self._mainLayoutCol = 0
+        self._mainLayoutGridSpan = (1,3)
+        lineColour = getColours()[DIVIDER]
+        self.labelMinimumWidth = 120 #label size for the compound widgets. needed for looking nicely aligned (to the left)
+        self.widgetlMinimumWidth = 200
 
-        self._row += 1
 
-        self._seriesDisabledFrame = Frame(self, setLayout=True, showBorder=False,
-                                          grid=(self._row, self._col), vAlign='t')
-        iconLabel = Label(self._seriesDisabledFrame, icon=Icon('icons/exclamation_small'), grid=(0, 0), hAlign='l')
-        tabWarningLabel = Label(self._seriesDisabledFrame, text=TAB_WARNING_MSG, grid=(0, 1), hAlign='l', )
-        self._seriesDisabledFrame.hide()
+        ## Series Predefined selections  section
+        self._presetOptionsFrame = Frame(self, setLayout=True, grid=(self._mainLayoutRow, self._mainLayoutCol), gridSpan=self._mainLayoutGridSpan)
+        self._operationFrames += [self._presetOptionsFrame]
+        self._presetOptionsRow = 0
+        _HLine = LabeledHLine(parent=self._presetOptionsFrame, text='Preset options', colour=lineColour, grid=(self._presetOptionsRow, 0), gridSpan=self._mainLayoutGridSpan)
+        self._presetOptionsRow += 1
+        self._fiilBySpectrumPropertyPulldown = PulldownListCompoundWidget(self._presetOptionsFrame,
+                                                                          labelText='Populate By',
+                                                                          texts=FILLINGBYOPTIONS,
+                                                                          toolTips=FILLINGBYTIPTEXTS,
+                                                                          callback=self._setValueFromSpectrumProperty,
+                                                                          grid=(self._presetOptionsRow, 1),
+                                                                          compoundKwds={'headerText':SELECT},
+                                                                          minimumWidths=(self.labelMinimumWidth, self.widgetlMinimumWidth))
 
-        self._seriesOptionsFrame = Frame(self, setLayout=True, showBorder=False,
-                                         grid=(self._row, self._col), vAlign='t')
-        self.seriesTypeLabel = Label(self._seriesOptionsFrame, text='Series Type', grid=(self._row, self._col), hAlign='l')
-        self.seriesType = RadioButtons(self._seriesOptionsFrame, texts=[str(val.description) for val in SeriesTypes],
-                                       grid=(self._row, self._col + 1), gridSpan=(1, 2), hAlign='l',
-                                       callback=partial(self._queueChangeSeriesType, self.defaultObject))
+        self._mainLayoutRow += 1
 
-        self._row += 1
-        self._seriesFrameRow = self._row
-        self._seriesFrameCol = self._col
-        # self._seriesFrame = Frame(self, setLayout=True, showBorder=False, grid=(self._seriesFrameRow, self._seriesFrameCol), gridSpan=(1, 3))
-        self._seriesFrame = None
+        ## Units section
+        self._seriesUnitsFrame = Frame(self, setLayout=True, showBorder=False,  grid=(self._mainLayoutRow, self._mainLayoutCol), gridSpan=self._mainLayoutGridSpan)
+        self._operationFrames += [self._seriesUnitsFrame]
+        self._seriesUnitsFrameRow = 0
+        _HLine = LabeledHLine(parent=self._seriesUnitsFrame, text='Units', grid=(self._seriesUnitsFrameRow, 0), colour=lineColour, gridSpan=self._mainLayoutGridSpan)
+        self._seriesUnitsFrameRow += 1
+        self.seriesUnitWidget = SeriesUnitWidget(self._seriesUnitsFrame, callback=self._seriesUnitWidgetCallback, labelMinimumWidth=self.labelMinimumWidth, grid=(self._seriesUnitsFrameRow, 0))
+        self.seriesUnitWidget.quantitySelectionChanged.connect(partial(self._queueChangeSeriesQuantity, self.seriesUnitWidget, self.defaultObject))
+        self.seriesUnitWidget.unitSelectionChanged.connect(partial(self._queueChangeSeriesUnits, self.seriesUnitWidget, self.defaultObject))
+        self.seriesUnitWidget.typeSelectionChanged.connect(partial(self._queueChangeSeriesType, self.seriesUnitWidget, self.defaultObject))
+        self.seriesUnitWidget.deselectedAllSignal.connect(partial(self._allUnitsOptionsChanged, self.seriesUnitWidget, self.defaultObject))
 
-        self._row += 1
-        # unitsLabel = Label(self, text='Series Units', grid=(self._row, self._col), hAlign='l')
-        # self.unitsEditor = LineEdit(self, grid=(self._row, self._col + 1))
-        # unitsLabel.setFixedHeight(30)
-        ascendingDef = ''' Reorder spectra by Ascending series values: smaller value to be on top. i.e. A... Z or 1... 10 '''
-        descendingDef = ''' Reorder spectra by Descending series values: larger value to be on top. i.e. Z.. A or 10... 1 '''
 
-        reorderLabel = Label(self, text='Reorder spectra by series value', grid=(self._row, self._col), hAlign='l')
-        self._orderButtons = ButtonList(self, texts=['Small to Large', 'Large to Small'],
-                                        tipTexts=[ascendingDef, descendingDef],
-                                        callbacks=[partial(self._reorderSpectraBySeries, True),
-                                                   partial(self._reorderSpectraBySeries, False)],
-                                        grid=(self._row, self._col + 1))
-        self._row += 1
 
-        self.unitsEditor = PulldownListCompoundWidget(self._seriesOptionsFrame, labelText='Series Units', grid=(self._row, self._col), gridSpan=(1, 3), hAlign='l',
-                                                      editable=True, sizeAdjustPolicy=QtWidgets.QComboBox.AdjustToContents)
-        self.unitsEditor.pulldownList.pulldownTextEdited.connect(partial(self._queueChangeSeriesUnits, self.unitsEditor, self.defaultObject))
-        self.unitsEditor.pulldownList.pulldownTextReady.connect(partial(self._updateSeriesUnitsPulldown, self.unitsEditor, self.defaultObject))
-        self._pulldownData = ALL_SERIES_UNITS
+        self.seriesUnitWidget.getLayout().setAlignment(QtCore.Qt.AlignTop | QtCore.Qt.AlignLeft)  # Align top and left
+        self._mainLayoutRow += 1
 
-        self._row += 1
-        self._errorFrameSeriesValues = Frame(self._seriesOptionsFrame, setLayout=True, grid=(self._row, self._col), gridSpan=(1, 3), hAlign='l')
+        ## Series Values  section
+        self._seriesValuesFrame = Frame(self, setLayout=True, showBorder=False, grid=(self._mainLayoutRow, self._mainLayoutCol), gridSpan=self._mainLayoutGridSpan)
+        self._operationFrames += [self._seriesValuesFrame]
+        self._seriesValuesFrameRow = 0
+        self._seriesValuesFrameCol = 0
+        _HLine = LabeledHLine(parent=self._seriesValuesFrame, text='Values', colour=lineColour, grid=(self._seriesValuesFrameRow, self._seriesValuesFrameCol), gridSpan=self._mainLayoutGridSpan)
+        self._seriesValuesFrameRow += 1
+        self._seriesFrameRow = self._seriesValuesFrameRow
+        self._seriesFrame = Frame(self, setLayout=True, showBorder=False, grid=(self._seriesValuesFrameRow, self._seriesValuesFrameCol), gridSpan=self._mainLayoutGridSpan)
+        self._mainLayoutRow += 1
 
+        ## Series Additional Values  section
+        self._seriesAdditionalValuesFrame = Frame(self, setLayout=True, showBorder=False, grid=(self._mainLayoutRow, self._mainLayoutCol), gridSpan=self._mainLayoutGridSpan)
+        self._operationFrames += [self._seriesAdditionalValuesFrame]
+        self._seriesAdditionalValuesFrameRow = 0
+        _HLine = LabeledHLine(parent=self._seriesAdditionalValuesFrame, text='Additional Values', colour=lineColour, grid=(self._seriesAdditionalValuesFrameRow, 0), gridSpan=self._mainLayoutGridSpan)
+        self._seriesAdditionalValuesFrameRow += 1
+        tipText = 'Additional Series Value in the same units as the main series values. E.g.: Global protein concentration. '
+        self.additionalValueEditor = EntryCompoundWidget(self._seriesAdditionalValuesFrame,
+                                                                 labelText='Global Value', tipText=tipText,
+                                                                 compoundKwds={'backgroundText':''},
+                                                                 callback=None, #set as signal on editing finished
+                                                                 grid=(self._seriesAdditionalValuesFrameRow, 0),
+                                                                 minimumWidths=(self.labelMinimumWidth, self.widgetlMinimumWidth))
+        self.additionalValueEditor.entry.textChanged.connect(partial(self._queueChangeAdditionalSeriesValues, self.additionalValueEditor, self.defaultObject))
+
+        self._mainLayoutRow += 1
+
+        ## Series Actions  section
+        self._actionsFrame = Frame(self, setLayout=True, grid=(self._mainLayoutRow, self._mainLayoutCol), gridSpan=self._mainLayoutGridSpan)
+        self._operationFrames += [self._actionsFrame]
+        self._actionsFrameRow = 0
+        _HLine = LabeledHLine(parent=self._actionsFrame, text='Actions', colour=lineColour, grid=(self._actionsFrameRow, 0), gridSpan=self._mainLayoutGridSpan)
+        self._actionsFrameRow += 1
+        buttonMinimumWidth = int(self.widgetlMinimumWidth/2)
+        self._orderButtons = ButtonListCompoundWidget(self._actionsFrame,
+                                                                            labelText='Reorder Series',
+                                                                            texts=['Small to Large', 'Large to Small'],
+                                                                            tipTexts=[ASCENDINGDEF, DESCENDINGDEF],
+                                                                            callbacks=[partial(self._reorderSpectraBySeries, True), partial(self._reorderSpectraBySeries, False)],
+                                                                            grid=(self._actionsFrameRow, 1),
+                                                                            minimumWidths=(self.labelMinimumWidth, self.widgetlMinimumWidth),
+                                                                            buttonMinimumWidth=buttonMinimumWidth)
+        self._actionsFrameRow += 1
+        self._convertButtons = ButtonListCompoundWidget(self._actionsFrame,
+                                                      labelText='Convert to SI ',
+                                                      texts=['Apply'],
+                                                      tipTexts=['Convert the Series values to the SI Base Unit for the selected quantity'],
+                                                      callbacks=[self._convertSeriesToSiUnits],
+                                                      grid=(self._actionsFrameRow, 1),
+                                                      minimumWidths=(self.labelMinimumWidth, self.widgetlMinimumWidth),
+                                                      buttonMinimumWidth=buttonMinimumWidth)
+
+        self._toggleConversionButton()
+        self._actionsFrameRow += 1
+        self._mainLayoutRow += 1
+
+        ## Error Icons section
+        self._errorsFrame = Frame(self, setLayout=True, grid=(self._mainLayoutRow, self._mainLayoutCol), gridSpan=self._mainLayoutGridSpan)
+        self._errorsFrameRow = 0
+        _HLine = LabeledHLine(parent=self._errorsFrame, text='Warnings', colour=lineColour, grid=(self._errorsFrameRow, 0), gridSpan=self._mainLayoutGridSpan)
+        self._errorsFrameRow += 1
+
+        self._errorFrameSeriesValues = Frame(self._errorsFrame, setLayout=True, grid=(self._errorsFrameRow, 0), gridSpan=self._mainLayoutGridSpan)
         # add a frame containing an error message if the series values are not all the same type
         self.errorIcon = Icon('icons/exclamation_small')
-        # self._errorFrameSeriesValues.layout().setColumnStretch(0, 1)
-        # self._errorFrameSeriesValues.layout().setColumnStretch(1, 1000)
-        self._errors = ['seriesValues must be of the same type']
+        self._errors = ['All series values must be of the same type: either all Float, Integer, or String, or all empty.']
         for i, error in enumerate(self._errors):
             iconLabel = Label(self._errorFrameSeriesValues, grid=(i, 0))
             iconLabel.setPixmap(self.errorIcon.pixmap(16, 16))
             label = Label(self._errorFrameSeriesValues, error, grid=(i, 1))
         self._errorFrameSeriesValues.hide()
-
-        self._row += 1
-        self._errorFrameDict = Frame(self._seriesOptionsFrame, setLayout=True, grid=(self._row, self._col), gridSpan=(1, 3), hAlign='l')
-
-        # add a frame containing an error message if the dicts do not contain the same keys
-        self.errorIcon = Icon('icons/exclamation_small')
-        # self._errorFrameDict.layout().setColumnStretch(0, 1)
-        # self._errorFrameDict.layout().setColumnStretch(1, 1000)
-        self._errors = ['seriesValue dicts do not contain the same keys']
-        for i, error in enumerate(self._errors):
-            iconLabel = Label(self._errorFrameDict, grid=(i, 0))
-            iconLabel.setPixmap(self.errorIcon.pixmap(16, 16))
-            label = Label(self._errorFrameDict, error, grid=(i, 1))
-        self._errorFrameDict.hide()
-
-        self._row += 1
-        Spacer(self._seriesOptionsFrame, 1, 1, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding,
-               grid=(self._row, self._col + 2))
-        self._seriesOptionsFrame.getLayout().setRowStretch(self._row, 10)
+        self._errorFrameSeriesValues.getLayout().setAlignment(QtCore.Qt.AlignTop | QtCore.Qt.AlignLeft)  # Align top and left
 
         # set the background to transparent so matches the colour of the tab
         self.setAutoFillBackground(False)
         self.setStyleSheet('Frame { background: transparent; }')
 
-        if len(defaultItems) > MAX_WIDGET_COUNT:
-            self._setDisabledSeriesTab()
-
+        if len(defaultItems) ==0:
+            self._setSeriesOptionsEnabled(False)
         if self._seriesEnabled:
             self._fillSeriesFrame(defaultItems=defaultItems, spectrumGroup=self.defaultObject)
-
-        # get colours from the lineEdit and copy to the plainTextEdit
-        # yourWidget.palette().highlight().color().name()?
+        self.getLayout().setAlignment(QtCore.Qt.AlignTop | QtCore.Qt.AlignLeft)  # Align top and left
+        self.getLayout().setRowStretch(self._mainLayoutRow+1, 10)  # set stretch to last frame to expand when resize the window
 
     def _getDFfromSeriesWidgets(self):
         dd = defaultdict(list)
+        _additionalValues = self.additionalValueEditor.getText() #note: the initial _additionalValues is only one global value. Eventually will be multiple per spectrum.
         for sp, widget in self._editors.items():
             dd[_WidgetsHeader].append(widget)
             dd[_ValuesHeader].append(widget.get())
+            dd[_AdditionalValuesHeader].append(_additionalValues)
             dd[_PidsHeader].append(sp.pid)
         df = pd.DataFrame(dd)
         return df
+
+    def _applyNewValuesFromDF(self, dataFrame):
+        for i, row in dataFrame.iterrows():
+            widget = row[_WidgetsHeader]
+            widget.set(str(row[_ValuesHeader]))
+        additionalSIValues = dataFrame[_AdditionalValuesHeader].values
+        if len(additionalSIValues)>0:
+            vv = additionalSIValues[0]
+            additionalSIValue = str(vv) if vv is not None else ''
+            self.additionalValueEditor.setText(additionalSIValue)
 
     def _reorderSpectraBySeries(self, ascending=True):
         """
@@ -804,29 +987,101 @@ class SeriesFrame(Frame):
         To sort a spectrumGroup object by Series (using the terminal), use the method
         "SpectrumGroup > sortSpectraBySeries() "
         """
-        selType = self.seriesType.get()
+        selType = self.seriesUnitWidget.getType()
         isNumericTab = selType == SeriesTypes.INTEGER.description or selType == SeriesTypes.FLOAT.description
 
         df = self._getDFfromSeriesWidgets()
         if isNumericTab:  # set _ValuesHeader to numeric and ignore potential errors (empty boxes, or str conversion)
             df[_ValuesHeader] = pd.to_numeric(df[_ValuesHeader], errors='coerce')  #  errors='coerce' is essential here!
         sortedDf = df.sort_values(by=_ValuesHeader, ascending=ascending)  # do sorting
+        self._applyNewValuesFromDF(sortedDf)
+        self._parent._groupedObjects =  sortedDf[_PidsHeader].values.tolist()
 
-        for i, row in sortedDf.iterrows():
+
+    # Some convinient actions
+    def _convertSeriesToSiUnits(self, *args):
+        quantity = self.seriesUnitWidget.getQuantity()
+        selectedUnit = self.seriesUnitWidget.getUnit()
+        unitCls = SERIESUNITS.get(quantity)
+        df = self._getDFfromSeriesWidgets()
+        if quantity == GENERIC:
+            return
+        siValues = []
+        additionalSIValues = []
+        baseUnit = unitCls.SI_baseUnit
+        if unitCls is not None:
+            values = pd.to_numeric(df[_ValuesHeader], errors='coerce')  #  errors='coerce' is essential here!
+            additionalValues = pd.to_numeric(df[_AdditionalValuesHeader], errors='coerce')  #  errors='coerce' is essential here!
+            for value, additionalValue  in zip(values, additionalValues):
+                unitObj = unitCls(value, selectedUnit)
+                addUnitObj = unitCls(additionalValue, selectedUnit)
+                siValues.append(unitObj.toSI())
+                additionalSIValues.append(addUnitObj.toSI())
+        df[_ValuesHeader] = siValues
+        df[_AdditionalValuesHeader] = additionalSIValues
+        self._applyNewValuesFromDF(df)
+        self.seriesUnitWidget.setUnit(baseUnit)
+        self._toggleConversionButton()
+
+
+    def _seriesUnitWidgetCallback(self, *args):
+        self._toggleConversionButton()
+        unitTxt = self.seriesUnitWidget.getUnit()
+
+    def _toggleConversionButton(self, *args):
+        quantity = self.seriesUnitWidget.getQuantity()
+        if quantity == GENERIC:
+            self._convertButtons.setEnabled(False)
+            return
+        enable = False
+        selectedUnit = self.seriesUnitWidget.getUnit()
+        unitClass = SERIESUNITS.get(quantity)
+        if unitClass is not None:
+            baseUnit = unitClass.SI_baseUnit
+            enable = baseUnit != selectedUnit # don't enable if the selected is already a Base Unit
+        self._convertButtons.setEnabled(enable)
+
+    def _setValueFromSpectrumProperty(self, selection):
+
+        propertyOption = FILLING_BY_PROPERTIES.get(selection)
+        if propertyOption is None:
+            return
+        callback = propertyOption.get('callback')
+        if callback is None:
+            return
+        df = self._getDFfromSeriesWidgets()
+        if len(df)==0:
+            return
+        pids = df[_PidsHeader].values
+        spectra = [self.application.project.getByPid(x) for x in pids]
+        if len(spectra)==0:
+            return
+        values = callback(spectra)
+        for i, (index, row) in enumerate(df.iterrows()):
+            value = values[i]
             widget = row[_WidgetsHeader]
-            widget.set(str(row[_ValuesHeader]))
-        self._parent._groupedObjects = list(sortedDf[_PidsHeader].values)
+            widget.set(str(value))
+        # do the units selections
+        vv = {QUANTITY:propertyOption.get(QUANTITY),
+              TYPE:propertyOption.get(TYPE),
+              UNIT:propertyOption.get(UNIT)}
 
-        self.seriesType.set(selType)
+        if selection == 'Clear All':
+            self.seriesUnitWidget.deselectAll()
+        else:
+            self.seriesUnitWidget.setValues(vv)
+        self._allUnitsOptionsChanged(self.seriesUnitWidget, self.defaultObject)
+        self._parent._applyButton.setEnabled(True)
+        self._fiilBySpectrumPropertyPulldown.select(SELECT, blockSignals=True) # revert selection to the header
+        self._toggleConversionButton()
 
-    def _setDisabledSeriesTab(self):
 
-        self._seriesDisabledFrame.show()
-        self._seriesEnabled = False
-        if self._seriesFrame:
-            self._seriesFrame.hide()
-            self._seriesFrame.deleteLater()
-        self._seriesOptionsFrame.hide()
+    def _setSeriesOptionsEnabled(self, _bool):
+        self._seriesEnabled = _bool
+        for frame in self._operationFrames:
+            frame.setEnabled(_bool)
+        self._seriesFrame.setVisible(_bool)
+
 
     def _fillSeriesFrame(self, defaultItems, spectrumGroup=None):
         """Reset the contents of the series frame for changed spectrum list
@@ -834,8 +1089,6 @@ class SeriesFrame(Frame):
         if not self._seriesEnabled:
             return
         # remove previous editor values
-        self._seriesDisabledFrame.hide()
-        self._seriesOptionsFrame.show()
         for spec, editor in self._editors.items():
             editor.textChanged.disconnect()
             self._currentSeriesValues[spec] = editor.get()
@@ -850,17 +1103,17 @@ class SeriesFrame(Frame):
                 self._seriesFrame.hide()
                 self._seriesFrame.deleteLater()
 
-            self._seriesFrame = Frame(self, setLayout=True, showBorder=False,
-                                      grid=(self._seriesFrameRow, self._seriesFrameCol), gridSpan=(1, 3),
+            self._seriesFrame = Frame(self._seriesValuesFrame, setLayout=True, showBorder=False,
+                                      grid=(self._seriesValuesFrameRow, self._seriesValuesFrameCol), gridSpan=self._mainLayoutGridSpan,
                                       vAlign='t')
-            self.getLayout().setAlignment(QtCore.Qt.AlignLeft | QtCore.Qt.AlignTop)
+            self.getLayout().setAlignment(QtCore.Qt.AlignTop)
             # add new editors with the new values
             for sRow, spec in enumerate(defaultItems):
-                seriesLabel = Label(self._seriesFrame, text=spec.pid, grid=(sRow, 0), vAlign='t')
+                seriesLabel = Label(self._seriesFrame, text=spec.pid, grid=(sRow, 0), vAlign='t', minimumWidth=self.labelMinimumWidth)
                 seriesLabel.setFixedHeight(30)
 
                 editorFrame = Frame(self._seriesFrame, setLayout=True, grid=(sRow, 1), vAlign='t')
-                seriesEditor = PlainTextEditor(editorFrame, grid=(0, 0), fitToContents=True)
+                seriesEditor = PlainTextEditor(editorFrame, grid=(0, 0), fitToContents=True, minimumWidth=self.labelMinimumWidth)
                 seriesEditor.setMinimumSize(50, 25)
 
                 # attributes for setting size when using resize-grip
@@ -888,7 +1141,22 @@ class SeriesFrame(Frame):
             return
         if self.defaultObject:
             with self._changes.blockChanges():
-                self.seriesType.setIndex(int(self.defaultObject.seriesType or 0))
+                seriesType = self.defaultObject.seriesType
+                seriesTypeAsString = ''
+                if seriesType is not None:
+                    seriesTypeData = SeriesTypes(seriesType)
+                    seriesTypeAsString = seriesTypeData.description
+
+                vv = {QUANTITY: self.defaultObject.seriesQuantity,
+                      UNIT: self.defaultObject.seriesUnits,
+                      TYPE: seriesTypeAsString
+                      }
+
+                self.seriesUnitWidget.setValues(vv)
+                self._spectrumGroupSeriesQuantityEdited = self.defaultObject.seriesQuantity
+                self._spectrumGroupSeriesUnitsEdited = self.defaultObject.seriesUnits
+                self._spectrumGroupSeriesTypeEdited = self.defaultObject.seriesType
+
                 series = self.defaultObject.series
                 if series:
                     for spec, textEditor in self._editors.items():
@@ -896,14 +1164,15 @@ class SeriesFrame(Frame):
                             ii = self.defaultObject.spectra.index(spec)
                         except:
                             pass
-
                         try:
-                            if self.seriesType.getIndex() == SeriesTypes.FLOAT.value:
+                            if self.seriesUnitWidget.getType() == SeriesTypes.FLOAT.description:
                                 seriesValue = float(series[ii])
-                            if self.seriesType.getIndex() == SeriesTypes.INTEGER.value:
+                            elif self.seriesUnitWidget.getType() == SeriesTypes.INTEGER.description:
                                 seriesValue = int(series[ii])
-                            elif self.seriesType.getIndex() == SeriesTypes.STRING.value:
+                            elif self.seriesUnitWidget.getType()  == SeriesTypes.STRING.description:
                                 seriesValue = str(series[ii])
+                            elif series[ii] in [None, np.nan, '', ' ']:
+                                seriesValue = ''
                             else:
                                 seriesValue = repr(series[ii])
                         except Exception as es:
@@ -911,12 +1180,11 @@ class SeriesFrame(Frame):
                         else:
                             # print('populating textEditor value: %s' % seriesValue)
                             textEditor.set(str(seriesValue))
-
-                if self.defaultObject.seriesUnits is not None and self.defaultObject.seriesUnits not in self._pulldownData:
-                    self._pulldownData += (self.defaultObject.seriesUnits,)
-                self.unitsEditor.modifyTexts(texts=self._pulldownData)
-                self.unitsEditor.select(self.defaultObject.seriesUnits)
-
+            # add the additional Series values
+            additionalSeries = self.defaultObject.additionalSeries
+            ## keep only the first global value for now.
+            additionalValue = additionalSeries[0][0] if additionalSeries and additionalSeries[0] else ''
+            self.additionalValueEditor.setText(str(additionalValue))
         self._validateEditors()
 
     def _getValuesFromTextEdit(self):
@@ -932,15 +1200,33 @@ class SeriesFrame(Frame):
             layout.removeItem(sp)
 
     @queueStateChange(_verifyPopupApply)
+    def _queueChangeAdditionalSeriesValues(self,  editor, spectrumGroup, *args, **kwargs):
+        # TODO need to add the validator as in the main series
+        value = editor.getText()
+        if value in ['', ' ', None, np.nan]:
+            additionalSeriesValues = None
+        else:
+            additionalSeriesValues = self._parent.convertListToProperType(tuple(value,))
+
+        ##  In the initial implementation, all spectra additional Values in series are the same. e.g. the global protein concentration in a titration
+        spectrum = spectrumGroup.spectra[0]
+        specValues = spectrum._getAdditionalSeriesItems(spectrumGroup.pid) if spectrumGroup else None
+
+        if additionalSeriesValues != specValues:
+            return partial(self._changeSpectrumAdditionalSeriesValues, spectrumGroup, additionalSeriesValues)
+
+
+
+    @queueStateChange(_verifyPopupApply)
     def _queueChangeSpectrumSeriesValues(self, editor, spectrumGroup, spectrum, dim):
         # queue the value if has changed from the original
         value = editor.get()
         try:
-            if self.seriesType.getIndex() == SeriesTypes.FLOAT.value:
+            if self.seriesUnitWidget.getType() == SeriesTypes.FLOAT.description:
                 seriesValue = float(value)
-            elif self.seriesType.getIndex() == SeriesTypes.INTEGER.value:
+            elif self.seriesUnitWidget.getType() == SeriesTypes.INTEGER.description:
                 seriesValue = int(value)
-            elif self.seriesType.getIndex() == SeriesTypes.STRING.value:
+            elif self.seriesUnitWidget.getType() == SeriesTypes.STRING.description:
                 seriesValue = str(value)
             else:
                 seriesValue = literal_eval(value)
@@ -965,17 +1251,19 @@ class SeriesFrame(Frame):
         heightSum = 0.0
         literalTypes = set()
         literalDictCompare = None
+        seenValues = []
         for editor in self._editors.values():
             value = editor.get()
+            seenValues.append(value)
             palette = editor.viewport().palette()
             colour = editor._background
             try:
                 seriesValue = None
-                if self.seriesType.getIndex() == SeriesTypes.FLOAT.value:
+                if self.seriesUnitWidget.getType() == SeriesTypes.FLOAT.description:
                     seriesValue = float(value)
-                elif self.seriesType.getIndex() == SeriesTypes.INTEGER.value:
+                elif self.seriesUnitWidget.getType() == SeriesTypes.INTEGER.description:
                     seriesValue = int(value)
-                elif self.seriesType.getIndex() == SeriesTypes.STRING.value:
+                elif self.seriesUnitWidget.getType() == SeriesTypes.STRING.description:
                     seriesValue = str(value)
                 else:
                     seriesValue = literal_eval(value)
@@ -1013,21 +1301,40 @@ class SeriesFrame(Frame):
             # editor.setMaximumHeight(height)
             # editor.updateGeometry()
 
+        # if they are all empty then is a VALID state
+        if all(item == '' for item in seenValues):
+            errorState = False
+            for editor in self._editors.values():
+                palette = editor.viewport().palette()
+                colour = editor._background
+                palette.setColor(editor.viewport().backgroundRole(), colour)
+                editor.viewport().setPalette(palette)
+            self._parent._applyButton.setEnabled(True)
         self._errorFrameSeriesValues.setVisible(errorState)
-        self._errorFrameDict.setVisible(errorDict)
 
     def _changeSpectrumSeriesValues(self, spectrumGroup, spectrum, dim, value):
         # set the spectrum series value from here
         # spectrum.seriesValue = value
-
         # bit of a hack here - called by _groupInit which builds the spectrumGroup series
         self._parent._spectrumGroupSeriesEdited[dim] = value
 
+    def _changeSpectrumAdditionalSeriesValues(self, spectrumGroup, additionalSeriesValues):
+        """
+        :param spectrumGroup:
+        :param additionalSeriesValues:  tuple of tuples
+        :return:
+        """
+        ## careful here. An initial hack to allow only one glbal additional series value per spectrumGroup
+        for i, sp in enumerate(spectrumGroup.spectra):
+            self._parent._spectrumGroupAdditionalSeriesValues[i] = additionalSeriesValues
+
     @queueStateChange(_verifyPopupApply)
-    def _queueChangeSeriesUnits(self, editor, spectrumGroup):
+    def _queueChangeSeriesUnits(self, editor, spectrumGroup, *args, **kwargs):
         """callback from editing the seriesUnits - respond to every keypress
         """
-        value = editor.getText()
+        if spectrumGroup is None:
+            return
+        value = editor.getUnit()
         specValue = spectrumGroup.seriesUnits
         if value != specValue:
             return partial(self._changeSeriesUnits, spectrumGroup, value)
@@ -1037,17 +1344,21 @@ class SeriesFrame(Frame):
         """
         self._parent._spectrumGroupSeriesUnitsEdited = value
 
-    def _updateSeriesUnitsPulldown(self, editor, spectrumGroup, newText):
-        """callback from editing the seriesUnits pulldown
-         - respond to index changed/focus changed to capture new text and add to pulldown list
+    @queueStateChange(_verifyPopupApply)
+    def _queueChangeSeriesQuantity(self, editor, spectrumGroup, *args, **kwargs):
+        """callback from editing the seriesQuantity - respond to every keypress
         """
-        # NOTE:ED - could put this into the pullDown widget as an 'autoUpdateContents' setting
-        value = newText
-        if value and value not in self._pulldownData:
-            self._pulldownData += (value,)
-            editor.modifyTexts(self._pulldownData)
+        value = editor.getQuantity()
+        if spectrumGroup is None:
+            return
+        specValue = spectrumGroup.seriesQuantity
+        if value != specValue:
+            return partial(self._changeSeriesQuantity, spectrumGroup, value)
 
-        self._queueChangeSeriesUnits(editor, spectrumGroup)
+    def _changeSeriesQuantity(self, spectrumGroup, value):
+        """set the spectrumGroup seriesUnits
+        """
+        self._parent._spectrumGroupSeriesQuantityEdited = value
 
     def _getChangeState(self):
         """Get the change state from the parent widget
@@ -1055,20 +1366,43 @@ class SeriesFrame(Frame):
         return self._parent._getChangeState()
 
     @queueStateChange(_verifyPopupApply)
-    def _queueChangeSeriesType(self, spectrumGroup):
+    def _queueChangeSeriesType(self, editor, spectrumGroup, *args, **kwargs):
         """callback from editing the seriesType
         """
+        if spectrumGroup is None:
+            return
+        self._validateEditors()
+        dataType = self.seriesUnitWidget.getType()
+        specType = spectrumGroup.seriesType
+
+        if dataType is None and dataType != specType:
+            return partial(self._changeSeriesType, spectrumGroup, None)
+
+        descriptions = SeriesTypes.descriptions()
+        if dataType in descriptions:
+            typeCode = descriptions.index(dataType)
+            if typeCode != specType:
+                return partial(self._changeSeriesType, spectrumGroup, typeCode)
+
+    def _changeSeriesType(self, spectrumGroup, typeCode):
+        """
+        set the spectrumGroup seriesType
+        :param spectrumGroup:
+        :param typeCode: int,  see SeriesTypes
+        :return: None
+        """
+
+        self._parent._spectrumGroupSeriesTypeEdited = typeCode
+
+    # @queueStateChange(_verifyPopupApply)
+    def _allUnitsOptionsChanged(self, editor, spectrumGroup, *args, **kwargs):
+        ## change the states for the varies property
+        ## check if there are series values and if yes, add error to specify the units
+        self._queueChangeSeriesQuantity(self.seriesUnitWidget, self.defaultObject)
+        self._queueChangeSeriesUnits(self.seriesUnitWidget, self.defaultObject)
+        self._queueChangeSeriesType(self.seriesUnitWidget, self.defaultObject)
         self._validateEditors()
 
-        index = self.seriesType.getIndex()
-        specType = spectrumGroup.seriesType
-        if index != specType:
-            return partial(self._changeSeriesType, spectrumGroup, index)
-
-    def _changeSeriesType(self, spectrumGroup, value):
-        """set the spectrumGroup seriesType
-        """
-        self._parent._spectrumGroupSeriesTypeEdited = value
 
     @queueStateChange(_verifyPopupApply)
     def _queueChangeName(self, _value):
@@ -1081,7 +1415,7 @@ class SeriesFrame(Frame):
             return partial(self._changeName, editName)
 
     def _changeName(self, value):
-        """set the spectrumGroup seriesType
+        """set the spectrumGroup
         """
         # doesn't need to do anything, just insert an item into the revert _changes dict
         pass
@@ -1097,7 +1431,7 @@ class SeriesFrame(Frame):
             return partial(self._changeComment, editComment)
 
     def _changeComment(self, value):
-        """set the spectrumGroup seriesType
+        """set the spectrumGroup
         """
         # doesn't need to do anything, just insert an item into the revert _changes dict
         pass
@@ -1131,6 +1465,7 @@ class _SpectrumGroupContainer(AttrDict):
         self._modifiedSpectra = set()
         self._setDefaultSeriesValues()
         self._seriesUnits = None
+        self._seriesQuantity = None
         self._seriesType = 0
 
     @property
@@ -1151,10 +1486,29 @@ class _SpectrumGroupContainer(AttrDict):
         return series
 
     @property
+    def additionalSeries(self) -> Tuple[Any, ...]:
+        """Returns a tuple of additional series items for the attached spectra
+
+        series = ((val1, val2, ..., valN), ...  )
+
+        where (val1-valN) correspond to the series items in the attached spectra associated with this group
+        For a spectrum with no values, returns None in place of Item
+         Duplicated from spectrumGroup.additionalSeries
+        """
+        result = [sp._getAdditionalSeriesItems(self) for sp in self.spectra]
+        return tuple(result)
+
+    @property
     def seriesUnits(self):
         """Return the seriesUnits for the simulated spectrumGroup
         """
         return self._seriesUnits
+
+    @property
+    def seriesQuantity(self):
+        """Return the seriesQuantity for the simulated spectrumGroup
+        """
+        return self._seriesQuantity
 
     @property
     def seriesType(self):

@@ -14,8 +14,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-07-04 18:51:59 +0100 (Thu, July 04, 2024) $"
+__modifiedBy__ = "$modifiedBy: Luca Mureddu $"
+__dateModified__ = "$dateModified: 2024-07-30 17:22:57 +0100 (Tue, July 30, 2024) $"
 __version__ = "$Revision: 3.2.5 $"
 #=========================================================================================
 # Created
@@ -64,7 +64,6 @@ class SeriesTypes(DataEnum):
             }
         return dd
 
-
 class SpectrumGroup(AbstractWrapperObject):
     """Combines multiple Spectrum objects into a group, so they can be treated as a single object.
     """
@@ -92,11 +91,13 @@ class SpectrumGroup(AbstractWrapperObject):
     _COMMENT = 'comment'
     _SERIES = 'series'
     _SERIESUNITS = 'seriesUnits'
+    _SERIESQUANTITY = 'seriesQuantity'
     _SERIESTYPE = 'seriesType'
     _POSITIVECONTOURCOLOUR = 'positiveContourColour'
     _NEGATIVECONTOURCOLOUR = 'negativeContourColour'
     _SLICECOLOUR = 'sliceColour'
 
+    _SI_baseUnits = ()
     #=========================================================================================
     # CCPN properties
     #=========================================================================================
@@ -258,6 +259,37 @@ class SpectrumGroup(AbstractWrapperObject):
                 spectrum.deleteAllPeakLists()
 
 
+    def _getSIBaseUnits(self) -> Tuple[Any, ...]:
+        """Returns a tuple of series based units for the attached spectra
+        """
+        if not self._SI_baseUnits and self.seriesUnits:
+            self._getSISeries()
+        return self._SI_baseUnits
+
+    def _getSISeries(self) -> Tuple[Any, ...]:
+        """Returns a tuple of series items for the attached spectra in SI unit
+        """
+        from ccpn.core.lib.SeriesUnitConverter import SERIESUNITS
+        if self.seriesUnits is None:
+            getLogger().warning(f'Cannot convert to SI units without defining first the seriesUnits.')
+            return ()
+        if self.seriesQuantity not in SERIESUNITS:
+            getLogger().warning(f'Cannot convert to SI units without defining first the seriesQuantity. Use one of {SERIESUNITS.keys()}')
+            return ()
+
+        seriesQuantity = self.seriesQuantity
+        seriesUnit = self.seriesUnits
+        selectedUnitConversion = SERIESUNITS.get(seriesQuantity)
+        SI_values = []
+        SI_baseUnits = []
+        for sp in self.spectra:
+            value =  sp._getSeriesItem(self)
+            unitObj = selectedUnitConversion(value, seriesUnit)
+            SI_values.append(unitObj.SI_value)
+            SI_baseUnits.append(unitObj.SI_baseUnit)
+        self._SI_baseUnits = tuple(SI_baseUnits)
+        return tuple(SI_values)
+
     @property
     def series(self) -> Tuple[Any, ...]:
         """Returns a tuple of series items for the attached spectra
@@ -291,6 +323,70 @@ class SpectrumGroup(AbstractWrapperObject):
 
         for spectrum, item in zip(self.spectra, items):
             spectrum._setSeriesItem(self, item)
+
+    @property
+    def additionalSeries(self) -> Tuple[Any, ...]:
+        """Returns a tuple of additional series items for the attached spectra
+
+        series = ((val1, val2, ..., valN), ...  )
+
+        where (val1-valN) correspond to the series items in the attached spectra associated with this group
+        For a spectrum with no values, returns None in place of Item
+        """
+        result = []
+        for sp in self.spectra:
+            items = sp._getAdditionalSeriesItems(self)
+            if items is None:
+                items = ()
+            result.append(items)
+        return tuple(result)
+
+    @additionalSeries.setter
+    @logCommand(get='self', isProperty=True)
+    @ccpNmrV3CoreSetter()
+    def additionalSeries(self, items):
+        """Setter for additionalSeries.
+        series must be a tuple of  tuples of items or tuple of Nones
+        """
+        if not isinstance(items, (tuple, list)):
+            raise ValueError('Expected a tuple or list')
+        if len(self.spectra) != len(items):
+            raise ValueError('Number of items does not match number of spectra in group')
+
+        for spectrum, seriesTuple in zip(self.spectra, items):
+            spectrum._setAdditionalSeriesItems(self, seriesTuple)
+
+    @property
+    def seriesQuantity(self):
+        """Return the seriesQuantity for the spectrumGroup
+        """
+        seriesQuantity = self._getInternalParameter(self._SERIESQUANTITY)
+        return seriesQuantity
+
+    @seriesQuantity.setter
+    @logCommand(get='self', isProperty=True)
+    @ccpNmrV3CoreSetter()
+    def seriesQuantity(self, value):
+        """Set the seriesQuantity for the spectrumGroup
+        """
+        if not isinstance(value, (str, type(None))):
+            raise ValueError("seriesQuantity must be a string or None.")
+        self._setInternalParameter(self._SERIESQUANTITY, value)
+
+    def fetchSeriesQuantity(self):
+        if self.seriesQuantity is None:
+            if self.seriesUnits is not None:
+                from ccpn.core.lib.SeriesUnitConverter import findQuantitiesByUnit
+                quantities = findQuantitiesByUnit(self.seriesUnits)
+                if len(quantities) > 0:
+                    self.seriesQuantity = quantities[0]
+                    return self.seriesQuantity
+            else:
+                getLogger().warning('Attempted to fetch a SeriesQuantity from the SeriesUnits, but SeriesUnits is not defined.')
+                return None
+        else:
+            return self.seriesQuantity
+
 
     @property
     def seriesUnits(self):

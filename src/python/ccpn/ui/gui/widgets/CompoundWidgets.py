@@ -2,8 +2,9 @@
 # Licence, Reference and Credits
 #=========================================================================================
 __copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
-__credits__ = ("Ed Brooksbank, Joanna Fox, Morgan Hayward, Victoria A Higman, Luca Mureddu",
-               "Eliza Płoskoń, Timothy J Ragan, Brian O Smith, Gary S Thompson & Geerten W Vuister")
+__credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
+               "Timothy J Ragan, Brian O Smith, Daniel Thompson",
+               "Gary S Thompson & Geerten W Vuister")
 __licence__ = ("CCPN licence. See https://ccpn.ac.uk/software/licensing/")
 __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, L.G., & Vuister, G.W.",
                  "CcpNmr AnalysisAssign: a flexible platform for integrated NMR analysis",
@@ -12,8 +13,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-06-28 10:33:21 +0100 (Fri, June 28, 2024) $"
-__version__ = "$Revision: 3.2.2 $"
+__dateModified__ = "$dateModified: 2024-07-30 17:22:58 +0100 (Tue, July 30, 2024) $"
+__version__ = "$Revision: 3.2.5 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -1059,6 +1060,97 @@ class ButtonCompoundWidget(CompoundBaseWidget):
         if fixedWidths is not None:
             self.setFixedWidths(fixedWidths)
 
+
+
+class ButtonListCompoundWidget(CompoundBaseWidget):
+    """
+    Compound class comprising a Label and a ButtonList, combined in a CompoundBaseWidget (i.e. a Frame)
+
+      orientation       widget layout
+      ------------      ------------------------
+      left:             Label       Button
+
+      right:            Button    Label
+
+      top:              Label
+                        Button
+
+      bottom:           Button
+                        Label
+
+    """
+    layoutDict = dict(
+            # grid positions for label and checkBox for the different orientations
+            left=[(0, 0), (0, 1)],
+            right=[(0, 1), (0, 0)],
+            top=[(0, 0), (1, 0)],
+            bottom=[(1, 0), (0, 0)],
+            )
+
+    def __init__(self, parent=None, mainWindow=None,
+                 showBorder=False, orientation='left',
+                 minimumWidths=None, maximumWidths=None, fixedWidths=None,
+                 labelText='', texts='',
+                 callbacks=None, icons=None, 
+                 tipTexts=None, direction='h', 
+                 buttonAlignment='left',
+                 buttonMinimumWidth=None,
+                 compoundKwds=None,
+                 **kwds):
+
+        CompoundBaseWidget.__init__(self, parent=parent, layoutDict=self.layoutDict, orientation=orientation,
+                                    showBorder=showBorder, **kwds)
+
+        self.label = Label(parent=self, text=labelText, vAlign='center')
+        self._addWidget(self.label)
+
+        hAlign = orientation if orientation in ['left', 'right'] else 'center'
+        buttonKwds = {
+                      'texts'    : texts,
+                      'tipTexts':tipTexts,
+                      'hAlign'  : hAlign,
+                      'icons'    : icons,
+                      'callbacks': callbacks,
+                      'direction': direction,
+
+            }
+        buttonKwds.update(compoundKwds or {})
+        self.buttonList = ButtonList(parent=self, **buttonKwds)
+        self.buttonList.setObjectName(labelText)
+        self.setObjectName(labelText)
+        if buttonAlignment:
+            # create a temporary frame and move the buttonList inside
+            fr = Frame(self, setLayout=True)
+            self._addWidget(fr)
+            if buttonAlignment == 'left':
+                fr.layout().addWidget(self.buttonList, 0, 0)
+                Spacer(fr, 5, 5, hPolicy='expanding', vPolicy='minimum', grid=(0, 1), gridSpan=(1, 1))
+            elif buttonAlignment == 'right':
+                Spacer(fr, 5, 5, hPolicy='expanding', vPolicy='minimum', grid=(0, 0), gridSpan=(1, 1))
+                fr.layout().addWidget(self.buttonList, 0, 1)
+            else:  # centre
+                Spacer(fr, 5, 5, hPolicy='expanding', vPolicy='minimum', grid=(0, 0), gridSpan=(1, 1))
+                fr.layout().addWidget(self.buttonList, 0, 1)
+                Spacer(fr, 5, 5, hPolicy='expanding', vPolicy='minimum', grid=(0, 2), gridSpan=(1, 1))
+        else:
+            self._addWidget(self.buttonList)
+
+        if minimumWidths is not None:
+            self.setMinimumWidths(minimumWidths)
+
+        if maximumWidths is not None:
+            self.setMaximumWidths(maximumWidths)
+
+        if fixedWidths is not None:
+            self.setFixedWidths(fixedWidths)
+
+        if buttonMinimumWidth is not None:
+            buttons = self.getButtons()
+            for button in buttons:
+                button.setMinimumWidth(int(buttonMinimumWidth))
+
+    def getButtons(self):
+        return self.buttonList.buttons
 
 class LabelCompoundWidget(CompoundBaseWidget):
     """

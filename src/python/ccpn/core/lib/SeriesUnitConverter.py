@@ -33,6 +33,8 @@ __date__ = "$Date: 2024-07-17 14:28:36 +0100 (Wed, July 17, 2024) $"
 
 from ccpn.util.Logging import getLogger
 # from scipy.constants import kilo, milli, micro, nano, pico, femto, atto, centi, deci, tera, giga, mega
+from ccpn.core.SpectrumGroup import SeriesTypes
+from decimal import Decimal
 
 # Constants
 CONCENTRATION = 'Concentration'
@@ -41,6 +43,9 @@ TEMPERATURE = 'Temperature'
 PRESSURE= 'Pressure'
 pH = 'pH'
 ARBITRARYUNIT = 'Arbitrary Unit'
+NOTAPPLICABLE = 'Not Applicable'
+UNDEFINED = 'Undefined'
+UNITLESS = 'Unitless'
 AU = 'A.U.'
 OTHER = 'Other'
 EQUIVALENT = 'Equivalent'
@@ -80,31 +85,6 @@ quecto = 1e-30
 
 _microUnicode = '\u00B5'
 
-_R = 'Ronna'
-_Y = 'Yotta'
-_Z = 'Zetta'
-_E = 'Exa'
-_P = 'Peta'
-_T = 'Tera'
-_G = 'Giga'
-_M = 'Mega'
-_k = 'Kilo'
-_h = 'Hecto'
-_da = 'Deka'
-
-_d = 'deci'
-_c = 'centi'
-_m = 'milli'
-_u = 'micro'
-_n = 'nano'
-_p = 'pico'
-_f = 'femto'
-_a = 'atto'
-_z = 'zepto'
-_y = 'yocto'
-_r = 'ronto'
-
-
 
 conversionMultipliersTexts = {
     # ----------- Above  Base ---------- #
@@ -135,12 +115,14 @@ conversionMultipliersTexts = {
     }
 
 
-class Unit:
+class _SI_Unit:
 
     SI_baseUnit = None #str, to be subclassed . e.g.: s for TimeUnit class
     SI_baseUnitWord = None #str, to be subclassed . e.g.: second for TimeUnit class
 
     quantity = None   #str, to be subclassed . e.g.: time, temperature etc
+    ## ConversionMultipliers: These prefixes are used ONLY to build the various units based on the subclass SI_baseUnit.
+    ## Some prefixes are more theoretical and not really of common usage. Defined just for completeness.
     conversionMultipliers = {
                                         'R': ronna,   # Ronna- (10^27)
                                         'Y': yotta,    # Yotta- (10^24)
@@ -170,12 +152,26 @@ class Unit:
         }
 
     uiPrefixSelection = list(conversionMultipliers.keys()) # list of prefix units to display on the GUI.
+    _allowedDataTypes = [SeriesTypes.FLOAT]
+
 
     def __init__(self, value, unit):
         self.value = value
         self.unit = unit
         self._updateConversionMultipliers()
         self.toSI()
+
+    @staticmethod
+    def getAllUnits(cls):
+        """A list of all units for the quantity"""
+        availableUnits = []
+        for x, m in cls.conversionMultipliers.items():
+            if cls.SI_baseUnit:
+                u = f'{x}{cls.SI_baseUnit}'
+                if m == 1:
+                    u = cls.SI_baseUnit
+                availableUnits.append(u)
+        return availableUnits
 
     @property
     def unitsSelection(self):
@@ -198,10 +194,16 @@ class Unit:
         return self.toSI()
 
     def toSI(self):
+        """
+
+        :return: Float. Converted value to the SI base unit.
+        Note. We use Decimal to ensure a precise result, avoiding the floating-point arithmetic issues inherent in using binary floating-point numbers.
+        """
         if self.unit not in self.conversionMultipliers:
             raise ValueError(f"Unknown unit: {self.unit}. Cannot convert to {self.SI_baseUnit}")
         multiplier = self.conversionMultipliers[self.unit]
-        return self.value * multiplier
+        result = Decimal(self.value) * Decimal(str(multiplier))
+        return float(result)
 
     def _updateConversionMultipliers(self):
         updatedConversionMultipliers = {}
@@ -228,20 +230,20 @@ class Unit:
         return f'{self.SI_value}{self.SI_baseUnit}'
 
 
-class TimeUnit(Unit):
+class TimeUnit(_SI_Unit):
     SI_baseUnit = 's'
     SI_baseUnitWord = 'Second'
     quantity = TIME
     uiPrefixSelection = ['m', _microUnicode, 'n', 'p']
 
-class ConcentrationUnit(Unit):
+class ConcentrationUnit(_SI_Unit):
     """Molar Concentration. In SI unit is mol/m^3, commonly used as M (mol/L) """
     SI_baseUnit = 'M'
     SI_baseUnitWord = 'Molar'
     quantity = CONCENTRATION
     uiPrefixSelection = ['m', _microUnicode, 'n', 'p']
 
-class MoleUnit(Unit):
+class MoleUnit(_SI_Unit):
     """ """
     SI_baseUnit = 'mol'
     SI_baseUnitWord = 'Mole'
@@ -250,7 +252,7 @@ class MoleUnit(Unit):
     uiPrefixSelection = ['m', _microUnicode, 'n', 'p']
 
 
-class MassUnit(Unit):
+class MassUnit(_SI_Unit):
     SI_baseUnit = 'kg'
     SI_baseUnitWord = 'Kilogram'
 
@@ -285,7 +287,7 @@ class MassUnit(Unit):
                 tts.append(txt)
         return tts
 
-class DistanceUnit(Unit):
+class DistanceUnit(_SI_Unit):
     SI_baseUnit = 'm'
     SI_baseUnitWord = 'Metre'
     quantity = DISTANCE
@@ -294,7 +296,7 @@ class DistanceUnit(Unit):
 
 # ---------------- Special cases -------------------- #
 
-class VolumeUnit(Unit):
+class VolumeUnit(_SI_Unit):
     """Technically not SI but accepted as SI. The SI is m^3"""
     SI_baseUnit = 'L'
     SI_baseUnitWord = 'Litre'
@@ -313,7 +315,7 @@ class VolumeUnit(Unit):
               ]
         return tt
 
-class TemperatureUnit(Unit):
+class TemperatureUnit(_SI_Unit):
     SI_baseUnit = 'K'
     quantity = TEMPERATURE
     uiPrefixSelection = [] # not allowed for Kelvin. Unlikely to be ever needed
@@ -354,7 +356,7 @@ class TemperatureUnit(Unit):
 
         return convertedValue
 
-class EquivalentUnit(Unit):
+class EquivalentUnit(_SI_Unit):
     SI_baseUnit = 'Eq'
     SI_baseUnitWord = EQUIVALENT
     quantity = EQUIVALENT
@@ -373,20 +375,21 @@ class EquivalentUnit(Unit):
         return tt
 
 
-class GenericUnit(Unit):
+class GenericUnit(_SI_Unit):
     SI_baseUnit = None
     SI_baseUnitWord = None
     quantity = GENERIC
     uiPrefixSelection = [] # there aren't SI prefix for this unit.
+    _allowedDataTypes = [SeriesTypes.FLOAT, SeriesTypes.INTEGER, SeriesTypes.STRING] # all allowed, because no conversions are made in this Unit.
 
     @property
     def unitsSelection(self):
         """ A list of units to be displayed in the GUI"""
-        return ['Arbitrary Unit', 'A.U.', 'None']
+        return [ARBITRARYUNIT, UNITLESS]
 
     @property
     def unitsTipTextSelection(self):
-        return ['Any arbitrary unit. (Non-SI)', 'Any arbitrary unit (Non-SI)', 'No unit defined']
+        return [f'{x} (Non-SI)' for x in self.unitsSelection]
 
     def toSI(self):
         return self.value
@@ -411,10 +414,30 @@ SERIESUNITS = {
     GenericUnit.quantity: GenericUnit,
     TemperatureUnit.quantity: TemperatureUnit,
     DistanceUnit.quantity: DistanceUnit,
-    MoleUnit.quantity: MoleUnit,
+    VolumeUnit.quantity: VolumeUnit,
     MassUnit.quantity: MassUnit,
-    VolumeUnit.quantity: VolumeUnit
+    MoleUnit.quantity: MoleUnit
     }
+
+def getAllSeriesUnits():
+    """Convenient function to retrieve all Series Units from the various classes as a dictionary quantity:units"""
+    units4quantityDict = {}
+    for quantity, unitClass in SERIESUNITS.items():
+            units4quantityDict[quantity] = unitClass.getAllUnits(unitClass)
+    return units4quantityDict
+
+def findQuantitiesByUnit(unit:str):
+    """
+    Given a unit, find the relative quantities. Ideally should be unique, but not necessarily.
+    :param unit: str. eg. ms
+    :return: list. List of string. The quantities. e.g. [Time,]
+    """
+    found = []
+    for quantity, units in getAllSeriesUnits().items():
+        if unit in units:
+            found.append(quantity)
+    return found
+
 
 if __name__ == '__main__':
     # time
@@ -444,4 +467,10 @@ if __name__ == '__main__':
     converted_value = unit.convertTo(convertTo)
     print(f"{unit.value} {unit.unit} is {converted_value}{convertTo}")
 
+
+    #search a quantity by unit:
+    quantities = findQuantitiesByUnit('ms')
+    allQ = getAllSeriesUnits()
+    print(f" ms is of quantity: {quantities}")
+    print(f"allQ: {allQ}")
 

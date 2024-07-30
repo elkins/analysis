@@ -13,7 +13,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-07-19 16:25:51 +0100 (Fri, July 19, 2024) $"
+__dateModified__ = "$dateModified: 2024-07-30 17:22:58 +0100 (Tue, July 30, 2024) $"
 __version__ = "$Revision: 3.2.5 $"
 #=========================================================================================
 # Created
@@ -232,6 +232,11 @@ class RadioButtons(QtWidgets.QWidget, Base):
                 getLogger().debug(f'setButtons: could not set selected {selected}')
         elif self.radioButtons:
             self.radioButtons[0].setChecked(True)
+
+    def setEnabledTexts(self, enabledTexts):
+        """Enable given text and disable the rest"""
+        for button in self.radioButtons:
+            button.setEnabled(button.getText() in enabledTexts)
 
     def getRadioButton(self, text):
         for rb in self.radioButtons:
