@@ -55,7 +55,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-07-30 17:22:57 +0100 (Tue, July 30, 2024) $"
+__dateModified__ = "$dateModified: 2024-07-31 14:54:52 +0100 (Wed, July 31, 2024) $"
 __version__ = "$Revision: 3.2.5 $"
 #=========================================================================================
 # Created
@@ -1925,6 +1925,8 @@ class Spectrum(AbstractWrapperObject):
         additionalSeriesItems = self._getInternalParameter(self._ADDITIONALSERIESITEMS)
         if additionalSeriesItems and spectrumGroup.pid in additionalSeriesItems:
             return additionalSeriesItems[spectrumGroup.pid]
+
+        return ()
 
     def _setAdditionalSeriesItems(self, spectrumGroup, item):
         """Set the AdditionalSeriesItems  for the current spectrum for the selected spectrumGroup

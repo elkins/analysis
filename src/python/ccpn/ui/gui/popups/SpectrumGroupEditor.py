@@ -17,7 +17,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-07-30 17:22:58 +0100 (Tue, July 30, 2024) $"
+__dateModified__ = "$dateModified: 2024-07-31 14:54:52 +0100 (Wed, July 31, 2024) $"
 __version__ = "$Revision: 3.2.5 $"
 #=========================================================================================
 # Created
@@ -1184,6 +1184,8 @@ class SeriesFrame(Frame):
             additionalSeries = self.defaultObject.additionalSeries
             ## keep only the first global value for now.
             additionalValue = additionalSeries[0][0] if additionalSeries and additionalSeries[0] else ''
+            if additionalValue is None:
+                additionalValue = ''
             self.additionalValueEditor.setText(str(additionalValue))
         self._validateEditors()
 
