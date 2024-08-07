@@ -6,8 +6,9 @@ This module contains all definitions used in the various SeriesAnalysis modules.
 # Licence, Reference and Credits
 #=========================================================================================
 __copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
-__credits__ = ("Ed Brooksbank, Joanna Fox, Morgan Hayward, Victoria A Higman, Luca Mureddu",
-               "Eliza Płoskoń, Timothy J Ragan, Brian O Smith, Gary S Thompson & Geerten W Vuister")
+__credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
+               "Timothy J Ragan, Brian O Smith, Daniel Thompson",
+               "Gary S Thompson & Geerten W Vuister")
 __licence__ = ("CCPN licence. See https://ccpn.ac.uk/software/licensing/")
 __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, L.G., & Vuister, G.W.",
                  "CcpNmr AnalysisAssign: a flexible platform for integrated NMR analysis",
@@ -16,8 +17,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-06-12 10:56:23 +0100 (Wed, June 12, 2024) $"
-__version__ = "$Revision: 3.2.2 $"
+__dateModified__ = "$dateModified: 2024-08-07 09:20:36 +0100 (Wed, August 07, 2024) $"
+__version__ = "$Revision: 3.2.5 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -71,7 +72,10 @@ RELDISPLACEMENT  = 'Relative Displacement'
 SERIES_STEP_X    = 'series_Step_X'
 SERIES_STEP_X_label    = 'series_Step_X_label'
 SERIES_STEP_Y    = 'series_Step_Y'
+ADDITIONAL_SERIES_STEP_X    = 'additional_series_Step_X' # this is used for example for the Global protein Concentration
+
 SERIESUNIT       = 'seriesUnit'
+SERIESQUANTITY       = 'seriesQuantity'
 PEAKPID          = 'peakPid'
 SPECTRUMPID      = 'spectrumPid'
 NMRATOMPID       = 'nmrAtomPid'
@@ -226,7 +230,7 @@ FLAG = 'Flag'
 SERIAL = 'Serial'
 SF = 'SF' # spectrometer frequency in Mhz
 CONSTANT_STATS_OUTPUT_TABLE_COLUMNS = [MINIMISER_METHOD, MINIMISER_MODEL, RSQR, CHISQR, REDCHI, AIC, BIC]
-SpectrumPropertiesHeaders = [DIMENSION, ISOTOPECODE, SERIES_STEP_X, SERIESUNIT, EXPERIMENT]
+SpectrumPropertiesHeaders = [DIMENSION, ISOTOPECODE, SERIES_STEP_X, ADDITIONAL_SERIES_STEP_X, SERIESUNIT, EXPERIMENT]
 PeakPropertiesHeaders = [_PPMPOSITION, _HEIGHT, _LINEWIDTH, _VOLUME]
 AssignmentPropertiesHeaders = [NMRCHAINNAME, NMRRESIDUECODE, NMRRESIDUETYPE, NMRATOMNAME]
 GROUPBYAssignmentHeaders = [NMRCHAINNAME, NMRRESIDUECODE, NMRRESIDUETYPE]

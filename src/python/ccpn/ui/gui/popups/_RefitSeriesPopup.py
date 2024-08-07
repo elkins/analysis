@@ -4,9 +4,10 @@ A popup specific for the Experiment Analysis module
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2023"
-__credits__ = ("Ed Brooksbank, Joanna Fox, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
-               "Timothy J Ragan, Brian O Smith, Gary S Thompson & Geerten W Vuister")
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
+               "Timothy J Ragan, Brian O Smith, Daniel Thompson",
+               "Gary S Thompson & Geerten W Vuister")
 __licence__ = ("CCPN licence. See https://ccpn.ac.uk/software/licensing/")
 __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, L.G., & Vuister, G.W.",
                  "CcpNmr AnalysisAssign: a flexible platform for integrated NMR analysis",
@@ -15,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2023-11-10 16:12:24 +0000 (Fri, November 10, 2023) $"
-__version__ = "$Revision: 3.2.0 $"
+__dateModified__ = "$dateModified: 2024-08-07 09:20:37 +0100 (Wed, August 07, 2024) $"
+__version__ = "$Revision: 3.2.5 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -84,12 +85,13 @@ class RefitSingularSelectedSeriesPopup(CcpnDialogMainWidget):
     def setWidgets(self):
 
         row  = 0
-        columnWidth = 150
+        columnWidth = 200
         self._maxSpanW = 3
         texts = [c.pid for c in self.collections]
         fText = '\n'.join(texts)
-        self.collectionPidsWidgets = cw.LabelCompoundWidget(self.mainWidget, labelText='Selected',
-                                                            label2Text=fText, grid=(row, 0), fixedWidths=(columnWidth, columnWidth), gridSpan=(1, 2))
+        self.collectionPidsWidgets = cw.PlainListCompoundWidget(self.mainWidget, labelText='Selected',
+                                                            texts=texts, grid=(row, 0),  fixedWidths=(columnWidth, columnWidth), gridSpan=(1, 2),
+                                                            compoundKwds={'allowSelections':False, 'contextMenu':False})
         row += 1
         self.initialValueWidget = cw.RadioButtonsCompoundWidget(self.mainWidget, labelText='Initial Values',
                                                             compoundKwds= {

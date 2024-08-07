@@ -5,8 +5,9 @@ This module defines base classes for Series Analysis
 # Licence, Reference and Credits
 #=========================================================================================
 __copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
-__credits__ = ("Ed Brooksbank, Joanna Fox, Morgan Hayward, Victoria A Higman, Luca Mureddu",
-               "Eliza Płoskoń, Timothy J Ragan, Brian O Smith, Gary S Thompson & Geerten W Vuister")
+__credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
+               "Timothy J Ragan, Brian O Smith, Daniel Thompson",
+               "Gary S Thompson & Geerten W Vuister")
 __licence__ = ("CCPN licence. See https://ccpn.ac.uk/software/licensing/")
 __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, L.G., & Vuister, G.W.",
                  "CcpNmr AnalysisAssign: a flexible platform for integrated NMR analysis",
@@ -15,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-06-12 10:56:23 +0100 (Wed, June 12, 2024) $"
-__version__ = "$Revision: 3.2.2 $"
+__dateModified__ = "$dateModified: 2024-08-07 09:20:36 +0100 (Wed, August 07, 2024) $"
+__version__ = "$Revision: 3.2.5 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -244,14 +245,20 @@ class InputSeriesFrameBC(SeriesFrameBC):
                         try:
                             ## set the unique UID
                             self.loc[i, sv._ROW_UID] = i
-                            ## build the spectrum Property Columns
-                            self.loc[i, sv.DIMENSION] = dimension
-                            self.loc[i, sv.ISOTOPECODE] = spectrum.getByDimensions(sv.ISOTOPECODES, [dimension])[0]
+                            ## build the spectrum Series Property Columns
                             self.loc[i, sv.SERIES_STEP_X] = spectrum.getSeriesItem(spectrumGroup)
                             self.loc[i, sv.SERIES_STEP_Y] = pk.height  # default
                             self.loc[i, sv.SERIESUNIT] = spectrumGroup.seriesUnits
+                            self.loc[i, sv.SERIESQUANTITY] = spectrumGroup.seriesQuantity
+                            ## additional series Items
+                            additionalSeriesItems = spectrum.getAdditionalSeriesItems(spectrumGroup)
+                            for itemCount, additionalSeriesItem in enumerate(additionalSeriesItems):
+                                self.loc[i, sv.ADDITIONAL_SERIES_STEP_X] = additionalSeriesItem
+                                break # for now, we support only one additionalSeriesItem. We could expand in future
                             self.loc[i, sv.SPECTRUMPID] = spectrum.pid
                             self.loc[i, sv.EXPERIMENT] = experimentName
+                            self.loc[i, sv.DIMENSION] = dimension
+                            self.loc[i, sv.ISOTOPECODE] = spectrum.getByDimensions(sv.ISOTOPECODES, [dimension])[0]
                             ## build the peak Property Columns
                             collections = collectionDict.get(pk, [])
                             for collection in collections:
@@ -275,7 +282,6 @@ class InputSeriesFrameBC(SeriesFrameBC):
                         except Exception as e:
                             getLogger().warn(f'Cannot add row {i} for peak {pk.pid}. Skipping with error: {e}')
             break
-
 
 ########################################################################################################################
 ################################           Relaxation I/O  Series Output Table                 #########################
@@ -428,6 +434,7 @@ class CSMOutputFrame(SeriesFrameBC):
                     sv.SERIESUNIT,
                     sv.SERIES_STEP_X,
                     sv.SERIES_STEP_Y,
+                    sv.ADDITIONAL_SERIES_STEP_X,
                     sv.DELTA_DELTA,
                     sv.KD,
                     sv.KD_ERR,

@@ -51,8 +51,9 @@ Lmfit Minimisers:
 # Licence, Reference and Credits
 #=========================================================================================
 __copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
-__credits__ = ("Ed Brooksbank, Joanna Fox, Morgan Hayward, Victoria A Higman, Luca Mureddu",
-               "Eliza Płoskoń, Timothy J Ragan, Brian O Smith, Gary S Thompson & Geerten W Vuister")
+__credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
+               "Timothy J Ragan, Brian O Smith, Daniel Thompson",
+               "Gary S Thompson & Geerten W Vuister")
 __licence__ = ("CCPN licence. See https://ccpn.ac.uk/software/licensing/")
 __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, L.G., & Vuister, G.W.",
                  "CcpNmr AnalysisAssign: a flexible platform for integrated NMR analysis",
@@ -61,8 +62,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-02-29 10:26:55 +0000 (Thu, February 29, 2024) $"
-__version__ = "$Revision: 3.2.2 $"
+__dateModified__ = "$dateModified: 2024-08-07 09:20:36 +0100 (Wed, August 07, 2024) $"
+__version__ = "$Revision: 3.2.5 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -259,7 +260,7 @@ class MinimiserModel(Model):
 
     def fit(self, data, params=None, weights=None, method='leastsq',
             iter_cb=None, scale_covar=True, verbose=False, fit_kws=None,
-            nan_policy=None, calc_covar=True, max_nfev=None, **kwargs):
+            nan_policy='omit', calc_covar=True, max_nfev=None, **kwargs):
         """Fit the model to the data using the supplied Parameters.
 
         Parameters
@@ -425,6 +426,17 @@ class MinimiserModel(Model):
         """
         stats =  [sv.RSQR, sv.CHISQR, sv.REDCHI, sv.AIC, sv.BIC]
         return stats
+
+    def updateParam(self, params, paramName, **kwargs):
+        if paramName in params:
+            for key, value in kwargs.items():
+                if hasattr(params[paramName], key):
+                    setattr(params[paramName], key, value)
+                else:
+                    getLogger().warning(f"Attribute {key} does not exist on parameter {paramName}")
+        else:
+            getLogger().warning(f"Parameter {paramName} does not exist in params")
+        return params
 
 
 class MinimiserResult(ModelResult):

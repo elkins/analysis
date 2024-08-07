@@ -13,7 +13,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-07-30 17:22:58 +0100 (Tue, July 30, 2024) $"
+__dateModified__ = "$dateModified: 2024-08-07 09:20:37 +0100 (Wed, August 07, 2024) $"
 __version__ = "$Revision: 3.2.5 $"
 #=========================================================================================
 # Created
@@ -102,7 +102,7 @@ class ListCompoundWidget(CompoundBaseWidget):
     def __init__(self, parent=None, showBorder=False, orientation='left',
                  minimumWidths=None, maximumWidths=None, fixedWidths=None,
                  labelText='', texts=None, callback=None, defaults=None,
-                 uniqueList=True, objectName='', compoundKwds=None,
+                 uniqueList=True, showPulldown=True, objectName='', compoundKwds=None,
                  **kwds):
         """
         :param parent: parent widget
@@ -159,6 +159,8 @@ class ListCompoundWidget(CompoundBaseWidget):
 
         if fixedWidths is not None:
             self.setFixedWidths(fixedWidths)
+
+        self.showPulldownList(showPulldown)
 
     def minimumSizeHint(self) -> QtCore.QSize:
         result = super().minimumSizeHint()
@@ -304,6 +306,139 @@ class ListCompoundWidget(CompoundBaseWidget):
         """
         return self.setTexts(value)
 
+
+class PlainListCompoundWidget(CompoundBaseWidget):
+    """
+    Compound class comprising a Label, and a ListWidget, combined in a
+    CompoundBaseWidget (i.e.a Frame)
+
+    """
+    layoutDict = dict(
+            # grid positions for label and ListWidget for the different orientations
+            left=[(0, 0), (0, 1)],
+            right=[(0, 1), (0, 0)],
+            top=[(0, 0), (1, 0)],
+            bottom=[(1, 0), (0, 0)],
+            )
+
+    LIST_BORDER_WIDTH = 1
+    LIST_BORDER_COLOR = '#a9a9a9'
+
+    def __init__(self, parent=None, showBorder=False, orientation='left',
+                 minimumWidths=None, maximumWidths=None, fixedWidths=None,
+                 labelText='', texts=None, callback=None, uniqueList=True,  objectName='', compoundKwds=None,
+                 **kwds):
+        """
+        :param parent: parent widget
+        :param showBorder: flag to display the border of Frame (True, False)
+        :param orientation: flag to determine the orientation of the labelText relative to the ListWidget.
+                            Allowed values: 'left', 'right', 'top', 'bottom', 'centreLeft, centreRight, horizontal
+        :param minimumWidths: tuple of three values specifying the minimum width of the Label, and ListWidget,
+                              respectively
+        :param maximumWidths: tuple of three values specifying the maximum width of the Label and ListWidget,
+                              respectively
+        :param fixedWidths: tuple of three values specifying the maximum width of the Label  and ListWidget,
+                            respectively
+        :param labelText: Text for the Label
+        :param texts: (optional) iterable generating text values for the ListWidget
+
+        :param uniqueList: (True) only allow unique elements in the ListWidget
+        :param kwds: (optional) keyword, value pairs for the gridding of Frame
+        """
+
+        CompoundBaseWidget.__init__(self, parent=parent, layoutDict=self.layoutDict, orientation=orientation,
+                                    showBorder=showBorder, **kwds)
+        self.label = Label(parent=self, text=labelText, vAlign='center')
+        self._addWidget(self.label)
+        compoundKwds = compoundKwds or {}
+
+        # listWidget
+        self.listWidget = ListWidget(parent=self, callback=callback,
+                                     objectName=objectName,
+                                     **(compoundKwds or {}))
+        self.listWidget.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
+        self._uniqueList = uniqueList
+        self._addWidget(self.listWidget)
+
+        styleSheet = '.ListWidget {border: %ipx solid %s; border-radius: 3px}'
+        styleSheet %= (self.LIST_BORDER_WIDTH, self.LIST_BORDER_COLOR)
+        self.listWidget.setStyleSheet(styleSheet)
+
+        if minimumWidths is not None:
+            self.setMinimumWidths(minimumWidths)
+
+        if maximumWidths is not None:
+            self.setMinimumWidths(maximumWidths)
+
+        if fixedWidths is not None:
+            self.setFixedWidths(fixedWidths)
+
+        if texts:
+            self.setTexts(texts)
+
+    def minimumSizeHint(self) -> QtCore.QSize:
+        result = super().minimumSizeHint()
+
+        margins = self.listWidget.contentsMargins().top() + self.listWidget.contentsMargins().bottom()
+        spacing = self.layout().spacing()
+        minHeightHint = self.listWidget.minimumSizeHint().height() + margins + spacing
+        result.setHeight(minHeightHint)
+        return result
+
+    def clearList(self):
+        self.listWidget._deleteAll()
+
+    def setLabelText(self, label):
+        """Set the text for the list widget label
+        """
+        self.label.setText(label)
+
+    def setTexts(self, ll: list = []):
+        self.listWidget.clear()
+        for i in ll:
+            self.listWidget.addItem(str(i))
+
+    def modifyListWidgetTexts(self, texts):
+        """Modify the listWidget texts, with signal-blocking
+        """
+        with self.blockWidgetSignals():
+            self.setTexts(texts)
+
+    def getTexts(self):
+        """Convenience: Return list of texts in listWidget"""
+        return [self.listWidget.item(i).text() for i in range(self.listWidget.count())]
+
+    def addText(self, text):
+        """Convenience: Add text to listWidget"""
+        if text is None:
+            return
+        if self._uniqueList and text in self.getTexts():
+            return
+        self.listWidget.addItem(text)
+
+    def removeTexts(self, texts, blockSignals=False):
+        """Convenience: Remove texts to listWidget"""
+        if blockSignals:
+            with self.blockWidgetSignals(recursive=False, additionalWidgets=[self.pulldownList, self.listWidget]):
+                self.listWidget.removeTexts(texts)
+        else:
+            self.listWidget.removeTexts(texts)
+
+    def renameText(self, oldText, newText):
+        self.listWidget.renameItem(oldText, newText)
+
+
+    def _getSaveState(self):
+        """
+        Internal. Called for saving/restoring the widget state.
+        """
+        return self.getTexts()
+
+    def _setSavedState(self, value):
+        """
+        Internal. Called for saving/restoring the widget state.
+        """
+        return self.setTexts(value)
 
 class EntryCompoundWidget(CompoundBaseWidget):
     """

@@ -10,8 +10,9 @@ from __future__ import unicode_literals
 # Licence, Reference and Credits
 #=========================================================================================
 __copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
-__credits__ = ("Ed Brooksbank, Joanna Fox, Morgan Hayward, Victoria A Higman, Luca Mureddu",
-               "Eliza Płoskoń, Timothy J Ragan, Brian O Smith, Gary S Thompson & Geerten W Vuister")
+__credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
+               "Timothy J Ragan, Brian O Smith, Daniel Thompson",
+               "Gary S Thompson & Geerten W Vuister")
 __licence__ = ("CCPN licence. See https://ccpn.ac.uk/software/licensing/")
 __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, L.G., & Vuister, G.W.",
                  "CcpNmr AnalysisAssign: a flexible platform for integrated NMR analysis",
@@ -19,9 +20,9 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-03-15 12:54:03 +0000 (Fri, March 15, 2024) $"
-__version__ = "$Revision: 3.2.2 $"
+__modifiedBy__ = "$modifiedBy: Luca Mureddu $"
+__dateModified__ = "$dateModified: 2024-08-07 09:20:37 +0100 (Wed, August 07, 2024) $"
+__version__ = "$Revision: 3.2.5 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -916,10 +917,14 @@ def copyToClipboard(items):
     getLogger().info("Copied to clipboard: %s" % values)
 
 
-def loadModules(paths):
+def fetchPythonModules(paths):
     """
-    dynamic module importer.
+    A  dynamic module importer.
+    Load Python module if is not already loaded from disk, return the module if is already imported
+    :param paths: list. List of paths from where retrieve the Python files
+    :return: A list of  loaded Python modules.
     """
+
     import sys
     import pkgutil as _pkgutil
     import traceback
@@ -934,11 +939,14 @@ def loadModules(paths):
             try:
                 found = loader.find_module(name)
                 if found:
-                    if sys.modules.get(name):  # already loaded.
+                    module = sys.modules.get(name)
+                    if module is not None:  # already loaded.
+                        modules.append(module)
                         continue
                     else:
                         module = found.load_module(name)
                         modules.append(module)
+
             except Exception as err:
                 traceback.print_tb(err.__traceback__)
                 getLogger().warning('Error Loading Module %s. %s' % (name, str(err)))

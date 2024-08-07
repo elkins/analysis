@@ -4,9 +4,10 @@
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2023"
-__credits__ = ("Ed Brooksbank, Joanna Fox, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
-               "Timothy J Ragan, Brian O Smith, Gary S Thompson & Geerten W Vuister")
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
+               "Timothy J Ragan, Brian O Smith, Daniel Thompson",
+               "Gary S Thompson & Geerten W Vuister")
 __licence__ = ("CCPN licence. See https://ccpn.ac.uk/software/licensing/")
 __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, L.G., & Vuister, G.W.",
                  "CcpNmr AnalysisAssign: a flexible platform for integrated NMR analysis",
@@ -15,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2023-11-13 10:25:55 +0000 (Mon, November 13, 2023) $"
-__version__ = "$Revision: 3.2.0 $"
+__dateModified__ = "$dateModified: 2024-08-07 09:20:36 +0100 (Wed, August 07, 2024) $"
+__version__ = "$Revision: 3.2.5 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -130,6 +131,10 @@ class EuclideanCalculationModel(CalculationModel):
 
                     # seriesSteps = groupDf[self.xSeriesStepHeader].unique() #cannot use unique! Could be series with same value!!
                     seriesUnits = groupDf[sv.SERIESUNIT].unique()
+                    seriesAdditionalValues = groupDf[sv.ADDITIONAL_SERIES_STEP_X].unique()
+                    if seriesAdditionalValues is not None and len(seriesAdditionalValues)>0:
+                        print('seriesAdditionalValues===>', seriesAdditionalValues)
+                        seriesAdditionalValue = seriesAdditionalValues[-1]
                     peakPids = groupDf[sv.PEAKPID].unique()
                     snrs = groupDf[sv._SNR].unique()
                     csmValueError = lf.peakErrorBySNRs(snrs, factor=csmValue, power=-2, method='std')

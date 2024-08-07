@@ -35,7 +35,7 @@ import numpy as np
 from ccpn.util.traits.CcpNmrJson import CcpNmrJson
 from ccpn.util.traits.CcpNmrTraits import CFloat, CInt, CBool, CString
 from ccpn.util.Logging import getLogger
-from ccpn.util.Common import loadModules
+from ccpn.util.Common import fetchPythonModules
 from ccpn.framework.PathsAndUrls import peakPickerPath
 from collections import defaultdict
 
@@ -58,7 +58,7 @@ def getPeakPickerTypes() -> OrderedDict:
 
     if not PeakPickerABC._loadedPeakPickers:
         # load all from folder
-        loadModules([peakPickerPath, ])
+        fetchPythonModules([peakPickerPath, ])
         PeakPickerABC._loadedPeakPickers = True
 
     return PeakPickerABC._peakPickers

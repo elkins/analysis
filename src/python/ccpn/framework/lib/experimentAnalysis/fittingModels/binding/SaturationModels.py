@@ -15,7 +15,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-07-19 16:25:51 +0100 (Fri, July 19, 2024) $"
+__dateModified__ = "$dateModified: 2024-08-07 09:20:36 +0100 (Wed, August 07, 2024) $"
 __version__ = "$Revision: 3.2.5 $"
 #=========================================================================================
 # Created
@@ -333,6 +333,7 @@ class BindingModelBC(FittingModelABC):
         super().__init__(*args, **kwargs)
         self._ySeriesLabel = 'sv.RELDISPLACEMENT'
 
+
     def fitSeries(self, inputData:TableFrame, *args, **kwargs) -> TableFrame:
         """
         :param inputData: Datatable derived from a CalculationModel, e.g. the EuclideanCalculationModel.
@@ -340,29 +341,33 @@ class BindingModelBC(FittingModelABC):
 
         :return: output dataTable
         """
-        getLogger().warning(sv.UNDER_DEVELOPMENT_WARNING)
-        grouppedByCollectionsId = inputData.groupby([sv.COLLECTIONID])
+        resultData = inputData.copy()
+        grouppedByCollectionsId = resultData.groupby([sv.COLLECTIONID])
         for collectionId, groupDf in grouppedByCollectionsId:
             groupDf.sort_values([self.xSeriesStepHeader], inplace=True)
             seriesSteps = groupDf[self.xSeriesStepHeader]
             seriesValues = groupDf[self.ySeriesStepHeader]
-            xArray = seriesSteps.values # e.g. ligand concentration
-            yArray = seriesValues.values # DeltaDeltas
+
+            xArray = np.copy(seriesSteps.values)  # e.g. ligand concentration
+            yArray = np.copy(seriesValues.values)  # DeltaDeltas
+
             minimiser = self.Minimiser()
             minimiser.setMethod(self._minimiserMethod)
             try:
+                print('HERE FITTING:}}}=====> ', collectionId, self.modelName, yArray, xArray)
                 params = minimiser.guess(yArray, xArray)
-                result = minimiser.fit(yArray, params, x=xArray)
+                result = minimiser.fit(yArray, params, x=xArray, nan_policy='omit', method=self._minimiserMethod)
             except:
                 getLogger().warning(f'Fitting Failed for collectionId: {collectionId} data.')
                 params = minimiser.params
                 result = MinimiserResult(minimiser, params)
-            inputData.loc[collectionId, sv.MODEL_NAME] = self.modelName
-            inputData.loc[collectionId, sv.MINIMISER_METHOD] = minimiser.method
+
             for ix, row in groupDf.iterrows():
                 for resultName, resulValue in result.getAllResultsAsDict().items():
-                    inputData.loc[ix, resultName] = resulValue
-        return inputData
+                    resultData.loc[ix, resultName] = resulValue
+                resultData.loc[ix, sv.MODEL_NAME] = self.modelName
+                resultData.loc[ix, sv.MINIMISER_METHOD] = minimiser.method
+        return resultData
 
 class OneSiteBindingModel(BindingModelBC):
     """
@@ -466,7 +471,10 @@ class CooperativityBindingModel(BindingModelBC):
                  '''
     # MaTex = r'$\frac{B_{Max} * [L]^Hs }{[L]^Hs + K_d^Hs}$'
     Minimiser = _BindingCooperativityMinimiser
-    
+    isEnabled = True
+    targetSeriesAnalyses = [
+                                            sv.ChemicalShiftMappingAnalysis
+                                            ]
 
 class FractionBindingModel(BindingModelBC):
     """

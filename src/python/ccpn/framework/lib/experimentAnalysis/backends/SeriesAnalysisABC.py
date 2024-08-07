@@ -4,9 +4,10 @@ This module defines base classes for Series Analysis
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2023"
-__credits__ = ("Ed Brooksbank, Joanna Fox, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
-               "Timothy J Ragan, Brian O Smith, Gary S Thompson & Geerten W Vuister")
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
+               "Timothy J Ragan, Brian O Smith, Daniel Thompson",
+               "Gary S Thompson & Geerten W Vuister")
 __licence__ = ("CCPN licence. See https://ccpn.ac.uk/software/licensing/")
 __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, L.G., & Vuister, G.W.",
                  "CcpNmr AnalysisAssign: a flexible platform for integrated NMR analysis",
@@ -15,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2023-12-02 18:05:54 +0000 (Sat, December 02, 2023) $"
-__version__ = "$Revision: 3.2.0 $"
+__dateModified__ = "$dateModified: 2024-08-07 09:20:36 +0100 (Wed, August 07, 2024) $"
+__version__ = "$Revision: 3.2.5 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -42,7 +43,7 @@ import ccpn.framework.lib.experimentAnalysis.calculationModels._libraryFunctions
 import ccpn.framework.lib.experimentAnalysis.SeriesAnalysisVariables as sv
 from ccpn.framework.PathsAndUrls import ccpnExperimentAnalysisPath
 from ccpn.util.Path import aPath, scandirs
-from ccpn.util.Common import loadModules
+from ccpn.util.Common import fetchPythonModules
 
 
 class SeriesAnalysisABC(ABC):
@@ -53,7 +54,6 @@ class SeriesAnalysisABC(ABC):
     _allowedPeakProperties = [sv._HEIGHT, sv._VOLUME, sv._PPMPOSITION, sv._LINEWIDTH]
     _minimisedProperty = None  # the property currently used to perform the fitting routines. Default height, but can be anything.
     _modelsAreLoaded = False
-    _loadedModels = set()
 
     @property
     def inputDataTables(self) -> list:
@@ -186,6 +186,7 @@ class SeriesAnalysisABC(ABC):
                     seriesStep += sv.SEP # this is the case when two series Steps are the same! Cannot create two identical columns or 1 will disappear
                 outDataFrame.loc[ix, seriesStep] = seriesValue
                 lastSeenSeriesStep = seriesStep
+        # additional Series values to be added here?
 
         # drop columns that should not be on the Gui. To remove: peak properties (dim, height, ppm etc)
         toDrop = sv.PeakPropertiesHeaders + [sv._SNR, sv.DIMENSION, sv.ISOTOPECODE, sv.NMRATOMNAME, sv.NMRATOMPID]
@@ -326,7 +327,9 @@ class SeriesAnalysisABC(ABC):
                     params = minimiser.guess(Ys, Xs)
         if minimiserMethod is not None:
             minimiser.setMethod(minimiserMethod)
+        print(f'FITTING WITH: {Ys} ===PARAMS: {params}  == Xs:{Xs}')
         result = minimiser.fit(Ys, params, x=Xs, method=minimiserMethod)
+        print(f'====='*5)
 
         ## write to the output data (overriding the previously results)
         for ix, row in resultDataForCollection.iterrows():
@@ -382,7 +385,9 @@ class SeriesAnalysisABC(ABC):
         from ccpn.framework.lib.experimentAnalysis.fittingModels.FittingModelABC import FittingModelABC
         from ccpn.framework.lib.experimentAnalysis.calculationModels.CalculationModelABC import CalculationModel
 
+        print('LOADING  self._loadedModels===:',  self._loadedModels)
         if self._modelsAreLoaded:
+            print('LOADING  self._loadedModels===:', self._loadedModels)
             return
         fittingModelsPath = aPath(ccpnExperimentAnalysisPath) / 'fittingModels'
         calculationModelsPath = aPath(ccpnExperimentAnalysisPath) / 'calculationModels'
@@ -391,7 +396,8 @@ class SeriesAnalysisABC(ABC):
         calculationModelsSubDirPaths = scandirs(calculationModelsPath)
 
         allModelsFilePaths = fittingModelsSubDirPaths + calculationModelsSubDirPaths
-        pythonModules = loadModules(allModelsFilePaths) # this does the physical loading of the files to Python-Modules
+        print('allModelsFilePaths:::: ', allModelsFilePaths)
+        pythonModules = fetchPythonModules(allModelsFilePaths) # this does the physical loading of the files to Python-Modules
         for pythonModule in pythonModules:
             try:
                 for i, obj in _inspect.getmembers(pythonModule): # this scans for the right classes within the Python-Module
@@ -403,11 +409,14 @@ class SeriesAnalysisABC(ABC):
                                 continue
                             if not obj.modelName:
                                 continue
-                            SeriesAnalysisABC._loadedModels.add(obj)
+                            print('LOADING ===:', obj)
+                            self._loadedModels.add(obj)
 
             except Exception as loadingError: # Not encountered any so far. but just in case
                 getLogger().warn(f'Error in registering the class from {pythonModule}. Skipping with: {loadingError} ')
         self._modelsAreLoaded = True
+        print('end self._loadedModels===:',  self._loadedModels)
+
 
     def _registerModels(self):
         """ Register all the available models"""
@@ -631,6 +640,7 @@ class SeriesAnalysisABC(ABC):
         self.project = getProject()
         self.application = getApplication()
         self.current = getCurrent()
+        self. _loadedModels = set()
         self._inputDataTables = OrderedSet()
         self._inputSpectrumGroups = OrderedSet()
         self._inputCollection = None
@@ -644,6 +654,7 @@ class SeriesAnalysisABC(ABC):
         self._needsRefitting = False
         self._needsRebuildingInputDataTables = False
         self._exclusionHandler = ExclusionHandler()
+
         self._loadModelsFromDisk()
         self._registerModels()
 

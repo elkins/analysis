@@ -5,9 +5,10 @@ List widget
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2023"
-__credits__ = ("Ed Brooksbank, Joanna Fox, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
-               "Timothy J Ragan, Brian O Smith, Gary S Thompson & Geerten W Vuister")
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
+               "Timothy J Ragan, Brian O Smith, Daniel Thompson",
+               "Gary S Thompson & Geerten W Vuister")
 __licence__ = ("CCPN licence. See https://ccpn.ac.uk/software/licensing/")
 __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, L.G., & Vuister, G.W.",
                  "CcpNmr AnalysisAssign: a flexible platform for integrated NMR analysis",
@@ -15,9 +16,9 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2023-05-23 15:27:39 +0100 (Tue, May 23, 2023) $"
-__version__ = "$Revision: 3.1.1 $"
+__modifiedBy__ = "$modifiedBy: Luca Mureddu $"
+__dateModified__ = "$dateModified: 2024-08-07 09:20:37 +0100 (Wed, August 07, 2024) $"
+__version__ = "$Revision: 3.2.5 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -68,6 +69,7 @@ class ListWidget(QtWidgets.QListWidget, Base):
                  acceptDrops=False,
                  sortOnDrop=False,
                  allowDuplicates=False,
+                 allowSelections =True,
                  copyDrop=True,
                  infiniteHeight=False,
                  minRowsVisible=4,
@@ -117,6 +119,16 @@ class ListWidget(QtWidgets.QListWidget, Base):
 
         self._setFocusColour()
         self._setChangedConnections()
+        self.setAllowSelections(allowSelections)
+
+    def setAllowSelections(self, value):
+        if value:
+            if self.multiSelect:
+                self.setSelectionMode(QtWidgets.QAbstractItemView.ExtendedSelection)
+            else:
+                self.setSelectionMode(QtWidgets.QAbstractItemView.SingleSelection)
+        else:
+            self.setSelectionMode(QtWidgets.QListWidget.NoSelection)
 
     def _setFocusColour(self, focusColour=None, noFocusColour=None):
         """Set the focus/noFocus colours for the widget
