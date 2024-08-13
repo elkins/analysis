@@ -15,7 +15,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-08-07 09:20:36 +0100 (Wed, August 07, 2024) $"
+__dateModified__ = "$dateModified: 2024-08-13 16:37:44 +0100 (Tue, August 13, 2024) $"
 __version__ = "$Revision: 3.2.5 $"
 #=========================================================================================
 # Created
@@ -31,6 +31,8 @@ from ccpn.util.Logging import getLogger
 from ccpn.core.DataTable import TableFrame
 from ccpn.framework.lib.experimentAnalysis.fittingModels.FittingModelABC import FittingModelABC, MinimiserModel, MinimiserResult
 import ccpn.framework.lib.experimentAnalysis.SeriesAnalysisVariables as sv
+from ccpn.core.lib.ContextManagers import progressHandler
+
 
 def oneSiteBinding_func(x, Kd, BMax):
     """
@@ -175,7 +177,7 @@ class _Binding1SiteMinimiser(MinimiserModel):
     defaultParams = {KD:1,
                      BMAX:0.5}
 
-    def __init__(self, independent_vars=['x'], prefix='', nan_policy=sv.OMIT_MODE, **kwargs):
+    def __init__(self, independent_vars=['x'], prefix='', nan_policy=sv.PROPAGATE_MODE, **kwargs):
         kwargs.update({'prefix': prefix, 'nan_policy': nan_policy, 'independent_vars': independent_vars})
         super().__init__(_Binding1SiteMinimiser.FITTING_FUNC, **kwargs)
         self.name = self.MODELNAME
@@ -232,7 +234,7 @@ class _BindingCooperativityMinimiser(MinimiserModel):
                      BMAX:0.5,
                      HILLSLOPE:1}
 
-    def __init__(self, independent_vars=['x'], prefix='', nan_policy=sv.OMIT_MODE, **kwargs):
+    def __init__(self, independent_vars=['x'], prefix='', nan_policy=sv.PROPAGATE_MODE, **kwargs):
         kwargs.update({'prefix': prefix, 'nan_policy': nan_policy, 'independent_vars': independent_vars})
         super().__init__(_BindingCooperativityMinimiser.FITTING_FUNC, **kwargs)
         self.name = self.MODELNAME
@@ -343,31 +345,51 @@ class BindingModelBC(FittingModelABC):
         """
         resultData = inputData.copy()
         grouppedByCollectionsId = resultData.groupby([sv.COLLECTIONID])
-        for collectionId, groupDf in grouppedByCollectionsId:
-            groupDf.sort_values([self.xSeriesStepHeader], inplace=True)
-            seriesSteps = groupDf[self.xSeriesStepHeader]
-            seriesValues = groupDf[self.ySeriesStepHeader]
+        with progressHandler(title='Fitting Data', maximum=len(resultData), text='Fitting data....',
+                             hideCancelButton=True, ) as progress:
+            for jj, (collectionId, groupDf) in enumerate(grouppedByCollectionsId):
+                progress.setValue(jj)
+                groupDf.sort_values([self.xSeriesStepHeader], inplace=True)
+                seriesSteps = groupDf[self.xSeriesStepHeader]
+                seriesValues = groupDf[self.ySeriesStepHeader]
+                xArray = np.copy(seriesSteps.values)  # e.g. ligand concentration
+                yArray = np.copy(seriesValues.values)  # e.g.  DeltaDeltas
 
-            xArray = np.copy(seriesSteps.values)  # e.g. ligand concentration
-            yArray = np.copy(seriesValues.values)  # DeltaDeltas
+                minimiser = self.Minimiser()
+                minimiser.setMethod(self._minimiserMethod)
+                try:
+                    params = minimiser.guess(yArray, xArray)
+                    params = self._preFittingAdditionalParamsSettings(groupDf, params)
+                    result = minimiser.fit(yArray, params, x=xArray, nan_policy=sv.PROPAGATE_MODE, method=self._minimiserMethod)
+                    finalParams = result.calculateStandardErrors(xArray, yArray, self._uncertaintiesMethod, samples=self._uncertaintiesSampleSize)
 
-            minimiser = self.Minimiser()
-            minimiser.setMethod(self._minimiserMethod)
-            try:
-                print('HERE FITTING:}}}=====> ', collectionId, self.modelName, yArray, xArray)
-                params = minimiser.guess(yArray, xArray)
-                result = minimiser.fit(yArray, params, x=xArray, nan_policy='omit', method=self._minimiserMethod)
-            except:
-                getLogger().warning(f'Fitting Failed for collectionId: {collectionId} data.')
-                params = minimiser.params
-                result = MinimiserResult(minimiser, params)
+                except:
+                    getLogger().warning(f'Fitting Failed for collectionId: {collectionId} data.')
+                    params = minimiser.params
+                    result = MinimiserResult(minimiser, params)
 
-            for ix, row in groupDf.iterrows():
-                for resultName, resulValue in result.getAllResultsAsDict().items():
-                    resultData.loc[ix, resultName] = resulValue
-                resultData.loc[ix, sv.MODEL_NAME] = self.modelName
-                resultData.loc[ix, sv.MINIMISER_METHOD] = minimiser.method
+                for ix, row in groupDf.iterrows():
+                    for resultName, resulValue in result.getAllResultsAsDict(params=finalParams).items():
+                        resultData.loc[ix, resultName] = resulValue
+                    resultData.loc[ix, sv.MODEL_NAME] = self.modelName
+                    resultData.loc[ix, sv.MINIMISER_METHOD] = minimiser.method
+                    resultData.loc[ix, sv.UNCERTAINTIESMETHOD] = self._uncertaintiesMethod
         return resultData
+
+    @staticmethod
+    def _getAdditionalValueFromArray(arr):
+        """Get the first additional value for an array of additional series steps. We take only one because we don't support yet multi values, eg.: multi target concentrations """
+        if arr.size == 0:
+            return None
+        if np.all(arr == arr[0]) and not np.isnan(arr[0]) and arr[0] is not None:
+            return arr[0]
+        else:
+            return None
+
+    def _preFittingAdditionalParamsSettings(self, df, params, **kwargs):
+        """called before running the fitting routine to set any additional params options. To be subclasses"""
+        return params
+
 
 class OneSiteBindingModel(BindingModelBC):
     """
@@ -514,3 +536,23 @@ class FractionBindingWithTargetConcentrModel(BindingModelBC):
                                             ]
 
 
+    def _setGlobalTargetConcentrationToParams(self, df, params,):
+        """
+        :param df:
+        :param params:
+        :return: LMFIT params with added the Global Target Concentration value as fixed argument.
+        """
+        globalConcentration = 1 # Fallback. default set to 1 #
+        if self.xSeriesStepAdditionalHeader in df:
+            seriesAdditionalSteps = df[self.xSeriesStepAdditionalHeader]
+            tArray = np.copy(seriesAdditionalSteps.values)
+            v = self._getAdditionalValueFromArray(tArray)
+            if v is not None:
+                globalConcentration = v
+        params[sv.T].set(value=globalConcentration, vary=False)
+        return params
+
+    def _preFittingAdditionalParamsSettings(self, df, params, **kwargs):
+        """called before running the fitting routine to set any additional params options. To be subclasses"""
+        params = self._setGlobalTargetConcentrationToParams(df, params)
+        return params

@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-08-07 09:20:36 +0100 (Wed, August 07, 2024) $"
+__dateModified__ = "$dateModified: 2024-08-13 16:37:44 +0100 (Tue, August 13, 2024) $"
 __version__ = "$Revision: 3.2.5 $"
 #=========================================================================================
 # Created
@@ -155,6 +155,7 @@ class SeriesAnalysisABC(ABC):
         ## update the DATATABLETYPE
         dataTable.setMetadata(sv.DATATABLETYPE, sv.SERIESANALYSISOUTPUTDATA)
         dataTable.setMetadata(sv.SERIESFRAMETYPE,  sv.SERIESANALYSISOUTPUTDATA)
+        dataTable.setMetadata(sv._LAST_SAVED_APPLICATIONVERSION, str(self.project.application.applicationVersion))
         return dataTable
 
     def getResultDataFrame(self, useFiltered=True) -> pd.DataFrame:
@@ -327,13 +328,13 @@ class SeriesAnalysisABC(ABC):
                     params = minimiser.guess(Ys, Xs)
         if minimiserMethod is not None:
             minimiser.setMethod(minimiserMethod)
-        print(f'FITTING WITH: {Ys} ===PARAMS: {params}  == Xs:{Xs}')
         result = minimiser.fit(Ys, params, x=Xs, method=minimiserMethod)
-        print(f'====='*5)
+        finalParams = result.calculateStandardErrors(Xs, Ys, uncertaintiesMethod=fittingModel._uncertaintiesMethod,
+                                                     samples=fittingModel._uncertaintiesSampleSize)
 
         ## write to the output data (overriding the previously results)
         for ix, row in resultDataForCollection.iterrows():
-            for resultName, resulValue in result.getAllResultsAsDict().items():
+            for resultName, resulValue in result.getAllResultsAsDict(params=finalParams).items():
                 resultData.loc[ix, resultName] = resulValue
             resultData.loc[ix, sv.MODEL_NAME] = fittingModel.modelName
             resultData.loc[ix, sv.MINIMISER_METHOD] = minimiser.method
@@ -385,9 +386,7 @@ class SeriesAnalysisABC(ABC):
         from ccpn.framework.lib.experimentAnalysis.fittingModels.FittingModelABC import FittingModelABC
         from ccpn.framework.lib.experimentAnalysis.calculationModels.CalculationModelABC import CalculationModel
 
-        print('LOADING  self._loadedModels===:',  self._loadedModels)
         if self._modelsAreLoaded:
-            print('LOADING  self._loadedModels===:', self._loadedModels)
             return
         fittingModelsPath = aPath(ccpnExperimentAnalysisPath) / 'fittingModels'
         calculationModelsPath = aPath(ccpnExperimentAnalysisPath) / 'calculationModels'
@@ -396,7 +395,6 @@ class SeriesAnalysisABC(ABC):
         calculationModelsSubDirPaths = scandirs(calculationModelsPath)
 
         allModelsFilePaths = fittingModelsSubDirPaths + calculationModelsSubDirPaths
-        print('allModelsFilePaths:::: ', allModelsFilePaths)
         pythonModules = fetchPythonModules(allModelsFilePaths) # this does the physical loading of the files to Python-Modules
         for pythonModule in pythonModules:
             try:
@@ -409,13 +407,11 @@ class SeriesAnalysisABC(ABC):
                                 continue
                             if not obj.modelName:
                                 continue
-                            print('LOADING ===:', obj)
                             self._loadedModels.add(obj)
 
             except Exception as loadingError: # Not encountered any so far. but just in case
                 getLogger().warn(f'Error in registering the class from {pythonModule}. Skipping with: {loadingError} ')
         self._modelsAreLoaded = True
-        print('end self._loadedModels===:',  self._loadedModels)
 
 
     def _registerModels(self):
@@ -499,6 +495,7 @@ class SeriesAnalysisABC(ABC):
                                            )
         dataTable = project.newDataTable(name=dataTableName, data=seriesFrame)
         dataTable.setMetadata(sv.DATATABLETYPE, sv.SERIESANALYSISINPUTDATA)
+        dataTable.setMetadata(sv._LAST_SAVED_APPLICATIONVERSION, str(project.application.applicationVersion))
         self._setRestoringMetadata(dataTable, seriesFrame, spectrumGroup)
         return dataTable
 

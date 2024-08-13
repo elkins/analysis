@@ -17,7 +17,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-08-07 09:20:36 +0100 (Wed, August 07, 2024) $"
+__dateModified__ = "$dateModified: 2024-08-13 16:37:44 +0100 (Tue, August 13, 2024) $"
 __version__ = "$Revision: 3.2.5 $"
 #=========================================================================================
 # Created
@@ -106,6 +106,7 @@ RESIDUAL = 'residual'
 MINIMISER_METHOD = 'Method'
 MINIMISER_MODEL  = 'Model'
 MINIMISER_OBJ  = '_minimiserObj'
+UNCERTAINTIESMETHOD = 'UncertaintiesMethod'
 
 ## Peak properties. Used to get nmrAtom assigned-peak by dimension and build tables.
 _POSITION = 'position'
@@ -243,6 +244,7 @@ EXCLUDED_OBJECTS = [EXCLUDED_COLLECTIONPID, EXCLUDED_NMRRESIDUEPID, EXCLUDED_NMR
 ### Used in SeriesFrame tables ABCs
 ############################################################################################
 DATATABLETYPE               = 'DATATABLETYPE'
+_LAST_SAVED_APPLICATIONVERSION = '_LAST_SAVED_APPLICATIONVERSION'
 SERIESANALYSISDATATABLE     = 'SERIESANALYSISDATATABLE'
 SERIESANALYSISOUTPUTDATA    = 'SeriesAnalysisResultsData'
 SERIESANALYSISINPUTDATA     = 'SeriesAnalysisInputData'
@@ -354,6 +356,11 @@ EXCLUDEDRESIDUETYPES = 'ExcludedResidueTypes'
 
 LEASTSQ = 'leastsq'
 
+COVMATRIX = 'Covariance'
+MONTECARLO = 'MonteCarlo'
+BOOTSTRAP = 'Bootstrap'
+JACKKNIFE = 'JackKnife'
+
 InversionRecovery = 'InversionRecovery'
 ExponentialDecay = 'ExponentialDecay'
 OnePhaseDecay = 'OnePhaseDecay'
@@ -375,7 +382,7 @@ NIY_WARNING = f'''This functionality has not been implemented yet.'''
 # Errors
 OMIT_MODE = 'omit'
 RAISE_MODE = 'raise'
-
+PROPAGATE_MODE = 'propagate'
 
 MINIMISER_METHODS = {
     'leastsq': 'Levenberg-Marquardt (default)',

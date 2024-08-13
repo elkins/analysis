@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-08-07 09:20:36 +0100 (Wed, August 07, 2024) $"
+__dateModified__ = "$dateModified: 2024-08-13 16:37:44 +0100 (Tue, August 13, 2024) $"
 __version__ = "$Revision: 3.2.5 $"
 #=========================================================================================
 # Created
@@ -126,15 +126,14 @@ class EuclideanCalculationModel(CalculationModel):
                     seriesValues4residue = values.T  ## take the series values in axis 1 and create a 2D array. e.g.:[[8.15 123.49][8.17 123.98]]
                     deltaDeltas = EuclideanCalculationModel._calculateDeltaDeltas(seriesValues4residue, alphaFactors)
                     csmValue = np.mean(deltaDeltas[1:])  ## first item is excluded from as it is always 0 by definition.
-
                     nmrAtomNames = inputData._getAtomNamesFromGroupedByHeaders(groupDf)
-
                     # seriesSteps = groupDf[self.xSeriesStepHeader].unique() #cannot use unique! Could be series with same value!!
                     seriesUnits = groupDf[sv.SERIESUNIT].unique()
-                    seriesAdditionalValues = groupDf[sv.ADDITIONAL_SERIES_STEP_X].unique()
-                    if seriesAdditionalValues is not None and len(seriesAdditionalValues)>0:
-                        print('seriesAdditionalValues===>', seriesAdditionalValues)
-                        seriesAdditionalValue = seriesAdditionalValues[-1]
+                    seriesAdditionalValue = None
+                    if sv.ADDITIONAL_SERIES_STEP_X in groupDf:
+                        seriesAdditionalValues = groupDf[sv.ADDITIONAL_SERIES_STEP_X].unique()
+                        if seriesAdditionalValues is not None and len(seriesAdditionalValues)>0:
+                            seriesAdditionalValue = seriesAdditionalValues[-1]
                     peakPids = groupDf[sv.PEAKPID].unique()
                     snrs = groupDf[sv._SNR].unique()
                     csmValueError = lf.peakErrorBySNRs(snrs, factor=csmValue, power=-2, method='std')
@@ -152,6 +151,7 @@ class EuclideanCalculationModel(CalculationModel):
                         outputFrame.loc[rowIndex, sv.NMRRESIDUEPID] = groupDf[sv.NMRRESIDUEPID].values[-1]
                         outputFrame.loc[rowIndex, sv.SERIES_STEP_Y] = delta
                         outputFrame.loc[rowIndex, self.xSeriesStepHeader] = seriesStep
+                        outputFrame.loc[rowIndex, sv.ADDITIONAL_SERIES_STEP_X] = seriesAdditionalValue
                         outputFrame.loc[rowIndex, sv.SERIESUNIT] = seriesUnits[-1]
                         outputFrame.loc[rowIndex, sv.CALCULATION_MODEL] = self.modelName
                         outputFrame.loc[rowIndex, sv.GROUPBYAssignmentHeaders] = \

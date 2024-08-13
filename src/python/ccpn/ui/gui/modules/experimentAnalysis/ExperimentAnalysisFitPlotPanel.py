@@ -13,7 +13,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-08-07 09:20:36 +0100 (Wed, August 07, 2024) $"
+__dateModified__ = "$dateModified: 2024-08-13 16:37:44 +0100 (Tue, August 13, 2024) $"
 __version__ = "$Revision: 3.2.5 $"
 #=========================================================================================
 # Created
@@ -36,7 +36,7 @@ import ccpn.framework.lib.experimentAnalysis.SeriesAnalysisVariables as sv
 import pyqtgraph as pg
 from pyqtgraph.graphicsItems.ROI import Handle
 from PyQt5 import QtCore, QtGui, QtWidgets
-from ccpn.ui.gui.guiSettings import CCPNGLWIDGET_HEXBACKGROUND, CCPNGLWIDGET_LABELLING
+from ccpn.ui.gui.guiSettings import CCPNGLWIDGET_HEXBACKGROUND, CCPNGLWIDGET_LABELLING, CCPNGLWIDGET_PICKAREA
 from ccpn.ui.gui.guiSettings import getColours
 from ccpn.ui.gui.widgets.Font import getFont
 from ccpn.ui.gui.modules.experimentAnalysis.ExperimentAnalysisGuiPanel import GuiPanel
@@ -47,6 +47,8 @@ from ccpn.ui.gui.widgets.Icon import Icon
 from ccpn.ui.gui.widgets.Menu import Menu
 from ccpn.ui.gui.widgets.CustomExportDialog import CustomExportDialog
 from ccpn.ui.gui.widgets.MessageDialog import showWarning, showInfo
+from lmfit import Model, Parameter, Parameters
+from ccpn.ui.gui.widgets.FillBetweenRegions import FillBetweenRegions
 
 class FittingPlotToolBar(ExperimentAnalysisPlotToolBar):
 
@@ -73,7 +75,16 @@ class FittingPlotToolBar(ExperimentAnalysisPlotToolBar):
                 ('callback', self._toggleRawDataScatter),
                 ('enabled', True),
                 ('checkable', True)
-            ))))
+            ))),
+            ('uncertaintiesData', od((
+                ('text', 'ToggleUncertaintiesArea'),
+                ('toolTip', 'Toggle the Uncertainties Area'),
+                ('icon', Icon('icons/uncertaintiesArea')),
+                ('callback', self._toggleUncertaintiesArea),
+                ('enabled', True),
+                ('checkable', True)
+                ))),
+            )
         toolBarDefs.update(extraDefs)
         return toolBarDefs
 
@@ -85,6 +96,10 @@ class FittingPlotToolBar(ExperimentAnalysisPlotToolBar):
         action = self.sender()
         self.fittingPanel.toggleRawData(action.isChecked())
 
+    def _toggleUncertaintiesArea(self):
+        action = self.sender()
+        self.fittingPanel._toggleUncertaintiesArea(action.isChecked())
+
 class FitPlotPanel(GuiPanel):
 
     position = 2
@@ -94,6 +109,7 @@ class FitPlotPanel(GuiPanel):
         GuiPanel.__init__(self, guiModule, showBorder=True, *args , **Framekwargs)
         self.fittedCurve = None #not sure if this var should Exist
         self.rawDataScatterPlot = None
+        self.uncertaintiesCurves = []
 
     def initWidgets(self):
 
@@ -150,6 +166,8 @@ class FitPlotPanel(GuiPanel):
             isModelRestored = False
             yf = None
 
+
+
         ## Grab the Pids/Objs for each spot in the scatter plot. Peaks
         peakPids = filteredDf[sv.PEAKPID].values
         objs = [self.project.getByPid(pid) for pid in peakPids]
@@ -161,11 +179,34 @@ class FitPlotPanel(GuiPanel):
         ## Grab the Fitting function from the model and its needed Args from the DataTable. (I.e. Kd, Decay etc)
         func = model.getFittingFunc(model)
         funcArgs = model.modelArgumentNames
+        funcErrArgs = model.modelArgumentErrorNames
         argsInDf = set(funcArgs).issubset(filteredDf.columns)
         fittingArgs = None
         if argsInDf:
             argsFit = filteredDf.iloc[0][funcArgs]
             fittingArgs = argsFit.astype(float).to_dict()
+            argsErrFit = filteredDf.iloc[0][funcErrArgs]
+            fittingErrArgs = argsErrFit.astype(float).to_dict()
+            # stdErrs = [f'{x}{sv._ERR}' for x in argsInDf]
+
+            lowerParams = Parameters()
+            upperParams = Parameters()
+            fitParams = Parameters()
+
+            for name, value in fittingArgs.items():
+                err = fittingErrArgs.get(f'{name}{sv._ERR}', None)
+                lowerValue = value
+                upperValue = value
+                if err is None:
+                    err = 1
+                lowerValue -= 1.96*err
+                upperValue += 1.96*err
+                lowerParam = Parameter(name=name, value=lowerValue)
+                lowerParams.add_many(lowerParam)
+                upperParam = Parameter(name=name, value=upperValue)
+                upperParams.add_many(upperParam)
+                fitParam = Parameter(name=name, value=value)
+                fitParams.add_many(fitParam)
 
         ## Add and extra of filling data at the end of the fitted curve to don't just sharp end on the last raw data Point
         extra = percentage(50, max(Xs))
@@ -173,9 +214,13 @@ class FitPlotPanel(GuiPanel):
         finalPoint = max(Xs) #+ extra
         xf = np.linspace(initialPoint, finalPoint, 3000)
 
+        lowerBoundY = model.Minimiser().eval(lowerParams, x=xf)
+        upperBoundY = model.Minimiser().eval(upperParams, x=xf)
+        yff = model.Minimiser().eval(fitParams, x=xf)
+
         ## Build the fitted curve arrays
-        if isModelRestored and fittingArgs is not None:
-            yf = func(xf, **fittingArgs)
+        # if isModelRestored and fittingArgs is not None:
+        #     yf = func(xf, **fittingArgs)
 
         ## Grab the axes label
         seriesUnits = filteredDf[sv.SERIESUNIT].values
@@ -196,9 +241,17 @@ class FitPlotPanel(GuiPanel):
         self.currentCollectionLabel.setText(labelText)
 
         ## Plot the fittedCurve
-        if yf is None:
-            yf = [0]*len(xf)
-        self.fittedCurve = self.bindingPlot.plot(xf, yf, pen=self.bindingPlot.gridPen)
+        # if yf is None:
+        #     yf = [0]*len(xf)
+        self.fittedCurve = self.bindingPlot.plot(xf, yff, pen=self.bindingPlot.gridPen)
+        self.lowerCurve = self.bindingPlot.plot(xf, lowerBoundY, pen=self.bindingPlot.uncertPen)
+        self.upperCurve = self.bindingPlot.plot(xf, upperBoundY, pen=self.bindingPlot.uncertPen)
+        self.uncertaintiesCurves = [self.upperCurve, self.lowerCurve]
+        brush = (122, 186, 122 )
+        fills = [FillBetweenRegions(self.lowerCurve, self.upperCurve, brush=brush)]
+        for f in fills:
+            self.uncertaintiesCurves.append(f)
+            self.bindingPlot.addItem(f)
 
         ## Plot the Raw Data
         spots = []
@@ -293,6 +346,11 @@ class FitPlotPanel(GuiPanel):
             self.rawDataScatterPlot.setVisible(setVisible)
             self._toggleRawDataLabels(setVisible)
 
+    def _toggleUncertaintiesArea(self, setVisible=True):
+        """Show/Hide the Uncertainties Area data from the plot Widget """
+        for curve in self.uncertaintiesCurves:
+            curve.setVisible(setVisible)
+
     def _toggleFittedData(self, setVisible=True):
         """Show/Hide the fitted data from the plot Widget """
         if self.fittedCurve is not None:
@@ -338,7 +396,9 @@ class _FittingPlot(pg.PlotItem):
         self.parentWidget = parentWidget
 
         colour = rgbaRatioToHex(*getColours()[CCPNGLWIDGET_LABELLING])
+        self.uncColour = rgbaRatioToHex(*getColours()[CCPNGLWIDGET_PICKAREA])
         self.gridPen = pg.functions.mkPen(colour, width=1, style=QtCore.Qt.SolidLine)
+        self.uncertPen = pg.functions.mkPen(self.uncColour, width=.1, style=QtCore.Qt.SolidLine)
         self.gridFont = getFont()
         self.toolbar = None
         self.setMenuEnabled(False)

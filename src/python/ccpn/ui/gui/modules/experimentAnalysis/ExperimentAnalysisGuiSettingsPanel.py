@@ -1,9 +1,10 @@
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2023"
-__credits__ = ("Ed Brooksbank, Joanna Fox, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
-               "Timothy J Ragan, Brian O Smith, Gary S Thompson & Geerten W Vuister")
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
+               "Timothy J Ragan, Brian O Smith, Daniel Thompson",
+               "Gary S Thompson & Geerten W Vuister")
 __licence__ = ("CCPN licence. See https://ccpn.ac.uk/software/licensing/")
 __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, L.G., & Vuister, G.W.",
                  "CcpNmr AnalysisAssign: a flexible platform for integrated NMR analysis",
@@ -12,8 +13,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2023-12-05 09:48:04 +0000 (Tue, December 05, 2023) $"
-__version__ = "$Revision: 3.2.0 $"
+__dateModified__ = "$dateModified: 2024-08-13 16:37:44 +0100 (Tue, August 13, 2024) $"
+__version__ = "$Revision: 3.2.5 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -742,13 +743,34 @@ class GuiFittingPanel(GuiSettingPanel):
                        'fixedWidths': SettingsWidgetFixedWidths}}),
             (guiNameSpaces.WidgetVarName_ErrorMethod,
              {'label': guiNameSpaces.Label_ErrorMethod,
+              'type': compoundWidget.RadioButtonsCompoundWidget,
+              'postInit': None,
               'callBack': self._commonCallback,
               'tipText': guiNameSpaces.TipText_ErrorMethod,
-              'type': compoundWidget.PulldownListCompoundWidget,
-              'enabled': False,
+              'enabled': True,
               'kwds': {'labelText': guiNameSpaces.Label_ErrorMethod,
-                       'tipText': guiNameSpaces.TipText_ErrorMethod,
-                       'texts': ['Default','parametric bootstrapping', 'non-parametric bootstrapping', 'Monte-Carlo', ],
+                       'fixedWidths': SettingsWidgetFixedWidths,
+                       'selectedText': sv.COVMATRIX,
+                       'tipText': guiNameSpaces.UncertaintyTipText,
+                       'compoundKwds': {'texts'  : list(guiNameSpaces.UncertaintyDefs.keys()),
+                                        'tipTexts'    :  list(guiNameSpaces.UncertaintyDefs.values()),
+                                        'direction'   : 'v',
+                                        'tipText'     : guiNameSpaces.TipText_ErrorMethod,
+                                        'hAlign'      : 'l',
+                                        }}}),
+            (guiNameSpaces.WidgetVarName_UncertaintySample,
+             {'label'   : guiNameSpaces.Label_UncertaintySample,
+              'type'    : compoundWidget.SpinBoxCompoundWidget,
+              'postInit': None,
+              'callBack': self._commonCallback,
+              'tipText' : guiNameSpaces.TipText_UncertaintySample,
+              'enabled' : True,
+              'kwds': {'labelText': guiNameSpaces.Label_UncertaintySample,
+                       'tipText': guiNameSpaces.TipText_UncertaintySample,
+                       'value': 1000,
+                       'step': 10,
+                       'minimum':1,
+                       'maximum':10000,
                        'fixedWidths': SettingsWidgetFixedWidths}}),
         ))
         ## Set the models definitions
@@ -799,6 +821,8 @@ class GuiFittingPanel(GuiSettingPanel):
         fittingSettings = self.getSettingsAsDict()
         selectedFittingModelName = fittingSettings.get(guiNameSpaces.WidgetVarName_FittingModel, None)
         minimiserMethod = fittingSettings.get(guiNameSpaces.WidgetVarName_OptimiserMethod, 'leastsq')
+        uncertaintiesMethod = fittingSettings.get(guiNameSpaces.WidgetVarName_ErrorMethod, sv.COVMATRIX)
+        uncertaintiesSample = fittingSettings.get(guiNameSpaces.WidgetVarName_UncertaintySample)
         ## update the backend
         backend = self.guiModule.backendHandler
         currentFittingModel = backend.currentFittingModel
@@ -806,6 +830,9 @@ class GuiFittingPanel(GuiSettingPanel):
         if modelObj is not None:
             currentFittingModel = modelObj()
             currentFittingModel.setMinimiserMethod(minimiserMethod)
+            currentFittingModel.setUncertaintiesMethod(uncertaintiesMethod)
+            currentFittingModel.setSampleSize(uncertaintiesSample)
+
         backend.currentFittingModel = currentFittingModel
         # set update detected.
         backend._needsRefitting = True

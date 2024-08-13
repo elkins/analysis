@@ -62,7 +62,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-08-07 09:20:36 +0100 (Wed, August 07, 2024) $"
+__dateModified__ = "$dateModified: 2024-08-13 16:37:44 +0100 (Tue, August 13, 2024) $"
 __version__ = "$Revision: 3.2.5 $"
 #=========================================================================================
 # Created
@@ -79,7 +79,8 @@ import pandas as pd
 from abc import ABC, abstractmethod
 from copy import deepcopy
 from pandas import Series, isnull
-from lmfit import Model, Parameter
+from collections import defaultdict
+from lmfit import Model, Parameter, Parameters
 from lmfit.model import ModelResult, _align
 from ccpn.core.DataTable import TableFrame
 from ccpn.util.Logging import getLogger
@@ -97,21 +98,27 @@ class FittingModelABC(ABC):
     references                   = ''                                # A list of journal article references. E.g.: DOIs or title/authors/year/journal; web-pages.
     Minimiser                     = None                         # The fitting minimiser model object (initiated)
     peakProperty               = sv._HEIGHT              # The peak property to fit. One of ['height', 'lineWidth', 'volume', 'ppmPosition']
-    _minimisedProperty      = sv._HEIGHT             # Similarly to peakProperty, The same as peakProperty for most of the models.
+    _minimisedProperty      = sv._HEIGHT            # Similarly to peakProperty, The same as peakProperty for most of the models.
                                                                              # Added because models can be fitted using any properties (data) e.g. ratios.   This will appear as  Y label in the fitting plot.
     isEnabled                        = True                       # True to enable selection on the GUI. False to show but greyed-out and unselectable
     isGUIVisible                     = True                      # True to show on GUI. False to don't display on widgets but still available from backend. (good for testing)
     requiredInputData            = 1                           # ensure there is the correct amount of input data. Should also check the types (?)
     _autoRegisterModel        = True                      # Register to the Backend when dynamically loading its Python module from disk
+    _requiredInputDataColumns = []                      # The mandatory column headers required for this model to function correctly
+    _columnMaps = {}                                            # Internal. Used for updating the columns and back-compatibility with previous software versions
 
     def __init__(self, *args, **kwargs):
         self.application = getApplication()
         self.project = getProject()
         self._minimiserMethod = sv.LEASTSQ
+        self._uncertaintiesMethod = sv.COVMATRIX
+        self._uncertaintiesSampleSize = 100  # Number of iterations for the _uncertaintiesMethod calculations
+
         self._modelArgumentNames = []
         self._rawDataHeaders = [] # strings of columnHeaders
         self.xSeriesStepHeader = sv.SERIES_STEP_X
         self.ySeriesStepHeader = sv.SERIES_STEP_Y
+        self.xSeriesStepAdditionalHeader = sv.ADDITIONAL_SERIES_STEP_X #e.g. global protein concentration
         self._ySeriesLabel = self.peakProperty # this is only used in the Plot Y Axis label.
 
     @abstractmethod
@@ -166,6 +173,12 @@ class FittingModelABC(ABC):
 
     def setMinimiserMethod(self, method:str):
         self._minimiserMethod = method
+
+    def setUncertaintiesMethod(self, method:str):
+        self._uncertaintiesMethod = method
+
+    def setSampleSize(self, size:int):
+        self._uncertaintiesSampleSize = size
 
     def _getFirstInputDataTable(self, inputDataTables):
         """ _INTERNAL. Used to get the first available
@@ -260,7 +273,7 @@ class MinimiserModel(Model):
 
     def fit(self, data, params=None, weights=None, method='leastsq',
             iter_cb=None, scale_covar=True, verbose=False, fit_kws=None,
-            nan_policy='omit', calc_covar=True, max_nfev=None, **kwargs):
+            nan_policy='propagate', calc_covar=True, max_nfev=None, **kwargs):
         """Fit the model to the data using the supplied Parameters.
 
         Parameters
@@ -364,7 +377,6 @@ class MinimiserModel(Model):
             # Handle null/missing values.
             if nan_policy is not None:
                 self.nan_policy = nan_policy
-
             mask = None
             if self.nan_policy == 'omit':
                 mask = ~isnull(data)
@@ -402,7 +414,7 @@ class MinimiserModel(Model):
                                  scale_covar=scale_covar, fcn_kws=kwargs,
                                  nan_policy=self.nan_policy, calc_covar=calc_covar,
                                  max_nfev=max_nfev, **fit_kws)
-            result.fit(data=data, weights=weights, method=self.method)
+            result.fit(data=data, weights=weights, method=self.method, nan_policy=self.nan_policy)
             result.components = self.components
             if result.redchi is not None:
                 result.r2 = rSQR_func(redchi=result.redchi, y=data)
@@ -450,7 +462,7 @@ class MinimiserResult(ModelResult):
 
     def __init__(self, model, params, data=None, weights=None, scaleMinMax=False,
                  method=sv.LEASTSQ, fcn_args=None, fcn_kws=None,
-                 iter_cb=None, scale_covar=True, nan_policy=sv.OMIT_MODE,
+                 iter_cb=None, scale_covar=True, nan_policy=sv.PROPAGATE_MODE,
                  calc_covar=True, max_nfev=None, **fit_kws):
         """
         Parameters
@@ -489,6 +501,7 @@ class MinimiserResult(ModelResult):
 
         """
         self.r2 = None
+        self._simulatedParams = None # best fit from running the Resampling for uncertainties
         self.scaleMinMax = scaleMinMax
 
         super().__init__( model, params, data=data, weights=weights,
@@ -513,13 +526,15 @@ class MinimiserResult(ModelResult):
             dd[nn] = getattr(self, vv, None)
         return dd
 
-    def getParametersResult(self):
+    def getParametersResult(self, params=None):
         """
         Get the parameter results from the fit. E.g.: amplitude, decay and errors for a T1 fitting model
         :return: dict
         """
         dd = {}
-        for paramName, paramObj in self.params.items():
+        if params is None:
+            params = self.params
+        for paramName, paramObj in params.items():
             error = f'{paramName}{sv._ERR}'
             dd[paramName] = None
             dd[error] = None
@@ -528,12 +543,12 @@ class MinimiserResult(ModelResult):
                 dd[error] = paramObj.stderr
         return dd
 
-    def getAllResultsAsDict(self):
+    def getAllResultsAsDict(self, params=None):
         """
         :return: A dict with all minimiser results
         """
         outputDict = {}
-        for key, value in self.getParametersResult().items():
+        for key, value in self.getParametersResult(params=params).items():
             outputDict[key] = value
         for key, value in self.getStatisticalResult().items():
             outputDict[key] = value
@@ -546,6 +561,19 @@ class MinimiserResult(ModelResult):
         outputDict = self.getAllResultsAsDict()
         df = pd.DataFrame(outputDict, index=[0])
         return df
+
+    def calculateStandardErrors(self, x,y, uncertaintiesMethod='covMatrix', nonParametric=True, samples=200, noiseScale=0.5,  fraction=0.1):
+        availavableMethods = {
+                              sv.COVMATRIX:      self.covMatrixUncertaintiesEstimation,
+                              sv.MONTECARLO:  self.monteCarloUncertaintiesEstimation,
+                              sv.BOOTSTRAP:     self.bootstrapUncertaintiesEstimation,
+                              sv.JACKKNIFE:        self.jackKnifeUncertaintiesEstimation
+                              }
+        if uncertaintiesMethod not in availavableMethods:
+            raise RuntimeError('Invalid method. Use one of: covMatrix, monteCarlo, bootstrap, jackKnife ')
+        fun = availavableMethods.get(uncertaintiesMethod, self.covMatrixUncertaintiesEstimation)
+        params = fun(x, y, nSamples=samples, noiseScale=noiseScale, nonParametric=nonParametric, fraction=fraction)
+        return params
 
     def plot(self, datafmt='o', fitfmt='-', initfmt='--', showPlot=True, xlabel=None,
              ylabel=None, yerr=None, numpoints=None, fig=None, data_kws=None,
@@ -687,6 +715,175 @@ class MinimiserResult(ModelResult):
         if showPlot:
             plt.show()
         return fig
+
+
+    ## ~~~~~~~~~ Uncertainties Estimation Methods~~~~~~~~~
+
+    def _newParametersFromUncertainties(self, paramSamples):
+        """
+        Make a new Parameters from the uncertainties of parameters from the sampled values.
+        :param paramSamples: A defaultdict of lists where each key is a parameter name and each value is a list of sampled values.
+        :return: A Parameters object with the newly calculated parameters values and uncertainties.
+        """
+        newParams = Parameters()
+        for name, values in paramSamples.items():
+            param = Parameter(name=name, value=np.median(values))
+            param.stderr = np.std(values)
+            newParams.add_many(param)
+        return newParams
+
+    def _updateStdErr(self, paramSamples):
+        """
+        Update the stdErr in Parameters from the uncertainties of parameters from the sampled values.
+        :param paramSamples: A defaultdict of lists where each key is a parameter name and each value is a list of sampled values.
+        :return: A Parameters object with the newly calculated parameters values and uncertainties.
+        """
+        for name, values in paramSamples.items():
+            param = self.params.get(name)
+            if param is None:
+                continue
+            param.stderr = np.std(values)
+        return self.params
+
+    @staticmethod
+    def _getSyntheticY(y, best_fit, residuals,  noiseScale=0.5):
+        """ Get the syntheticY based on the model best fit and its residuals.
+         This method is used in parametric error estimation and Monte Carlo simulations to create synthetic datasets
+         that mimic the variability in the observed data.  By introducing noise, it allows for the estimation of uncertainties in model parameters under different scenarios.
+        There are many other ways to achieve this based on the data, but  this is a conventional way.
+        """
+        syntheticY = best_fit + np.random.normal(0, noiseScale * np.std(residuals), size=len(y))
+        return syntheticY
+
+    def covMatrixUncertaintiesEstimation(self, *args, **kwargs):
+        """The default method for LMFIT just for explicit access and documentation. This method give the same result as param.sterr.
+        In lmfit, the default method for calculating the standard errors (sterr) of the model parameters is  based on the covariance matrix of the parameters.
+        The covariance matrix of the parameter estimates is computed as part of the fitting process. This matrix reflects the estimated variances and covariances between parameters.
+        The standard errors for each parameter are derived from the diagonal elements of the covariance matrix. Specifically: the standard error for each parameter is the square root of the corresponding diagonal element of the covariance matrix.
+        The standard error (sterr) for parameter  p_i  is given by  \text{SE}(p_i) = \sqrt{\text{Cov}(p_i, p_i)} .
+        """
+        return self.params
+
+    def monteCarloUncertaintiesEstimation(self, x, y, nSamples=1000, noiseScale=0.5, nonParametric=None, **kwargs):
+        """
+        Perform Monte Carlo error estimation on model parameters.
+        :param x:  (array-like): The independent variable data.
+        :param y: (array-like): The dependent variable data.
+        :param nSamples: (int, optional): The number of Monte Carlo samples to generate. Default is 1000.
+        :param noiseScale: (float, optional): A scaling factor for the noise added to the synthetic data.
+                                      This scales the standard deviation of the noise based on residuals. Default is 1.
+        :return: The Parameters obj with the newly calculated parameters values
+        """
+        paramSamples = defaultdict(list)
+        bestFitResult = None
+        bestR2 = -np.inf
+        for _ in range(nSamples):
+            syntheticY =  self._getSyntheticY(y, self.best_fit, self.residual, noiseScale=noiseScale)
+            syntheticResult = self.model.fit(syntheticY, self.params, x=x, nan_policy=self.nan_policy)
+            if syntheticResult.redchi is not None:
+                syntheticResult.r2 = r2 = rSQR_func(redchi=syntheticResult.redchi, y=y)
+                if r2 > bestR2: # Check if this is the best fit so far
+                    bestR2 = r2
+                    bestFitResult = syntheticResult
+            for name, param in syntheticResult.params.items():
+                paramSamples[name].append(param.value)
+        if bestFitResult is not None:
+            self._simulatedParams = bestFitResult.params # _update ResultParams From BestFit
+        return self._updateStdErr(paramSamples)
+
+    def jackKnifeUncertaintiesEstimation(self, x, y, nSamples=1000, noiseScale=0.5,  nonParametric=True,  fraction=0.1, **kwargs):
+        """
+        Perform Jackknife error estimation on model parameters by leaving out a fraction of the data.
+        :param x: (array-like): The independent variable data.
+        :param y: (array-like): The dependent variable data.
+        :param nSamples: (int, optional): The number of Jackknife samples to generate. Default is 10.
+        :param fraction: (float, optional): The fraction of the dataset to leave out for each Jackknife iteration. Default is 0.2.
+        :param method: (str, optional): The method to use for error estimation. 'non-parametric' or 'parametric'. Default is 'non-parametric'.
+        :return: The Parameters object with the newly calculated parameters values.
+        """
+        n = len(y)
+        nLeaveOut = max(1, int(fraction * n))  # Number of data points to leave out in each iteration
+        paramSamples = defaultdict(list)
+        bestFitResult = None
+        bestR2 = -np.inf
+        if nonParametric: # Classic or default behaviour
+            for _ in range(nSamples):
+                # Generate a Jackknife sample by leaving out a fraction of the data points
+                indicesToLeaveOut = np.random.choice(n, nLeaveOut, replace=False)
+                jackknifeX = np.delete(x, indicesToLeaveOut)
+                jackknifeY = np.delete(y, indicesToLeaveOut)
+                syntheticResult = self.model.fit(jackknifeY, self.params, x=jackknifeX, nan_policy=self.nan_policy)
+                if syntheticResult.redchi is not None:
+                    syntheticResult.r2 = r2 = rSQR_func(redchi=syntheticResult.redchi, y=y)
+                    if r2 > bestR2:  # Check if this is the best fit so far
+                        bestR2 = r2
+                        bestFitResult = syntheticResult
+                for name, param in syntheticResult.params.items():
+                    paramSamples[name].append(param.value)
+
+        else: # nonParametric
+            for _ in range(nSamples):
+                # Generate Jackknife sample by leaving out a fraction of the data points
+                indicesToLeaveOut = np.random.choice(n, nLeaveOut, replace=False)
+                jackknifeX = np.delete(x, indicesToLeaveOut)
+                jackknifeY = np.delete(y, indicesToLeaveOut)
+                bestFit = np.delete(self.best_fit , indicesToLeaveOut)
+                # then add noise like for MonteCarlo
+                syntheticY = self._getSyntheticY(jackknifeY, bestFit, self.residual, noiseScale=noiseScale)
+                syntheticResult = self.model.fit(syntheticY, self.params, x=jackknifeX, nan_policy=self.nan_policy)
+                if syntheticResult.redchi is not None:
+                    syntheticResult.r2 = r2 = rSQR_func(redchi=syntheticResult.redchi, y=y)
+                    if r2 > bestR2:  # Check if this is the best fit so far
+                        bestR2 = r2
+                        bestFitResult = syntheticResult
+                for name, param in syntheticResult.params.items():
+                    paramSamples[name].append(param.value)
+        if bestFitResult is not None:
+            self._simulatedParams = bestFitResult.params  # _update ResultParams From BestFit
+        return self._updateStdErr(paramSamples)
+
+    def bootstrapUncertaintiesEstimation(self, x, y, nSamples=1000, noiseScale=0.5, nonParametric=True, **kwargs):
+        """
+        Perform bootstrap error estimation on model parameters.
+        :param x: (array-like): The independent variable data.
+        :param y: (array-like): The dependent variable data.
+        :param nSamples: (int, optional): The number of bootstrap samples to generate. Default is 1000.
+        :param nonParametric: (bool, optional): The bootstrap method to use. True for non-parametric bootstrapping,
+                                          False for parametric bootstrapping. Default is 'non-parametric'.
+        :return: The Parameters object with the newly calculated stderr values.
+        """
+        paramSamples = defaultdict(list)
+        bestFitResult = None
+        bestR2 = -np.inf
+        if nonParametric: # Classic or default behaviour
+            for _ in range(nSamples):
+                # Generate bootstrap sample by resampling the data points
+                indices = np.random.choice(len(y), size=len(y), replace=True)
+                bootstrapX = x[indices]
+                bootstrapY = y[indices]
+                syntheticResult = self.model.fit(bootstrapY, self.params, x=bootstrapX, nan_policy=self.nan_policy)
+                if syntheticResult.redchi is not None:
+                    syntheticResult.r2 = r2 = rSQR_func(redchi=syntheticResult.redchi, y=y)
+                    if r2 > bestR2:  # Check if this is the best fit so far
+                        bestR2 = r2
+                        bestFitResult = syntheticResult
+                for name, param in syntheticResult.params.items():
+                    paramSamples[name].append(param.value)
+
+        else:
+            for _ in range(nSamples):
+                syntheticY = self._getSyntheticY(y, self.best_fit, self.residual, noiseScale=noiseScale)
+                syntheticResult = self.model.fit(syntheticY,  self.params, x=x, nan_policy=self.nan_policy)
+                if syntheticResult.redchi is not None:
+                    syntheticResult.r2 = r2 = rSQR_func(redchi=syntheticResult.redchi, y=y)
+                    if r2 > bestR2:  # Check if this is the best fit so far
+                        bestR2 = r2
+                        bestFitResult = syntheticResult
+                for name, param in syntheticResult.params.items():
+                    paramSamples[name].append(param.value)
+        if bestFitResult is not None:
+            self._simulatedParams = bestFitResult.params  # update ResultParams From BestFit
+        return self._updateStdErr(paramSamples)
 
 def rSQR_func(y, redchi):
     """

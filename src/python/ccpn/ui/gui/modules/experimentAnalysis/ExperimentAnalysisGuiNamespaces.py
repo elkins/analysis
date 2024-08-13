@@ -1,9 +1,10 @@
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2023"
-__credits__ = ("Ed Brooksbank, Joanna Fox, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
-               "Timothy J Ragan, Brian O Smith, Gary S Thompson & Geerten W Vuister")
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
+               "Timothy J Ragan, Brian O Smith, Daniel Thompson",
+               "Gary S Thompson & Geerten W Vuister")
 __licence__ = ("CCPN licence. See https://ccpn.ac.uk/software/licensing/")
 __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, L.G., & Vuister, G.W.",
                  "CcpNmr AnalysisAssign: a flexible platform for integrated NMR analysis",
@@ -12,8 +13,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2023-11-30 15:34:16 +0000 (Thu, November 30, 2023) $"
-__version__ = "$Revision: 3.2.0 $"
+__dateModified__ = "$dateModified: 2024-08-13 16:37:44 +0100 (Tue, August 13, 2024) $"
+__version__ = "$Revision: 3.2.5 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -246,8 +247,20 @@ Label_OptimiserMethod = 'Optimiser Method'
 TipText_OptimiserMethod = 'Select the Optimiser Method'
 
 WidgetVarName_ErrorMethod = 'ErrorMethod'
-Label_ErrorMethod = 'Fitting Error Method'
-TipText_ErrorMethod = 'Select the Fitting Error calculation Method'
+Label_ErrorMethod = 'Uncertainty Estimation Method'
+TipText_ErrorMethod = 'Select the Fitting Uncertainty calculation Method'
+
+UncertaintyTipText = 'Statistical resampling methods used to estimate and measure the uncertainty and variability of model parameters through repeated sampling of the data.'
+UncertaintyDefs = {
+                        seriesVariables.COVMATRIX: '''Parameter uncertainties are represented by the covariance matrix,\nwhere the diagonal elements indicate parameter variances and their square roots provide the standard errors (stderr) ''',
+                        seriesVariables.MONTECARLO: '''A method that uses random sampling of synthetic data generated from the model\n to estimate the uncertainty of model parameters.''',
+                        seriesVariables.BOOTSTRAP: '''A resampling method that repeatedly samples with replacement from the original dataset\n to estimate the uncertainty of model parameters.''',
+                        seriesVariables.JACKKNIFE: '''A resampling method that systematically leaves out a percentage of data points at a time\n to estimate the uncertainty of model parameters.''',
+    }
+
+WidgetVarName_UncertaintySample = 'UncertaintySample'
+Label_UncertaintySample = 'Sample count'
+TipText_UncertaintySample = 'Number of iterations to perform when resampling data to estimate parameter uncertainties; higher counts generally improve accuracy but increase computational time.'
 
 ############################################################
 ##########  TAB: Appearance

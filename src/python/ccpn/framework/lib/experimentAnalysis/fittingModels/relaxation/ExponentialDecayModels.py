@@ -4,9 +4,10 @@ This module defines base classes for Series Analysis
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2023"
-__credits__ = ("Ed Brooksbank, Joanna Fox, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
-               "Timothy J Ragan, Brian O Smith, Gary S Thompson & Geerten W Vuister")
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
+               "Timothy J Ragan, Brian O Smith, Daniel Thompson",
+               "Gary S Thompson & Geerten W Vuister")
 __licence__ = ("CCPN licence. See https://ccpn.ac.uk/software/licensing/")
 __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, L.G., & Vuister, G.W.",
                  "CcpNmr AnalysisAssign: a flexible platform for integrated NMR analysis",
@@ -15,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2023-12-05 09:48:04 +0000 (Tue, December 05, 2023) $"
-__version__ = "$Revision: 3.2.0 $"
+__dateModified__ = "$dateModified: 2024-08-13 16:37:44 +0100 (Tue, August 13, 2024) $"
+__version__ = "$Revision: 3.2.5 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -33,6 +34,7 @@ import ccpn.framework.lib.experimentAnalysis.SeriesAnalysisVariables as sv
 from ccpn.util.Logging import getLogger
 from ccpn.core.DataTable import TableFrame
 from ccpn.framework.lib.experimentAnalysis.fittingModels.FittingModelABC import FittingModelABC, MinimiserModel, MinimiserResult
+from ccpn.core.lib.ContextManagers import progressHandler
 
 
 ## ----------       Lineshape Functions       ---------- ##
@@ -190,32 +192,35 @@ class _ExponentialBaseModel(FittingModelABC):
         minimisedProperty = self.peakProperty
         if not self.ySeriesStepHeader in inputData.columns:
             inputData[self.ySeriesStepHeader] = inputData[self.peakProperty]
-
         grouppedByCollectionsId = inputData.groupby([sv.COLLECTIONID])
-        for collectionId, groupDf in grouppedByCollectionsId:
-            groupDf.sort_values([self.xSeriesStepHeader], inplace=True)
-            seriesSteps = Xs = groupDf[self.xSeriesStepHeader].values
-            seriesValues = Ys = groupDf[self.ySeriesStepHeader].values
-            minimiser = self.Minimiser()
-            try:
-                params = minimiser.guess(Ys, Xs)
-                minimiser.setMethod(self._minimiserMethod)
-                result = minimiser.fit(Ys, params, x=Xs)
-            except:
-                getLogger().warning(f'Fitting Failed for collectionId: {collectionId} data. Make sure you are using the right model for your data.')
-                params = minimiser.params
-                result = MinimiserResult(minimiser, params)
-
-            for ix, row in groupDf.iterrows():
-                for resultName, resulValue in result.getAllResultsAsDict().items():
-                    inputData.loc[ix, resultName] = resulValue
-                inputData.loc[ix, sv.MODEL_NAME] = self.modelName
-                inputData.loc[ix, sv.MINIMISER_METHOD] = minimiser.method
+        with progressHandler(title='Fitting Data', maximum=len(grouppedByCollectionsId), text='Fitting data....',
+                             hideCancelButton=True, ) as progress:
+            for jj, (collectionId, groupDf) in enumerate(grouppedByCollectionsId):
+                progress.setValue(jj)
+                groupDf.sort_values([self.xSeriesStepHeader], inplace=True)
+                seriesSteps = Xs = groupDf[self.xSeriesStepHeader].values
+                seriesValues = Ys = groupDf[self.ySeriesStepHeader].values
+                minimiser = self.Minimiser()
                 try:
-                    nmrAtomNames = inputData._getAtomNamesFromGroupedByHeaders(groupDf)
-                    inputData.loc[ix, sv.NMRATOMNAMES] = nmrAtomNames[0] if len(nmrAtomNames) > 0 else ''
+                    params = minimiser.guess(Ys, Xs)
+                    minimiser.setMethod(self._minimiserMethod)
+                    result = minimiser.fit(Ys, params, x=Xs)
+                    finalParams = result.calculateStandardErrors(Xs, Ys, uncertaintiesMethod=self._uncertaintiesMethod, samples=self._uncertaintiesSampleSize)
                 except:
-                    inputData.loc[ix, sv.NMRATOMNAMES] = ''
+                    getLogger().warning(f'Fitting Failed for collectionId: {collectionId} data. Make sure you are using the right model for your data.')
+                    params = minimiser.params
+                    result = MinimiserResult(minimiser, params)
+
+                for ix, row in groupDf.iterrows():
+                    for resultName, resulValue in result.getAllResultsAsDict(params=finalParams).items():
+                        inputData.loc[ix, resultName] = resulValue
+                    inputData.loc[ix, sv.MODEL_NAME] = self.modelName
+                    inputData.loc[ix, sv.MINIMISER_METHOD] = minimiser.method
+                    try:
+                        nmrAtomNames = inputData._getAtomNamesFromGroupedByHeaders(groupDf)
+                        inputData.loc[ix, sv.NMRATOMNAMES] = nmrAtomNames[0] if len(nmrAtomNames) > 0 else ''
+                    except:
+                        inputData.loc[ix, sv.NMRATOMNAMES] = ''
 
         return inputData
 
