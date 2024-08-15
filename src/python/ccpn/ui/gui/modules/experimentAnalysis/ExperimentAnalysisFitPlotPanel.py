@@ -13,7 +13,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-08-13 16:37:44 +0100 (Tue, August 13, 2024) $"
+__dateModified__ = "$dateModified: 2024-08-15 13:49:45 +0100 (Thu, August 15, 2024) $"
 __version__ = "$Revision: 3.2.5 $"
 #=========================================================================================
 # Created
@@ -129,109 +129,109 @@ class FitPlotPanel(GuiPanel):
 
     def plotCurrentData(self, *args):
         """ Plot a curve based on Current Collection.
-         Get Plotting data from the Output-GUI-dataTable (getSelectedOutputDataTable)"""
+        Get Plotting data from the Output-GUI-dataTable (getSelectedOutputDataTable)"""
 
         self.clearData()
-
         backend = self.guiModule.backendHandler
-        ## Get the raw data from the output DataTable if any or return
         outputData = backend.resultDataTable
         if outputData is None:
             return
 
-        ## Check if the current Collection pids are in the Table. If Pids not on table, return.
+        filteredDf = self._getFilteredDataFrame(backend)
+        if filteredDf is None:
+            return
+
+        lastCollectionPid = self._getLastCollectionPid(filteredDf)
+
+        model, modelName, isModelRestored = self._getFittingModel(backend, filteredDf)
+        if model is None:
+            return
+
+        peakPids, objs = self._getPeakObjects(filteredDf)
+        Xs, Ys = self._getPlotData(filteredDf, model)
+        fitParams, lowerParams, upperParams, xf = self._calculateFittingParameters(model, filteredDf, Xs)
+        yf, lowerBoundY, upperBoundY = self._evaluateFittingCurves(model, xf, fitParams, lowerParams, upperParams)
+        xAxisLabel, yAxisLabel = self._getAxisLabels(filteredDf, backend)
+        self._setupLabels(lastCollectionPid, xAxisLabel, yAxisLabel)
+        self._plotFittedCurve(xf, yf, lowerBoundY, upperBoundY)
+        self._plotRawData(objs, Xs, Ys)
+        self.bindingPlot.setTitle(f'Fitting Model: {modelName}')
+        self.bindingPlot.zoomFull()
+        self._handleExcludedNmrResidue(filteredDf)
+
+    def _getFilteredDataFrame(self, backend):
         dataFrame = backend._resultDataFrameWithExclusions
         pids = [co.pid for co in self.current.collections]
         filtered = dataFrame.getByHeader(sv.COLLECTIONPID, pids)
         if filtered.empty:
-            return
+            return None
+        return filtered
 
-        ## Consider only the last selected Collection.
-        lastCollectionPid = filtered[sv.COLLECTIONPID].values[-1]
-        filteredDf = dataFrame[dataFrame[sv.COLLECTIONPID] == lastCollectionPid]
+    def _getLastCollectionPid(self, filteredDf):
+        return filteredDf[sv.COLLECTIONPID].values[-1]
 
-        ## Grab the Fitting Model from the dataTable and NOT from the module. The model is needed to recreate the fitted Curve from the fitting results.
+    def _getFittingModel(self, backend, filteredDf):
         if not sv.MODEL_NAME in filteredDf.columns:
             self.bindingPlot.setTitle(f'Fitting not available')
-            return
+            return None, None, False
 
         modelName = filteredDf.modelName.values[-1]
         fittingModelClass = backend.getFittingModelByName(modelName)
         if fittingModelClass:
-            model = fittingModelClass()
-            isModelRestored = True
+            return fittingModelClass(), modelName, True
         else:
             showWarning('Cannot show fitting line', f'No model found with name {modelName}')
-            model = backend.currentFittingModel
-            isModelRestored = False
-            yf = None
+            return backend.currentFittingModel, modelName, False
 
-
-
-        ## Grab the Pids/Objs for each spot in the scatter plot. Peaks
+    def _getPeakObjects(self, filteredDf):
         peakPids = filteredDf[sv.PEAKPID].values
         objs = [self.project.getByPid(pid) for pid in peakPids]
+        return peakPids, objs
 
-        ## Grab the columns to plot the raw data, the header name from the model
+    def _getPlotData(self, filteredDf, model):
         Xs = filteredDf[model.xSeriesStepHeader].values
         Ys = filteredDf[model.ySeriesStepHeader].values
+        return Xs, Ys
 
-        ## Grab the Fitting function from the model and its needed Args from the DataTable. (I.e. Kd, Decay etc)
-        func = model.getFittingFunc(model)
+    def _calculateFittingParameters(self, model, filteredDf, Xs):
         funcArgs = model.modelArgumentNames
         funcErrArgs = model.modelArgumentErrorNames
         argsInDf = set(funcArgs).issubset(filteredDf.columns)
-        fittingArgs = None
+
+        fittingArgs, fittingErrArgs = None, None
+        lowerParams, upperParams, fitParams = Parameters(), Parameters(), Parameters()
+        xf = np.linspace(min(Xs), max(Xs) + percentage(50, max(Xs)), 3000)
+
         if argsInDf:
             argsFit = filteredDf.iloc[0][funcArgs]
             fittingArgs = argsFit.astype(float).to_dict()
             argsErrFit = filteredDf.iloc[0][funcErrArgs]
             fittingErrArgs = argsErrFit.astype(float).to_dict()
-            # stdErrs = [f'{x}{sv._ERR}' for x in argsInDf]
-
-            lowerParams = Parameters()
-            upperParams = Parameters()
-            fitParams = Parameters()
 
             for name, value in fittingArgs.items():
-                err = fittingErrArgs.get(f'{name}{sv._ERR}', None)
-                lowerValue = value
-                upperValue = value
-                if err is None:
-                    err = 1
-                lowerValue -= 1.96*err
-                upperValue += 1.96*err
-                lowerParam = Parameter(name=name, value=lowerValue)
-                lowerParams.add_many(lowerParam)
-                upperParam = Parameter(name=name, value=upperValue)
-                upperParams.add_many(upperParam)
+                err = fittingErrArgs.get(f'{name}{sv._ERR}', 1)
+                lowerParam = Parameter(name=name, value=value - 1.96 * err)
+                upperParam = Parameter(name=name, value=value + 1.96 * err)
                 fitParam = Parameter(name=name, value=value)
+                lowerParams.add_many(lowerParam)
+                upperParams.add_many(upperParam)
                 fitParams.add_many(fitParam)
 
-        ## Add and extra of filling data at the end of the fitted curve to don't just sharp end on the last raw data Point
-        extra = percentage(50, max(Xs))
-        initialPoint = min(Xs)
-        finalPoint = max(Xs) #+ extra
-        xf = np.linspace(initialPoint, finalPoint, 3000)
+        return fitParams, lowerParams, upperParams, xf
 
+    def _evaluateFittingCurves(self, model, xf, fitParams, lowerParams, upperParams):
         lowerBoundY = model.Minimiser().eval(lowerParams, x=xf)
         upperBoundY = model.Minimiser().eval(upperParams, x=xf)
         yff = model.Minimiser().eval(fitParams, x=xf)
+        return yff, lowerBoundY, upperBoundY
 
-        ## Build the fitted curve arrays
-        # if isModelRestored and fittingArgs is not None:
-        #     yf = func(xf, **fittingArgs)
-
-        ## Grab the axes label
+    def _getAxisLabels(self, filteredDf, backend):
         seriesUnits = filteredDf[sv.SERIESUNIT].values
-        if len(seriesUnits) > 0:
-            seriesUnit = seriesUnits[0]
-        else:
-            seriesUnit = 'X (Series Unit Not Given)'
+        xAxisLabel = seriesUnits[0] if len(seriesUnits) > 0 else 'X (Series Unit Not Given)'
+        yAxisLabel = backend._minimisedProperty or 'Y'
+        return xAxisLabel, yAxisLabel
 
-        xAxisLabel = seriesUnit
-        yAxisLabel =  backend._minimisedProperty or 'Y'
-        ## Setup the various labels.
+    def _setupLabels(self, lastCollectionPid, xAxisLabel, yAxisLabel):
         self.currentCollectionLabel.setText('')
         self._setXLabel(label=xAxisLabel)
         self._setYLabel(label=yAxisLabel)
@@ -240,30 +240,27 @@ class FitPlotPanel(GuiPanel):
             labelText += f' - (Last selected)'
         self.currentCollectionLabel.setText(labelText)
 
-        ## Plot the fittedCurve
-        # if yf is None:
-        #     yf = [0]*len(xf)
+    def _plotFittedCurve(self, xf, yff, lowerBoundY, upperBoundY):
         self.fittedCurve = self.bindingPlot.plot(xf, yff, pen=self.bindingPlot.gridPen)
         self.lowerCurve = self.bindingPlot.plot(xf, lowerBoundY, pen=self.bindingPlot.uncertPen)
         self.upperCurve = self.bindingPlot.plot(xf, upperBoundY, pen=self.bindingPlot.uncertPen)
         self.uncertaintiesCurves = [self.upperCurve, self.lowerCurve]
-        brush = (122, 186, 122 )
+
+        brush = (122, 186, 122)
         fills = [FillBetweenRegions(self.lowerCurve, self.upperCurve, brush=brush)]
         for f in fills:
             self.uncertaintiesCurves.append(f)
             self.bindingPlot.addItem(f)
 
-        ## Plot the Raw Data
+    def _plotRawData(self, objs, Xs, Ys):
         spots = []
         self.labels = []
         for obj, x, y in zip(objs, Xs, Ys):
             brush = pg.mkBrush(255, 0, 0)
-            dd = {'pos': [0, 0], 'data': 'obj', 'brush': brush, 'symbol': 'o', 'size': 10, 'pen': None}
-            dd['pos'] = [x, y]
-            dd['data'] = obj
+            dd = {'pos': [x, y], 'data': obj, 'brush': brush, 'symbol': 'o', 'size': 10, 'pen': None}
             if obj is None:
                 continue
-            if hasattr(obj.spectrum, 'positiveContourColour'):  # colour from the spectrum.
+            if hasattr(obj.spectrum, 'positiveContourColour'):
                 brush = pg.functions.mkBrush(hexToRgb(obj.spectrum.positiveContourColour))
                 dd['brush'] = brush
             spots.append(dd)
@@ -275,13 +272,167 @@ class FitPlotPanel(GuiPanel):
         self.rawDataScatterPlot = pg.ScatterPlotItem(spots)
         self.bindingPlot.addItem(self.rawDataScatterPlot)
         self.bindingPlot.scene().sigMouseMoved.connect(self.bindingPlot.mouseMoved)
-        self.bindingPlot.setTitle(f'Fitting Model: {modelName}')
-        self.bindingPlot.zoomFull()
 
+    def _handleExcludedNmrResidue(self, filteredDf):
         if sv.EXCLUDED_NMRRESIDUEPID in filteredDf:
             isResidueExcluded = filteredDf[sv.EXCLUDED_NMRRESIDUEPID].values
             if any(isResidueExcluded):
                 self.bindingPlot.setTitle(f'Fitting not available. Selected NmrResidue is excluded from Fittings')
+
+    # def plotCurrentData(self, *args):
+    #     """ Plot a curve based on Current Collection.
+    #      Get Plotting data from the Output-GUI-dataTable (getSelectedOutputDataTable)"""
+    #
+    #     self.clearData()
+    #
+    #     backend = self.guiModule.backendHandler
+    #     ## Get the raw data from the output DataTable if any or return
+    #     outputData = backend.resultDataTable
+    #     if outputData is None:
+    #         return
+    #
+    #     ## Check if the current Collection pids are in the Table. If Pids not on table, return.
+    #     dataFrame = backend._resultDataFrameWithExclusions
+    #     pids = [co.pid for co in self.current.collections]
+    #     filtered = dataFrame.getByHeader(sv.COLLECTIONPID, pids)
+    #     if filtered.empty:
+    #         return
+    #
+    #     ## Consider only the last selected Collection.
+    #     lastCollectionPid = filtered[sv.COLLECTIONPID].values[-1]
+    #     filteredDf = dataFrame[dataFrame[sv.COLLECTIONPID] == lastCollectionPid]
+    #
+    #     ## Grab the Fitting Model from the dataTable and NOT from the module. The model is needed to recreate the fitted Curve from the fitting results.
+    #     if not sv.MODEL_NAME in filteredDf.columns:
+    #         self.bindingPlot.setTitle(f'Fitting not available')
+    #         return
+    #
+    #     modelName = filteredDf.modelName.values[-1]
+    #     fittingModelClass = backend.getFittingModelByName(modelName)
+    #     if fittingModelClass:
+    #         model = fittingModelClass()
+    #         isModelRestored = True
+    #     else:
+    #         showWarning('Cannot show fitting line', f'No model found with name {modelName}')
+    #         model = backend.currentFittingModel
+    #         isModelRestored = False
+    #         yf = None
+    #
+    #
+    #     ## Grab the Pids/Objs for each spot in the scatter plot. Peaks
+    #     peakPids = filteredDf[sv.PEAKPID].values
+    #     objs = [self.project.getByPid(pid) for pid in peakPids]
+    #
+    #     ## Grab the columns to plot the raw data, the header name from the model
+    #     Xs = filteredDf[model.xSeriesStepHeader].values
+    #     Ys = filteredDf[model.ySeriesStepHeader].values
+    #
+    #     ## Grab the Fitting function from the model and its needed Args from the DataTable. (I.e. Kd, Decay etc)
+    #     func = model.getFittingFunc(model)
+    #     funcArgs = model.modelArgumentNames
+    #     funcErrArgs = model.modelArgumentErrorNames
+    #     argsInDf = set(funcArgs).issubset(filteredDf.columns)
+    #     fittingArgs = None
+    #     if argsInDf:
+    #         argsFit = filteredDf.iloc[0][funcArgs]
+    #         fittingArgs = argsFit.astype(float).to_dict()
+    #         argsErrFit = filteredDf.iloc[0][funcErrArgs]
+    #         fittingErrArgs = argsErrFit.astype(float).to_dict()
+    #         # stdErrs = [f'{x}{sv._ERR}' for x in argsInDf]
+    #
+    #         lowerParams = Parameters()
+    #         upperParams = Parameters()
+    #         fitParams = Parameters()
+    #
+    #         for name, value in fittingArgs.items():
+    #             err = fittingErrArgs.get(f'{name}{sv._ERR}', None)
+    #             lowerValue = value
+    #             upperValue = value
+    #             if err is None:
+    #                 err = 1
+    #             lowerValue -= 1.96*err
+    #             upperValue += 1.96*err
+    #             lowerParam = Parameter(name=name, value=lowerValue)
+    #             lowerParams.add_many(lowerParam)
+    #             upperParam = Parameter(name=name, value=upperValue)
+    #             upperParams.add_many(upperParam)
+    #             fitParam = Parameter(name=name, value=value)
+    #             fitParams.add_many(fitParam)
+    #
+    #     ## Add and extra of filling data at the end of the fitted curve to don't just sharp end on the last raw data Point
+    #     extra = percentage(50, max(Xs))
+    #     initialPoint = min(Xs)
+    #     finalPoint = max(Xs) #+ extra
+    #     xf = np.linspace(initialPoint, finalPoint, 3000)
+    #
+    #     lowerBoundY = model.Minimiser().eval(lowerParams, x=xf)
+    #     upperBoundY = model.Minimiser().eval(upperParams, x=xf)
+    #     yff = model.Minimiser().eval(fitParams, x=xf)
+    #
+    #     ## Build the fitted curve arrays
+    #     # if isModelRestored and fittingArgs is not None:
+    #     #     yf = func(xf, **fittingArgs)
+    #
+    #     ## Grab the axes label
+    #     seriesUnits = filteredDf[sv.SERIESUNIT].values
+    #     if len(seriesUnits) > 0:
+    #         seriesUnit = seriesUnits[0]
+    #     else:
+    #         seriesUnit = 'X (Series Unit Not Given)'
+    #
+    #     xAxisLabel = seriesUnit
+    #     yAxisLabel =  backend._minimisedProperty or 'Y'
+    #     ## Setup the various labels.
+    #     self.currentCollectionLabel.setText('')
+    #     self._setXLabel(label=xAxisLabel)
+    #     self._setYLabel(label=yAxisLabel)
+    #     labelText = f'{lastCollectionPid}'
+    #     if len(self.current.collections) > 1:
+    #         labelText += f' - (Last selected)'
+    #     self.currentCollectionLabel.setText(labelText)
+    #
+    #     ## Plot the fittedCurve
+    #     # if yf is None:
+    #     #     yf = [0]*len(xf)
+    #     self.fittedCurve = self.bindingPlot.plot(xf, yff, pen=self.bindingPlot.gridPen)
+    #     self.lowerCurve = self.bindingPlot.plot(xf, lowerBoundY, pen=self.bindingPlot.uncertPen)
+    #     self.upperCurve = self.bindingPlot.plot(xf, upperBoundY, pen=self.bindingPlot.uncertPen)
+    #     self.uncertaintiesCurves = [self.upperCurve, self.lowerCurve]
+    #     brush = (122, 186, 122 )
+    #     fills = [FillBetweenRegions(self.lowerCurve, self.upperCurve, brush=brush)]
+    #     for f in fills:
+    #         self.uncertaintiesCurves.append(f)
+    #         self.bindingPlot.addItem(f)
+    #
+    #     ## Plot the Raw Data
+    #     spots = []
+    #     self.labels = []
+    #     for obj, x, y in zip(objs, Xs, Ys):
+    #         brush = pg.mkBrush(255, 0, 0)
+    #         dd = {'pos': [0, 0], 'data': 'obj', 'brush': brush, 'symbol': 'o', 'size': 10, 'pen': None}
+    #         dd['pos'] = [x, y]
+    #         dd['data'] = obj
+    #         if obj is None:
+    #             continue
+    #         if hasattr(obj.spectrum, 'positiveContourColour'):  # colour from the spectrum.
+    #             brush = pg.functions.mkBrush(hexToRgb(obj.spectrum.positiveContourColour))
+    #             dd['brush'] = brush
+    #         spots.append(dd)
+    #         label = _CustomLabel(obj=obj, textProperty='id')
+    #         self.bindingPlot.addItem(label)
+    #         label.setPos(x, y)
+    #         self.labels.append(label)
+    #
+    #     self.rawDataScatterPlot = pg.ScatterPlotItem(spots)
+    #     self.bindingPlot.addItem(self.rawDataScatterPlot)
+    #     self.bindingPlot.scene().sigMouseMoved.connect(self.bindingPlot.mouseMoved)
+    #     self.bindingPlot.setTitle(f'Fitting Model: {modelName}')
+    #     self.bindingPlot.zoomFull()
+    #
+    #     if sv.EXCLUDED_NMRRESIDUEPID in filteredDf:
+    #         isResidueExcluded = filteredDf[sv.EXCLUDED_NMRRESIDUEPID].values
+    #         if any(isResidueExcluded):
+    #             self.bindingPlot.setTitle(f'Fitting not available. Selected NmrResidue is excluded from Fittings')
 
     def _isOkToPlot(self):
         """ Do the initial check if is ok to continue ith the plotting """
