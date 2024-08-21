@@ -62,7 +62,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-08-21 13:51:14 +0100 (Wed, August 21, 2024) $"
+__dateModified__ = "$dateModified: 2024-08-21 16:50:08 +0100 (Wed, August 21, 2024) $"
 __version__ = "$Revision: 3.2.5 $"
 #=========================================================================================
 # Created
@@ -193,6 +193,12 @@ class FittingModelABC(ABC):
 
     def setSampleSize(self, size:int):
         self._uncertaintiesSampleSize = size
+
+    def getUncertaintiesMethod(self):
+        return self._uncertaintiesMethod
+
+    def getSampleSize(self):
+        return self._uncertaintiesSampleSize
 
     def _getFirstInputDataTable(self, inputDataTables):
         """ _INTERNAL. Used to get the first available

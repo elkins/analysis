@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-08-21 13:51:14 +0100 (Wed, August 21, 2024) $"
+__dateModified__ = "$dateModified: 2024-08-21 16:50:08 +0100 (Wed, August 21, 2024) $"
 __version__ = "$Revision: 3.2.5 $"
 #=========================================================================================
 # Created
@@ -35,6 +35,8 @@ from ccpn.util.Logging import getLogger
 from ccpn.core.lib.ContextManagers import undoBlockWithoutSideBar, notificationEchoBlocking
 from ccpn.framework.Application import getApplication, getCurrent, getProject, getMainWindow
 import ccpn.framework.lib.experimentAnalysis.SeriesAnalysisVariables as sv
+import ccpn.ui.gui.modules.experimentAnalysis.ExperimentAnalysisGuiNamespaces as guiNameSpaces
+
 from ccpn.ui.gui.popups.Dialog import CcpnDialogMainWidget
 from ccpn.ui.gui.widgets.MessageDialog import showWarning
 from ccpn.ui.gui.widgets.Label import Label
@@ -93,10 +95,17 @@ class _RefitSelectedSeriesPopup(CcpnDialogMainWidget):
         method = self.collectionsData.get(sv.MINIMISER_METHOD, np.array([None]))[-1]
         return method
 
+    def _getCurrentUncertaintiesMethod(self):
+        """Get from current fitting model on backend """
+        model = self.fetchFittingModel()
+        uncertaintiesMethod = model.getUncertaintiesMethod()
+        return uncertaintiesMethod
+
+
     def _getCurrentModelName(self):
         modelName = self.collectionsData.get(sv.MODEL_NAME, np.array([None]))[-1]
         if modelName is None:
-            modelName =  self._backendHandler.currentFittingModel.modelName
+            modelName = self._backendHandler.currentFittingModel.modelName
         return modelName
 
     def _createFitWidget(self, frame):
@@ -120,14 +129,22 @@ class _RefitSelectedSeriesPopup(CcpnDialogMainWidget):
                                                                    grid=(row, 0), fixedWidths=(self._columnWidth, self._columnWidth), callback=None)
         self._minimiserMethodPullDown = self.minimiserMethodWidget.pulldownList
         row += 1
+        self.uncertaintyMethodWidget = cw.PulldownListCompoundWidget(self.mainWidget, labelText='Uncertainty Method',
+                                                                   grid=(row, 0), fixedWidths=(self._columnWidth, self._columnWidth), callback=None)
+        self._uncertaintyMethodPullDown = self.uncertaintyMethodWidget.pulldownList
+        row += 1
+        self.uncertaintySampleSizeWidget = cw.SpinBoxCompoundWidget(self.mainWidget, labelText='Uncertainty Sample Size',
+                                                                      value=1000, minimum=1, maximum=100000, step=10,
+                                                                      grid=(row, 0), fixedWidths=(self._columnWidth, self._columnWidth), callback=None)
+        row += 1
 
         # Initial Values. Different widgets if we are in global or individual fit.
         row += 1
-        _frame = MoreLessFrame(self.mainWidget, name='Initial Fitting Params',
+        self.initialFitFrame = MoreLessFrame(self.mainWidget, name='Initial Fitting Params',
                                showMore=False, grid=(row, 0),
                                _frameMargins=(10,10,10,10),  # l, t, r, b
                                gridSpan=(1, 2))
-        self._fittingContentsFrame = _frame.contentsFrame
+        self._fittingContentsFrame = self.initialFitFrame.contentsFrame
         self._createFitWidget(self._fittingContentsFrame)
         row += 1
         self.fittingModelWidget.pulldownList.activated.connect(self._populateFittingValues)
@@ -149,6 +166,13 @@ class _RefitSelectedSeriesPopup(CcpnDialogMainWidget):
         self._minimiserMethodPullDown.setData(minimiserMethods)
         with self._minimiserMethodPullDown.blockWidgetSignals():
             self._minimiserMethodPullDown.select(currentMinimiserMethod)
+
+        ## add UncertaintyDefs.keys()
+        uncertaintiesMethod = self._getCurrentUncertaintiesMethod()
+        uncertaintyDefs = list(guiNameSpaces.UncertaintyDefs.keys())
+        self._uncertaintyMethodPullDown.setData(uncertaintyDefs)
+        with self._uncertaintyMethodPullDown.blockWidgetSignals():
+            self._uncertaintyMethodPullDown.select(uncertaintiesMethod)
 
     def _populateFittingValues(self, value):
         self._fittingContentsFrame._clear()
@@ -192,6 +216,12 @@ class _RefitSelectedSeriesPopup(CcpnDialogMainWidget):
     def getMinimiserMethod(self):
         return self._minimiserMethodPullDown.getText()
 
+    def getUncertaintiesMethod(self):
+       return self._uncertaintyMethodPullDown.get()
+
+    def getUncertaintiesSampleSize(self):
+        return self.uncertaintySampleSizeWidget.getValue()
+
     def _getGlobalParamNames(self):
         return self.fetchFittingModel().modelGlobalParamNames
 
@@ -230,9 +260,10 @@ class RefitIndividualPopup(_RefitSelectedSeriesPopup):
     def __init__(self, parent, seriesAnalysisModule, collectionsData=None, **kwds):
         super().__init__(parent, seriesAnalysisModule, collectionsData=collectionsData, **kwds)
 
-    # def _createFitWidget(self, row):
-    #     row += 1
-    #     return row
+    def setWidgets(self):
+        super().setWidgets()
+        # not implemented yet
+        self.initialFitFrame.hide()
 
     def _initialiseFit(self):
         fittingModel = self.fetchFittingModel()
@@ -241,7 +272,8 @@ class RefitIndividualPopup(_RefitSelectedSeriesPopup):
                 self._backendHandler.refitSingularCollection(collection.pid,
                                                              fittingModel=fittingModel,
                                                              minimiserMethod=self.getMinimiserMethod(),
-                                                             )
+                                                             uncertaintiesMethod=self.getUncertaintiesMethod(),
+                                                             uncertaintiesSampleSize=self.getUncertaintiesSampleSize() )
 
 
 class RefitGloballyPopup(_RefitSelectedSeriesPopup):
@@ -255,7 +287,11 @@ class RefitGloballyPopup(_RefitSelectedSeriesPopup):
     def __init__(self, parent, seriesAnalysisModule, collectionsData=None, **kwds):
         super().__init__(parent, seriesAnalysisModule, collectionsData=collectionsData, **kwds)
 
-
+    def setWidgets(self):
+        super().setWidgets()
+        # not implemented yet
+        self.uncertaintyMethodWidget.hide()
+        self.uncertaintySampleSizeWidget.hide()
 
     def _createFitWidget(self, frame):
         fittingModel = self.fetchFittingModel()
@@ -306,6 +342,5 @@ class RefitGloballyPopup(_RefitSelectedSeriesPopup):
                                                                 globalParamNames=self._getGlobalParamNames(),
                                                                 localParamNames=self._getLocalParamNames(),
                                                                 fixedParamNames=self._getFixedParamNames(),
-                                                                 fittingModel=self.fetchFittingModel(),
-                                                                 minimiserMethod=self.getMinimiserMethod(),
-                                                             )
+                                                                fittingModel=self.fetchFittingModel(),
+                                                                minimiserMethod=self.getMinimiserMethod(),)

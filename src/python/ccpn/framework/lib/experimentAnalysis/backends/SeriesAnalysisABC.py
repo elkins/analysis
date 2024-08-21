@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-08-21 13:51:13 +0100 (Wed, August 21, 2024) $"
+__dateModified__ = "$dateModified: 2024-08-21 16:50:07 +0100 (Wed, August 21, 2024) $"
 __version__ = "$Revision: 3.2.5 $"
 #=========================================================================================
 # Created
@@ -286,19 +286,12 @@ class SeriesAnalysisABC(ABC):
     def refitSingularCollection(self, collectionPid,
                                 fittingModel=None,
                                 minimiserMethod=None,
-                                resetInitialParams=True,
-                                customMinimiserParamsDict=None):
+                                uncertaintiesMethod=None,
+                                uncertaintiesSampleSize=None):
         """
         Given a CollectionPid, refit the series using the options defined in the module.
         :param collectionPid: str: Ccpn collection pid for a collection which is contained in the inputDataTables and outputData.
-        :param resetInitialParams: bool. True   to re-guess the initial params. False to start the refit using the parameters from the last best fit.
-        :param customMinimiserParamsDict. A dict of dict containing the new parameters to be considered for the fitting. Use with caution, see the Minimiser "make_params" for proper usage.
-                    e.g.: usage for a OnePhaseDecayPlateauModel:
-                            minimiserParamsDict = {'amplitude': 10, 'rate': 3, 'plateau': 0}
-                            or to setup ranges:
-                            minimiserParamsDict = {'amplitude': dict(value=2.4),
-                                                                 'rate': dict(value=1.5),
-                                                                  'plateau': dict(value=0.5, min=0, max=None)}
+
 
         :return: a pandas dataFrame with the latest fitted data.
         """
@@ -310,28 +303,18 @@ class SeriesAnalysisABC(ABC):
         seriesSteps = Xs = dfForCollection[fittingModel.xSeriesStepHeader].values
         seriesValues = Ys = dfForCollection[fittingModel.ySeriesStepHeader].values
         minimiser = fittingModel.Minimiser()
+        uncertaintiesMethod = uncertaintiesMethod or fittingModel._uncertaintiesMethod
+        uncertaintiesSampleSize = uncertaintiesSampleSize or fittingModel._uncertaintiesSampleSize
 
         ## Get the initial fitting Params from the ResultData
         resultDataForCollection = resultData[resultData[sv.COLLECTIONPID] == collectionPid].copy()
-        if resetInitialParams:
-            params = minimiser.guess(Ys, Xs)
-        else:
-            if customMinimiserParamsDict is None:
-                modelNames = fittingModel.modelArgumentNames
-                modelValues = resultDataForCollection[modelNames].values[0]
-                existingModelParamsDict = dict(zip(modelNames, modelValues))
-                params = minimiser.make_params(**existingModelParamsDict)
-            else:
-                try:
-                    params = minimiser.make_params(**customMinimiserParamsDict)
-                except Exception as err:
-                    getLogger().warn(f'Could not make parameters for the current fitting. Ensure the format is correct. {customMinimiserParamsDict}. {err}. Fallback enabled.')
-                    params = minimiser.guess(Ys, Xs)
+
+        params = minimiser.guess(Ys, Xs)
         if minimiserMethod is not None:
             minimiser.setMethod(minimiserMethod)
         result = minimiser.fit(Ys, params, x=Xs, method=minimiserMethod)
-        finalParams = result.calculateStandardErrors(Xs, Ys, uncertaintiesMethod=fittingModel._uncertaintiesMethod,
-                                                     samples=fittingModel._uncertaintiesSampleSize)
+        finalParams = result.calculateStandardErrors(Xs, Ys, uncertaintiesMethod=uncertaintiesMethod,
+                                                     samples=uncertaintiesSampleSize)
 
         ## write to the output data (overriding the previously results)
         for ix, row in resultDataForCollection.iterrows():
