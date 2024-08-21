@@ -62,7 +62,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-08-13 16:37:44 +0100 (Tue, August 13, 2024) $"
+__dateModified__ = "$dateModified: 2024-08-21 13:51:14 +0100 (Wed, August 21, 2024) $"
 __version__ = "$Revision: 3.2.5 $"
 #=========================================================================================
 # Created
@@ -80,7 +80,7 @@ from abc import ABC, abstractmethod
 from copy import deepcopy
 from pandas import Series, isnull
 from collections import defaultdict
-from lmfit import Model, Parameter, Parameters
+from lmfit import Model, Minimizer, Parameter, Parameters
 from lmfit.model import ModelResult, _align
 from ccpn.core.DataTable import TableFrame
 from ccpn.util.Logging import getLogger
@@ -146,6 +146,20 @@ class FittingModelABC(ABC):
     def modelArgumentErrorNames(self):
         """ The list of parameters errors """
         return [f'{vv}{sv._ERR}' for vv in self.modelArgumentNames ]
+
+    @property
+    def modelGlobalParamNames(self):
+        """ The list of parameters as str that are minimised globally in the minimiser fitting function. """
+        if self.Minimiser:
+            return self.Minimiser.getGlobalParamNames(self.Minimiser)
+        return []
+
+    @property
+    def modelFixedParamNames(self):
+        """ The list of parameters as str that are minimised globally in the minimiser fitting function. """
+        if self.Minimiser:
+            return self.Minimiser.getFixedParamNames(self.Minimiser)
+        return []
 
     @property
     def rawDataHeaders(self):
@@ -219,6 +233,18 @@ class FittingModelABC(ABC):
 
     __repr__ = __str__
 
+def rSQR_func(y, redchi, ddof=2):
+    """
+    Calculate the R2 (called from the minimiser results).
+    :param redchi: Chi-square. From the Minimiser Obj can be retrieved as "result.redchi"
+    :return: r2
+    """
+    var = np.var(y, ddof=ddof)
+    if var != 0:
+        r2 = 1 - redchi / var
+        return r2
+
+
 
 class MinimiserModel(Model):
     """
@@ -270,6 +296,8 @@ class MinimiserModel(Model):
     method                = sv.LEASTSQ
     label                    = ''
     defaultParams = {} # N.B Very important. see docs above.
+    _defaultGlobalParams = [] # used only as preselection when doing a Global fitting.
+    _fixedParams = []
 
     def fit(self, data, params=None, weights=None, method='leastsq',
             iter_cb=None, scale_covar=True, verbose=False, fit_kws=None,
@@ -426,10 +454,27 @@ class MinimiserModel(Model):
     def guess(self, data, x, **kws):
         pass
 
+    def _createParams(self):
+        """ Make the default params namespaces. Without values"""
+        params = Parameters()
+        for name, value in self.defaultParams.items():
+            params[name] = Parameter(name=name, value=value, vary=name in self._fixedParams)
+        return params
+
     @staticmethod
     def getParamNames(cls):
         """ get the list of parameters as str used in the fitting function  """
         return list(cls.defaultParams.keys())
+    
+    @staticmethod
+    def getGlobalParamNames(cls):
+        """ get the list of parameters as str used in the fitting function  """
+        return cls._defaultGlobalParams
+
+    @staticmethod
+    def getFixedParamNames(cls):
+        """ get the list of parameters as str used in the fitting function  """
+        return cls._fixedParams
 
     def getStatParamNames(self):
         """
@@ -449,6 +494,96 @@ class MinimiserModel(Model):
         else:
             getLogger().warning(f"Parameter {paramName} does not exist in params")
         return params
+
+MINIMISER_STAT_MAPPING_NAMES = {sv.MINIMISER_METHOD :'method',
+                                                                   sv.RSQR                : 'r2',
+                                                                   sv.CHISQR         : 'chisqr',
+                                                                   sv.REDCHI  : 'redchi',
+                                                                   sv.AIC            : 'aic',
+                                                                   sv.BIC          : 'bic',
+                                                                   }
+
+class GlobalMinimiser(Minimizer):
+    def __init__(self, func, x, data, globalParamNames, localParamNames, fixedParamNames, *args, **kwargs):
+        """
+
+        :param func: callable. The model function to be used for fitting.
+        :param x: array-like. The x-values for the model function.
+        :param data: array-like. The observed data to fit against, with each row corresponding to a dataset.
+        :param globalParamNames: list of str. Names of the global parameters.
+        :param localParamNames: list of str. Base names for the local parameters, indexed by dataset.
+        :param fixedParamNames: list of str. Base names for the fixed parameters, similarly as the global, but they will not vary during the minimisation.
+        :param args: Additional positional arguments for Minimiser.
+        :param kwargs: Additional keyword arguments for Minimiser.
+        """
+        self.func = func
+        self.x = x
+        self.data = data
+        self._concData = np.concatenate(self.data)
+        self.globalParamNames = globalParamNames
+        self.localParamNames = localParamNames
+        self.fixedParamNames = fixedParamNames
+
+        # Define a residual function that will be used for minimization
+        def residual(params):
+            return self._globalResidual(params)
+        super().__init__(residual, *args, **kwargs)
+
+    def minimize(self, method='leastsq', params=None, **kws):
+        result = super().minimize(method, params=params, **kws)
+        r2 = rSQR_func(self._concData, result.redchi)
+        result.r2 = r2
+        return result
+
+    def _globalResidual(self, params):
+        residuals = []
+        globalValues = {name: params[name].value for name in self.globalParamNames}
+        fixedValues = {name: params[name].value for name in self.fixedParamNames}
+        for i in range(self.data.shape[0]):
+            localValues = {}
+            if len(self.localParamNames)>0:
+                localValues = {name: params[f'{name}_{i}'].value for name in  self.localParamNames}
+            yFit = self.func(self.x, **globalValues, **localValues, **fixedValues)
+            residuals.append(yFit - self.data[i])
+        return np.concatenate(residuals)
+
+    @staticmethod
+    def getGlobalStatisticalResult(minimiserResult):
+        """
+        Get the common statistical results from the global fit.
+        Provide a measure of how well the global model fits all datasets combined.
+        :return: dict
+        """
+        dd = {}
+        for nn, vv in MINIMISER_STAT_MAPPING_NAMES.items():
+            dd[nn] = getattr(minimiserResult, vv, None)
+        return dd
+
+    @staticmethod
+    def getIndividualParamsForResult(minimiserResult, pids):
+        """
+        Grab the locally minimised param results.
+        We need the original Param Name from userData, because in the Global minimisation, the local Params get a suffix (_x).
+        Also we need to ensure is the right param per collection. We have the PID stored in the userData.
+        :param minimiserResult: the object (MinimiserResult) returned after running GlobalMinimiser(...).minimize()
+        :param pids: list of pids used for the global minimisation
+        :return:
+        """
+        result = minimiserResult
+        params4Pids = defaultdict(dict)
+        for pid in pids:
+            for paramName, param in result.params.items():
+                userData = param.user_data or {}
+                if userData.get(sv._PARAMTYPE) == sv._LOCAL:
+                    localParamName = userData.get(sv._PARAMNAME)
+                    minimisedPid = userData.get(sv.PID)
+                    if minimisedPid == pid:
+                        params4Pids[pid].update({localParamName:param.value})
+                        params4Pids[pid].update({f'{localParamName}{sv._ERR}': param.stderr})
+                else: # all other params are globals. no need of matching the pid here.
+                    params4Pids[pid].update({paramName: param.value})
+                    params4Pids[pid].update({f'{paramName}{sv._ERR}': param.stderr})
+        return params4Pids
 
 
 class MinimiserResult(ModelResult):
@@ -515,14 +650,7 @@ class MinimiserResult(ModelResult):
         :return: dict
         """
         dd = {}
-        mappingNames = {sv.MINIMISER_METHOD :'method',
-                       sv.RSQR                : 'r2',
-                       sv.CHISQR         : 'chisqr',
-                       sv.REDCHI  : 'redchi',
-                       sv.AIC            : 'aic',
-                       sv.BIC          : 'bic',
-                       }
-        for nn, vv in mappingNames.items():
+        for nn, vv in MINIMISER_STAT_MAPPING_NAMES.items():
             dd[nn] = getattr(self, vv, None)
         return dd
 
@@ -676,7 +804,7 @@ class MinimiserResult(ModelResult):
             fig_kws_.update(fig_kws)
 
         if len(self.model.independent_vars) != 1:
-            print('Fit can only be plotted if the model function has one '
+            getLogger().warning('Fit can only be plotted if the model function has one '
                   'independent variable.')
             return False
 
@@ -885,13 +1013,3 @@ class MinimiserResult(ModelResult):
             self._simulatedParams = bestFitResult.params  # update ResultParams From BestFit
         return self._updateStdErr(paramSamples)
 
-def rSQR_func(y, redchi):
-    """
-    Calculate the R2 (called from the minimiser results).
-    :param redchi: Chi-square. From the Minimiser Obj can be retrieved as "result.redchi"
-    :return: r2
-    """
-    var = np.var(y, ddof=2)
-    if var != 0:
-        r2 = 1 - redchi / var
-        return r2

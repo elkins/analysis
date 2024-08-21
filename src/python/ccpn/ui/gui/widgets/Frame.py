@@ -47,9 +47,10 @@ ScrollableFrame(parent=None, showBorder=False, fShape=None, fShadow=None,
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2023"
-__credits__ = ("Ed Brooksbank, Joanna Fox, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
-               "Timothy J Ragan, Brian O Smith, Gary S Thompson & Geerten W Vuister")
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
+               "Timothy J Ragan, Brian O Smith, Daniel Thompson",
+               "Gary S Thompson & Geerten W Vuister")
 __licence__ = ("CCPN licence. See https://ccpn.ac.uk/software/licensing/")
 __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, L.G., & Vuister, G.W.",
                  "CcpNmr AnalysisAssign: a flexible platform for integrated NMR analysis",
@@ -57,9 +58,9 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2023-06-28 19:17:56 +0100 (Wed, June 28, 2023) $"
-__version__ = "$Revision: 3.2.0 $"
+__modifiedBy__ = "$modifiedBy: Luca Mureddu $"
+__dateModified__ = "$dateModified: 2024-08-21 13:51:14 +0100 (Wed, August 21, 2024) $"
+__version__ = "$Revision: 3.2.5 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -143,6 +144,37 @@ class Frame(QtWidgets.QFrame, Base):
             self.setFrameShadow(shadow)
             #self.setLineWidth(3)
             self.setMidLineWidth(3)
+
+    def _clear(self):
+        """
+        Recursively delete all widgets inside the Frame.
+        """
+        layout = self.getLayout()
+        if layout is not None:
+            while layout.count():
+                child = layout.takeAt(0)
+                widget = child.widget()
+                if widget is not None:
+                    widget.deleteLater()  # Mark the widget for deletion
+                elif child.layout() is not None:
+                    self._clearLayout(child.layout())  # Recursively clear nested layouts
+
+        # Recursively delete child widgets
+        for child in self.findChildren(QtWidgets.QWidget):
+            child.deleteLater()
+
+    def _clearLayout(self, layout):
+        """
+        Recursively clear a layout and delete its child widgets.
+        :param layout:
+            QLayout. The layout to be cleared.
+        """
+        while layout.count():
+            child = layout.takeAt(0)
+            if child.widget():
+                child.widget().deleteLater()
+            if child.layout():
+                self._clearLayout(child.layout())
 
     # # pyqt5.15 does not allow setting with a float
     # def setMinimumWidth(self, p_int):

@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-08-07 09:20:36 +0100 (Wed, August 07, 2024) $"
+__dateModified__ = "$dateModified: 2024-08-21 13:51:13 +0100 (Wed, August 21, 2024) $"
 __version__ = "$Revision: 3.2.5 $"
 #=========================================================================================
 # Created
@@ -440,6 +440,7 @@ class CSMOutputFrame(SeriesFrameBC):
                     sv.KD_ERR,
                     sv.BMAX,
                     sv.BMAX_ERR,
+                    sv.GLOBAL_FITTING_CLUSTER_ID
                   ]
         columns += sv.CONSTANT_STATS_OUTPUT_TABLE_COLUMNS
         self.loc[-1, columns] = None # None value, because you must give a value when creating columns after init.
@@ -469,6 +470,27 @@ def _mergeRowsByHeaders(inputData, grouppingHeaders, dropColumnNames=[sv.NMRATOM
     if rebuildUID and len(inputData.index) == len(newIDs):
         inputData[sv._ROW_UID] = newIDs
     return inputData
+
+
+def _getNextGlobalFittingClusterId(df: pd.DataFrame) -> int:
+    """
+    Get the next available clusterId based on existing clusterIds in the DataFrame.
+    Used to group together collections which data is fitted together is some global fitting.
+
+    :param df: pandas DataFrame that contains the header column.
+    :return: The next available clusterId as an integer.
+    """
+    header = sv.GLOBAL_FITTING_CLUSTER_ID
+    if header not in df.columns:
+        return 1
+    dfCleaned = df[df[header].notna()].copy()
+    if dfCleaned.empty:
+        return 1
+    # Convert clusterId column to numeric (in case of mixed types) and drop NaN
+    dfCleaned[header] = pd.to_numeric(dfCleaned[header], errors='coerce')
+    max_cluster_id = dfCleaned[header].max()
+    return int(max_cluster_id) + 1
+
 
 
 INPUT_SERIESFRAME_DICT = {

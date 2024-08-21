@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-08-13 16:37:44 +0100 (Tue, August 13, 2024) $"
+__dateModified__ = "$dateModified: 2024-08-21 13:51:14 +0100 (Wed, August 21, 2024) $"
 __version__ = "$Revision: 3.2.5 $"
 #=========================================================================================
 # Created
@@ -92,6 +92,7 @@ class _OnePhaseDecayMinimiser(MinimiserModel):
                         AMPLITUDE : 1.0,
                         RATE            :1.5
                       }
+    _defaultGlobalParams = [RATE]
 
     def __init__(self, independent_vars=['x'], prefix='', nan_policy=sv.OMIT_MODE, **kwargs):
         kwargs.update({'prefix': prefix, 'nan_policy': nan_policy, 'independent_vars': independent_vars})
@@ -120,7 +121,8 @@ class _ScaledOnePhaseDecayMinimiser(MinimiserModel):
                         AMPLITUDE : 1.0,
                         RATE            :1.5
                       }
-
+    _defaultGlobalParams = [RATE]
+    
     def __init__(self, independent_vars=['x'], prefix='', nan_policy=sv.OMIT_MODE, **kwargs):
         kwargs.update({'prefix': prefix, 'nan_policy': nan_policy, 'independent_vars': independent_vars})
         super().__init__(_ScaledOnePhaseDecayMinimiser.FITTING_FUNC, **kwargs)
@@ -150,7 +152,8 @@ class _OnePhaseDecayPlateauMinimiser(MinimiserModel):
                         RATE            :1.5,
                         PLATEAU      :0.0
                       }
-
+    _defaultGlobalParams = [RATE]
+    
     def __init__(self, independent_vars=['x'], prefix='', nan_policy=sv.OMIT_MODE, **kwargs):
         kwargs.update({'prefix': prefix, 'nan_policy': nan_policy, 'independent_vars': independent_vars})
         super().__init__(_OnePhaseDecayPlateauMinimiser.FITTING_FUNC, **kwargs)

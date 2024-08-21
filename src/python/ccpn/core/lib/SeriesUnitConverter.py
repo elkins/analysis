@@ -360,7 +360,7 @@ class EquivalentUnit(_SI_Unit):
     SI_baseUnit = 'Eq'
     SI_baseUnitWord = EQUIVALENT
     quantity = EQUIVALENT
-    uiPrefixSelection = ['m', _microUnicode, 'n', ]
+    uiPrefixSelection = [] #no other prefix needed here
 
     @property
     def unitsTipTextSelection(self):

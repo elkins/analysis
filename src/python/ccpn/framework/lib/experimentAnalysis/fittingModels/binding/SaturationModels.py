@@ -15,7 +15,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-08-13 16:37:44 +0100 (Tue, August 13, 2024) $"
+__dateModified__ = "$dateModified: 2024-08-21 13:51:14 +0100 (Wed, August 21, 2024) $"
 __version__ = "$Revision: 3.2.5 $"
 #=========================================================================================
 # Created
@@ -176,6 +176,7 @@ class _Binding1SiteMinimiser(MinimiserModel):
     BMAX = sv.BMAX
     defaultParams = {KD:1,
                      BMAX:0.5}
+    _defaultGlobalParams = [KD]
 
     def __init__(self, independent_vars=['x'], prefix='', nan_policy=sv.PROPAGATE_MODE, **kwargs):
         kwargs.update({'prefix': prefix, 'nan_policy': nan_policy, 'independent_vars': independent_vars})
@@ -233,6 +234,7 @@ class _BindingCooperativityMinimiser(MinimiserModel):
     defaultParams = {KD:1,
                      BMAX:0.5,
                      HILLSLOPE:1}
+    _defaultGlobalParams = [KD]
 
     def __init__(self, independent_vars=['x'], prefix='', nan_policy=sv.PROPAGATE_MODE, **kwargs):
         kwargs.update({'prefix': prefix, 'nan_policy': nan_policy, 'independent_vars': independent_vars})
@@ -272,6 +274,7 @@ class _FractionBindingMinimiser(MinimiserModel):
     BMAX = sv.BMAX
     defaultParams = {KD:1,
                      BMAX:0.5}
+    _defaultGlobalParams = [KD]
 
     def __init__(self, **kwargs):
         super().__init__(_FractionBindingMinimiser.FITTING_FUNC, **kwargs)
@@ -302,6 +305,9 @@ class _FractionBindingWitTargetConcentMinimiser(MinimiserModel):
     defaultParams = {KD:1,
                      BMAX:0.5,
                      Tstr:1}
+    _defaultGlobalParams = [KD]
+    _fixedParams = [Tstr]
+
 
     def __init__(self, **kwargs):
         super().__init__(_FractionBindingWitTargetConcentMinimiser.FITTING_FUNC, **kwargs)

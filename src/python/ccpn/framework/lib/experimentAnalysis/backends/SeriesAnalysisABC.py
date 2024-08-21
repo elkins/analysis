@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-08-13 16:37:44 +0100 (Tue, August 13, 2024) $"
+__dateModified__ = "$dateModified: 2024-08-21 13:51:13 +0100 (Wed, August 21, 2024) $"
 __version__ = "$Revision: 3.2.5 $"
 #=========================================================================================
 # Created
@@ -38,12 +38,13 @@ from ccpn.core.DataTable import DataTable
 from ccpn.util.traits.TraitBase import TraitBase
 from ccpn.util.traits.CcpNmrTraits import List
 from ccpn.framework.Application import getApplication, getCurrent, getProject
-from ccpn.framework.lib.experimentAnalysis.SeriesTables import SeriesFrameBC, InputSeriesFrameBC
+from ccpn.framework.lib.experimentAnalysis.SeriesTables import SeriesFrameBC, InputSeriesFrameBC, _getNextGlobalFittingClusterId
 import ccpn.framework.lib.experimentAnalysis.calculationModels._libraryFunctions as lf
 import ccpn.framework.lib.experimentAnalysis.SeriesAnalysisVariables as sv
 from ccpn.framework.PathsAndUrls import ccpnExperimentAnalysisPath
 from ccpn.util.Path import aPath, scandirs
 from ccpn.util.Common import fetchPythonModules
+
 
 
 class SeriesAnalysisABC(ABC):
@@ -282,11 +283,11 @@ class SeriesAnalysisABC(ABC):
         self._setMinimisedPropertyFromModels()
         return outputDataTable
 
-    def refitCollection(self, collectionPid,
-                        fittingModel=None,
-                        minimiserMethod=None,
-                        resetInitialParams=False,
-                        customMinimiserParamsDict=None):
+    def refitSingularCollection(self, collectionPid,
+                                fittingModel=None,
+                                minimiserMethod=None,
+                                resetInitialParams=True,
+                                customMinimiserParamsDict=None):
         """
         Given a CollectionPid, refit the series using the options defined in the module.
         :param collectionPid: str: Ccpn collection pid for a collection which is contained in the inputDataTables and outputData.
@@ -339,6 +340,102 @@ class SeriesAnalysisABC(ABC):
             resultData.loc[ix, sv.MODEL_NAME] = fittingModel.modelName
             resultData.loc[ix, sv.MINIMISER_METHOD] = minimiser.method
 
+    @staticmethod
+    def _makeParamsForGlobalFitting(fittingModel, outputDataFrame, collectionPids, globalParamNames=[], localParamNames=[], fixedParamNames=[]):
+        """ Given a dataFrame with individual fit results, make the Params for a global fit.
+        Use the globalInitialValueMethod to calculate the initial value for the global minimisation. E.g.: mean . For example if a Global Kd fitting,  It will take the mean of all existing Kd results
+        and use it as initial value (starting point)  for the minimisation.
+        The Local initial values are the same as the individual fitting result
+        """
+        from lmfit import Parameter
+        minimiser = fittingModel.Minimiser()
+        params = minimiser._createParams()
+        df = outputDataFrame[outputDataFrame[sv.COLLECTIONPID].isin(collectionPids)].copy()
+
+        ## do the globals params
+        for globName in globalParamNames:
+            value = 0  # could do the minimiser.guess() instead
+            if globName in df:
+                value = df[globName].mean()
+            else:
+                param = params.get(globName)
+                if param is not None:
+                    value = param.value  # take the default value from the minimiser
+            params[globName] = Parameter(name=globName, value=value, user_data={sv._PARAMTYPE: sv._GLOBAL, sv._PARAMNAME: globName})
+        ## do the fixed params
+        for fixedParamName in fixedParamNames:
+            value = 0
+            if fixedParamName in df:
+                value = df[fixedParamName].values[-1]
+            else:
+                param = params.get(fixedParamName)
+                if param is not None:
+                    value = param.value  # take the default value from the minimiser
+            params[fixedParamName] = Parameter(name=fixedParamName, value=value, vary=False,
+                                               user_data={sv._PARAMTYPE: sv._FIXED, sv._PARAMNAME: fixedParamName})
+        ## do the local params
+        for localName in localParamNames:
+            for i, collectionPid in enumerate(collectionPids):
+                dfFiltered = df[df[sv.COLLECTIONPID] == collectionPid]
+                value = 1
+                if localName in dfFiltered:
+                    value = dfFiltered[localName].values[-1]
+                name = f'{localName}_{i}'
+                params[name] = Parameter(name=name, value=value, vary=True,
+                                         user_data={sv.PID: collectionPid, sv._PARAMTYPE: sv._LOCAL, sv._PARAMNAME: localName, })
+        return params
+
+    def refitGlobalCollections(self, collectionPids,
+                               globalParamNames, localParamNames, fixedParamNames,
+                                fittingModel=None,
+                                minimiserMethod=None,
+                                ):
+        """
+        Given a list of CollectionPids, do a global refit of the specified params, while minimising others individually.
+        :param collectionPid: str: Ccpn collection pid for a collection which is contained in the inputDataTables and outputData.
+
+        :return: a pandas dataFrame with the latest fitted data.
+        """
+        from ccpn.framework.lib.experimentAnalysis.fittingModels.FittingModelABC import GlobalMinimiser
+
+        resultDataTable = self.resultDataTable
+        resultData = resultDataTable.data
+        fittingModel = fittingModel or self.currentFittingModel
+        func = fittingModel.getFittingFunc(fittingModel)
+
+        dfForCollections = resultData[resultData[sv.COLLECTIONPID].isin(collectionPids)].copy()
+        dfForCollections.sort_values([fittingModel.xSeriesStepHeader], inplace=True)
+        params = self._makeParamsForGlobalFitting(fittingModel, resultData, collectionPids,
+                                                                  globalParamNames=globalParamNames,
+                                                                  localParamNames=localParamNames,
+                                                                  fixedParamNames=fixedParamNames)
+        x = []
+        data = []
+        for collectionPid in collectionPids:
+            dfForCollection = resultData[resultData[sv.COLLECTIONPID] == collectionPid].copy()
+            dfForCollection.sort_values([fittingModel.xSeriesStepHeader], inplace=True)
+            seriesSteps = x = dfForCollection[fittingModel.xSeriesStepHeader].values
+            seriesValues = Ys = dfForCollection[fittingModel.ySeriesStepHeader].values
+            data.append(Ys)
+        data = np.array(data)
+        minimiser = GlobalMinimiser(func, x, data,
+                            globalParamNames=globalParamNames,
+                            localParamNames=localParamNames,
+                            fixedParamNames=fixedParamNames,
+                            params=params)
+        result = minimiser.minimize(method=minimiserMethod)
+        params4Pids = minimiser.getIndividualParamsForResult(result, collectionPids)
+        ## update the data
+        statsResultDict = minimiser.getGlobalStatisticalResult(result)
+        globalFittingClusterId = _getNextGlobalFittingClusterId(resultData)
+        for pid, paramDict in params4Pids.items():
+            match = resultData[resultData[sv.COLLECTIONPID] == pid]
+            resultData.loc[match.index, paramDict.keys()] = paramDict.values()
+            resultData.loc[match.index, statsResultDict.keys()] = statsResultDict.values()
+            resultData.loc[match.index, sv.MODEL_NAME] = fittingModel.modelName
+            resultData.loc[match.index, sv.MINIMISER_METHOD] = minimiserMethod
+            resultData.loc[match.index, sv.GLOBAL_FITTING_CLUSTER_ID] = globalFittingClusterId
+
     def _setMinimisedPropertyFromModels(self):
         """ Set the _minimisedProperty from the current models.
          Calculation model has priority, otherwise use the fitting model unless disabled."""
@@ -353,6 +450,8 @@ class SeriesAnalysisABC(ABC):
         for spGroup in self.inputSpectrumGroups:
             for inputData in self.inputDataTables:
                 inputData.data.buildFromSpectrumGroup(spGroup, parentCollection=inputCollection)
+
+
 
     @property
     def currentFittingModel(self):

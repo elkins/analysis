@@ -13,11 +13,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2023-12-04 09:57:01 +0000 (Mon, December 04, 2023) $"
-__version__ = "$Revision: 3.2.0 $"
-__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-06-21 19:48:44 +0100 (Fri, June 21, 2024) $"
-__version__ = "$Revision: 3.2.4 $"
+__dateModified__ = "$dateModified: 2024-08-21 13:51:14 +0100 (Wed, August 21, 2024) $"
+__version__ = "$Revision: 3.2.5 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -32,6 +29,7 @@ import ccpn.framework.lib.experimentAnalysis.SeriesAnalysisVariables as sv
 from ccpn.util.Logging import getLogger
 from ccpn.core.lib.Notifiers import Notifier
 import numpy as np
+from functools import partial
 ######## gui/ui imports ########
 from ccpn.ui.gui.modules.experimentAnalysis.ExperimentAnalysisGuiPanel import GuiPanel
 import ccpn.ui.gui.modules.experimentAnalysis.ExperimentAnalysisGuiNamespaces as guiNameSpaces
@@ -133,7 +131,7 @@ class _ExperimentalAnalysisTableABC(Table):
 
     @dataFrame.setter
     def dataFrame(self, dataFrame):
-        selectedRows = self.selectedRows()
+        selectedRows = self.getSelectedData()
         self._dataFrame = dataFrame
         self.build(dataFrame)
         if self._selectionHeader in self.headerColumnMenu.columnTexts and len(selectedRows)>0:
@@ -229,9 +227,8 @@ class _ExperimentalAnalysisTableABC(Table):
     def addTableMenuOptions(self, menu):
         super().addTableMenuOptions(menu)
         editCollection = menu.addAction('Edit Collection', self._editCollection)
-        refitSingular = menu.addAction('Refit Collection(s) Singular...', self._refitSeletected)
-        refitGroup = menu.addAction('Refit Collection(s) Group...')
-        refitGroup.setEnabled(False)
+        refitSingular = menu.addAction('Refit Collection(s) Individually...', partial(self._refitSeletected, False))
+        refitGroup = menu.addAction('Refit Collections Globally...', partial(self._refitSeletected, True))
         _separator = menu.insertSeparator(editCollection)
         excludeNmrResidue = menu.addAction(guiNameSpaces.EXCLUDE_NMRRESIDUES, self._excludeNmrResidues)
         includeNmrResidue = menu.addAction(guiNameSpaces.INCLUDE_NMRRESIDUES, self._includeNmrResidues)
@@ -239,11 +236,15 @@ class _ExperimentalAnalysisTableABC(Table):
         includeNmrResidue.setEnabled(False)
         _separator = menu.insertSeparator(excludeNmrResidue)
 
-    def _refitSeletected(self):
+    def _refitSeletected(self, globally=False):
+        from ccpn.ui.gui.popups._RefitSeriesPopup import RefitIndividualPopup, RefitGloballyPopup
+
         collections = self.getSelectedCollections()
         if len(collections)>0:
-            from ccpn.ui.gui.popups._RefitSeriesPopup import RefitSingularSelectedSeriesPopup
-            popup = RefitSingularSelectedSeriesPopup(self, seriesAnalysisModule=self.guiModule, collections=collections)
+            if globally:
+                popup = RefitGloballyPopup(self, seriesAnalysisModule=self.guiModule, globalFit=False, collectionsData=self.getSelectedData())
+            else:
+                popup = RefitIndividualPopup(self, seriesAnalysisModule=self.guiModule, globalFit=False, collectionsData=self.getSelectedData())
             popup.show()
             popup.raise_()
         else:
@@ -279,8 +280,11 @@ class _ExperimentalAnalysisTableABC(Table):
             exclusionHandler.setExcludedNmrResidues(newExclusion, dataTable=outputData)
             self.guiModule.updateAll()
 
+    def getSelectedData(self):
+        return self.selectedRows()
+
     def getSelectedCollections(self):
-        selectedRowsDf = self.selectedRows()
+        selectedRowsDf = self.getSelectedData()
         collections = set()
         for ix, selectedRow in selectedRowsDf.iterrows():
             coPid = selectedRow[sv.COLLECTIONPID]
@@ -289,7 +293,7 @@ class _ExperimentalAnalysisTableABC(Table):
         return list(collections)
 
     def getSelectedNmrResidues(self):
-        selectedRowsDf = self.selectedRows()
+        selectedRowsDf = self.getSelectedData()
         nmrResidues = set()
         # if not sv.NMRRESIDUEPID in selectedRowsDf:
         #     showWarning(f'This table does not contain the requeired field {sv.NMRRESIDUEPID}',
