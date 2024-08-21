@@ -62,7 +62,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-08-21 16:50:08 +0100 (Wed, August 21, 2024) $"
+__dateModified__ = "$dateModified: 2024-08-21 19:06:29 +0100 (Wed, August 21, 2024) $"
 __version__ = "$Revision: 3.2.5 $"
 #=========================================================================================
 # Created
@@ -880,12 +880,23 @@ class MinimiserResult(ModelResult):
         return self.params
 
     @staticmethod
-    def _getSyntheticY(y, best_fit, residuals,  noiseScale=0.5):
-        """ Get the syntheticY based on the model best fit and its residuals.
-         This method is used in parametric error estimation and Monte Carlo simulations to create synthetic datasets
-         that mimic the variability in the observed data.  By introducing noise, it allows for the estimation of uncertainties in model parameters under different scenarios.
-        There are many other ways to achieve this based on the data, but  this is a conventional way.
+    def _getSyntheticY(y, best_fit, residuals, noiseScale=0.5, seed=None):
         """
+        Generate synthetic data (syntheticY) based on the model's best fit and its residuals.
+
+        This method is used in parametric error estimation and Monte Carlo simulations to create synthetic datasets
+        that mimic the variability in the observed data. By introducing noise, it allows for the estimation of uncertainties
+        in model parameters under different scenarios. This is a conventional method, though there are other approaches.
+
+        :param y: Array-like, the original observed data.
+        :param best_fit: Array-like, the model's best-fit values corresponding to y.
+        :param residuals: Array-like, the residuals (differences between observed data and best fit).
+        :param noiseScale: Float, scaling factor for the noise added to the synthetic data (default is 0.5).
+        :param seed: Integer, seed for the random number generator to ensure reproducibility (default is None).
+        :return: Array-like, synthetic dataset with noise added.
+        """
+        if seed is not None:
+            np.random.seed(seed)
         syntheticY = best_fit + np.random.normal(0, noiseScale * np.std(residuals), size=len(y))
         return syntheticY
 
