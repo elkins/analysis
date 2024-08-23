@@ -15,7 +15,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-08-21 13:51:14 +0100 (Wed, August 21, 2024) $"
+__dateModified__ = "$dateModified: 2024-08-23 16:13:41 +0100 (Fri, August 23, 2024) $"
 __version__ = "$Revision: 3.2.5 $"
 #=========================================================================================
 # Created
@@ -57,34 +57,12 @@ def oneSiteBinding_func(x, Kd, BMax):
     return (BMax * x) / (x + Kd)
 
 
-def oneSiteNonSpecBinding_func(x, NS, B=1):
-    """
-    The  one-site non specific Binding equation for a saturation binding experiment.
-
-    Y = NS*X + B
-
-    :param x:  1d array. The data to be fitted.
-               In the CSM it's the array of deltas (deltas among chemicalShifts, CS, usually in ppm positions)
-
-    :param NS: the slope of non-specific binding
-    :param B:  The non specific binding without ligand.
-
-    :return:   Y array same shape of x. Represents the points for the fitted curve Y to be plotted.
-               When plotting BMax is the Y axis, Kd the X axis.
-    """
-
-    YnonSpecific = NS * x + B
-
-    return YnonSpecific
-
-
 def fractionBound_func(x, Kd, BMax):
     """
     The one-site fractionBound equation for a saturation binding experiment.
     V2 equation.
     Y = BMax * (Kd + x - sqrt((Kd + x)^2 - 4x))
 
-    ref: 1) In-house calculations (V2 - wayne - Double check )
 
     :param x:   1d array. The data to be fitted.
                 In the CSM it's the array of deltas (deltas among chemicalShifts, CS, usually in ppm positions)
@@ -107,11 +85,12 @@ def fractionBound_func(x, Kd, BMax):
     return Y
 
 
-def fractionBoundWithPro_func(x, Kd, BMax, T=1):
+def fractionBoundWithFixedTargetConcentration(x, Kd, BMax, T):
     """
-    The one-site fractionBound equation for a saturation binding experiment.
+    The one-site fractionBound equation for a saturation binding experiment with a Fixed Target Concentration.
+     Note, the parameter T doesn't vary during minimisation.
     V2 equation.
-    Y = BMax * ( (P + x + Kd) - sqrt(P + x + Kd)^2 - 4*P*x)) / 2 * P
+    Y = BMax * ((T + x + Kd) - sqrt(T + x + Kd)^2 - 4*T*x) / 2 * T
 
     ref: 1) M.P. Williamson. Progress in Nuclear Magnetic Resonance Spectroscopy 73, 1–16 (2013).
 
@@ -136,6 +115,77 @@ def fractionBoundWithPro_func(x, Kd, BMax, T=1):
     Y = BMax * ((T + x + Kd) - np.sqrt((T + x + Kd)**2 - 4 * T * x)) / 2 * T
     return Y
 
+
+def fractionBoundWithVariableProteinConcentration(x, Xs, Kd, BMax, T):
+
+    """
+    The one-site fractionBound equation for a saturation binding experiment with a variable Target Concentration. Note the similarity with the fractionBoundWithFixedTargetConcentration
+        totT = T * (1 - (x / Xs))
+        Y = BMax*(((totT + x + Kd) - np.sqrt((totT + x + Kd)**2 - (4 * totT * x))) / (2 * totT))
+
+    :param x: The ligand concentration.
+    :param Xs: The ligand stock concentration.
+    :param Kd: The dissociation constant.
+    :param BMax: he maximum observed chemical shift.
+    :param P0: The initial protein concentration.
+    :return:  Y array same shape of x. Represents the points for the fitted curve Y to be plotted.
+                When plotting BMax is the Y axis, Kd the X axis.
+    """
+    totT = T * (1 - (x / Xs))
+    Y = BMax*(((totT + x + Kd) - np.sqrt((totT + x + Kd)**2 - (4 * totT * x))) / (2 * totT))
+    
+    return Y
+
+def monomerDimerBinding_v2(x, BMax, Kd, C):
+    """
+    Calculate the observed shift y based on the given parameters using the provided equation.
+
+    Equation:
+    y = A * ((B + 4x - sqrt((B + 4x)^2 - 16x^2)) / (4x)) + C
+
+
+    :param x:  1d array. The data to be fitted, representing the concentration of the ligand.
+               For example, x could be an array of total monomer concentrations [A]_T.
+    :param BMax:  Scaling factor for the shift.
+               It could represent Δδ_max, the maximum chemical shift difference.
+    :param Kd:  Parameter related to the dissociation constant (Kd).
+               B could represent the dissociation constant itself.
+    :param C:  Baseline shift.
+               It could represent δ_A, the chemical shift of the monomer.
+    :return:   y array of the same shape as x. Represents the points for the fitted curve y to be plotted.
+               When plotting, y is the Y axis, and x is the X axis.
+    """
+
+    sqrt_term = np.sqrt((Kd + 4 * x)**2 - 16 * x**2)
+    y = BMax * ((Kd + 4*x - sqrt_term) / (4 * x)) + C
+    return y
+
+
+def monomerDimerBinding(x, Kd, BMax, dA):
+    """
+    Calculate the observed chemical shift (δ_obs) for a dimerisation binding model.
+    This is yet another way of representing 'monomerDimerBinding_v2'
+    or   y = A * ((B + 4x - sqrt((B + 4x)^2 - 16x^2)) / (4x)) + C
+
+    Equation:
+    δ_obs = δ_A + (Δδ_max / (2 * x)) * (Kd + 4 * x - sqrt((Kd + 4 * x)^2 - 16 * x^2))
+
+    :param x:  1d array. Total concentration of the monomer [A]_T.
+                 In a titration experiment, this is the array of ligand concentrations.
+    :param Kd:   Defines the equilibrium dissociation constant. The value at which half of the monomer is dimerized.
+                 The initial value might be guessed from the binding affinity.
+    :param BMax: Defines the maximum possible chemical shift difference (Δδ_max).
+                      Represents the shift difference between the monomer and the dimer.
+    :param dA: delta_A, Defines the chemical shift of the monomer (δ_A).
+                    The shift when no dimerization occurs.
+    :return:    δ_obs array of the same shape as x. Represents the observed chemical shifts for each [A]_T.
+                When plotting, δ_obs is the Y axis, [A]_T is the X axis.
+    """
+
+    sqrt_term = np.sqrt((Kd + 4 * x)**2 - 16 * x**2)
+    delta_obs = dA + (BMax / (4 * x)) * (Kd + 4 * x - sqrt_term)
+
+    return delta_obs
 
 def cooperativity_func(x, Kd, BMax, Hs):
     """
@@ -163,6 +213,7 @@ def cooperativity_func(x, Kd, BMax, Hs):
 
     Y = (BMax * x**Hs) / (x**Hs + Kd**Hs)
     return Y
+
 
 
 ## -----------------------     Saturation Minimisers       -----------------------      ##
@@ -293,11 +344,11 @@ class _FractionBindingMinimiser(MinimiserModel):
         params.get(self.BMAX).value = np.max(data)
         return params
 
-class _FractionBindingWitTargetConcentMinimiser(MinimiserModel):
+class _FractionBindingWithFixedTargetConcentMinimiser(MinimiserModel):
     """A model based on the fraction bound Fitting equation.
       Eq. 6 from  M.P. Williamson. Progress in Nuclear Magnetic Resonance Spectroscopy 73, 1–16 (2013).
     """
-    FITTING_FUNC = fractionBoundWithPro_func
+    FITTING_FUNC = fractionBoundWithFixedTargetConcentration
     KD = sv.KD # They must be exactly as they are defined in the FITTING_FUNC arguments! This was too hard to change!
     BMAX = sv.BMAX
     Tstr = sv.T
@@ -310,9 +361,9 @@ class _FractionBindingWitTargetConcentMinimiser(MinimiserModel):
 
 
     def __init__(self, **kwargs):
-        super().__init__(_FractionBindingWitTargetConcentMinimiser.FITTING_FUNC, **kwargs)
+        super().__init__(_FractionBindingWithFixedTargetConcentMinimiser.FITTING_FUNC, **kwargs)
         self.name = self.MODELNAME
-        self.params = self.make_params(**_FractionBindingWitTargetConcentMinimiser.defaultParams)
+        self.params = self.make_params(**_FractionBindingWithFixedTargetConcentMinimiser.defaultParams)
 
     def guess(self, data, x, **kws):
         """
@@ -324,6 +375,74 @@ class _FractionBindingWitTargetConcentMinimiser(MinimiserModel):
         params = self.params
         params.get(self.KD).value = np.median(x)
         params.get(self.BMAX).value = np.max(data)
+        return params
+
+class _FractionBindingWithVariableTargetConcentMinimiser(MinimiserModel):
+    """A model based on the fraction bound Fitting equation at variable Target concentration.
+    """
+    FITTING_FUNC = fractionBoundWithVariableProteinConcentration
+    KD = sv.KD # They must be exactly as they are defined in the FITTING_FUNC arguments! This was too hard to change!
+    BMAX = sv.BMAX
+    Xs = 'xs' # ligand stock
+    Tstr = sv.T
+
+    defaultParams = {KD:1,
+                                 Xs:10,
+                                 BMAX:0.5,
+                                 Tstr:1}
+
+    _defaultGlobalParams = [KD]
+    _fixedParams = [Tstr, Xs]
+
+
+    def __init__(self, **kwargs):
+        super().__init__(_FractionBindingWithVariableTargetConcentMinimiser.FITTING_FUNC, **kwargs)
+        self.name = self.MODELNAME
+        self.params = self.make_params(**_FractionBindingWithVariableTargetConcentMinimiser.defaultParams)
+
+    def guess(self, data, x, **kws):
+        """
+        :param data: y values 1D array
+        :param x: the x axis values. 1D array
+        :param kws:
+        :return: dict of params needed for the fitting
+        """
+        params = self.params
+        params.get(self.KD).value = np.median(x)
+        params.get(self.BMAX).value = np.max(data)
+        return params
+
+
+class _MonomerDimerMinimiser(MinimiserModel):
+    """
+    """
+    FITTING_FUNC = monomerDimerBinding_v2
+    KD = sv.KD # They must be exactly as they are defined in the FITTING_FUNC arguments! This was too hard to change!
+    BMAX = sv.BMAX
+    C = sv.C
+
+    defaultParams = {KD:1,
+                     BMAX:0.5,
+                     C:0.1}
+    _defaultGlobalParams = [KD]
+    _fixedParams = []
+
+    def __init__(self, **kwargs):
+        super().__init__(_MonomerDimerMinimiser.FITTING_FUNC, **kwargs)
+        self.name = self.MODELNAME
+        self.params = self.make_params(**_MonomerDimerMinimiser.defaultParams)
+
+    def guess(self, data, x, **kws):
+        """
+        :param data: y values 1D array
+        :param x: the x axis values. 1D array
+        :param kws:
+        :return: dict of params needed for the fitting
+        """
+        params = self.params
+        params.get(self.KD).value = np.median(x)
+        params.get(self.BMAX).value = np.max(data)
+        params.get(self.C).value = np.min(data)
         return params
 
 ## -----------------------     End of  Minimisers       -----------------------       ##
@@ -396,6 +515,164 @@ class BindingModelBC(FittingModelABC):
         """called before running the fitting routine to set any additional params options. To be subclasses"""
         return params
 
+    def _setGlobalTargetConcentrationToParams(self, df, params):
+        """
+        :param df:
+        :param params:
+        :return: LMFIT params with added the Global Target Concentration value as fixed argument.
+        """
+        globalConcentration = 1 # Fallback. default set to 1 #
+        if self.xSeriesStepAdditionalHeader in df:
+            seriesAdditionalSteps = df[self.xSeriesStepAdditionalHeader]
+            tArray = np.copy(seriesAdditionalSteps.values)
+            v = self._getAdditionalValueFromArray(tArray)
+            if v is not None:
+                globalConcentration = v
+        params[sv.T].set(value=globalConcentration, vary=False)
+        return params
+
+
+
+class FractionBindingModel(BindingModelBC):
+    """
+    ChemicalShift Analysis: FractionBinding fitting Curve calculation model
+    """
+    modelName = sv.FRACTION_BINDING_MODEL
+    modelInfo = 'Fit data to using the simple Fraction Binding model.'
+    description = '''Fitting model for one-site fraction bound in a saturation binding experiment. This model can be used when a large fraction of the ligand binds to the target.
+                    \nModel:
+                    Y = BMax * (Kd + x - sqrt((Kd + x)^2 - 4x)) 
+                    Bmax: is the maximum specific binding and in the CSM is given by the Relative displacement (Deltas among chemicalShifts).
+                    Kd: is the (equilibrium) dissociation constant in the same unit as the Series.
+                    The Kd represents the [ligand] required to get a half-maximum binding at equilibrium.
+                  '''
+    references  = '1) Model derived from Eq. 6  M.P. Williamson. Progress in Nuclear Magnetic Resonance Spectroscopy 73, 1–16 (2013).'
+    # MaTex = r'$B_{Max}*(K_d+[L]- \sqrt{(K_d+[L]^2)}-4[L]$'
+    
+    Minimiser = _FractionBindingMinimiser
+    isEnabled = True
+    targetSeriesAnalyses = [
+                                            sv.ChemicalShiftMappingAnalysis
+                                            ]
+
+class FractionBindingWithFixedTargetConcentrModel(BindingModelBC):
+    """
+    ChemicalShift Analysis: FractionBinding with Target Concentration fitting Curve calculation model
+    """
+    modelName = sv.FRACTION_BINDING_WITH_FIXED_TARGET_MODEL
+    modelInfo = 'Fit data to using the Fraction Binding model.'
+    description = '''Fitting model that implements the 'exact binding' model for a one-site saturation binding experiment with a global fixed target concentration. 
+                            \nModel:
+                            Y = BMax * ((T + x + Kd) - sqrt(T + x + Kd)^2 - 4*T*x) / 2 * T
+                            Bmax: is the maximum specific binding and in the CSM is given by the Relative displacement (Deltas among chemicalShifts).
+                            Kd: is the (equilibrium) dissociation constant in the same unit as the Series.
+                            The Kd represents the [ligand] required to get a half-maximum binding at equilibrium.
+                            T: Target concentration. (Value is kept fixed during the minimisation)
+
+    '''
+    references  = '1) Eq. 6 from M.P. Williamson. Progress in Nuclear Magnetic Resonance Spectroscopy 73, 1–16 (2013).'
+    # MaTex = ''
+    Minimiser = _FractionBindingWithFixedTargetConcentMinimiser
+    isEnabled = True
+    targetSeriesAnalyses = [
+                                            sv.ChemicalShiftMappingAnalysis
+                                            ]
+
+
+    def _preFittingAdditionalParamsSettings(self, df, params, **kwargs):
+        """called before running the fitting routine to set any additional params options. To be subclasses"""
+        return self._setGlobalTargetConcentrationToParams(df, params)
+
+
+class FractionBindingWithVariableTargetConcentrationModel(BindingModelBC):
+    """
+    ChemicalShift Analysis: FractionBinding with Target Concentration fitting Curve calculation model
+    """
+    modelName = sv.FRACTION_BINDING_WITH_VARIABLE_TARGET_MODEL
+    modelInfo = 'Fit data to using the Exact Fraction Binding model.'
+    description = ''' This model describes a one-site saturation binding experiment where the concentration of the target (protein) varies as the ligand is added. 
+                            \nModel:
+                                Y = BMax*(((totT + x + Kd) - np.sqrt((totT + x + Kd)**2 - (4 * totT * x))) / (2 * totT))
+                            
+                            totT = T * (1 - (x / Xs))
+                            Bmax: is the maximum specific binding and in the CSM is given by the Relative displacement (Deltas among chemicalShifts).
+                            Kd: is the (equilibrium) dissociation constant in the same unit as the Series.
+                            The Kd represents the [ligand] required to get a half-maximum binding at equilibrium.
+                            T: Target concentration. (Fixed value during the minimisation)
+                            Xs: ligand stock solution concentration. 
+    '''
+    references  = '1) Eq. 6 from M.P. Williamson. Progress in Nuclear Magnetic Resonance Spectroscopy 73, 1–16 (2013).'
+    # MaTex = ''
+    Minimiser = _FractionBindingWithVariableTargetConcentMinimiser
+    isEnabled = True
+    targetSeriesAnalyses = [
+                                            sv.ChemicalShiftMappingAnalysis
+                                            ]
+
+
+    def _preFittingAdditionalParamsSettings(self, df, params, **kwargs):
+        """called before running the fitting routine to set any additional params options. To be subclasses"""
+
+        return self._setGlobalTargetConcentrationToParams(df, params)
+
+
+class MonomerDimerBindingModel(BindingModelBC):
+    """
+    ChemicalShift Analysis: Monomer-Dimer  fitting Curve calculation model
+    """
+    modelName = sv.MONOMERDIMER_BINDING_MODEL
+    modelInfo = 'Fit data to using the Monomer-Dimer model.'
+    description = '''Fitting model for one-site fraction bound in a saturation binding experiment. This model can be used when a large fraction of the ligand binds to the target.
+                    \nModel:
+                    Y = A * ((B + 4x - sqrt((B + 4x)^2 - 16x^2)) / (4x) ) + C
+                    or 
+                    Y = BMax * ( (Kd + 4x - sqrt((Kd + 4x)^2 - 16x^2)) / (4x) ) + C
+
+                    Bmax: is the maximum specific binding and in the CSM is given by the Relative displacement (Deltas among chemicalShifts).
+                    Kd: is the (equilibrium) dissociation constant in the same unit as the Series.
+                    The Kd represents the [ligand] required to get a half-maximum binding at equilibrium.
+                    C:  the chemical shift of the monomer (δA)
+                  '''
+    references = ''
+
+    Minimiser = _MonomerDimerMinimiser
+    isEnabled = True
+    targetSeriesAnalyses = [
+        sv.ChemicalShiftMappingAnalysis
+        ]
+
+
+class CooperativityBindingModel(BindingModelBC):
+    """
+    ChemicalShift Analysis: Cooperativity-Binding calculation model
+    """
+    modelName = sv.COOPERATIVITY_BINDING_MODEL
+    modelInfo = 'Fit data to using the  Cooperativity Binding  model in a saturation binding experiment analysis.'
+    description = '''
+                    \nModel:
+                    Y=Bmax*x^{Hs}/(Kd^{Hs} + x^{Hs}).
+                    Bmax: is the maximum specific binding and in the CSM is given by the Relative displacement
+                    (Deltas among chemicalShifts).
+                    Kd: is the (equilibrium) dissociation constant in the same unit as the Series.
+                    The Kd represents the [ligand] required to get a half-maximum binding at equilibrium.
+
+                    Hs: Hill slope coefficient.
+                    Hs = 1: ligand/monomer binds to one site with no cooperativity.
+                    Hs > 1: ligand/monomer binds to multiple sites with positive cooperativity.
+                    Hs < 0: ligand/monomer binds to multiple sites with variable affinities or negative cooperativity.
+                    '''
+    references = '''
+                 1) Model derived from the Hill equation: https://en.wikipedia.org/wiki/Cooperative_binding. 
+                 '''
+    # MaTex = r'$\frac{B_{Max} * [L]^Hs }{[L]^Hs + K_d^Hs}$'
+    Minimiser = _BindingCooperativityMinimiser
+    isEnabled = True
+    targetSeriesAnalyses = [
+        sv.ChemicalShiftMappingAnalysis
+        ]
+
+## ~~~~~~~~~~~~~ Disabled models ~~~~~~~~~~~~~ ##
+
 
 class OneSiteBindingModel(BindingModelBC):
     """
@@ -416,7 +693,8 @@ class OneSiteBindingModel(BindingModelBC):
                 '''
     # MaTex = r'$\frac{B_{Max} * [L]}{[L] + K_d}$'
     Minimiser = _Binding1SiteMinimiser
-    
+    isEnabled = False
+
 
 class TwoSiteBindingModel(BindingModelBC):
     """
@@ -425,16 +703,16 @@ class TwoSiteBindingModel(BindingModelBC):
     modelName = sv.TWO_BINDING_SITE_MODEL
     modelInfo = 'Fit data to using the Two-Binding-Site model.'
     description = sv.NIY_WARNING
-    references  = sv.NIY_WARNING
+    references = sv.NIY_WARNING
     # MaTex = r''
     Minimiser = _Binding2SiteMinimiser
-    
+
     isEnabled = False
     targetSeriesAnalyses = [
-                                            sv.ChemicalShiftMappingAnalysis
-                                            ]
+        sv.ChemicalShiftMappingAnalysis
+        ]
 
-    def fitSeries(self, inputData:TableFrame, rescale=True, *args, **kwargs) -> TableFrame:
+    def fitSeries(self, inputData: TableFrame, rescale=True, *args, **kwargs) -> TableFrame:
         """
         :param inputData:
         :param rescale:
@@ -443,6 +721,7 @@ class TwoSiteBindingModel(BindingModelBC):
         :return:
         """
         raise RuntimeError(sv.FMNOYERROR)
+
 
 class OneSiteWithAllostericBindingModel(BindingModelBC):
     """
@@ -453,19 +732,19 @@ class OneSiteWithAllostericBindingModel(BindingModelBC):
     modelName = sv.ONE_SITE_BINDING_ALLOSTERIC_MODEL
     modelInfo = 'Fit data to using the One Site with allosteric modulator model.'
     description = sv.NIY_WARNING
-    references  = sv.NIY_WARNING
+    references = sv.NIY_WARNING
     # References = '''
     #                 1) A. Christopoulos and T. Kenakin, Pharmacol Rev, 54: 323-374, 2002.
     #               '''
     # MaTex = r''
     Minimiser = _Binding1SiteAllostericMinimiser
-    
+
     isEnabled = False
     targetSeriesAnalyses = [
-                                            sv.ChemicalShiftMappingAnalysis
-                                            ]
+        sv.ChemicalShiftMappingAnalysis
+        ]
 
-    def fitSeries(self, inputData:TableFrame, rescale=True, *args, **kwargs) -> TableFrame:
+    def fitSeries(self, inputData: TableFrame, rescale=True, *args, **kwargs) -> TableFrame:
         """
         :param inputData:
         :param rescale:
@@ -474,91 +753,3 @@ class OneSiteWithAllostericBindingModel(BindingModelBC):
         :return:
         """
         raise RuntimeError(sv.FMNOYERROR)
-
-class CooperativityBindingModel(BindingModelBC):
-    """
-    ChemicalShift Analysis: Cooperativity-Binding calculation model
-    """
-    modelName = sv.COOPERATIVITY_BINDING_MODEL
-    modelInfo = 'Fit data to using the  Cooperativity Binding  model in a saturation binding experiment analysis.'
-    description = '''
-                    \nModel:
-                    Y=Bmax*x^{Hs}/(Kd^{Hs} + x^{Hs}).
-                    Bmax: is the maximum specific binding and in the CSM is given by the Relative displacement
-                    (Deltas among chemicalShifts).
-                    Kd: is the (equilibrium) dissociation constant in the same unit as the Series.
-                    The Kd represents the [ligand] required to get a half-maximum binding at equilibrium.
-                    
-                    Hs: Hill slope coefficient.
-                    Hs = 1: ligand/monomer binds to one site with no cooperativity.
-                    Hs > 1: ligand/monomer binds to multiple sites with positive cooperativity.
-                    Hs < 0: ligand/monomer binds to multiple sites with variable affinities or negative cooperativity.
-                    '''
-    references = '''
-                 1) Model derived from the Hill equation: https://en.wikipedia.org/wiki/Cooperative_binding. 
-                 '''
-    # MaTex = r'$\frac{B_{Max} * [L]^Hs }{[L]^Hs + K_d^Hs}$'
-    Minimiser = _BindingCooperativityMinimiser
-    isEnabled = True
-    targetSeriesAnalyses = [
-                                            sv.ChemicalShiftMappingAnalysis
-                                            ]
-
-class FractionBindingModel(BindingModelBC):
-    """
-    ChemicalShift Analysis: FractionBinding fitting Curve calculation model
-    """
-    modelName = sv.FRACTION_BINDING_MODEL
-    modelInfo = 'Fit data to using the Fraction Binding model.'
-    description = '''Fitting model for one-site fraction bound in a saturation binding experiment. This model can be used when a large fraction of the ligand binds to the target.
-                    \nModel:
-                    Y = BMax * (Kd + x - sqrt((Kd + x)^2 - 4x)) 
-                    Bmax: is the maximum specific binding and in the CSM is given by the Relative displacement (Deltas among chemicalShifts).
-                    Kd: is the (equilibrium) dissociation constant in the same unit as the Series.
-                    The Kd represents the [ligand] required to get a half-maximum binding at equilibrium.
-                  '''
-    references  = '1) Model derived from Eq. 6  M.P. Williamson. Progress in Nuclear Magnetic Resonance Spectroscopy 73, 1–16 (2013).'
-    # MaTex = r'$B_{Max}*(K_d+[L]- \sqrt{(K_d+[L]^2)}-4[L]$'
-    
-    Minimiser = _FractionBindingMinimiser
-    isEnabled = True
-    targetSeriesAnalyses = [
-                                            sv.ChemicalShiftMappingAnalysis
-                                            ]
-
-class FractionBindingWithTargetConcentrModel(BindingModelBC):
-    """
-    ChemicalShift Analysis: FractionBinding with Target Concentration fitting Curve calculation model
-    """
-    modelName = sv.FRACTION_BINDING_WITHTARGETMODEL
-    modelInfo = 'Fit data to using the Fraction Binding model.'
-    description = sv.NIY_WARNING
-    references  = sv.NIY_WARNING
-    # MaTex = ''
-    Minimiser = _FractionBindingWitTargetConcentMinimiser
-    isEnabled = True
-    targetSeriesAnalyses = [
-                                            sv.ChemicalShiftMappingAnalysis
-                                            ]
-
-
-    def _setGlobalTargetConcentrationToParams(self, df, params,):
-        """
-        :param df:
-        :param params:
-        :return: LMFIT params with added the Global Target Concentration value as fixed argument.
-        """
-        globalConcentration = 1 # Fallback. default set to 1 #
-        if self.xSeriesStepAdditionalHeader in df:
-            seriesAdditionalSteps = df[self.xSeriesStepAdditionalHeader]
-            tArray = np.copy(seriesAdditionalSteps.values)
-            v = self._getAdditionalValueFromArray(tArray)
-            if v is not None:
-                globalConcentration = v
-        params[sv.T].set(value=globalConcentration, vary=False)
-        return params
-
-    def _preFittingAdditionalParamsSettings(self, df, params, **kwargs):
-        """called before running the fitting routine to set any additional params options. To be subclasses"""
-        params = self._setGlobalTargetConcentrationToParams(df, params)
-        return params
