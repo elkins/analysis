@@ -15,7 +15,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-08-23 16:13:41 +0100 (Fri, August 23, 2024) $"
+__dateModified__ = "$dateModified: 2024-08-23 18:53:02 +0100 (Fri, August 23, 2024) $"
 __version__ = "$Revision: 3.2.5 $"
 #=========================================================================================
 # Created
@@ -120,8 +120,7 @@ def fractionBoundWithVariableProteinConcentration(x, Xs, Kd, BMax, T):
 
     """
     The one-site fractionBound equation for a saturation binding experiment with a variable Target Concentration. Note the similarity with the fractionBoundWithFixedTargetConcentration
-        totT = T * (1 - (x / Xs))
-        Y = BMax*(((totT + x + Kd) - np.sqrt((totT + x + Kd)**2 - (4 * totT * x))) / (2 * totT))
+        Y = BMax*(((T * (1 - (x / Xs)) + x + Kd) - np.sqrt((T * (1 - (x / Xs)) + x + Kd)**2 - (4 * T * (1 - (x / Xs)) * x))) / (2 * T * (1 - (x / Xs))))
 
     :param x: The ligand concentration.
     :param Xs: The ligand stock concentration.
@@ -324,7 +323,7 @@ class _FractionBindingMinimiser(MinimiserModel):
     KD = sv.KD # They must be exactly as they are defined in the FITTING_FUNC arguments! This was too hard to change!
     BMAX = sv.BMAX
     defaultParams = {KD:1,
-                     BMAX:0.5}
+                                BMAX:0.5}
     _defaultGlobalParams = [KD]
 
     def __init__(self, **kwargs):
@@ -547,8 +546,9 @@ class FractionBindingModel(BindingModelBC):
                     The Kd represents the [ligand] required to get a half-maximum binding at equilibrium.
                   '''
     references  = '1) Model derived from Eq. 6  M.P. Williamson. Progress in Nuclear Magnetic Resonance Spectroscopy 73, 1–16 (2013).'
-    # MaTex = r'$B_{Max}*(K_d+[L]- \sqrt{(K_d+[L]^2)}-4[L]$'
-    
+    maTex = r'$Y = B_{\mathrm{max}}  \frac{K_d + x - \sqrt{(K_d + x)^2 - 4x}}{2}$'
+
+
     Minimiser = _FractionBindingMinimiser
     isEnabled = True
     targetSeriesAnalyses = [
@@ -571,7 +571,7 @@ class FractionBindingWithFixedTargetConcentrModel(BindingModelBC):
 
     '''
     references  = '1) Eq. 6 from M.P. Williamson. Progress in Nuclear Magnetic Resonance Spectroscopy 73, 1–16 (2013).'
-    # MaTex = ''
+    maTex = r'$Y = B_{\mathrm{max}}  \frac{(T + x + K_d - \sqrt{(T + x + K_d)^2 - 4 T x})}{2 T}$'
     Minimiser = _FractionBindingWithFixedTargetConcentMinimiser
     isEnabled = True
     targetSeriesAnalyses = [
@@ -602,7 +602,9 @@ class FractionBindingWithVariableTargetConcentrationModel(BindingModelBC):
                             Xs: ligand stock solution concentration. 
     '''
     references  = '1) Eq. 6 from M.P. Williamson. Progress in Nuclear Magnetic Resonance Spectroscopy 73, 1–16 (2013).'
-    # MaTex = ''
+    maTex =r'$Y = B_{\mathrm{max}}   \frac{T \left(1 - \frac{x}{X_s}\right) + x + K_d - \sqrt{\left(T \left(1 - \frac{x}{X_s}\right) + x + K_d\right)^2 - 4 T \left(1 - \frac{x}{X_s}\right) x}}{2 T \left(1 - \frac{x}{X_s}\right)}$'
+
+
     Minimiser = _FractionBindingWithVariableTargetConcentMinimiser
     isEnabled = True
     targetSeriesAnalyses = [
@@ -624,17 +626,15 @@ class MonomerDimerBindingModel(BindingModelBC):
     modelInfo = 'Fit data to using the Monomer-Dimer model.'
     description = '''Fitting model for one-site fraction bound in a saturation binding experiment. This model can be used when a large fraction of the ligand binds to the target.
                     \nModel:
-                    Y = A * ((B + 4x - sqrt((B + 4x)^2 - 16x^2)) / (4x) ) + C
-                    or 
-                    Y = BMax * ( (Kd + 4x - sqrt((Kd + 4x)^2 - 16x^2)) / (4x) ) + C
 
+                    Y = BMax * ( (Kd + 4x - sqrt((Kd + 4x)^2 - 16x^2)) / (4x) ) + C
                     Bmax: is the maximum specific binding and in the CSM is given by the Relative displacement (Deltas among chemicalShifts).
                     Kd: is the (equilibrium) dissociation constant in the same unit as the Series.
                     The Kd represents the [ligand] required to get a half-maximum binding at equilibrium.
                     C:  the chemical shift of the monomer (δA)
                   '''
     references = ''
-
+    maTex = r'$Y = B_{\mathrm{Max}}  \frac{(K_d + 4x - \sqrt{(K_d + 4x)^2 - 16x^2})}{4x} + C$'
     Minimiser = _MonomerDimerMinimiser
     isEnabled = True
     targetSeriesAnalyses = [
@@ -664,7 +664,9 @@ class CooperativityBindingModel(BindingModelBC):
     references = '''
                  1) Model derived from the Hill equation: https://en.wikipedia.org/wiki/Cooperative_binding. 
                  '''
-    # MaTex = r'$\frac{B_{Max} * [L]^Hs }{[L]^Hs + K_d^Hs}$'
+    maTex = r'$Y = B_{\max} \frac{x^{H_s}}{K_d^{H_s} + x^{H_s}}$'
+
+
     Minimiser = _BindingCooperativityMinimiser
     isEnabled = True
     targetSeriesAnalyses = [
@@ -691,7 +693,8 @@ class OneSiteBindingModel(BindingModelBC):
     references = '''
                 1) Model derived from  E.q. 13. Receptor and Binding Studies. Hein et al. 2005. https://doi.org/10.1007/3-540-26574-0_37
                 '''
-    # MaTex = r'$\frac{B_{Max} * [L]}{[L] + K_d}$'
+    maTex = r'$Y = B_{\max} \cdot \frac{X}{K_d + X}$'
+
     Minimiser = _Binding1SiteMinimiser
     isEnabled = False
 
@@ -704,7 +707,7 @@ class TwoSiteBindingModel(BindingModelBC):
     modelInfo = 'Fit data to using the Two-Binding-Site model.'
     description = sv.NIY_WARNING
     references = sv.NIY_WARNING
-    # MaTex = r''
+    maTex = r''
     Minimiser = _Binding2SiteMinimiser
 
     isEnabled = False
@@ -736,7 +739,7 @@ class OneSiteWithAllostericBindingModel(BindingModelBC):
     # References = '''
     #                 1) A. Christopoulos and T. Kenakin, Pharmacol Rev, 54: 323-374, 2002.
     #               '''
-    # MaTex = r''
+    maTex = r''
     Minimiser = _Binding1SiteAllostericMinimiser
 
     isEnabled = False

@@ -13,7 +13,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-08-07 09:20:37 +0100 (Wed, August 07, 2024) $"
+__dateModified__ = "$dateModified: 2024-08-23 18:53:02 +0100 (Fri, August 23, 2024) $"
 __version__ = "$Revision: 3.2.5 $"
 #=========================================================================================
 # Created
@@ -1106,6 +1106,65 @@ class CheckBoxesCompoundWidget(CompoundBaseWidget):
         """
         return self.set(value)
 
+
+class FrameCompoundWidget(CompoundBaseWidget):
+    """
+    Compound class comprising a Label and a Frame, combined in a CompoundBaseWidget (i.e. a Frame)
+
+      orientation       widget layout
+      ------------      ------------------------
+      left:             Label       Frame
+
+      right:            Button    Frame
+
+      top:              Label
+                        Frame
+
+      bottom:           Frame
+                        Label
+
+    """
+    layoutDict = dict(
+            # grid positions for label and checkBox for the different orientations
+            left=[(0, 0), (0, 1)],
+            right=[(0, 1), (0, 0)],
+            top=[(0, 0), (1, 0)],
+            bottom=[(1, 0), (0, 0)],
+            )
+
+    def __init__(self, parent=None, mainWindow=None,
+                 showBorder=False, orientation='left',
+                 minimumWidths=None, maximumWidths=None, fixedWidths=None,
+                 labelText='',  compoundKwds=None,
+                 **kwds):
+
+        CompoundBaseWidget.__init__(self, parent=parent, layoutDict=self.layoutDict, orientation=orientation,
+                                    showBorder=showBorder, **kwds)
+
+        self.label = Label(parent=self, text=labelText, vAlign='center')
+        self._addWidget(self.label)
+
+        hAlign = orientation if orientation in ['left', 'right'] else 'center'
+        frameKwds = {
+                      }
+        frameKwds.update(compoundKwds or {})
+        self.frame = Frame(parent=self,  setLayout=True, **frameKwds)
+        self.frame.setObjectName(labelText)
+        self.setObjectName(labelText)
+        self._addWidget(self.frame)
+
+
+        if minimumWidths is not None:
+            self.setMinimumWidths(minimumWidths)
+
+        if maximumWidths is not None:
+            self.setMaximumWidths(maximumWidths)
+
+        if fixedWidths is not None:
+            self.setFixedWidths(fixedWidths)
+
+    def clear(self):
+        self.frame._clear()
 
 class ButtonCompoundWidget(CompoundBaseWidget):
     """

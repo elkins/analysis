@@ -13,7 +13,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-08-13 16:37:44 +0100 (Tue, August 13, 2024) $"
+__dateModified__ = "$dateModified: 2024-08-23 18:53:02 +0100 (Fri, August 23, 2024) $"
 __version__ = "$Revision: 3.2.5 $"
 #=========================================================================================
 # Created
@@ -261,6 +261,12 @@ UncertaintyDefs = {
 WidgetVarName_UncertaintySample = 'UncertaintySample'
 Label_UncertaintySample = 'Sample count'
 TipText_UncertaintySample = 'Number of iterations to perform when resampling data to estimate parameter uncertainties; higher counts generally improve accuracy but increase computational time.'
+
+WidgetVarName_ModelInfo = 'ModelInfo'
+Label_ModelInfo = 'Model Info'
+TipText_ModelInfo = 'Model related parameter values and equations'
+
+
 
 ############################################################
 ##########  TAB: Appearance

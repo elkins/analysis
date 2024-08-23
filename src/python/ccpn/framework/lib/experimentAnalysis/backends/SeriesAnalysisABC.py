@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-08-21 16:50:07 +0100 (Wed, August 21, 2024) $"
+__dateModified__ = "$dateModified: 2024-08-23 18:53:01 +0100 (Fri, August 23, 2024) $"
 __version__ = "$Revision: 3.2.5 $"
 #=========================================================================================
 # Created
@@ -495,6 +495,13 @@ class SeriesAnalysisABC(ABC):
                 getLogger().warn(f'Error in registering the class from {pythonModule}. Skipping with: {loadingError} ')
         self._modelsAreLoaded = True
 
+    @property
+    def fittingModels(self):
+        return dict(sorted(self._fittingModels.items()))
+
+    @property
+    def calculationModels(self):
+        return dict(sorted(self._calculationModels.items()))
 
     def _registerModels(self):
         """ Register all the available models"""
@@ -514,10 +521,10 @@ class SeriesAnalysisABC(ABC):
         from ccpn.framework.lib.experimentAnalysis.calculationModels.CalculationModelABC import CalculationModel
 
         if issubclass(model, CalculationModel):
-            self.calculationModels.update({model.modelName: model})
+            self._calculationModels.update({model.modelName: model})
             return
         elif issubclass(model, FittingModelABC):
-            self.fittingModels.update({model.modelName: model})
+            self._fittingModels.update({model.modelName: model})
         else:
             getLogger().warn(f'The given model type could not be identified. Skipping: {model} ')
         return
@@ -526,8 +533,8 @@ class SeriesAnalysisABC(ABC):
         """
         A method to de-register a  Model
         """
-        self.calculationModels.pop(model.modelName, None)
-        self.fittingModels.pop(model.modelName, None)
+        self._calculationModels.pop(model.modelName, None)
+        self._fittingModels.pop(model.modelName, None)
 
     def getFittingModelByName(self, modelName):
         """
@@ -726,8 +733,8 @@ class SeriesAnalysisABC(ABC):
         self._outputDataTableName = sv.SERIESANALYSISOUTPUTDATA
         self._resultDataTable = None
         self._untraceableValue = 1.0   # default value for replacing NaN values in untraceableValues.
-        self.fittingModels = dict()
-        self.calculationModels = dict()
+        self. _fittingModels =dict()
+        self._calculationModels = dict()
         self._currentFittingModel = None     ## e.g.: ExponentialDecay for relaxation
         self._currentCalculationModel = None ## e.g.: HetNoe for Relaxation
         self._needsRefitting = False

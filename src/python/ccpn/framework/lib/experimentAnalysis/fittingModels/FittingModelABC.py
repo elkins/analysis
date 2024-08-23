@@ -99,7 +99,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-08-22 15:14:57 +0100 (Thu, August 22, 2024) $"
+__dateModified__ = "$dateModified: 2024-08-23 18:53:01 +0100 (Fri, August 23, 2024) $"
 __version__ = "$Revision: 3.2.5 $"
 #=========================================================================================
 # Created
@@ -131,7 +131,7 @@ class FittingModelABC(ABC):
     targetSeriesAnalyses   = []                                # A list of Series Analysis Names where this model will be available. E.G.: [sv.RelaxationAnalysis,... ]
     modelInfo                     = ''                                # A brief description of the fitting model.
     description                   = ''                                # A simplified representation of the used equation(s).
-    maTex                          = r''                              # MaTex representation of the used equation(s). see https://matplotlib.org/3.5.0/tutorials/text/mathtext.html
+    maTex                          = r''                              # maTex representation of the used equation(s). see https://matplotlib.org/3.5.0/tutorials/text/mathtext.html
     references                   = ''                                # A list of journal article references. E.g.: DOIs or title/authors/year/journal; web-pages.
     Minimiser                     = None                         # The fitting minimiser model object (initiated)
     peakProperty               = sv._HEIGHT              # The peak property to fit. One of ['height', 'lineWidth', 'volume', 'ppmPosition']

@@ -13,7 +13,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-08-13 16:37:44 +0100 (Tue, August 13, 2024) $"
+__dateModified__ = "$dateModified: 2024-08-23 18:53:02 +0100 (Fri, August 23, 2024) $"
 __version__ = "$Revision: 3.2.5 $"
 #=========================================================================================
 # Created
@@ -574,8 +574,7 @@ class GuiCalculationPanel(GuiSettingPanel):
         calculationModels = backendHandler.calculationModels
         calculationModels = {m: n for (m,n) in calculationModels.items() if n.isGUIVisible}
         ## autogenerate labels/tiptexts from the calculationModes.
-        extraLabels_ddCalculationsModes = [model.maTex for modelName, model in
-                                           calculationModels.items()]
+        extraLabels_ddCalculationsModes = [model.maTex for modelName, model in calculationModels.items()]
         tipTexts_ddCalculationsModes = [model.fullDescription(model) for modelName, model in
                                         calculationModels.items()]
         calculationWidgetDefinitions = od((
@@ -597,7 +596,7 @@ class GuiCalculationPanel(GuiSettingPanel):
                        'tipText': '',
                        'fixedWidths': SettingsWidgetFixedWidths,
                        'compoundKwds': {'texts': list(calculationModels.keys()),
-                                        'extraLabels': extraLabels_ddCalculationsModes,
+                                        # 'extraLabels': extraLabels_ddCalculationsModes,
                                         'tipTexts': tipTexts_ddCalculationsModes,
                                         'direction': 'v',
                                        }}}),
@@ -791,24 +790,58 @@ class GuiFittingPanel(GuiSettingPanel):
              {'label': guiNameSpaces.Label_FittingModel,
               'type': compoundWidget.RadioButtonsCompoundWidget,
               'postInit': None,
-              'callBack': self._commonCallback,
+              'callBack': self._fittingModelChanged,
               'tipText': guiNameSpaces.TipText_FittingModel,
               'enabled': True,
               'kwds': {'labelText': guiNameSpaces.Label_FittingModel,
                        'fixedWidths': SettingsWidgetFixedWidths,
                        'selectedText': currentFittingModelName,
                        'compoundKwds': {'texts': modelNames,
-                                        'extraLabels': extraLabels_ddFittingModels,
+                                        # 'extraLabels': extraLabels_ddFittingModels,
                                         'tipTexts': tipTexts_ddFittingModels,
                                         'enabledTexts': enabledModels,
                                         'direction': 'v',
                                         'tipText': '',
                                         'hAlign': 'l',
                                        }}}),
-        ))
+            (guiNameSpaces.WidgetVarName_ModelInfo,
+             {'label'   : guiNameSpaces.Label_ModelInfo,
+              'type'    : compoundWidget.FrameCompoundWidget,
+              'tipText' : guiNameSpaces.TipText_ModelInfo,
+              'enabled' : True,
+              'kwds'    : {
+                  'labelText': guiNameSpaces.Label_ModelInfo,
+
+                  'fixedWidths': SettingsWidgetFixedWidths},
+                  'compoundKwds': {'showBorder':True,}
+              }),
+            ))
+
+
         self.widgetDefinitions.update(settingsDict)
 
         return self.widgetDefinitions
+
+    def _fittingModelChanged(self, *args, **kwargs):
+        """Callback tiggered by changing the fitting model selection.
+        Actions:
+            - Draw the Model Equation  (clear the previous first)
+            - Add a series of widgets depending on the params
+        """
+        from ccpn.ui.gui.widgets.Label import maTex2Pixmap
+        from ccpn.ui.gui.widgets.Label import Label
+        frameWidget = self.getWidget(guiNameSpaces.WidgetVarName_ModelInfo)
+        mainFrame = frameWidget.frame
+        frameWidget.clear()
+
+        fittingSettings = self.getSettingsAsDict()
+        selectedFittingModelName = fittingSettings.get(guiNameSpaces.WidgetVarName_FittingModel, None)
+        backend = self.guiModule.backendHandler
+        modelObj = backend.getFittingModelByName(selectedFittingModelName)
+        maTex = modelObj.maTex
+        pixmap = maTex2Pixmap(f'{maTex}')
+        label = Label(mainFrame, text='', icon=pixmap, grid=(0, 0))
+        self._commonCallback()
 
     def _commonCallback(self, *args):
         """ Update FittingModel Settings at Backend"""
