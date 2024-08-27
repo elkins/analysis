@@ -13,7 +13,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-08-23 18:53:02 +0100 (Fri, August 23, 2024) $"
+__dateModified__ = "$dateModified: 2024-08-27 15:33:11 +0100 (Tue, August 27, 2024) $"
 __version__ = "$Revision: 3.2.5 $"
 #=========================================================================================
 # Created
@@ -831,7 +831,7 @@ class GuiFittingPanel(GuiSettingPanel):
         from ccpn.ui.gui.widgets.Label import maTex2Pixmap
         from ccpn.ui.gui.widgets.Label import Label
         frameWidget = self.getWidget(guiNameSpaces.WidgetVarName_ModelInfo)
-        mainFrame = frameWidget.frame
+        mainFrame = frameWidget.widgetArea
         frameWidget.clear()
 
         fittingSettings = self.getSettingsAsDict()

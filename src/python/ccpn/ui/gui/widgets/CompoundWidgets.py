@@ -13,7 +13,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-08-23 18:53:02 +0100 (Fri, August 23, 2024) $"
+__dateModified__ = "$dateModified: 2024-08-27 15:33:12 +0100 (Tue, August 27, 2024) $"
 __version__ = "$Revision: 3.2.5 $"
 #=========================================================================================
 # Created
@@ -36,7 +36,7 @@ from ccpn.ui.gui.widgets.CheckBoxes import CheckBoxes
 from ccpn.ui.gui.widgets.ColourDialog import ColourDialog
 from ccpn.ui.gui.widgets.Entry import Entry
 from ccpn.ui.gui.widgets.Label import Label
-from ccpn.ui.gui.widgets.Frame import Frame
+from ccpn.ui.gui.widgets.Frame import Frame, ScrollableFrame
 from ccpn.ui.gui.widgets.LineEdit import LineEdit
 from ccpn.ui.gui.widgets.ListWidget import ListWidget
 from ccpn.ui.gui.widgets.PulldownList import PulldownList
@@ -1109,29 +1109,24 @@ class CheckBoxesCompoundWidget(CompoundBaseWidget):
 
 class FrameCompoundWidget(CompoundBaseWidget):
     """
-    Compound class comprising a Label and a Frame, combined in a CompoundBaseWidget (i.e. a Frame)
+    Compound class comprising a Label and a (scrollable) Frame, combined in a CompoundBaseWidget (i.e. a Frame)
 
       orientation       widget layout
       ------------      ------------------------
       left:             Label       Frame
 
-      right:            Button    Frame
 
       top:              Label
                         Frame
 
-      bottom:           Frame
-                        Label
-
     """
     layoutDict = dict(
-            # grid positions for label and checkBox for the different orientations
+            # grid positions for label and Frame for the different orientations
             left=[(0, 0), (0, 1)],
             right=[(0, 1), (0, 0)],
             top=[(0, 0), (1, 0)],
             bottom=[(1, 0), (0, 0)],
             )
-
     def __init__(self, parent=None, mainWindow=None,
                  showBorder=False, orientation='left',
                  minimumWidths=None, maximumWidths=None, fixedWidths=None,
@@ -1141,18 +1136,21 @@ class FrameCompoundWidget(CompoundBaseWidget):
         CompoundBaseWidget.__init__(self, parent=parent, layoutDict=self.layoutDict, orientation=orientation,
                                     showBorder=showBorder, **kwds)
 
-        self.label = Label(parent=self, text=labelText, vAlign='center')
-        self._addWidget(self.label)
-
-        hAlign = orientation if orientation in ['left', 'right'] else 'center'
-        frameKwds = {
-                      }
+        labelGrid = self.layoutDict[orientation][0]
+        self.label = Label(parent=self, text=labelText, vAlign='center', grid=labelGrid)
+        # self._addWidget(self.label)  ## Don't use _addWidget here. because doesn't seem to work for the scrollable Frame construction.
+        frameKwds = {}
         frameKwds.update(compoundKwds or {})
-        self.frame = Frame(parent=self,  setLayout=True, **frameKwds)
-        self.frame.setObjectName(labelText)
-        self.setObjectName(labelText)
-        self._addWidget(self.frame)
+        frameGrid = self.layoutDict[orientation][1]
+        self.widgetArea = ScrollableFrame(self, setLayout=True, grid=frameGrid, )
+        self._frame = Frame(self.widgetArea, setLayout=True, showBorder=False) #hAlign=orientation, **frameKwds)
 
+        self._frame.setObjectName(labelText)
+        self.setObjectName(labelText)
+        self._widgets.append(self.label)
+        ## Don't use _addWidget and  _widgets because doesn't seem to work for the scrollable Frame construction.
+        # self._widgets.append(self.widgetArea)
+        # self._addWidget(self._frame)
 
         if minimumWidths is not None:
             self.setMinimumWidths(minimumWidths)
@@ -1164,7 +1162,7 @@ class FrameCompoundWidget(CompoundBaseWidget):
             self.setFixedWidths(fixedWidths)
 
     def clear(self):
-        self.frame._clear()
+        self.widgetArea._clear()
 
 class ButtonCompoundWidget(CompoundBaseWidget):
     """

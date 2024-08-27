@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-08-23 18:53:02 +0100 (Fri, August 23, 2024) $"
+__dateModified__ = "$dateModified: 2024-08-27 15:33:12 +0100 (Tue, August 27, 2024) $"
 __version__ = "$Revision: 3.2.5 $"
 #=========================================================================================
 # Created
@@ -37,28 +37,72 @@ from ccpn.ui.gui.widgets.Icon import Icon
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_agg import FigureCanvasAgg
 
+#
+# def maTex2Pixmap(mathTex, fontSize=15):
+#     """
+#     https://matplotlib.org/3.5.0/tutorials/text/mathtext.html
+#     Convert a str with  Matplotlib-laTex syntax to a Pixmap.
+#     :param mathTex: A string with  Matplotlib-laTex syntax
+#     :param fontSize: int
+#     :return: QPixmap
+#     """
+#     #####  set up a mpl figure instance
+#     fig = plt.figure()
+#     fig.patch.set_facecolor('none')
+#     fig.set_canvas(FigureCanvasAgg(fig))
+#     renderer = fig.canvas.get_renderer()
+#
+#     ##### plot the mathTex expression ----
+#     ax = fig.add_axes([0, 0, 1, 1])
+#     ax.axis('off')
+#     ax.patch.set_facecolor('none')
+#     t = ax.text(0, 0, mathTex, ha='left', va='bottom', fontsize=fontSize)
+#
+#     ##### fit figure size to text artist
+#     fwidth, fheight = fig.get_size_inches()
+#     fig_bbox = fig.get_window_extent(renderer)
+#     text_bbox = t.get_window_extent(renderer)
+#     tight_fwidth = text_bbox.width * fwidth / fig_bbox.width
+#     tight_fheight = text_bbox.height * fheight / fig_bbox.height
+#     fig.set_size_inches(tight_fwidth, tight_fheight)
+#
+#     ##### convert mpl figure to QPixmap
+#     buf, size = fig.canvas.print_to_buffer()
+#     qimage = QtGui.QImage.rgbSwapped(QtGui.QImage(buf, size[0], size[1], QtGui.QImage.Format_ARGB32))
+#     plt.close(fig)  # Close the figure to release resources
+#     qpixmap = QtGui.QPixmap(qimage)
+#     return qpixmap
+#
+#
+# import matplotlib.pyplot as plt
+# from matplotlib.backends.backend_agg import FigureCanvasAgg
+# from PyQt5 import QtGui
 
-def maTex2Pixmap(mathTex, fontSize=10):
+
+def maTex2Pixmap(mathTex, fontSize=14):
     """
-    https://matplotlib.org/3.5.0/tutorials/text/mathtext.html
-    Convert a str with  Matplotlib-laTex syntax to a Pixmap.
-    :param mathTex: A string with  Matplotlib-laTex syntax
-    :param fontSize: int
-    :return: QPixmap
+    Converts a string with Matplotlib-LaTeX syntax to a QPixmap.
+
+    :param mathTex: A string with Matplotlib-LaTeX syntax.
+    :param fontSize: int, font size for the rendered text.
+    :return: QPixmap containing the rendered LaTeX formula.
     """
-    #####  set up a mpl figure instance
+    # Set up a matplotlib figure instance
     fig = plt.figure()
     fig.patch.set_facecolor('none')
     fig.set_canvas(FigureCanvasAgg(fig))
     renderer = fig.canvas.get_renderer()
 
-    ##### plot the mathTex expression ----
+
+    # Plot the mathTex expression
     ax = fig.add_axes([0, 0, 1, 1])
     ax.axis('off')
     ax.patch.set_facecolor('none')
-    t = ax.text(0, 0, mathTex, ha='left', va='bottom', fontsize=fontSize)
 
-    ##### fit figure size to text artist
+    # Render the text using the specified font size
+    t = ax.text(0, 0, mathTex, ha='left', va='bottom', fontsize=fontSize, usetex=False)
+
+    # Adjust the figure size to fit the text
     fwidth, fheight = fig.get_size_inches()
     fig_bbox = fig.get_window_extent(renderer)
     text_bbox = t.get_window_extent(renderer)
@@ -66,12 +110,14 @@ def maTex2Pixmap(mathTex, fontSize=10):
     tight_fheight = text_bbox.height * fheight / fig_bbox.height
     fig.set_size_inches(tight_fwidth, tight_fheight)
 
-    ##### convert mpl figure to QPixmap
+    # Convert the matplotlib figure to a QPixmap
     buf, size = fig.canvas.print_to_buffer()
     qimage = QtGui.QImage.rgbSwapped(QtGui.QImage(buf, size[0], size[1], QtGui.QImage.Format_ARGB32))
-    # fig.close()
+
     qpixmap = QtGui.QPixmap(qimage)
+    plt.close(fig)  # Close the figure to release resources
     return qpixmap
+
 
 
 class Label(QtWidgets.QLabel, Base):
@@ -274,7 +320,45 @@ class VerticalLabel(pyqtVerticalLabel, Base):
                            )
 
 
+def maTex2Pixmap2(mathTex, fontSize=10):
+    """
+    Convert a string with Matplotlib-LaTeX syntax to a QPixmap using Matplotlib's native mathtext.
+    :param mathTex: A string with Matplotlib-LaTeX syntax
+    :param fontSize: int
+    :return: QPixmap
+    """
+    # Set up Matplotlib for consistent font sizes
+    plt.rcParams['text.usetex'] = True
+
+    # Set up a Matplotlib figure instance
+    fig = plt.figure()
+    fig.patch.set_facecolor('none')
+    fig.set_canvas(FigureCanvasAgg(fig))
+    renderer = fig.canvas.get_renderer()
+
+    # Plot the mathTex expression
+    ax = fig.add_axes([0, 0, 1, 1])
+    ax.axis('off')
+    ax.patch.set_facecolor('none')
+    t = ax.text(0, 0, mathTex, ha='left', va='bottom', fontsize=fontSize)
+
+    # Fit figure size to text artist
+    fwidth, fheight = fig.get_size_inches()
+    fig_bbox = fig.get_window_extent(renderer)
+    text_bbox = t.get_window_extent(renderer)
+    tight_fwidth = text_bbox.width * fwidth / fig_bbox.width
+    tight_fheight = text_bbox.height * fheight / fig_bbox.height
+    fig.set_size_inches(tight_fwidth, tight_fheight)
+
+    # Convert Matplotlib figure to QPixmap
+    buf, size = fig.canvas.print_to_buffer()
+    qimage = QtGui.QImage.rgbSwapped(QtGui.QImage(buf, size[0], size[1], QtGui.QImage.Format_ARGB32))
+    qpixmap = QtGui.QPixmap(qimage)
+    return qpixmap
+
+
 if __name__ == '__main__':
+
     from ccpn.ui.gui.widgets.Application import TestApplication
     from ccpn.ui.gui.widgets.Button import Button
     from ccpn.ui.gui.widgets.Icon import Icon
@@ -283,13 +367,20 @@ if __name__ == '__main__':
 
     mathExamples = [
         r'$\sqrt{\frac{1}{N}\sum_{i=0}^N (\alpha_i*\delta_i)^2}$',
-        '$k_{soil}=\\frac{\\sum f_j k_j \\theta_j}{\\sum f_j \\theta_j}$',
-        '$\\lambda_{soil}=k_{soil} / C_{soil}$']
+        '$k_{soil}=A\\frac{\\sum f_j k_j \\theta_j}{\\sum f_j \\theta_j}$',
+        '$\\lambda_{soil}=k_{soil} / C_{soil}-k_{soil} / C_{soil} $',
+        r'$Y = B +6+\frac{(A + x + B - \sqrt{(A + x + B)^2 - 4 A x})}{2 A}$',
+        r'$Y = \mathregular{B} + \mathregular{6} + \frac{(A + x + B - \sqrt{(A + x + B)^2 - 4 A x})}{2 A}$'
+        ]
 
     app = TestApplication()
-    pixmap = maTex2Pixmap(f'A test label with equation:  {mathExamples[0]}')
     popup = CcpnDialog(windowTitle='Test Table', setLayout=True)
-    label = Label(popup, text='', icon=pixmap, grid=(0, 0))
+    fontSize = 14
+    for i, mathExample in enumerate(mathExamples):
+        pixmap = maTex2Pixmap(f'{mathExample}',fontSize=fontSize)
+        label = Label(popup, text='', icon=pixmap, grid=(i, 0))
+        pixmap2 = maTex2Pixmap2(f'{mathExample}', fontSize=fontSize)
+        label2 = Label(popup, text='', icon=pixmap2, grid=(i, 1))
     popup.show()
     popup.raise_()
     app.start()

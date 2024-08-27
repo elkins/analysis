@@ -13,7 +13,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-08-15 13:49:45 +0100 (Thu, August 15, 2024) $"
+__dateModified__ = "$dateModified: 2024-08-27 15:33:11 +0100 (Tue, August 27, 2024) $"
 __version__ = "$Revision: 3.2.5 $"
 #=========================================================================================
 # Created
@@ -142,19 +142,27 @@ class FitPlotPanel(GuiPanel):
             return
 
         lastCollectionPid = self._getLastCollectionPid(filteredDf)
-
         model, modelName, isModelRestored = self._getFittingModel(backend, filteredDf)
-        if model is None:
+        if model is None or modelName == sv.BLANKMODELNAME:
             return
 
         peakPids, objs = self._getPeakObjects(filteredDf)
         Xs, Ys = self._getPlotData(filteredDf, model)
+        self._plotRawData(objs, Xs, Ys)
+        if len(self.current.collections)>1:
+            self.bindingPlot.setTitle(f'Fitting not available. Too many selected Collections')
+            self.bindingPlot.zoomFull()
+            return
+
         fitParams, lowerParams, upperParams, xf = self._calculateFittingParameters(model, filteredDf, Xs)
+        if len(fitParams) ==0:
+            return
+
         yf, lowerBoundY, upperBoundY = self._evaluateFittingCurves(model, xf, fitParams, lowerParams, upperParams)
         xAxisLabel, yAxisLabel = self._getAxisLabels(filteredDf, backend)
         self._setupLabels(lastCollectionPid, xAxisLabel, yAxisLabel)
         self._plotFittedCurve(xf, yf, lowerBoundY, upperBoundY)
-        self._plotRawData(objs, Xs, Ys)
+
         self.bindingPlot.setTitle(f'Fitting Model: {modelName}')
         self.bindingPlot.zoomFull()
         self._handleExcludedNmrResidue(filteredDf)
@@ -180,7 +188,7 @@ class FitPlotPanel(GuiPanel):
         if fittingModelClass:
             return fittingModelClass(), modelName, True
         else:
-            showWarning('Cannot show fitting line', f'No model found with name {modelName}')
+            self.bindingPlot.setTitle(f'Cannot show fitting line. No model found with name {modelName}. Check available fitting Models.')
             return backend.currentFittingModel, modelName, False
 
     def _getPeakObjects(self, filteredDf):
@@ -194,11 +202,10 @@ class FitPlotPanel(GuiPanel):
         return Xs, Ys
 
     def _calculateFittingParameters(self, model, filteredDf, Xs):
+
         funcArgs = model.modelArgumentNames
         funcErrArgs = model.modelArgumentErrorNames
         argsInDf = set(funcArgs).issubset(filteredDf.columns)
-
-        fittingArgs, fittingErrArgs = None, None
         lowerParams, upperParams, fitParams = Parameters(), Parameters(), Parameters()
         xf = np.linspace(min(Xs), max(Xs) + percentage(50, max(Xs)), 3000)
 
@@ -216,8 +223,8 @@ class FitPlotPanel(GuiPanel):
                 lowerParams.add_many(lowerParam)
                 upperParams.add_many(upperParam)
                 fitParams.add_many(fitParam)
-
         return fitParams, lowerParams, upperParams, xf
+
 
     def _evaluateFittingCurves(self, model, xf, fitParams, lowerParams, upperParams):
         lowerBoundY = model.Minimiser().eval(lowerParams, x=xf)
