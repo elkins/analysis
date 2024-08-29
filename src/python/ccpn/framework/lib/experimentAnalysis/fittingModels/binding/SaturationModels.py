@@ -15,7 +15,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-08-23 18:53:02 +0100 (Fri, August 23, 2024) $"
+__dateModified__ = "$dateModified: 2024-08-29 14:47:16 +0100 (Thu, August 29, 2024) $"
 __version__ = "$Revision: 3.2.5 $"
 #=========================================================================================
 # Created
@@ -215,6 +215,38 @@ def cooperativity_func(x, Kd, BMax, Hs):
 
 
 
+def cooperativityWithFxedTargetCconcentration(x, Kd, BMax, T, Hs):
+    """
+    The cooperativity equation for a saturation binding experiment with a fixed target concentration.
+    Incorporates the Hill coefficient for cooperativity.
+
+    Y = BMax * ((T + x^Hs + Kd^Hs) - sqrt((T + x^Hs + Kd^Hs)^2 - 4 * T * x^Hs)) / (2 * T)
+
+    :param x:   1d array. The data to be fitted.
+                In the CSM, it's the array of deltas (deltas among chemical shifts, CS, usually in ppm positions).
+    :param Kd:  Defines the equilibrium dissociation constant. The value to get a half-maximum binding at equilibrium.
+                In the CSM, the initial value is calculated from the ligand concentration.
+    :param BMax: Defines the max specific binding.
+                In the CSM, the initial value is calculated from the CS deltas.
+                Note, the optimized BMax will be (probably always) larger than the measured CS.
+    :param T: Target concentration.
+    :param Hs: Hill slope coefficient.
+                Hs = 1: ligand/monomer binds to one site with no cooperativity.
+                Hs > 1: ligand/monomer binds to multiple sites with positive cooperativity.
+                Hs < 1: ligand/monomer binds to multiple sites with variable affinities or negative cooperativity.
+    :return:    Y array, same shape as x. Represents the points for the fitted curve Y to be plotted.
+    """
+
+    x_Hs = x**Hs
+    Kd_Hs = Kd**Hs
+
+    # Applying the exact binding model with cooperativity factor
+    Y = BMax * ((T + x_Hs + Kd_Hs) - np.sqrt((T + x_Hs + Kd_Hs)**2 - 4 * T * x_Hs)) / (2 * T)
+
+    return Y
+
+
+
 ## -----------------------     Saturation Minimisers       -----------------------      ##
 
 class _Binding1SiteMinimiser(MinimiserModel):
@@ -275,16 +307,19 @@ class _BindingCooperativityMinimiser(MinimiserModel):
     """A model based on the Binding with Cooperativity  Fitting equation.
     """
 
-    FITTING_FUNC = cooperativity_func
+    FITTING_FUNC = cooperativityWithFxedTargetCconcentration
     MODELNAME = 'Cooperativity_binding_Model'
 
     KD = sv.KD # They must be exactly as they are defined in the FITTING_FUNC arguments! This was too hard to change!
     BMAX = sv.BMAX
+    T = sv.T
     HILLSLOPE = sv.HillSlope
     defaultParams = {KD:1,
                      BMAX:0.5,
+                     T:1,
                      HILLSLOPE:1}
     _defaultGlobalParams = [KD]
+    _fixedParams = [T]
 
     def __init__(self, independent_vars=['x'], prefix='', nan_policy=sv.PROPAGATE_MODE, **kwargs):
         kwargs.update({'prefix': prefix, 'nan_policy': nan_policy, 'independent_vars': independent_vars})
@@ -528,6 +563,7 @@ class BindingModelBC(FittingModelABC):
             if v is not None:
                 globalConcentration = v
         params[sv.T].set(value=globalConcentration, vary=False)
+
         return params
 
 
@@ -636,7 +672,7 @@ class MonomerDimerBindingModel(BindingModelBC):
     references = ''
     maTex = r'$Y = B_{\mathrm{Max}}  \frac{(K_d + 4x - \sqrt{(K_d + 4x)^2 - 16x^2})}{4x} + C$'
     Minimiser = _MonomerDimerMinimiser
-    isEnabled = True
+    isEnabled = False
     targetSeriesAnalyses = [
         sv.ChemicalShiftMappingAnalysis
         ]
@@ -650,12 +686,12 @@ class CooperativityBindingModel(BindingModelBC):
     modelInfo = 'Fit data to using the  Cooperativity Binding  model in a saturation binding experiment analysis.'
     description = '''
                     \nModel:
-                    Y=Bmax*x^{Hs}/(Kd^{Hs} + x^{Hs}).
+                    Y = BMax * ((T + x^Hs + Kd^Hs) - sqrt((T + x^Hs + Kd^Hs)^2 - 4 * T * x^Hs)) / (2 * T)
                     Bmax: is the maximum specific binding and in the CSM is given by the Relative displacement
                     (Deltas among chemicalShifts).
                     Kd: is the (equilibrium) dissociation constant in the same unit as the Series.
                     The Kd represents the [ligand] required to get a half-maximum binding at equilibrium.
-
+                    T: Target concentration.
                     Hs: Hill slope coefficient.
                     Hs = 1: ligand/monomer binds to one site with no cooperativity.
                     Hs > 1: ligand/monomer binds to multiple sites with positive cooperativity.
@@ -664,14 +700,19 @@ class CooperativityBindingModel(BindingModelBC):
     references = '''
                  1) Model derived from the Hill equation: https://en.wikipedia.org/wiki/Cooperative_binding. 
                  '''
-    maTex = r'$Y = B_{\max} \frac{x^{H_s}}{K_d^{H_s} + x^{H_s}}$'
-
+    maTex = r'$Y = B_{max} \cdot \frac{(T + x^{H_s} + K_d^{H_s} - \sqrt{(T + x^{H_s} + K_d^{H_s})^2 - 4 T x^{H_s}}}{2 T}$'
 
     Minimiser = _BindingCooperativityMinimiser
     isEnabled = True
     targetSeriesAnalyses = [
         sv.ChemicalShiftMappingAnalysis
         ]
+
+    def _preFittingAdditionalParamsSettings(self, df, params, **kwargs):
+        """called before running the fitting routine to set any additional params options. To be subclasses"""
+
+        return self._setGlobalTargetConcentrationToParams(df, params)
+
 
 ## ~~~~~~~~~~~~~ Disabled models ~~~~~~~~~~~~~ ##
 

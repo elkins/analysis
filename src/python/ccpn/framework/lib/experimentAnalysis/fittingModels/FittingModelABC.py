@@ -99,7 +99,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-08-23 18:53:01 +0100 (Fri, August 23, 2024) $"
+__dateModified__ = "$dateModified: 2024-08-29 14:47:16 +0100 (Thu, August 29, 2024) $"
 __version__ = "$Revision: 3.2.5 $"
 #=========================================================================================
 # Created
@@ -537,6 +537,35 @@ class MinimiserModel(Model):
         else:
             getLogger().warning(f"Parameter {paramName} does not exist in params")
         return params
+
+
+    def getLowerUpperTails(self, params, rawX, rawY, xf, fitResultObject=None):
+        """Calculate the  Confidence Interval  at 95% and return the Lower Tail (2.5%) and  Upper Tail (97.5%)
+        We  need to cache this.
+        """
+        import lmfit
+        if fitResultObject is not None:
+            result = fitResultObject
+        else:
+            result = self.fit(rawY, x=rawX, **params, nan_policy=self.nan_policy) #needed only to recreate the object so we can access the conf_interval
+        for param in params:
+            result.params[param] = params[param]
+        confidenceParams = [param for param in params if param not in self._fixedParams]
+        ci = lmfit.conf_interval(result, result, p_names=confidenceParams, sigmas=[2])
+        # Copy the best-fit parameters
+        paramsLower = params.copy()
+        paramsUpper = params.copy()
+        # Update the parameters with confidence intervals
+        for key in confidenceParams:
+            ci_values = ci[key]
+            #  performs linear interpolation to find the value corresponding to the 2.5% confidence level.
+            paramsLower[key].value = np.interp(0.025, [level for level, _ in ci_values], [value for _, value in ci_values])
+            paramsUpper[key].value = np.interp(0.975, [level for level, _ in ci_values], [value for _, value in ci_values])
+        # Evaluate the model with lower and upper bound parameters
+        lowerTail = self.eval(params=paramsLower, x=xf)
+        upperTail = self.eval(params=paramsUpper, x=xf)
+        return lowerTail, upperTail
+
 
 MINIMISER_STAT_MAPPING_NAMES = {sv.MINIMISER_METHOD :'method',
                                                                    sv.RSQR                : 'r2',

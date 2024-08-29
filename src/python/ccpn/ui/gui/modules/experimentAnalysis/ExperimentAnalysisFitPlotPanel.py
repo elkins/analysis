@@ -13,7 +13,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-08-27 15:33:11 +0100 (Tue, August 27, 2024) $"
+__dateModified__ = "$dateModified: 2024-08-29 14:47:16 +0100 (Thu, August 29, 2024) $"
 __version__ = "$Revision: 3.2.5 $"
 #=========================================================================================
 # Created
@@ -153,15 +153,24 @@ class FitPlotPanel(GuiPanel):
             self.bindingPlot.setTitle(f'Fitting not available. Too many selected Collections')
             self.bindingPlot.zoomFull()
             return
-
-        fitParams, lowerParams, upperParams, xf = self._calculateFittingParameters(model, filteredDf, Xs)
+        fitParams = self._restoreFittingParameters(model, filteredDf)
         if len(fitParams) ==0:
             return
 
-        yf, lowerBoundY, upperBoundY = self._evaluateFittingCurves(model, xf, fitParams, lowerParams, upperParams)
+        # get the fitted line
+        xf = np.linspace(min(Xs), max(Xs), 1000) # + percentage(30, max(Xs)), 3000)
+        yf = model.Minimiser().eval(fitParams, x=xf)
+
+        try:
+            lowerTail, upperTail = model.Minimiser().getLowerUpperTails(params=fitParams, rawX=Xs, rawY=Ys, xf=xf )
+            self._plotFittedCurveConfidence(xf, lowerTail, upperTail )
+        except Exception as err:
+            getLogger().debug(f'Error plotting the Confidence interval for {lastCollectionPid}. Error: {err}')
         xAxisLabel, yAxisLabel = self._getAxisLabels(filteredDf, backend)
         self._setupLabels(lastCollectionPid, xAxisLabel, yAxisLabel)
-        self._plotFittedCurve(xf, yf, lowerBoundY, upperBoundY)
+        self.fittedCurve = self.bindingPlot.plot(xf, yf, pen=self.bindingPlot.gridPen)
+
+
 
         self.bindingPlot.setTitle(f'Fitting Model: {modelName}')
         self.bindingPlot.zoomFull()
@@ -201,13 +210,13 @@ class FitPlotPanel(GuiPanel):
         Ys = filteredDf[model.ySeriesStepHeader].values
         return Xs, Ys
 
-    def _calculateFittingParameters(self, model, filteredDf, Xs):
+    def _restoreFittingParameters(self, model, filteredDf):
 
         funcArgs = model.modelArgumentNames
+        fixedParams = model.modelFixedParamNames
         funcErrArgs = model.modelArgumentErrorNames
         argsInDf = set(funcArgs).issubset(filteredDf.columns)
-        lowerParams, upperParams, fitParams = Parameters(), Parameters(), Parameters()
-        xf = np.linspace(min(Xs), max(Xs) + percentage(50, max(Xs)), 3000)
+        fitParams = Parameters()
 
         if argsInDf:
             argsFit = filteredDf.iloc[0][funcArgs]
@@ -217,20 +226,22 @@ class FitPlotPanel(GuiPanel):
 
             for name, value in fittingArgs.items():
                 err = fittingErrArgs.get(f'{name}{sv._ERR}', 1)
-                lowerParam = Parameter(name=name, value=value - 1.96 * err)
-                upperParam = Parameter(name=name, value=value + 1.96 * err)
-                fitParam = Parameter(name=name, value=value)
-                lowerParams.add_many(lowerParam)
-                upperParams.add_many(upperParam)
-                fitParams.add_many(fitParam)
-        return fitParams, lowerParams, upperParams, xf
+                if name not in fixedParams:
+                    fitParam = Parameter(name=name, value=value,)
+                    fitParam.stderr = err
+                else:
+                    fitParam = Parameter(name=name, value=value, vary=False)
+                    fitParam.stderr = err
 
+                fitParams.add_many(fitParam)
+        return fitParams
 
     def _evaluateFittingCurves(self, model, xf, fitParams, lowerParams, upperParams):
         lowerBoundY = model.Minimiser().eval(lowerParams, x=xf)
         upperBoundY = model.Minimiser().eval(upperParams, x=xf)
         yff = model.Minimiser().eval(fitParams, x=xf)
         return yff, lowerBoundY, upperBoundY
+
 
     def _getAxisLabels(self, filteredDf, backend):
         seriesUnits = filteredDf[sv.SERIESUNIT].values
@@ -247,13 +258,11 @@ class FitPlotPanel(GuiPanel):
             labelText += f' - (Last selected)'
         self.currentCollectionLabel.setText(labelText)
 
-    def _plotFittedCurve(self, xf, yff, lowerBoundY, upperBoundY):
-        self.fittedCurve = self.bindingPlot.plot(xf, yff, pen=self.bindingPlot.gridPen)
+    def _plotFittedCurveConfidence(self, xf, lowerBoundY, upperBoundY, brush= (122, 186, 122)) :
         self.lowerCurve = self.bindingPlot.plot(xf, lowerBoundY, pen=self.bindingPlot.uncertPen)
         self.upperCurve = self.bindingPlot.plot(xf, upperBoundY, pen=self.bindingPlot.uncertPen)
         self.uncertaintiesCurves = [self.upperCurve, self.lowerCurve]
 
-        brush = (122, 186, 122)
         fills = [FillBetweenRegions(self.lowerCurve, self.upperCurve, brush=brush)]
         for f in fills:
             self.uncertaintiesCurves.append(f)
