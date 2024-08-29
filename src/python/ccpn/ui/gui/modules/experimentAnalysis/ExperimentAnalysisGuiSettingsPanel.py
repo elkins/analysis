@@ -13,7 +13,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-08-27 15:33:11 +0100 (Tue, August 27, 2024) $"
+__dateModified__ = "$dateModified: 2024-08-29 16:53:21 +0100 (Thu, August 29, 2024) $"
 __version__ = "$Revision: 3.2.5 $"
 #=========================================================================================
 # Created
@@ -104,7 +104,6 @@ class GuiSettingPanel(Frame):
         self._moduleSettingsWidget.getLayout().setAlignment(QtCore.Qt.AlignLeft)
         Spacer(self, 0, 2, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding,
                grid=(1, 0), gridSpan=(1, 1))
-        # self.postInitWidgets()
 
     def postInitWidgets(self):
         """ Override to apply preselection of widgets after creation"""
@@ -202,7 +201,7 @@ class GuiInputDataPanel(GuiSettingPanel):
                        'compoundKwds': {'texts': expNames,
                                         'tipTexts': expTipTexts,
                                         'direction': 'v',
-                                        'selectedInd': 0,
+                                        'selectedInd': 1,
                                         }}}),
 
             (guiNameSpaces.WidgetVarName_GeneralSetupSeparator,
@@ -357,6 +356,9 @@ class GuiInputDataPanel(GuiSettingPanel):
                        'fixedWidths': SettingsWidgetFixedWidths}}),
             ))
         return self.widgetDefinitions
+
+    def postInitWidgets(self):
+        self._experimentSelectorChanged()
 
     def _setFixedHeightPostInit(self, widget, *args):
         widget.listWidget.setFixedHeight(50)
@@ -1214,11 +1216,11 @@ class AppearancePanel(GuiSettingPanel):
         else:
             return
 
-        if mode == sv.TRIMMED_MEAN and factor < 1:
+        if mode == sv.TRIMMED_MEAN and sdFactor < 1:
             msg = 'Factor value not allowed. Usage: select 10 for a 10% trimmed mean.'
             showWarning('Option not available.', msg)
             return
-        elif mode == sv.TRIMMED_MEAN and factor > 50:
+        elif mode == sv.TRIMMED_MEAN and sdFactor > 50:
             msg = 'Factor value too large. Usage: select 10 for a 10% trimmed mean.'
             showWarning('Option not available.', msg)
             return
@@ -1324,13 +1326,11 @@ class AppearancePanel(GuiSettingPanel):
 
         if fittingModel is not None:
             if fittingModel.modelName != sv.BLANKMODELNAME:
+                _preferredYPlotArgName = fittingModel._preferredYPlotArgName
                 allArgs = fittingModel._getAllArgNames()
-                if calcModel is not None and not calcModel._disableFittingModels:
-                    topSelection.extend(allArgs)
-                    if preferred in availableColumns:
-                        preferred.append(fittingModel._preferredYPlotArgName)
-                elif calcModel is not None and calcModel._disableFittingModels:
-                    otherFromFittingDisabled.extend(allArgs)
+                topSelection.extend(allArgs)
+                if _preferredYPlotArgName in availableColumns:
+                    preferred.append(_preferredYPlotArgName)
 
         # add all available
         otherFromFittingDisabled = list(set(otherFromFittingDisabled))

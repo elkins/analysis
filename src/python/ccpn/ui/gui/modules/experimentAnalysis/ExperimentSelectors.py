@@ -1,9 +1,10 @@
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2023"
-__credits__ = ("Ed Brooksbank, Joanna Fox, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
-               "Timothy J Ragan, Brian O Smith, Gary S Thompson & Geerten W Vuister")
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
+               "Timothy J Ragan, Brian O Smith, Daniel Thompson",
+               "Gary S Thompson & Geerten W Vuister")
 __licence__ = ("CCPN licence. See https://ccpn.ac.uk/software/licensing/")
 __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, L.G., & Vuister, G.W.",
                  "CcpNmr AnalysisAssign: a flexible platform for integrated NMR analysis",
@@ -12,8 +13,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2023-05-22 14:51:55 +0100 (Mon, May 22, 2023) $"
-__version__ = "$Revision: 3.1.1 $"
+__dateModified__ = "$dateModified: 2024-08-29 16:53:21 +0100 (Thu, August 29, 2024) $"
+__version__ = "$Revision: 3.2.5 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -232,7 +233,7 @@ class _ExperimentSelectorTitration(_ExperimentSelectorBC):
     name =  Unicode(allow_none=True, default_value=sv.TITRATION,  read_only=True)
     analysisType = Unicode(allow_none=True, default_value=sv.ChemicalShiftMappingAnalysis, read_only=True)
     calculationOption = Unicode(allow_none=True,  default_value=sv.EUCLIDEAN_DISTANCE, read_only=True)
-    fittingOption = Unicode(allow_none=True,  default_value=sv.ONE_SITE_BINDING_MODEL, read_only=True)
+    fittingOption = Unicode(allow_none=True,  default_value=sv.FRACTION_BINDING_WITH_FIXED_TARGET_MODEL, read_only=True)
 
 #### Relaxation specific Selectors
 

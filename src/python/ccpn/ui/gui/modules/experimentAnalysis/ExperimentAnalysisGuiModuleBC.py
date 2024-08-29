@@ -1,9 +1,10 @@
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2023"
-__credits__ = ("Ed Brooksbank, Joanna Fox, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
-               "Timothy J Ragan, Brian O Smith, Gary S Thompson & Geerten W Vuister")
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
+               "Timothy J Ragan, Brian O Smith, Daniel Thompson",
+               "Gary S Thompson & Geerten W Vuister")
 __licence__ = ("CCPN licence. See https://ccpn.ac.uk/software/licensing/")
 __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, L.G., & Vuister, G.W.",
                  "CcpNmr AnalysisAssign: a flexible platform for integrated NMR analysis",
@@ -12,8 +13,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2023-11-09 09:49:32 +0000 (Thu, November 09, 2023) $"
-__version__ = "$Revision: 3.2.0 $"
+__dateModified__ = "$dateModified: 2024-08-29 16:53:21 +0100 (Thu, August 29, 2024) $"
+__version__ = "$Revision: 3.2.5 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -107,6 +108,9 @@ class ExperimentAnalysisGuiModuleBC(CcpnModule):
         ## link to user plugins - external programs. (NYI)
         self.pluginsHandler = PluginsHandler(guiModule=self)
 
+        ## fire any post init callback from panels
+        self._postInitPanels()
+
     ##########################################################
     #####################      Data       ###########################
     ##########################################################
@@ -191,6 +195,13 @@ class ExperimentAnalysisGuiModuleBC(CcpnModule):
             getLogger().info(f'{self}. Nothing to refit. Skipping...')
             self.backendHandler.fitInputData()
             self.backendHandler._needsRefitting = False
+
+    def _postInitPanels(self):
+        for _, panel in self.settingsPanelHandler._panels.items():
+            panel.postInitWidgets()
+
+        for _, panel in self.panelHandler.panels.items():
+            panel.postInitWidgets()
 
     def _updatePanels(self):
         """
