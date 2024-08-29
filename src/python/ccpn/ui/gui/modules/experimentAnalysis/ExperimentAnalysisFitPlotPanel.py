@@ -13,7 +13,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-08-29 14:47:16 +0100 (Thu, August 29, 2024) $"
+__dateModified__ = "$dateModified: 2024-08-29 15:15:16 +0100 (Thu, August 29, 2024) $"
 __version__ = "$Revision: 3.2.5 $"
 #=========================================================================================
 # Created
@@ -84,6 +84,14 @@ class FittingPlotToolBar(ExperimentAnalysisPlotToolBar):
                 ('enabled', True),
                 ('checkable', True)
                 ))),
+            ('labelsData', od((
+                ('text', 'ToggleLabels'),
+                ('toolTip', 'Toggle the Labels'),
+                ('icon', Icon('icons/preferences-desktop-font')),
+                ('callback', self._toggleLabels),
+                ('enabled', True),
+                ('checkable', True)
+                ))),
             )
         toolBarDefs.update(extraDefs)
         return toolBarDefs
@@ -100,6 +108,10 @@ class FittingPlotToolBar(ExperimentAnalysisPlotToolBar):
         action = self.sender()
         self.fittingPanel._toggleUncertaintiesArea(action.isChecked())
 
+    def _toggleLabels(self):
+        action = self.sender()
+        self.fittingPanel._toggleRawDataLabels(action.isChecked())
+
 class FitPlotPanel(GuiPanel):
 
     position = 2
@@ -110,6 +122,10 @@ class FitPlotPanel(GuiPanel):
         self.fittedCurve = None #not sure if this var should Exist
         self.rawDataScatterPlot = None
         self.uncertaintiesCurves = []
+        self._uncertaintiesCurvesVisible = True
+        self._rawDataScatterPlotVisible = True
+        self._fitPlotVisible = True
+        self._labelsVisible = True
 
     def initWidgets(self):
 
@@ -148,11 +164,16 @@ class FitPlotPanel(GuiPanel):
 
         peakPids, objs = self._getPeakObjects(filteredDf)
         Xs, Ys = self._getPlotData(filteredDf, model)
+        ##  Do the raw data  plot
         self._plotRawData(objs, Xs, Ys)
+
+        ## don't draw the fitting lines if multiple selection. Only show the raw data
         if len(self.current.collections)>1:
             self.bindingPlot.setTitle(f'Fitting not available. Too many selected Collections')
             self.bindingPlot.zoomFull()
             return
+
+        # Do the fitting plot
         fitParams = self._restoreFittingParameters(model, filteredDf)
         if len(fitParams) ==0:
             return
@@ -170,11 +191,16 @@ class FitPlotPanel(GuiPanel):
         self._setupLabels(lastCollectionPid, xAxisLabel, yAxisLabel)
         self.fittedCurve = self.bindingPlot.plot(xf, yf, pen=self.bindingPlot.gridPen)
 
-
-
         self.bindingPlot.setTitle(f'Fitting Model: {modelName}')
         self.bindingPlot.zoomFull()
         self._handleExcludedNmrResidue(filteredDf)
+
+        ##  hide items if required
+        self.toggleRawData(self._rawDataScatterPlotVisible)
+        self._toggleFittedData(self._fitPlotVisible)
+        self._toggleRawDataLabels(self._labelsVisible)
+        self._toggleUncertaintiesArea(self._uncertaintiesCurvesVisible)
+
 
     def _getFilteredDataFrame(self, backend):
         dataFrame = backend._resultDataFrameWithExclusions
@@ -263,10 +289,9 @@ class FitPlotPanel(GuiPanel):
         self.upperCurve = self.bindingPlot.plot(xf, upperBoundY, pen=self.bindingPlot.uncertPen)
         self.uncertaintiesCurves = [self.upperCurve, self.lowerCurve]
 
-        fills = [FillBetweenRegions(self.lowerCurve, self.upperCurve, brush=brush)]
-        for f in fills:
-            self.uncertaintiesCurves.append(f)
-            self.bindingPlot.addItem(f)
+        self.confidenceRegion = FillBetweenRegions(self.lowerCurve, self.upperCurve, brush=brush)
+        self.uncertaintiesCurves.append(self.confidenceRegion)
+        self.bindingPlot.addItem(self.confidenceRegion)
 
     def _plotRawData(self, objs, Xs, Ys):
         spots = []
@@ -506,22 +531,25 @@ class FitPlotPanel(GuiPanel):
     def _toggleRawDataLabels(self, setVisible=True):
         for la in self.labels:
             la.setVisible(setVisible)
+        self._labelsVisible = setVisible
 
     def toggleRawData(self, setVisible=True):
         """Show/Hide the raw data from the plot Widget """
         if self.rawDataScatterPlot is not None:
             self.rawDataScatterPlot.setVisible(setVisible)
-            self._toggleRawDataLabels(setVisible)
+            self._rawDataScatterPlotVisible = setVisible
 
     def _toggleUncertaintiesArea(self, setVisible=True):
         """Show/Hide the Uncertainties Area data from the plot Widget """
         for curve in self.uncertaintiesCurves:
             curve.setVisible(setVisible)
+        self._uncertaintiesCurvesVisible = setVisible
 
     def _toggleFittedData(self, setVisible=True):
         """Show/Hide the fitted data from the plot Widget """
         if self.fittedCurve is not None:
             self.fittedCurve.setVisible(setVisible)
+        self._fitPlotVisible = setVisible
 
     def close(self):
         self._selectCurrentCONotifier.unRegister()
