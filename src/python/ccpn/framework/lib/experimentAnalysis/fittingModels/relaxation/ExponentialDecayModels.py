@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-08-21 13:51:14 +0100 (Wed, August 21, 2024) $"
+__dateModified__ = "$dateModified: 2024-08-30 12:01:53 +0100 (Fri, August 30, 2024) $"
 __version__ = "$Revision: 3.2.5 $"
 #=========================================================================================
 # Created
@@ -242,6 +242,7 @@ class OnePhaseDecayModel(_ExponentialBaseModel):
     references  = '''
                   '''
     Minimiser = _OnePhaseDecayMinimiser
+    maTex    = r'$y = amplitude\ e^{-rate\ x}$'
 
     @property
     def _preferredYPlotArgName(self):
@@ -264,6 +265,7 @@ class ScaledOnePhaseDecayModel(_ExponentialBaseModel):
     Hall and Fushman. 41:837-842. 2003. Mag Res in Chem.'''
     Minimiser = _ScaledOnePhaseDecayMinimiser
     isGUIVisible = False #This model is only used from a macro/custom setup
+    maTex    = r'$y = amplitude\ e^{-4\ rate\ x}$'
 
 
 class OnePhaseDecayPlateauModel(_ExponentialBaseModel):
@@ -281,6 +283,7 @@ class OnePhaseDecayPlateauModel(_ExponentialBaseModel):
     references  = '''
                   '''
     Minimiser = _OnePhaseDecayPlateauMinimiser
+    maTex    = r'$y = (amplitude-plateau)\ e^{-rate\ x} + plateau$'
 
     @property
     def _preferredYPlotArgName(self):

@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-08-23 18:53:02 +0100 (Fri, August 23, 2024) $"
+__dateModified__ = "$dateModified: 2024-08-30 12:01:53 +0100 (Fri, August 30, 2024) $"
 __version__ = "$Revision: 3.2.5 $"
 #=========================================================================================
 # Created
@@ -38,26 +38,41 @@ from ccpn.framework.lib.experimentAnalysis.fittingModels.FittingModelABC import 
 def exponentialGrowth_func(x, amplitude, decay):
     return amplitude * np.exp(decay * x)
 
+
+def inversionRecovery_func(x, amplitude, rate):
+    """
+    Inversion Recovery model function using a rate constant.
+
+    Parameters:
+    x (array-like): Independent variable (time).
+    amplitude (float): Amplitude of the recovery.
+    rate (float): Rate constant, which is 1/T1.
+
+    Returns:
+    array-like: The model values.
+    """
+    return amplitude * (1 - 2 * np.exp(-rate * x))
+
 ## ----------       Minimisers       ---------- ##
 
-class _ExponentialGrowthMinimiser(MinimiserModel):
+class _InversionRecoveryMinimiser(MinimiserModel):
     """
     """
     MODELNAME = 'InversionRecoveryMinimiser'
-    FITTING_FUNC = exponentialGrowth_func
+    FITTING_FUNC = inversionRecovery_func
     AMPLITUDEstr = sv.AMPLITUDE
-    DECAYstr = sv.DECAY
+    RATEstr = sv.RATE
     # _defaultParams must be set. They are required. Also Strings must be exactly as they are defined in the FITTING_FUNC arguments!
     # There is a clever signature inspection that set the args as class attributes. This was too hard/dangerous to change!
     defaultParams = {
                         AMPLITUDEstr:1,
-                        DECAYstr:0.5
+                        RATEstr:0.5
                       }
-    _defaultGlobalParams = [DECAYstr]
+    _defaultGlobalParams = [RATEstr]
 
     def __init__(self, independent_vars=['x'], prefix='', nan_policy=sv.OMIT_MODE, **kwargs):
         kwargs.update({'prefix': prefix, 'nan_policy': nan_policy, 'independent_vars': independent_vars})
-        super().__init__(_ExponentialGrowthMinimiser.FITTING_FUNC, **kwargs)
+        super().__init__(_InversionRecoveryMinimiser.FITTING_FUNC, **kwargs)
         self.name = self.MODELNAME
         self.params = self.make_params(**self.defaultParams)
 
@@ -87,19 +102,19 @@ class _PlateauOnePhaseAssociationMinimiser(MinimiserModel):
 
 ## ------------- Exponential Growth Models --------------- ##
 
-class  ExponentialGrowthModel(_ExponentialBaseModel):
+class  InversionRecoveryModel(_ExponentialBaseModel):
     """
     InversionRecovery model class containing fitting equation and fitting information
     """
     modelName = sv.InversionRecovery
-    modelInfo = '''Exponential Growth Model fitting model. '''
+    modelInfo = '''Inversion Recovery  Model fitting model. '''
     description = '''
                   '''
     references = '''
                   '''
-    Minimiser = _ExponentialGrowthMinimiser
-    # maTex =  r'$amplitude*(1 - e^{-time/decay})$'
-    
+    Minimiser = _InversionRecoveryMinimiser
+    maTex    = r'$y = amplitude\ (1 - 2\ e^{-rate\ x})$'
+
 
 
 

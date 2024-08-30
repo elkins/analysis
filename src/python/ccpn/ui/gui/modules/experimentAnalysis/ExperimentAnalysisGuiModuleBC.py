@@ -13,7 +13,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-08-29 16:53:21 +0100 (Thu, August 29, 2024) $"
+__dateModified__ = "$dateModified: 2024-08-30 12:01:53 +0100 (Fri, August 30, 2024) $"
 __version__ = "$Revision: 3.2.5 $"
 #=========================================================================================
 # Created
@@ -202,6 +202,7 @@ class ExperimentAnalysisGuiModuleBC(CcpnModule):
 
         for _, panel in self.panelHandler.panels.items():
             panel.postInitWidgets()
+        self._setUpdateDone()
 
     def _updatePanels(self):
         """

@@ -15,7 +15,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-08-29 14:47:16 +0100 (Thu, August 29, 2024) $"
+__dateModified__ = "$dateModified: 2024-08-30 12:01:53 +0100 (Fri, August 30, 2024) $"
 __version__ = "$Revision: 3.2.5 $"
 #=========================================================================================
 # Created
@@ -607,7 +607,7 @@ class FractionBindingWithFixedTargetConcentrModel(BindingModelBC):
 
     '''
     references  = '1) Eq. 6 from M.P. Williamson. Progress in Nuclear Magnetic Resonance Spectroscopy 73, 1–16 (2013).'
-    maTex = r'$Y = B_{\mathrm{max}}  \frac{(T + x + K_d - \sqrt{(T + x + K_d)^2 - 4 T x})}{2 T}$'
+    maTex = r'$Y = B_{\mathrm{max}}  \frac{(T + x + K_d - \sqrt{(T + x + K_d)^2 - 4 T x})}{2T}$'
     Minimiser = _FractionBindingWithFixedTargetConcentMinimiser
     isEnabled = True
     targetSeriesAnalyses = [
@@ -700,7 +700,7 @@ class CooperativityBindingModel(BindingModelBC):
     references = '''
                  1) Model derived from the Hill equation: https://en.wikipedia.org/wiki/Cooperative_binding. 
                  '''
-    maTex = r'$Y = B_{max} \cdot \frac{(T + x^{H_s} + K_d^{H_s} - \sqrt{(T + x^{H_s} + K_d^{H_s})^2 - 4 T x^{H_s}}}{2 T}$'
+    maTex = r'$Y = B_{max} \frac{(T + x^{H_s} + K_d^{H_s} - \sqrt{(T + x^{H_s} + K_d^{H_s})^2 - 4 T x^{H_s}}}{2 T}$'
 
     Minimiser = _BindingCooperativityMinimiser
     isEnabled = True
@@ -719,7 +719,8 @@ class CooperativityBindingModel(BindingModelBC):
 
 class OneSiteBindingModel(BindingModelBC):
     """
-    ChemicalShift Analysis: One Site-Binding Curve calculation model
+    ChemicalShift Analysis: One Site-Binding Curve calculation model.
+    Note this model is not accurate for NMR Titrations. See  https://www.ccpn.ac.uk/manual/v3/Titrations.html
     """
     modelName = sv.ONE_SITE_BINDING_MODEL
     modelInfo = 'Fit data to using the One-Site Specific Binding model in a saturation binding experiment analysis.'
@@ -734,7 +735,7 @@ class OneSiteBindingModel(BindingModelBC):
     references = '''
                 1) Model derived from  E.q. 13. Receptor and Binding Studies. Hein et al. 2005. https://doi.org/10.1007/3-540-26574-0_37
                 '''
-    maTex = r'$Y = B_{\max} \cdot \frac{X}{K_d + X}$'
+    maTex = r'$Y = B_{\max}\ \frac{X}{K_d + X}$'
 
     Minimiser = _Binding1SiteMinimiser
     isEnabled = False
