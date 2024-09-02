@@ -13,7 +13,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-08-27 15:33:12 +0100 (Tue, August 27, 2024) $"
+__dateModified__ = "$dateModified: 2024-09-02 16:48:00 +0100 (Mon, September 02, 2024) $"
 __version__ = "$Revision: 3.2.5 $"
 #=========================================================================================
 # Created
@@ -1129,6 +1129,7 @@ class FrameCompoundWidget(CompoundBaseWidget):
             )
     def __init__(self, parent=None, mainWindow=None,
                  showBorder=False, orientation='left',
+                 scrollable=False,
                  minimumWidths=None, maximumWidths=None, fixedWidths=None,
                  labelText='',  compoundKwds=None,
                  **kwds):
@@ -1142,10 +1143,13 @@ class FrameCompoundWidget(CompoundBaseWidget):
         frameKwds = {}
         frameKwds.update(compoundKwds or {})
         frameGrid = self.layoutDict[orientation][1]
-        self.widgetArea = ScrollableFrame(self, setLayout=True, grid=frameGrid, )
-        self._frame = Frame(self.widgetArea, setLayout=True, showBorder=False) #hAlign=orientation, **frameKwds)
-
-        self._frame.setObjectName(labelText)
+        if scrollable:
+            self.widgetArea = ScrollableFrame(self, setLayout=True, grid=frameGrid, ) #the container where to add widgets
+            self._frame = Frame(self.widgetArea, setLayout=True, showBorder=False) #hAlign=orientation, **frameKwds)
+        else:
+            self.widgetArea = Frame(self, setLayout=True, grid=frameGrid,)
+            self._frame = self.widgetArea # just to have same class attr as when scrollable=True
+        self.widgetArea.setObjectName(labelText)
         self.setObjectName(labelText)
         self._widgets.append(self.label)
         ## Don't use _addWidget and  _widgets because doesn't seem to work for the scrollable Frame construction.

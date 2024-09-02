@@ -99,7 +99,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-08-29 14:47:16 +0100 (Thu, August 29, 2024) $"
+__dateModified__ = "$dateModified: 2024-09-02 16:47:59 +0100 (Mon, September 02, 2024) $"
 __version__ = "$Revision: 3.2.5 $"
 #=========================================================================================
 # Created
@@ -196,6 +196,13 @@ class FittingModelABC(ABC):
         """ The list of parameters as str that are minimised globally in the minimiser fitting function. """
         if self.Minimiser:
             return self.Minimiser.getFixedParamNames(self.Minimiser)
+        return []
+
+    @property
+    def modelUserParamNames(self):
+        """ The list of parameters as str that are minimised globally in the minimiser fitting function. """
+        if self.Minimiser:
+            return self.Minimiser.getUserParamNames(self.Minimiser)
         return []
 
     @property
@@ -341,6 +348,11 @@ class MinimiserModel(Model):
     defaultParams = {} # N.B Very important. see docs above.
     _defaultGlobalParams = [] # used only as preselection when doing a Global fitting.
     _fixedParams = []
+    userInputParamNames = [] # this will be Param Names that initial values can be inserted/manipulated by the Users.
+                                                # For example a stock ligand concentration in a Saturation Model, basically parameters that are not stored in the series object but are required in the model equation.
+
+    ## internal do not use directly
+    _userParams = Parameters()
 
     def fit(self, data, params=None, weights=None, method='leastsq',
             iter_cb=None, scale_covar=True, verbose=False, fit_kws=None,
@@ -497,18 +509,46 @@ class MinimiserModel(Model):
     def guess(self, data, x, **kws):
         pass
 
-    def _createParams(self):
+    def fetchParams(self):
+        return self._createParams(self)
+
+    @staticmethod
+    def _createParams(cls):
         """ Make the default params namespaces. Without values"""
         params = Parameters()
-        for name, value in self.defaultParams.items():
-            params[name] = Parameter(name=name, value=value, vary=name in self._fixedParams)
+        for name, value in cls.defaultParams.items():
+            fixed = name in cls._fixedParams
+            params[name] = Parameter(name=name, value=value, vary=not fixed)
         return params
+
+    @staticmethod
+    def _getUserParams(cls):
+        """
+        _internal
+        Given the  userInputParamNames, return the object Parameters"""
+        params = cls.fetchParams(cls)
+        for name in cls.userInputParamNames:
+            if name in params:
+                defaultParam = params[name]
+                cls._userParams[name] = defaultParam
+            else:
+                cls._userParams.add(name=name)
+        return cls._userParams
+
+    @staticmethod
+    def _mergeUserParams(mainParams, userParams):
+        """Merge  the user Parameters into the main Params """
+        for name, param in mainParams.items():
+            userParam = userParams.get(name)
+            if userParam is not None:
+                mainParams[name] = userParams[name]
+        return mainParams
 
     @staticmethod
     def getParamNames(cls):
         """ get the list of parameters as str used in the fitting function  """
         return list(cls.defaultParams.keys())
-    
+
     @staticmethod
     def getGlobalParamNames(cls):
         """ get the list of parameters as str used in the fitting function  """
@@ -518,6 +558,11 @@ class MinimiserModel(Model):
     def getFixedParamNames(cls):
         """ get the list of parameters as str used in the fitting function  """
         return cls._fixedParams
+
+    @staticmethod
+    def getUserParamNames(cls):
+        """ get the list of parameters as str used in the fitting function  """
+        return cls.userInputParamNames
 
     def getStatParamNames(self):
         """

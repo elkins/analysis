@@ -13,7 +13,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-08-30 12:01:53 +0100 (Fri, August 30, 2024) $"
+__dateModified__ = "$dateModified: 2024-09-02 16:48:00 +0100 (Mon, September 02, 2024) $"
 __version__ = "$Revision: 3.2.5 $"
 #=========================================================================================
 # Created
@@ -806,18 +806,29 @@ class GuiFittingPanel(GuiSettingPanel):
                                         'tipText': '',
                                         'hAlign': 'l',
                                        }}}),
-            (guiNameSpaces.WidgetVarName_ModelInfo,
-             {'label'   : guiNameSpaces.Label_ModelInfo,
+            (guiNameSpaces.WidgetVarName_ModelEq,
+             {'label'   : guiNameSpaces.Label_ModelEq,
               'type'    : compoundWidget.FrameCompoundWidget,
-              'tipText' : guiNameSpaces.TipText_ModelInfo,
+              'tipText' : guiNameSpaces.TipText_ModelEq,
               'enabled' : True,
               'kwds'    : {
-                  'labelText': guiNameSpaces.Label_ModelInfo,
-
+                  'labelText': guiNameSpaces.Label_ModelEq,
+                    'scrollable':True,
                   'fixedWidths': SettingsWidgetFixedWidths},
                   'compoundKwds': {'showBorder':True,}
               }),
-            ))
+            (guiNameSpaces.WidgetVarName_ModelValues,
+            {'label'       : guiNameSpaces.Label_ModelValues,
+             'type'        : compoundWidget.FrameCompoundWidget,
+             'tipText'     : guiNameSpaces.TipText_ModelValues,
+             'enabled'     : True,
+             'kwds'        : {
+             'labelText'  : guiNameSpaces.Label_ModelValues,
+             'scrollable': False,
+             'fixedWidths': SettingsWidgetFixedWidths},
+             'compoundKwds': {'showBorder': True, }
+             }),
+                ))
 
 
         self.widgetDefinitions.update(settingsDict)
@@ -832,7 +843,8 @@ class GuiFittingPanel(GuiSettingPanel):
         """
         from ccpn.ui.gui.widgets.Label import maTex2Pixmap
         from ccpn.ui.gui.widgets.Label import Label
-        frameWidget = self.getWidget(guiNameSpaces.WidgetVarName_ModelInfo)
+        from ccpn.ui.gui.widgets.FittiningParamsWidget import FittingParamWidget
+        frameWidget = self.getWidget(guiNameSpaces.WidgetVarName_ModelEq)
         mainFrame = frameWidget.widgetArea
         frameWidget.clear()
 
@@ -842,8 +854,31 @@ class GuiFittingPanel(GuiSettingPanel):
         modelObj = backend.getFittingModelByName(selectedFittingModelName)
         maTex = modelObj.maTex
         pixmap = maTex2Pixmap(f'{maTex}',  fontSize=12)
-        label = Label(mainFrame, text='', icon=pixmap, grid=(0, 0))
+        label = Label(mainFrame, text='', icon=pixmap, grid=(0, 0), vAlign='c')
+        mainFrame.getLayout().setAlignment(QtCore.Qt.AlignCenter)
+        frameWidgetValues = self.getWidget(guiNameSpaces.WidgetVarName_ModelValues)
+        mainFrame = frameWidgetValues.widgetArea
+        frameWidgetValues.clear()
+        if modelObj.modelName != sv.BLANKMODELNAME:
+            t = FittingParamWidget(mainFrame, modelObj, callback=partial(self._userParamChanged, modelObj),  grid=(1,0))
+
         self._commonCallback()
+
+    def _userParamChanged(self, modelObj, newParams):
+        getLogger().info(f'Updating User Params. {newParams}')
+        self._updateUserParams(modelObj, newParams)
+
+
+    @staticmethod
+    def _updateUserParams(fittingModelCls, params):
+
+        _minimiser = fittingModelCls.Minimiser
+        userParamNames = _minimiser.getUserParamNames(_minimiser)
+        for name, param in params.items():
+            if name in userParamNames:
+                _minimiser._userParams[name] = param
+        print('_minimiser._userParams::::',_minimiser._userParams)
+        return _minimiser._userParams
 
     def _commonCallback(self, *args):
         """ Update FittingModel Settings at Backend"""

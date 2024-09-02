@@ -17,7 +17,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-08-23 16:13:41 +0100 (Fri, August 23, 2024) $"
+__dateModified__ = "$dateModified: 2024-09-02 16:47:59 +0100 (Mon, September 02, 2024) $"
 __version__ = "$Revision: 3.2.5 $"
 #=========================================================================================
 # Created
@@ -59,6 +59,7 @@ VALUE_ERR        = f'{VALUE}{_ERR}'
 KD               = 'Kd'
 BMAX             = 'BMax'
 T                = 'T'
+Xs             = 'Xs'
 T_ERR            = f'{T}{_ERR}'
 KD_ERR           = f'{KD}{_ERR}'
 BMAX_ERR         = f'{BMAX}{_ERR}'
