@@ -15,7 +15,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-09-02 16:47:59 +0100 (Mon, September 02, 2024) $"
+__dateModified__ = "$dateModified: 2024-09-02 17:27:08 +0100 (Mon, September 02, 2024) $"
 __version__ = "$Revision: 3.2.5 $"
 #=========================================================================================
 # Created
@@ -321,6 +321,7 @@ class _BindingCooperativityMinimiser(MinimiserModel):
     _defaultGlobalParams = [KD]
     _fixedParams = [T]
 
+
     def __init__(self, independent_vars=['x'], prefix='', nan_policy=sv.PROPAGATE_MODE, **kwargs):
         kwargs.update({'prefix': prefix, 'nan_policy': nan_policy, 'independent_vars': independent_vars})
         super().__init__(_BindingCooperativityMinimiser.FITTING_FUNC, **kwargs)
@@ -520,8 +521,6 @@ class BindingModelBC(FittingModelABC):
                     params = minimiser.guess(yArray, xArray)
                     params = self._preFittingAdditionalParamsSettings(groupDf, params)
                     params = minimiser._mergeUserParams(params, minimiser._userParams)
-                    print('minimiser PARAMS:=======||||||>>>>>',params)
-
                     result = minimiser.fit(yArray, params, x=xArray, nan_policy=sv.PROPAGATE_MODE, method=self._minimiserMethod)
                     finalParams = result.calculateStandardErrors(xArray, yArray, self._uncertaintiesMethod, samples=self._uncertaintiesSampleSize)
 

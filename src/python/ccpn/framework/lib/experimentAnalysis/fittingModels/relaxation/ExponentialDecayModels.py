@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-08-30 12:01:53 +0100 (Fri, August 30, 2024) $"
+__dateModified__ = "$dateModified: 2024-09-02 17:27:08 +0100 (Mon, September 02, 2024) $"
 __version__ = "$Revision: 3.2.5 $"
 #=========================================================================================
 # Created
@@ -93,6 +93,10 @@ class _OnePhaseDecayMinimiser(MinimiserModel):
                         RATE            :1.5
                       }
     _defaultGlobalParams = [RATE]
+    paramsDescription = {
+        AMPLITUDE : '''The amplitude parameter represents the initial value of the decaying quantity when  t = 0 . It has the same units as the output y. ''',
+        RATE: '''The rate parameter represents the decay constant in the exponential decay model. It defines the rate at which the quantity decreases as a function of time. It has units of reciprocal time (e.g., seconds^{-1}) if x is time '''
+        }
 
     def __init__(self, independent_vars=['x'], prefix='', nan_policy=sv.OMIT_MODE, **kwargs):
         kwargs.update({'prefix': prefix, 'nan_policy': nan_policy, 'independent_vars': independent_vars})
@@ -153,7 +157,12 @@ class _OnePhaseDecayPlateauMinimiser(MinimiserModel):
                         PLATEAU      :0.0
                       }
     _defaultGlobalParams = [RATE]
-    
+    paramsDescription = {
+        AMPLITUDE : '''The amplitude parameter represents the initial value of the decaying quantity when  t = 0 . It has the same units as the output y. ''',
+        RATE: '''The rate parameter represents the decay constant in the exponential decay model.\nIt defines the rate at which the quantity decreases as a function of time. It has units of reciprocal time (e.g., seconds^{-1}) if x is time ''',
+        PLATEAU: '''The plateau is the value the function approaches as x (typically time) increases indefinitely. In the decay model, it represents the baseline or residual value remaining after most of the decay. Its units match the output y.'''
+        }
+
     def __init__(self, independent_vars=['x'], prefix='', nan_policy=sv.OMIT_MODE, **kwargs):
         kwargs.update({'prefix': prefix, 'nan_policy': nan_policy, 'independent_vars': independent_vars})
         super().__init__(_OnePhaseDecayPlateauMinimiser.FITTING_FUNC, **kwargs)

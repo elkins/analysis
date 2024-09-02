@@ -18,7 +18,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-09-02 16:48:00 +0100 (Mon, September 02, 2024) $"
+__dateModified__ = "$dateModified: 2024-09-02 17:27:08 +0100 (Mon, September 02, 2024) $"
 __version__ = "$Revision: 3.2.5 $"
 #=========================================================================================
 # Created
@@ -76,6 +76,7 @@ DESCRIPTION = 'Description'
 class _ParamTableModel(_TableModel):
     """
     """
+    _MAXCHARS = 1000
 
     def data(self, index, role=DISPLAY_ROLE):
         """Return the data/roles for the model.
@@ -331,7 +332,7 @@ class FittingParamWrapper(object):
             _min, _max = self._getMinMaxFromParam(name, param)
             vary = param.vary if param.vary is not None else True # fetch the information from the existing param. it could have set previously by the user.
             fixed = not vary
-            description = ''
+            description = self._minimiser.paramsDescription.get(name, '')
             df.loc[i, NAME] = name
             df.loc[i, VALUE] = param.value if name in self._userParamNames else AUTO
             df.loc[i, FIXED] = fixed

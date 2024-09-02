@@ -99,7 +99,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-09-02 16:47:59 +0100 (Mon, September 02, 2024) $"
+__dateModified__ = "$dateModified: 2024-09-02 17:27:08 +0100 (Mon, September 02, 2024) $"
 __version__ = "$Revision: 3.2.5 $"
 #=========================================================================================
 # Created
@@ -353,6 +353,8 @@ class MinimiserModel(Model):
 
     ## internal do not use directly
     _userParams = Parameters()
+    paramsDescription = {} # describe what the parameters represent. key: the exact parameter name. value: a single brief description.
+
 
     def fit(self, data, params=None, weights=None, method='leastsq',
             iter_cb=None, scale_covar=True, verbose=False, fit_kws=None,
