@@ -18,7 +18,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-09-02 17:27:08 +0100 (Mon, September 02, 2024) $"
+__dateModified__ = "$dateModified: 2024-09-03 09:56:08 +0100 (Tue, September 03, 2024) $"
 __version__ = "$Revision: 3.2.5 $"
 #=========================================================================================
 # Created
@@ -326,7 +326,6 @@ class FittingParamWrapper(object):
         """
 
         df = pd.DataFrame([])
-        print(self.params)
         params = self._minimiser._mergeUserParams(self.params, self._minimiser._userParams)
         for i, (name, param) in enumerate(params.items()):
             _min, _max = self._getMinMaxFromParam(name, param)
@@ -345,8 +344,6 @@ class FittingParamWrapper(object):
         key = lambda x: pd.Categorical(x, categories=sorted( self._userParamNames) + sorted(x[~x.isin( self._userParamNames)]), ordered=True)
         df = df.sort_values( by=NAME, key=key).reset_index(drop=True)
         return df
-
-
 
     def getParamsFromDataFrame(self, df):
         params = lmfit.Parameters()
@@ -398,12 +395,8 @@ if __name__ == '__main__':
 
     widget = FittingParamWidget(popup, model, editableParamNames=['constant'],grid=(0, 0))
     params = widget.getUpdatedParams()
-    print(params)
     popup.exec_()
 
-
-    print('exec_ done')
-    # app.start()
 
 
 
