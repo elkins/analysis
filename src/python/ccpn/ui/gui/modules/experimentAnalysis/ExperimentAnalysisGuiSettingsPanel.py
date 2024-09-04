@@ -13,7 +13,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-09-02 16:48:00 +0100 (Mon, September 02, 2024) $"
+__dateModified__ = "$dateModified: 2024-09-04 15:23:37 +0100 (Wed, September 04, 2024) $"
 __version__ = "$Revision: 3.2.5 $"
 #=========================================================================================
 # Created
@@ -470,7 +470,7 @@ class GuiInputDataPanel(GuiSettingPanel):
                 getLogger().info(f'{self.guiModule.className}:{self.tabName}. {obj} added to InputSpectrumGroups')
 
     def _fitAndFetchOutputData(self, *args):
-        getLogger().info('Starting fit')
+        getLogger().info('Fitting started')
         backend = self.guiModule.backendHandler
         name = self.getSettingsAsDict().get(guiNameSpaces.WidgetVarName_OutPutDataTableName, sv.SERIESANALYSISOUTPUTDATA)
         backend.outputDataTableName = name
