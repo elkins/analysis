@@ -17,7 +17,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-09-04 15:23:37 +0100 (Wed, September 04, 2024) $"
+__dateModified__ = "$dateModified: 2024-09-05 09:54:39 +0100 (Thu, September 05, 2024) $"
 __version__ = "$Revision: 3.2.5 $"
 #=========================================================================================
 # Created
@@ -36,19 +36,10 @@ __date__ = "$Date: 2023-02-03 10:04:03 +0000 (Fri, February 03, 2023) $"
 ############################################################
 
 
-##  demo sequence for the GB1 protein . Replace with an empty str if not available, e.g.: sequence  = ''
-sequence  = 'KLILNGKTLKGETTTEAVDAATAEKVFKQYANDNGVDGEWTYDAATKTFTVTE'
-##  secondary structure  for the above sequence  using the DSSP nomenclature.  Replace with an empty str if not available. e.g.: ss_sequence  = ''
-ss_sequence   =  'BBBBBCCCCBBBBBBCCCCHHHHHHHHHHHHHHCCCCCBBBBCCCCCBBBBBC'
-
-
 ## Some Graphics Settings
-
 titlePdf  = 'Consistency Test'
 windowTitle = f'CcpNmr V3 - {titlePdf}'
-
 interactivePlot = True # True if you want the plot to popup as a new windows, to allow the zooming and panning of the figure.
-
 lineColour='black'
 theoreticalLineColour = 'blue'
 lineErrorColour='red'
@@ -80,15 +71,12 @@ import ccpn.framework.lib.experimentAnalysis.SeriesAnalysisVariables as sv
 import ccpn.macros.relaxation._macrosLib as macrosLib
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
-from ccpn.ui.gui.widgets.DrawSS import plotSS
 import ccpn.framework.lib.experimentAnalysis.calculationModels.relaxation.spectralDensityLib as sdl
 from ccpn.AnalysisDynamics.lib.modelFreeAnalysis.modelFree.src.io._inputDataLoader import Rates_Excel_DataLoader
 from ccpn.framework.lib.experimentAnalysis.ExperimentConstants import N15gyromagneticRatio, HgyromagneticRatio
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler, RobustScaler
 import itertools
-
-
 
 ###################      start inline macro       #####################
 
@@ -122,10 +110,8 @@ for sf, df in dataDict.items():
 resCodes = df[sv.NMRRESIDUECODE]
 resCodes = resCodes.astype(int)
 resCodes = resCodes.values
-
 arrayCount = len(arrays)
 items = list(range(arrayCount))
-#
 
 
 # Stack the 1D arrays into a 2D array
@@ -148,7 +134,6 @@ q_scores_normalized = (q_scores - np.min(q_scores)) / (np.max(q_scores) - np.min
 qscore_scaler = StandardScaler()
 q_scores_standardized = qscore_scaler.fit_transform(q_scores.reshape(-1, 1))
 q_scores_standardized = q_scores_standardized.flatten()
-
 
 # Create a 2x2 subplot grid
 fig, axs = plt.subplots(2, 2, figsize=(12, 10))
@@ -176,7 +161,6 @@ axs[0, 0].set_title('J0 data')
 axs[0, 0].set_xlabel('Field 1')
 axs[0, 0].set_ylabel('Field 2')
 axs[0, 0].legend()
-
 
 # ratios
 for pair in pairs:
@@ -212,8 +196,6 @@ axs[1, 1].set_xlabel('Residue Code')
 axs[1, 1].set_ylabel('Q-score (Standardised)')
 axs[1, 1].set_title('Q-scores for PCA')
 axs[1, 1].legend()
-
-
 
 plt.tight_layout()
 plt.show()
