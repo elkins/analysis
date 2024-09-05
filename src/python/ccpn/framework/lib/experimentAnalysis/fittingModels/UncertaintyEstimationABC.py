@@ -147,7 +147,6 @@ class MonteCarloSimulation(ParameterUncertaintyEstimation):
             # Generate random samples around the optimised parameter values
             mcParams = self.createRandomParams()
             # Re-optimize parameters with updated values
-            print(f'====Optimising with: {mcParams}')
             mcMinimizer = self.minimiserCls(self.objectiveFunc, mcParams, method=self.minimiserMethod, **self.minimiserKwargs)
             mcResult = mcMinimizer.minimize(method=self.minimiserMethod, options=self.minimiseOptions)
             self._minimiserResults.append(mcResult)

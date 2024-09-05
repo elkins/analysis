@@ -17,7 +17,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-09-05 09:54:39 +0100 (Thu, September 05, 2024) $"
+__dateModified__ = "$dateModified: 2024-09-05 14:00:08 +0100 (Thu, September 05, 2024) $"
 __version__ = "$Revision: 3.2.5 $"
 #=========================================================================================
 # Created
@@ -198,4 +198,31 @@ axs[1, 1].set_title('Q-scores for PCA')
 axs[1, 1].legend()
 
 plt.tight_layout()
+plt.show()
+
+
+
+xs = []
+ys = []
+for pair in pairs:
+    ix, iy = pair
+    x, y = arrays[ix], arrays[iy]
+    xSF, ySF = sfs[ix], sfs[iy]
+    xs.append(x)
+    ys.append(y)
+    # Define the quantiles to compute
+    quantile_probs = np.linspace(0, 1, len(y))
+    # Compute the quantiles for each dataset
+    data1_quantiles = np.percentile(x, quantile_probs * 100)
+    data2_quantiles = np.percentile(y, quantile_probs * 100)
+    plt.figure(figsize=(6, 6))
+    plt.scatter(data1_quantiles, data2_quantiles, alpha=0.5)
+    plt.plot([data1_quantiles.min(), data1_quantiles.max()], [data1_quantiles.min(), data1_quantiles.max()], 'r--')  # Diagonal reference line
+    plt.xlabel(f'Quantiles of {xSF}')
+    plt.ylabel(f'Quantiles of {ySF}')
+
+    plt.title(f'Q-Q Plot of {xSF} vs {ySF}')
+    for i, txt in enumerate(resCodes):
+            plt.annotate(str(txt), (data1_quantiles[i], data2_quantiles[i]))
+
 plt.show()
