@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-08-23 18:53:01 +0100 (Fri, August 23, 2024) $"
+__dateModified__ = "$dateModified: 2024-09-18 17:27:42 +0100 (Wed, September 18, 2024) $"
 __version__ = "$Revision: 3.2.5 $"
 #=========================================================================================
 # Created
@@ -45,6 +45,7 @@ def euclideanDistance_func(array1, array2, alphaFactors):
     :param alphaFactors: the scaling factors.  same shape of array1 and 2.
     :return: float
     Ref.: Eq.(9) from: M.P. Williamson Progress in Nuclear Magnetic Resonance Spectroscopy 73 (2013) 1–16
+
     """
     deltas = []
     for a, b, factor in zip(array1, array2, alphaFactors):
