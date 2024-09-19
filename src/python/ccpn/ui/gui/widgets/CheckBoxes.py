@@ -1,9 +1,10 @@
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2022"
-__credits__ = ("Ed Brooksbank, Joanna Fox, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
-               "Timothy J Ragan, Brian O Smith, Gary S Thompson & Geerten W Vuister")
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
+               "Timothy J Ragan, Brian O Smith, Daniel Thompson",
+               "Gary S Thompson & Geerten W Vuister")
 __licence__ = ("CCPN licence. See https://ccpn.ac.uk/software/licensing/")
 __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, L.G., & Vuister, G.W.",
                  "CcpNmr AnalysisAssign: a flexible platform for integrated NMR analysis",
@@ -11,9 +12,9 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2022-10-12 15:27:13 +0100 (Wed, October 12, 2022) $"
-__version__ = "$Revision: 3.1.0 $"
+__modifiedBy__ = "$modifiedBy: Luca Mureddu $"
+__dateModified__ = "$dateModified: 2024-09-19 19:45:56 +0100 (Thu, September 19, 2024) $"
+__version__ = "$Revision: 3.2.5 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -36,7 +37,7 @@ UNCHECKED = QtCore.Qt.Unchecked
 class CheckBoxes(Widget):
 
     def __init__(self, parent, texts=None, selectedInd=None, exclusive=False, selectAll=None, deselectAll=None,
-                 callback=None, direction='h', tipTexts=None, hAlign='r', **kwds):
+                 callback=None, direction='h', tipTexts=None, hAlign='r', ensureOneAlwaysTicked=False,  **kwds):
 
         super().__init__(parent, setLayout=True, **kwds)
 
@@ -47,6 +48,7 @@ class CheckBoxes(Widget):
         direction = direction.lower()
         checkBoxGroup = self.checkBoxGroup = QtWidgets.QButtonGroup(self)
         self.isExclusive = exclusive
+        self.ensureOneAlwaysTicked = ensureOneAlwaysTicked
         checkBoxGroup.setExclusive(self.isExclusive)
 
         if not tipTexts:
@@ -176,6 +178,12 @@ class CheckBoxes(Widget):
         if self.callback and checkBox:
             # checkBox = self.checkBoxGroup.checkBoxs[ind]
             self.callback()
+        if self.ensureOneAlwaysTicked:
+            checked = self.getSelectedIndexes()
+            if len(checked) == 0:
+                checkBox.setChecked(True)
+
+
 
     def setSelectedByText(self, texts, checkFlag, presetAll=True):
 
