@@ -17,8 +17,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-09-02 16:47:59 +0100 (Mon, September 02, 2024) $"
-__version__ = "$Revision: 3.2.5 $"
+__dateModified__ = "$dateModified: 2024-09-20 20:01:08 +0100 (Fri, September 20, 2024) $"
+__version__ = "$Revision: 3.2.7 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -108,6 +108,9 @@ MINIMISER_METHOD = 'Method'
 MINIMISER_MODEL  = 'Model'
 MINIMISER_OBJ  = '_minimiserObj'
 UNCERTAINTIESMETHOD = 'UncertaintiesMethod'
+MODEL_ID = 'model_id'
+MODEL_SCORE = 'model_score'
+MODEL_SELECTION_METHOD = 'model_selection_method'
 
 ## Peak properties. Used to get nmrAtom assigned-peak by dimension and build tables.
 _POSITION = 'position'
@@ -231,7 +234,7 @@ DIFFUSION = 'Diffusion'
 LIPARISZABO = 'Lipari-Szabo'
 LIPARISZABO_Original = 'Lipari-Szabo Original'
 LIPARISZABO_Extended = 'Lipari-Szabo Extended'
-
+ALL_MODELS = 'All Models'
 PROLATE = 'Prolate'
 OBLATE = 'Oblate'
 

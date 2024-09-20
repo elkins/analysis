@@ -3,6 +3,7 @@ import numpy as np
 from lmfit import Parameter, Parameters
 from tqdm import tqdm
 from scipy.stats import norm
+from ccpn.util.Logging import getLogger
 
 class ParameterUncertaintyEstimation(ABC):
     """
@@ -148,8 +149,12 @@ class MonteCarloSimulation(ParameterUncertaintyEstimation):
             mcParams = self.createRandomParams()
             # Re-optimize parameters with updated values
             mcMinimizer = self.minimiserCls(self.objectiveFunc, mcParams, method=self.minimiserMethod, **self.minimiserKwargs)
-            mcResult = mcMinimizer.minimize(method=self.minimiserMethod, options=self.minimiseOptions)
-            self._minimiserResults.append(mcResult)
+            try:
+                mcResult = mcMinimizer.minimize(method=self.minimiserMethod, options=self.minimiseOptions)
+                self._minimiserResults.append(mcResult)
+            except Exception as minError:
+                getLogger().debug(f'Minimisation Failed while {prefixMessage} uncertainties. Step {i} skipped. Minimiser kargs: {self.minimiserKwargs}. {minError}')
+
         # create the new params as for the
         newParams = self.getBestFitParams()
         return newParams
