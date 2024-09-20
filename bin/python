@@ -18,5 +18,5 @@ CCPNMR_TOP_DIR="${_pathlink}"
 export CCPNMR_TOP_DIR
 source "${CCPNMR_TOP_DIR}"/bin/paths.sh
 
-echo "${CONDA}"/bin/python
+#echo "${CONDA}"/bin/python
 "${CONDA}"/bin/python $*
