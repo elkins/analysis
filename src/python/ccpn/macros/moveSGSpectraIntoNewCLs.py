@@ -46,9 +46,6 @@ class MoveSGSpectraIntoNewCLs(CcpnDialogMainWidget):
         self.setCancelButton(callback=self.reject)
         self.setDefaultButton(CcpnDialogMainWidget.CANCELBUTTON)
 
-        # initialise the buttons and dialog size
-        self._postInit()
-
     def _setWidgets(self):
         row = 0
         Label(self.mainWidget, text='Select SpectrumGroup:', grid = (row, 0))

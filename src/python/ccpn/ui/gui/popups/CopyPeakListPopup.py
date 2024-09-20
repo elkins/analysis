@@ -85,8 +85,9 @@ class CopyPeakListPopup(CcpnDialogMainWidget):
         self.setCloseButton(callback=self.reject, tipText='Close popup')
         self.setDefaultButton(CcpnDialogMainWidget.CLOSEBUTTON)
 
+    def _postInit(self):
         # initialise the buttons and dialog size
-        self._postInit()
+        super()._postInit()
         self._extraActionDefs = {
                                 _SnapToExtremum: self._snapPeaksToExtremum,
                                 _RefitPeaks: self._refitPeaks,

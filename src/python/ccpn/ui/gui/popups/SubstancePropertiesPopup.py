@@ -4,9 +4,9 @@ Module Documentation here
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2023"
-__credits__ = ("Ed Brooksbank, Joanna Fox, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
-               "Timothy J Ragan, Brian O Smith, Gary S Thompson & Geerten W Vuister")
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__credits__ = ("Ed Brooksbank, Joanna Fox, Morgan Hayward, Victoria A Higman, Luca Mureddu",
+               "Eliza Płoskoń, Timothy J Ragan, Brian O Smith, Gary S Thompson & Geerten W Vuister")
 __licence__ = ("CCPN licence. See https://ccpn.ac.uk/software/licensing/")
 __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, L.G., & Vuister, G.W.",
                  "CcpNmr AnalysisAssign: a flexible platform for integrated NMR analysis",
@@ -15,8 +15,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2023-11-13 16:46:31 +0000 (Mon, November 13, 2023) $"
-__version__ = "$Revision: 3.2.0 $"
+__dateModified__ = "$dateModified: 2024-04-04 15:19:24 +0100 (Thu, April 04, 2024) $"
+__version__ = "$Revision: 3.2.5 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -26,9 +26,9 @@ __date__ = "$Date: 2017-03-30 11:28:58 +0100 (Thu, March 30, 2017) $"
 # Start of code
 #=========================================================================================
 
-from PyQt5 import QtCore, QtWidgets
+from PyQt5 import QtCore
 from ccpn.ui.gui.widgets.MoreLessFrame import MoreLessFrame
-from ccpn.ui.gui.popups.AttributeEditorPopupABC import ComplexAttributeEditorPopupABC, VList, MoreLess, _complexAttribContainer
+from ccpn.ui.gui.popups.AttributeEditorPopupABC import ComplexAttributeEditorPopupABC, VList, MoreLess, Item, _complexAttribContainer
 from ccpn.ui.gui.widgets.CompoundWidgets import CompoundViewCompoundWidget
 from ccpn.core.Substance import Substance
 
@@ -115,57 +115,48 @@ class SubstancePropertiesPopup(ComplexAttributeEditorPopupABC):
 
     klass = Substance
     HWIDTH = 150
-    attributes = VList([VList([('Select Source', RadioButtonsCompoundWidget, None, None, None, None, {'texts'      : BUTTONSTATES,
-                                                                                                      'selectedInd': 1,
-                                                                                                      'direction'  : 'h',
-                                                                                                      'hAlign'     : 'l'}),
-                               ('Current Substances', PulldownListCompoundWidget, None, None, _getCurrentSubstances, None, {'editable': False}),
-                               ('Name', EntryCompoundWidget, getattr, setattr, None, None, {'backgroundText': '> Enter name <'}),
-                               ('Labelling', PulldownListCompoundWidget, getattr, _setLabelling, _getLabelling, None, {'editable': True}),
-                               ],
-                              queueStates=False,
-                              hWidth=None,
-                              group=1,
-                              ),
-                        # VList([('comment', TextEditorCompoundWidget, getattr, setattr, None, None, {'backgroundText': '> Optional <',
-                        #                                                                             'addGrip': False, 'addWordWrap': True,
-                        #                                                                             'fitToContents': True,
-                        #                                                                             'maximumRows': 5}), ],
-                        VList([('Comment', EntryCompoundWidget, getattr, setattr, None, None, {'backgroundText': '> Optional <',}), ],
-                              hWidth=None,
-                              group=1,
-                              ),
-                        MoreLess([('Synonyms', EntryCompoundWidget, _getSynonym, _setSynonym, None, None, {'backgroundText': ''}),
-                                  ('Reference Spectra', PulldownListCompoundWidget, _getSpectrum, _setSpectrum, _getCurrentSpectra, None, {'editable': False}),
-                                  ('Empirical Formula', EntryCompoundWidget, getattr, setattr, None, None, {'backgroundText': ''}),
-                                  ('Molecular Mass', ScientificSpinBoxCompoundWidget, getattr, setattr, None, None, {'minimum': 0}),
-                                  ('User Code', EntryCompoundWidget, getattr, setattr, None, None, {'backgroundText': ''}),
-                                  ('Cas Number', EntryCompoundWidget, getattr, setattr, None, None, {'backgroundText': ''}),
-                                  ('Atom Count', SpinBoxCompoundWidget, getattr, setattr, None, None, {'minimum': 0}),
-                                  ('Bond Count', SpinBoxCompoundWidget, getattr, setattr, None, None, {'minimum': 0}),
-                                  ('Ring Count', SpinBoxCompoundWidget, getattr, setattr, None, None, {'minimum': 0}),
-                                  ('hBond Donor Count', SpinBoxCompoundWidget, getattr, setattr, None, None, {'minimum': 0}),
-                                  ('hBond Acceptor Count', SpinBoxCompoundWidget, getattr, setattr, None, None, {'minimum': 0}),
-                                  ('Polar Surface Area', ScientificSpinBoxCompoundWidget, getattr, setattr, None, None, {'minimum': 0}),
-                                  ('Log Partition Coefficient', ScientificSpinBoxCompoundWidget, getattr, setattr, None, None, {'minimum': 0}),
-                                  ],
-                                 hWidth=None,
-                                 name='Advanced',
-                                 ),
-                        MoreLess([VList([('Smiles', EntryCompoundWidget, getattr, setattr, None, None, {'backgroundText': ''})],
-                                        hWidth=None,
-                                        group=2,
-                                        ),
-                                  VList([('Compound View', CompoundViewCompoundWidget, None, None, None, None, {})],
-                                        queueStates=False,
-                                        hWidth=None,
-                                        group=2,
-                                        ),
-                                  ],
-                                 name='Compound',
-                                 ),
-                        ],
-                       hWidth=None,
+    attributes = VList(Item('Select Source', RadioButtonsCompoundWidget, None, None, None, None, {'texts'      : BUTTONSTATES,
+                                                                                                  'selectedInd': 1,
+                                                                                                  'direction'  : 'h',
+                                                                                                  'hAlign'     : 'l',
+                                                                                                  'addSpacer'  : True}),
+                       Item('Current Substances', PulldownListCompoundWidget, None, None, _getCurrentSubstances, None, {'editable': False, 'addSpacer': True}),
+                       Item('Name', EntryCompoundWidget, getattr, setattr, None, None, {'backgroundText': '> Enter name <', 'addSpacer': True}),
+                       Item('Labelling', PulldownListCompoundWidget, getattr, _setLabelling, _getLabelling, None, {'editable': True, 'addSpacer': True}),
+                       Item('Comment', EntryCompoundWidget, getattr, setattr, None, None, {'backgroundText': '> Optional <', 'addSpacer': True}),
+                       # keep for the minute
+                       # VList([('comment', TextEditorCompoundWidget, getattr, setattr, None, None, {'backgroundText': '> Optional <',
+                       #                                                                             'addGrip': False, 'addWordWrap': True,
+                       #                                                                             'fitToContents': True,
+                       #                                                                             'maximumRows': 5}), ],
+                       MoreLess(Item('Synonyms', EntryCompoundWidget, _getSynonym, _setSynonym, None, None, {'backgroundText': '', 'addSpacer': True}),
+                                Item('Reference Spectra', PulldownListCompoundWidget, _getSpectrum, _setSpectrum, _getCurrentSpectra, None, {'editable': False, 'addSpacer': True}),
+                                Item('Empirical Formula', EntryCompoundWidget, getattr, setattr, None, None, {'backgroundText': '', 'addSpacer': True}),
+                                Item('Molecular Mass', ScientificSpinBoxCompoundWidget, getattr, setattr, None, None, {'minimum': 0, 'addSpacer': True}),
+                                Item('User Code', EntryCompoundWidget, getattr, setattr, None, None, {'backgroundText': '', 'addSpacer': True}),
+                                Item('Cas Number', EntryCompoundWidget, getattr, setattr, None, None, {'backgroundText': '', 'addSpacer': True}),
+                                Item('Atom Count', SpinBoxCompoundWidget, getattr, setattr, None, None, {'minimum': 0, 'addSpacer': True}),
+                                Item('Bond Count', SpinBoxCompoundWidget, getattr, setattr, None, None, {'minimum': 0, 'addSpacer': True}),
+                                Item('Ring Count', SpinBoxCompoundWidget, getattr, setattr, None, None, {'minimum': 0, 'addSpacer': True}),
+                                Item('hBond Donor Count', SpinBoxCompoundWidget, getattr, setattr, None, None, {'minimum': 0, 'addSpacer': True}),
+                                Item('hBond Acceptor Count', SpinBoxCompoundWidget, getattr, setattr, None, None, {'minimum': 0, 'addSpacer': True}),
+                                Item('Polar Surface Area', ScientificSpinBoxCompoundWidget, getattr, setattr, None, None, {'minimum': 0, 'addSpacer': True}),
+                                Item('Log Partition Coefficient', ScientificSpinBoxCompoundWidget, getattr, setattr, None, None, {'minimum': 0, 'addSpacer': True}),
+                                hWidth=None,
+                                fieldWidth=250,
+                                name='Advanced',
+                                group=1,
+                                ),
+                       MoreLess(Item('Smiles', EntryCompoundWidget, getattr, setattr, None, None, {'backgroundText': '', 'addSpacer': False}),
+                                Item('Compound View', CompoundViewCompoundWidget, None, None, None, None, {'addSpacer': False}),
+                                hWidth=None,
+                                name='Compound',
+                                group=2,
+                                ),
+                       queueStates=False,
+                       hWidth=None,  # redundant?
+                       fieldWidth=250,
+                       group=1,
                        )
 
     USESCROLLWIDGET = True
@@ -176,8 +167,7 @@ class SubstancePropertiesPopup(ComplexAttributeEditorPopupABC):
 
     def __init__(self, parent=None, mainWindow=None,
                  substance=None, sampleComponent=None, newSubstance=False, **kwds):
-        """
-        Initialise the widget
+        """Initialise the widget
         """
         self.EDITMODE = not newSubstance
         self.WINDOWPREFIX = 'New ' if newSubstance else 'Edit '
@@ -191,7 +181,7 @@ class SubstancePropertiesPopup(ComplexAttributeEditorPopupABC):
         self.substance = substance
 
         # initialise the widgets in the popup
-        super().__init__(parent=parent, mainWindow=mainWindow, obj=obj, size=(500, 100), **kwds)
+        super().__init__(parent=parent, mainWindow=mainWindow, obj=obj, **kwds)
 
         # attach callbacks to the new/fromSubstances radioButton
         if self.EDITMODE:
@@ -209,19 +199,20 @@ class SubstancePropertiesPopup(ComplexAttributeEditorPopupABC):
         self.smiles.entry.textEdited.connect(self._smilesChanged)
         self._initialiseCompoundView()
 
-        self._firstSize = self.sizeHint()
-        self._size = self.sizeHint()
-        self.mainWidget.setSizePolicy(QtWidgets.QSizePolicy.Maximum, QtWidgets.QSizePolicy.Maximum)
-        self._setDialogSize()
-
         self._moreLessFrames = []
         for item in self.findChildren(MoreLessFrame):
             item.setCallback(self._moreLessCallback)
             # assume all are initially closed
             self._moreLessFrames.append(item)
 
+        # restrict the scroll-area to the minimum size of the initial widgets - helps to match the other popups
+        self._scrollArea.setMinimumSize(self.mainWidget.sizeHint())
+
+    def _postInit(self):
+        super()._postInit()
         self._baseSize = self.sizeHint()
         for item in self._moreLessFrames:
+            # these should be the closed size-hints
             self._baseSize -= item.sizeHint()
 
     def _setEnabledState(self, fromSubstances):
@@ -270,7 +261,6 @@ class SubstancePropertiesPopup(ComplexAttributeEditorPopupABC):
         self._smilesChanged(self.obj.smiles)
 
     def _applyAllChanges(self, changes):
-
         if self.EDITMODE:
             super()._applyAllChanges(changes)
             name = self.name.getText()
@@ -289,26 +279,25 @@ class SubstancePropertiesPopup(ComplexAttributeEditorPopupABC):
     def _initialiseCompoundView(self):
         view = self.compoundView.compoundView
         if self.obj and isinstance(self.obj, Substance):
-            chemComps = self.obj._getChemComps() # will take only if there is one. We don't want display a chain here!
-            if len(chemComps) == 1: # if chemComp give priority to the Smiles, as it preserves the atom nomenclature.
+            chemComps = self.obj._getChemComps()  # will take only if there is one. We don't want display a chain here!
+            if len(chemComps) == 1:  # if chemComp give priority to the Smiles, as it preserves the atom nomenclature.
                 from ccpn.ui.gui.widgets.CompoundView import importChemComp
+
                 compound = importChemComp(chemComps[0])
                 view.setCompound(compound)
-                self.smiles.entry.setEnabled(False) # otherwise will override the chemComp
+                self.smiles.entry.setEnabled(False)  # otherwise will override the chemComp
                 return
             if self.obj.smiles is not None:
                 view.setSmiles(self.obj.smiles)
         else:
             view.setSmiles('')
 
-        # NOTE:ED - initial size has been moved to resizeEvent in compoundWidget
-
     def _smilesChanged(self, value):
         view = self.compoundView.compoundView
         view.setSmiles(value or '')
         # resize to the new items
         view.updateAll()
-        view.scene.setSceneRect(view.scene.itemsBoundingRect())
+        # view.scene().setSceneRect(view.scene().itemsBoundingRect())
         view.resetView()
         view.zoomLevel = 1.0
 

@@ -16,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-06-26 15:41:34 +0100 (Wed, June 26, 2024) $"
-__version__ = "$Revision: 3.2.4 $"
+__dateModified__ = "$dateModified: 2024-09-02 17:56:54 +0100 (Mon, September 02, 2024) $"
+__version__ = "$Revision: 3.2.5 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -37,7 +37,7 @@ import pandas as pd
 from ccpn.framework.Application import getApplication
 from ccpn.ui.gui.widgets.ColumnViewSettings import ColumnViewSettingsPopup
 from ccpn.ui.gui.widgets import MessageDialog
-from ccpn.ui.gui.widgets.SearchWidget import attachSimpleSearchWidget
+from ccpn.ui.gui.widgets.SearchWidget import _SimplerDFTableFilter, _TableFilterABC
 from ccpn.ui.gui.widgets.FileDialog import TablesFileDialog
 from ccpn.util.Path import aPath
 from ccpn.util.Logging import getLogger
@@ -46,6 +46,7 @@ from ccpn.util.OrderedSet import OrderedSet
 
 
 menuItem = namedtuple('menuItem', 'name toolTip')
+TableFilterType = typing.Type[_TableFilterABC]
 
 
 #=========================================================================================
@@ -749,7 +750,8 @@ class TableSearchMenu(TableMenuABC):
     tableSearched = QtCore.pyqtSignal(list)
 
     name = "Search"
-    _searchWidget = None
+    _searchWidget: _TableFilterABC = None
+    searchFilterKlass: TableFilterType = _SimplerDFTableFilter
 
     def addMenuOptions(self, menu):
         """Add search options to the right-mouse menu.
@@ -770,13 +772,13 @@ class TableSearchMenu(TableMenuABC):
     #=========================================================================================
 
     @property
-    def searchWidget(self):
+    def searchWidget(self) -> _TableFilterABC | None:
         """Return the search-widget
         """
         return self._searchWidget
 
     @searchWidget.setter
-    def searchWidget(self, value):
+    def searchWidget(self, value: _TableFilterABC | None):
         self._searchWidget = value
 
     #=========================================================================================
@@ -799,16 +801,48 @@ class TableSearchMenu(TableMenuABC):
         if self._searchWidget is not None:
             self._searchWidget.hide()
 
+    def setFilterKlass(self, klass: TableFilterType):
+        """Set the class to handle table searching.
+
+        :param TableFilterType klass: class-type of search filter.
+        """
+        if not issubclass(klass, _TableFilterABC):
+            raise TypeError(f'{self.__class__.__name__}.setFilterKlass: klass is not of type {TableFilterType}')
+        self.searchFilterKlass = klass
+
     #=========================================================================================
     # Implementation
     #=========================================================================================
+
+    def _attachSearchWidget(self) -> _TableFilterABC:
+        """Attach the search widget to the bottom of the table widget
+        Search widget is applied to QTableView object
+        """
+        try:
+            parent = self._parent
+            # nasty, but always assumes that the parent-table is contained within a frame
+            parentLayout = parent.parent().layout()
+
+            if isinstance(parentLayout, QtWidgets.QGridLayout):
+                idx = parentLayout.indexOf(parent)
+                location = parentLayout.getItemPosition(idx)
+                if location is not None and len(location) > 0:
+                    row, column, rowSpan, columnSpan = location
+                    widget = self.searchFilterKlass(parent=parent, table=self, vAlign='b')
+
+                    parentLayout.addWidget(widget, row + 1, column, 1, columnSpan)
+                    widget.hide()
+
+                    return widget
+
+        except Exception as es:
+            getLogger().warning(f'Error attaching search widget: {str(es)}')
 
     def _initSearchWidget(self):
         """Initialise the search-frame in the table.
         """
         if self._enabled and self._searchWidget is None:
-            # always assumes that the parent-table is contained within a frame
-            if not (widget := attachSimpleSearchWidget(self._parent, self)):
+            if not (widget := self._attachSearchWidget()):
                 getLogger().warning('Filter option not available')
             elif (model := self.model()):
                 model.resetFilter()
@@ -825,7 +859,7 @@ class TableSearchMenu(TableMenuABC):
         else:
             getLogger().debug(f'{self.__class__.__name__}.refreshTable: defaultDf is not defined')
 
-    def setDataFromSearchWidget(self, rows):
+    def setDataFromSearchWidget(self, rows: list[int]):
         """Set the data from the search-widget.
         """
         if (model := self.model()) and model._df is not None:

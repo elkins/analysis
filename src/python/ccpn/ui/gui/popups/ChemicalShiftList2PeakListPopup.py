@@ -12,8 +12,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-03-20 19:06:27 +0000 (Wed, March 20, 2024) $"
-__version__ = "$Revision: 3.2.2.1 $"
+__dateModified__ = "$dateModified: 2024-04-04 15:19:21 +0100 (Thu, April 04, 2024) $"
+__version__ = "$Revision: 3.2.5 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -139,10 +139,6 @@ class ChemicalShiftList2SpectrumPopup(CcpnDialogMainWidget):
         self.setOkButton(callback=self._okCallback, tipText =self.tipText, text='Create', enabled=True)
         self.setCloseButton(callback=self.reject, tipText='Close')
         self.setDefaultButton(CcpnDialogMainWidget.CLOSEBUTTON)
-
-        # initialise the buttons and dialog size
-        self._postInit()
-        self._okButton = self.dialogButtons.button(self.OKBUTTON)
 
     def _createWidgets(self):
 

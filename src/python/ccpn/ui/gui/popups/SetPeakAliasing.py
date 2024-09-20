@@ -4,9 +4,10 @@ SpectrumDisplay support methods
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2023"
-__credits__ = ("Ed Brooksbank, Joanna Fox, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
-               "Timothy J Ragan, Brian O Smith, Gary S Thompson & Geerten W Vuister")
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
+               "Timothy J Ragan, Brian O Smith, Daniel Thompson",
+               "Gary S Thompson & Geerten W Vuister")
 __licence__ = ("CCPN licence. See https://ccpn.ac.uk/software/licensing/")
 __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, L.G., & Vuister, G.W.",
                  "CcpNmr AnalysisAssign: a flexible platform for integrated NMR analysis",
@@ -14,9 +15,9 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: Geerten Vuister $"
-__dateModified__ = "$dateModified: 2023-02-02 13:23:42 +0000 (Thu, February 02, 2023) $"
-__version__ = "$Revision: 3.1.1 $"
+__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
+__dateModified__ = "$dateModified: 2024-08-23 19:23:05 +0100 (Fri, August 23, 2024) $"
+__version__ = "$Revision: 3.2.5 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -28,7 +29,6 @@ __date__ = "$Date: 2020-12-03 18:38:18 +0000 (Thu, December 03, 2020) $"
 
 from PyQt5 import QtGui
 from collections import OrderedDict
-from functools import partial
 from ccpn.ui.gui.widgets.MessageDialog import showYesNo
 from ccpn.ui.gui.widgets.Label import Label
 from ccpn.ui.gui.widgets.Frame import Frame
@@ -37,7 +37,6 @@ from ccpn.ui.gui.widgets.HLine import HLine
 from ccpn.ui.gui.widgets.CompoundWidgets import CheckBoxCompoundWidget
 from ccpn.ui.gui.guiSettings import getColours, DIVIDER
 from ccpn.ui.gui.popups.Dialog import CcpnDialogMainWidget, handleDialogApply
-from ccpn.ui.gui.lib.OpenGL.CcpnOpenGL import GLNotifier
 from ccpn.ui.gui.lib.SpectrumDisplayLib import navigateToCurrentPeakPosition
 from ccpn.core.lib.SpectrumLib import MAXALIASINGRANGE
 
@@ -47,8 +46,7 @@ COLWIDTH = 140
 
 
 class SetPeakAliasingPopup(CcpnDialogMainWidget):
-    """
-    Open a small popup to allow setting aliasing value of selected 'current' items
+    """Open a small popup to allow setting aliasing value of selected 'current' items.
     """
     FIXEDWIDTH = True
     FIXEDHEIGHT = True
@@ -58,8 +56,7 @@ class SetPeakAliasingPopup(CcpnDialogMainWidget):
     storeStateOnReject = True
 
     def __init__(self, parent=None, mainWindow=None, title='Set Aliasing', peaks=None, **kwds):
-        """
-        Initialise the widget
+        """Initialise the widget.
         """
         super().__init__(parent, setLayout=True, windowTitle=title, **kwds)
 
@@ -77,7 +74,7 @@ class SetPeakAliasingPopup(CcpnDialogMainWidget):
         # max to min to match the spectrum properties popup
         self._aliasRange = [rr for rr in range(MAXALIASINGRANGE, -MAXALIASINGRANGE - 1, -1)]
 
-        # setup the widgets
+        # set up the widgets
         self._setWidgets()
 
         # set up the required buttons for the dialog
@@ -88,15 +85,8 @@ class SetPeakAliasingPopup(CcpnDialogMainWidget):
         # populate the widgets
         self._populate()
 
-        # set the links to the buttons
-        self._postInit()
-        self._okButton = self.dialogButtons.button(self.OKBUTTON)
-        self._closeButton = self.dialogButtons.button(self.CLOSEBUTTON)
-
-        self.GLSignals = GLNotifier(parent=self)
-
     def _setWidgets(self):
-        """Setup the widgets for the dialog
+        """Set up the widgets for the dialog.
         """
         row = 0
         Label(self.mainWidget, text='Set aliasing for currently selected peaks', grid=(row, 0), gridSpan=(1, 2))
@@ -117,7 +107,8 @@ class SetPeakAliasingPopup(CcpnDialogMainWidget):
 
                 if specRow > 0:
                     # add divider
-                    HLine(spectrumFrame, grid=(specRow, 0), gridSpan=(1, dims + 2), colour=getColours()[DIVIDER], height=15)
+                    HLine(spectrumFrame, grid=(specRow, 0), gridSpan=(1, dims + 2), colour=getColours()[DIVIDER],
+                          height=15)
                     specRow += 1
 
                 # add pulldown widget
@@ -132,16 +123,15 @@ class SetPeakAliasingPopup(CcpnDialogMainWidget):
                 Label(spectrumFrame, text=' aliasing:', grid=(specRow, 1))
 
                 for dim in range(dims):
-                    self.spectraPulldowns[spectrum].append(PulldownList(spectrumFrame,  # texts=aliasText,
+                    self.spectraPulldowns[spectrum].append(PulldownList(spectrumFrame,
                                                                         grid=(specRow, dim + 2),
-                                                                        callback=partial(self._pulldownCallback, spectrum, dim)))
-
+                                                                        ))
                     # may cause a problem if the peak dimension does not correspond to a visible XY axis
                     # peaks could disappear from all views
-
                 specRow += 1
 
-                self.spectraPos[peak.spectrum] = tuple(peak.spectrum.point2ppm(pp, dimension=ind + 1) for ind, pp in enumerate(peak.pointPositions))
+                self.spectraPos[peak.spectrum] = tuple(
+                        peak.spectrum.point2ppm(pp, dimension=ind + 1) for ind, pp in enumerate(peak.pointPositions))
 
             self.spectra[peak.peakList.spectrum].add(peak)
 
@@ -154,7 +144,7 @@ class SetPeakAliasingPopup(CcpnDialogMainWidget):
                 )
 
     def _populate(self):
-        """Populate the widgets
+        """Populate the widgets.
         """
         with self.blockWidgetSignals():
 
@@ -212,35 +202,11 @@ class SetPeakAliasingPopup(CcpnDialogMainWidget):
                         combo._validRange = spectrumAliasRange
 
                         model = combo.model()
-                        for ind, rr in enumerate(self._aliasRange):
+                        for ind, (rr, txt) in enumerate(zip(self._aliasRange, aliasText)):
                             if rr not in spectrumAliasRange:
                                 color = QtGui.QColor('red')
-                                model.item(ind).setForeground(color)
-
-                        self._setPulldownTextColour(combo)
-
-    def _pulldownCallback(self, spectrum, dim, value):
-        """Update selection colour of pulldown
-        """
-        combo = self.spectraPulldowns[spectrum][dim]
-        self._setPulldownTextColour(combo)
-
-    def _setPulldownTextColour(self, combo):
-        """Set the colour of the pulldown text
-        """
-        # NOTE:ED - should move this the the pulldown widget
-        ind = combo.currentIndex()
-        model = combo.model()
-        item = model.item(ind)
-        if item is not None:
-            color = item.foreground().color()
-            # use the palette to change the colour of the selection text - may not match for other themes
-            palette = combo.palette()
-            palette.setColor(QtGui.QPalette.Active, QtGui.QPalette.Text, color)
-            combo.setPalette(palette)
-
-            # update the selection flag
-            combo._validSelection = (True if (self._aliasRange[ind]) in combo._validRange else False)
+                                model.item(combo.getItemIndex(txt)).setForeground(color)
+                        combo.repaint()
 
     def _okButton(self):
         """
@@ -266,16 +232,13 @@ class SetPeakAliasingPopup(CcpnDialogMainWidget):
                 else:
                     _msg = '\nSelecting Yes will update the aliasingLimits for the spectra\n' \
                            'Do you want to Continue?'
-                ok = showYesNo('Warning', _spectrumWarning + _msg)
-
-                if not ok:
+                if not (ok := showYesNo('Warning', _spectrumWarning + _msg)):
                     return
 
             for spectrum in self.spectra.keys():
                 # set the aliasing for the peaks from the pulldown indexes
-                # newAlias = tuple(spectrumAliasRange[ind][pullDown.getSelectedIndex()] for ind, pullDown in enumerate(self.spectraPulldowns[spectrum]))
-                newAlias = tuple(self._aliasRange[pullDown.getSelectedIndex()] for ind, pullDown in enumerate(self.spectraPulldowns[spectrum]))
-
+                newAlias = tuple(self._aliasRange[pullDown.getSelectedIndex()]
+                                 for ind, pullDown in enumerate(self.spectraPulldowns[spectrum]))
                 spectrum.setPeakAliasing(list(self.spectra[spectrum]), newAlias, (spectrum in _updateSpectra))
 
         if self.navigateToPeaks.isChecked():
@@ -284,12 +247,12 @@ class SetPeakAliasingPopup(CcpnDialogMainWidget):
         self.accept()
 
     def storeWidgetState(self):
-        """Store the state of the checkBoxes between popups
+        """Store the state of the checkBoxes between popups.
         """
         nav = self.navigateToPeaks.isChecked()
         SetPeakAliasingPopup._storedState[self._NAVIGATETO] = nav
 
     def restoreWidgetState(self):
-        """Restore the state of the checkBoxes
+        """Restore the state of the checkBoxes.
         """
         self.navigateToPeaks.set(SetPeakAliasingPopup._storedState.get(self._NAVIGATETO, False))

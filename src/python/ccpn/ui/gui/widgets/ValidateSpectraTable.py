@@ -4,9 +4,10 @@ Module Documentation here
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2023"
-__credits__ = ("Ed Brooksbank, Joanna Fox, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
-               "Timothy J Ragan, Brian O Smith, Gary S Thompson & Geerten W Vuister")
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
+               "Timothy J Ragan, Brian O Smith, Daniel Thompson",
+               "Gary S Thompson & Geerten W Vuister")
 __licence__ = ("CCPN licence. See https://ccpn.ac.uk/software/licensing/")
 __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, L.G., & Vuister, G.W.",
                  "CcpNmr AnalysisAssign: a flexible platform for integrated NMR analysis",
@@ -15,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2023-02-17 15:38:10 +0000 (Fri, February 17, 2023) $"
-__version__ = "$Revision: 3.1.1 $"
+__dateModified__ = "$dateModified: 2024-09-13 15:20:23 +0100 (Fri, September 13, 2024) $"
+__version__ = "$Revision: 3.2.7 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -64,9 +65,11 @@ class _ValidateModel(_TableModel):
                      ALIGNMENT_ROLE : lambda self, colDef, obj: colDef.alignment
                      }
 
-    setAttribRole = {EDIT_ROLE : lambda self, colDef, obj, value: colDef.setEditValue and colDef.setEditValue(obj, value),
-                     CHECK_ROLE: lambda self, colDef, obj, value: colDef.setEditValue and colDef.setEditValue(obj, True if (value == CHECKED) else False)
-                     }
+    setAttribRole = {
+        EDIT_ROLE : lambda self, colDef, obj, value: colDef.setEditValue and colDef.setEditValue(obj, value),
+        CHECK_ROLE: lambda self, colDef, obj, value: colDef.setEditValue and colDef.setEditValue(obj, True if (
+                value == CHECKED) else False)
+        }
 
     def data(self, index, role=DISPLAY_ROLE):
         # special control over the object properties
@@ -104,15 +107,15 @@ class ValidateSpectraTable(Table):
     styleSheet = """QTableView {
                         background-color: transparent;
                         alternate-background-color: transparent;
-                        border: %(_BORDER_WIDTH)spx solid %(BORDER_NOFOCUS)s;
+                        border: %(_BORDER_WIDTH)spx solid palette(mid);
                         border-radius: 2px;
                         gridline-color: %(_GRID_COLOR)s;
-                        selection-background-color: %(GUITABLE_SELECTED_BACKGROUND)s;
-                        selection-color: %(GUITABLE_SELECTED_FOREGROUND)s;
-                    }
-                    QTableView::item {
-                        padding-top: %(_CELL_PADDING)spx;
-                        padding-bottom: %(_CELL_PADDING)spx;
+                        /* use #f8f088 for yellow selection */
+                        selection-background-color: qlineargradient(
+                                                        x1: 0, y1: -200, x2: 0, y2: 200,
+                                                        stop: 0 palette(highlight), 
+                                                        stop: 1 palette(base)
+                                                    );
                     }
                     QHeaderView::section {
                         background-color: transparent;

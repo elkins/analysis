@@ -4,18 +4,20 @@ Module Documentation here
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (http://www.ccpn.ac.uk) 2014 - 2021"
-__credits__ = ("Ed Brooksbank, Luca Mureddu, Timothy J Ragan & Geerten W Vuister")
-__licence__ = ("CCPN licence. See http://www.ccpn.ac.uk/v3-software/downloads/license")
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
+               "Timothy J Ragan, Brian O Smith, Daniel Thompson",
+               "Gary S Thompson & Geerten W Vuister")
+__licence__ = ("CCPN licence. See https://ccpn.ac.uk/software/licensing/")
 __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, L.G., & Vuister, G.W.",
                  "CcpNmr AnalysisAssign: a flexible platform for integrated NMR analysis",
-                 "J.Biomol.Nmr (2016), 66, 111-124, http://doi.org/10.1007/s10858-016-0060-y")
+                 "J.Biomol.Nmr (2016), 66, 111-124, https://doi.org/10.1007/s10858-016-0060-y")
 #=========================================================================================
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2021-03-12 18:01:38 +0000 (Fri, March 12, 2021) $"
-__version__ = "$Revision: 3.0.3 $"
+__dateModified__ = "$dateModified: 2024-08-23 19:25:21 +0100 (Fri, August 23, 2024) $"
+__version__ = "$Revision: 3.2.5 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -74,7 +76,7 @@ class GLViewports(object):
         if name in self._views:
             thisView = self._views[name]
             w = thisView[0].w  # width()
-            h = thisView[0].h  # height()
+            h = thisView[0].h + 1  # height()
             l = setVal(thisView[1], w, h, 0)
             b = setVal(thisView[2], w, h, 0)
             wi = setVal(thisView[3], w, h, l)
@@ -82,13 +84,16 @@ class GLViewports(object):
 
             ratio = self._devicePixelRatio
 
+            w = max(int(wi * ratio), 2)
+            h = max(int(he * ratio), 2)
             GL.glViewport(int(l * ratio),
                           int((b - 1) * ratio),
-                          max(int(wi * ratio), 2),
-                          max(int(he * ratio), 2))
+                          w, h)
+
+            return w, h
 
         else:
-            raise RuntimeError('Error: viewport %s does not exist' % name)
+            raise RuntimeError(f'Error: viewport {name} does not exist')
 
     def getViewport(self, name):
         # change to the named viewport
@@ -103,7 +108,7 @@ class GLViewports(object):
         if name in self._views:
             thisView = self._views[name]
             w = thisView[0].width()
-            h = thisView[0].height()
+            h = thisView[0].height() + 1
             l = setVal(thisView[1], w, h, 0)
             b = setVal(thisView[2], w, h, 0)
             wi = setVal(thisView[3], w, h, l)
@@ -112,7 +117,7 @@ class GLViewports(object):
             return viewportDimensions(l, b, max(wi, 1), max(he, 1))
 
         else:
-            raise RuntimeError('Error: viewport %s does not exist' % name)
+            raise RuntimeError(f'Error: viewport {name} does not exist')
 
     def getViewportFromWH(self, name, width, height):
         # change to the named viewport
@@ -127,7 +132,7 @@ class GLViewports(object):
         if name in self._views:
             thisView = self._views[name]
             w = width
-            h = height
+            h = height + 1
             l = setVal(thisView[1], w, h, 0)
             b = setVal(thisView[2], w, h, 0)
             wi = setVal(thisView[3], w, h, l)
@@ -136,7 +141,7 @@ class GLViewports(object):
             return viewportDimensions(l, b, max(wi, 1), max(he, 1))
 
         else:
-            raise RuntimeError('Error: viewport %s does not exist' % name)
+            raise RuntimeError(f'Error: viewport {name} does not exist')
 
     def clearViewports(self):
         """Clear all the current viewports

@@ -16,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-07-01 11:04:54 +0100 (Mon, July 01, 2024) $"
-__version__ = "$Revision: 3.2.4 $"
+__dateModified__ = "$dateModified: 2024-09-16 10:12:11 +0100 (Mon, September 16, 2024) $"
+__version__ = "$Revision: 3.2.7 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -753,10 +753,6 @@ class CalculateAssignmentDataPopup(CcpnDialogMainWidget):
 
         self.setCloseButton(callback=self.reject, tipText='Close')
         self.setDefaultButton(CcpnDialogMainWidget.CLOSEBUTTON)
-
-        # initialise the buttons and dialog size
-        self._postInit()
-        # self._okButton = self.dialogButtons.button(self.OKBUTTON)
 
     def _createWidgets(self):
 

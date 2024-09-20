@@ -4,19 +4,20 @@ Module Documentation here
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2022"
-__credits__ = ("Ed Brooksbank, Joanna Fox, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
-               "Timothy J Ragan, Brian O Smith, Gary S Thompson & Geerten W Vuister")
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
+               "Timothy J Ragan, Brian O Smith, Daniel Thompson",
+               "Gary S Thompson & Geerten W Vuister")
 __licence__ = ("CCPN licence. See https://ccpn.ac.uk/software/licensing/")
 __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, L.G., & Vuister, G.W.",
                  "CcpNmr AnalysisAssign: a flexible platform for integrated NMR analysis",
-                 "J.Biomol.Nmr (2016), 66, 111-124, http://doi.org/10.1007/s10858-016-0060-y")
+                 "J.Biomol.Nmr (2016), 66, 111-124, https://doi.org/10.1007/s10858-016-0060-y")
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: varioustoxins $"
-__dateModified__ = "$dateModified: 2022-03-06 11:05:17 +0000 (Sun, March 06, 2022) $"
-__version__ = "$Revision: 3.1.0 $"
+__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
+__dateModified__ = "$dateModified: 2024-08-23 19:21:22 +0100 (Fri, August 23, 2024) $"
+__version__ = "$Revision: 3.2.5 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -35,11 +36,13 @@ from operator import itemgetter
 import random
 from typing import Optional, List
 
-from PyQt5 import QtGui
+from PyQt5 import QtGui, QtWidgets
 from PyQt5.QtCore import pyqtSignal, Qt, QRectF, QPointF
 from PyQt5.QtGui import QPixmap, QBrush, QColor, QPainter
 from PyQt5.QtWidgets import QApplication, QWizard, QWizardPage, QCheckBox, QPushButton, QLabel, QGridLayout, \
     QSizePolicy, QFrame, QTextBrowser, QGraphicsScene, QGraphicsView
+from ccpn.ui.gui.widgets.CheckBox import CheckBox
+from ccpn.ui.gui.widgets.Button import Button
 
 from ccpn.framework.PathsAndUrls import tipOfTheDayConfig
 
@@ -101,11 +104,11 @@ def loadTipsSetup(path: Path, tip_paths: Optional[List[Path]] = None):
             for path in instance[DIRECTORIES]:
                 path = Path(path)
                 if not path.is_absolute():
-                   for tip_path in tip_paths:
-                    new_directories.append(str(Path(tip_path) / path))
+                    for tip_path in tip_paths:
+                        new_directories.append(str(Path(tip_path) / path))
                 else:
                     new_directories.append(str(path))
-            instance[DIRECTORIES]= new_directories
+            instance[DIRECTORIES] = new_directories
 
     TIPS_SETUP = setup
 
@@ -114,7 +117,6 @@ def _load_default_setup_if_required():
     global TIPS_SETUP
     if TIPS_SETUP is None:
         TIPS_SETUP = loadTipsSetup(DEFAULT_CONFIG_PATH)
-
 
 
 BUTTON_IDS = {
@@ -324,7 +326,8 @@ class TipOfTheDayWindow(QWizard):
     dont_show = pyqtSignal(bool)
     seen_tips = pyqtSignal(list)
 
-    def __init__(self, parent=None, seen_perma_ids=(), dont_show_tips=False, standalone=False, mode=MODE_TIP_OF_THE_DAY):
+    def __init__(self, parent=None, seen_perma_ids=(), dont_show_tips=False, standalone=False,
+                 mode=MODE_TIP_OF_THE_DAY):
 
         _load_default_setup_if_required()
 
@@ -343,8 +346,8 @@ class TipOfTheDayWindow(QWizard):
         self.setWizardStyle(QWizard.ModernStyle)
 
         if not standalone:
-            self._dont_show_tips_button = QCheckBox(PLACE_HOLDER)
-        self._random_tip_button = QPushButton(PLACE_HOLDER)
+            self._dont_show_tips_button = CheckBox(PLACE_HOLDER)
+        self._random_tip_button = Button(PLACE_HOLDER)
 
         self.setOption(HAVE_RANDOM_TIP_BUTTON, True)
         self.setOption(HAVE_DONT_SHOW_TIPS_BUTTON, not standalone)
@@ -389,6 +392,27 @@ class TipOfTheDayWindow(QWizard):
 
         self._centre_window()
 
+        self._setStyle()
+
+    def _setStyle(self):
+        _style = """QPushButton { padding: 2px 5px 2px 5px; }
+                    QPushButton:focus {
+                        padding: 0px;
+                        border-color: palette(highlight);
+                        border-style: solid;
+                        border-width: 1px;
+                        border-radius: 2px;
+                    }
+                    QPushButton:disabled {
+                        color: palette(dark);
+                        background-color: palette(midlight);
+                    }
+                    """
+        self.setStyleSheet(_style)
+        for button in TIPS_SETUP[self._mode][BUTTONS]:
+            button = BUTTON_IDS[button]
+            self.button(button).setStyleSheet(_style)
+
     def isStandalone(self):
         return self._standalone
 
@@ -421,7 +445,8 @@ class TipOfTheDayWindow(QWizard):
 
                 tip_file_list = glob(identifier_pattern)
 
-                file_parts = dict([(Path(file_path), file_path[len(directory_name) + 1:]) for file_path in tip_file_list])
+                file_parts = dict(
+                        [(Path(file_path), file_path[len(directory_name) + 1:]) for file_path in tip_file_list])
 
                 file_parts = self._filter_dict_by_values(file_parts, self._seen_perma_ids)
 

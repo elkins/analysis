@@ -4,9 +4,10 @@ Module Documentation here
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2023"
-__credits__ = ("Ed Brooksbank, Joanna Fox, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
-               "Timothy J Ragan, Brian O Smith, Gary S Thompson & Geerten W Vuister")
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
+               "Timothy J Ragan, Brian O Smith, Daniel Thompson",
+               "Gary S Thompson & Geerten W Vuister")
 __licence__ = ("CCPN licence. See https://ccpn.ac.uk/software/licensing/")
 __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, L.G., & Vuister, G.W.",
                  "CcpNmr AnalysisAssign: a flexible platform for integrated NMR analysis",
@@ -15,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2023-06-01 19:39:57 +0100 (Thu, June 01, 2023) $"
-__version__ = "$Revision: 3.1.1 $"
+__dateModified__ = "$dateModified: 2024-07-30 18:35:26 +0100 (Tue, July 30, 2024) $"
+__version__ = "$Revision: 3.2.5 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -31,7 +32,7 @@ from ccpn.core.lib.peakUtils import _getScreenPeakAnnotation, _getPeakAnnotation
 from ccpn.ui.gui.guiSettings import getColours, CCPNGLWIDGET_MULTIPLETLINK
 from ccpn.ui.gui.lib.OpenGL import CcpnOpenGLDefs as GLDefs
 from ccpn.ui.gui.lib.OpenGL.CcpnOpenGLLabelling import DEFAULTLINECOLOUR, GLLabelling, GL1dLabelling
-from ccpn.ui.gui.lib.OpenGL.CcpnOpenGLGlobal import getAliasSetting
+from ccpn.ui.gui.lib.OpenGL.CcpnOpenGLDefs import getAliasSetting
 from ccpn.util.Colour import getAutoColourRgbRatio
 
 
@@ -253,15 +254,23 @@ class GLmultipletListMethods():
         return iCount, _selected
 
     def _rescaleSymbolOffsets(self, r, w):
-        return np.array([-r, -w, +r, +w, +r, -w, -r, +w, 0, 0, 0, -w, 0, +w, +r, 0, -r, 0,
-                         r * 0.85, w * 0.50,
-                         r * 0.5, w * 0.85,
-                         - r * 0.5, w * 0.85,
-                         - r * 0.85, w * 0.50,
-                         - r * 0.85, - w * 0.50,
-                         - r * 0.5, - w * 0.85,
-                         + r * 0.5, - w * 0.85,
-                         + r * 0.85, - w * 0.50, ], np.float32), self.LENSQ2
+        return np.array([-r, -w, 0, 0,
+                         +r, +w,  0, 0,
+                         +r, -w,  0, 0,
+                         -r, +w,  0, 0,
+                         0, 0,  0, 0,
+                         0, -w,  0, 0,
+                         0, +w,  0, 0,
+                         +r, 0,  0, 0,
+                         -r, 0, 0, 0,
+                         r * 0.85, w * 0.50, 0, 0,
+                         r * 0.5, w * 0.85, 0, 0,
+                         - r * 0.5, w * 0.85, 0, 0,
+                         - r * 0.85, w * 0.50, 0, 0,
+                         - r * 0.85, - w * 0.50, 0, 0,
+                         - r * 0.5, - w * 0.85, 0, 0,
+                         + r * 0.5, - w * 0.85, 0, 0,
+                         + r * 0.85, - w * 0.50,  0, 0], np.float32), self.LENSQ4
 
     # class GLmultipletNdLabelling(GLmultipletListMethods, GLLabelling):  #, GLpeakNdLabelling):
     #     """Class to handle symbol and symbol labelling for Nd displays
@@ -274,7 +283,7 @@ class GLmultipletListMethods():
     #
     #         self.autoColour = self._GLParent.SPECTRUMNEGCOLOUR
 
-    def appendExtraVertices(self, drawList, pIndex, multiplet, p0, colour, fade):
+    def appendExtraVertices(self, drawList, pIndex, multiplet, pxy, colour, fade):
         """Add extra vertices to the vertex list
         """
         if not multiplet.peaks:
@@ -284,31 +293,31 @@ class GLmultipletListMethods():
         cols = getAutoColourRgbRatio(col or DEFAULTLINECOLOUR, multiplet.multipletList.spectrum, self.autoColour,
                                      getColours()[CCPNGLWIDGET_MULTIPLETLINK])
 
-        posList = p0
-        for peak in multiplet.peaks:
-            # get the correct coordinates based on the axisCodes
-            pp = peak.pointPositions
-            try:
-                p1 = (pp[pIndex[0]] - 1.0, pp[pIndex[1]] - 1.0)
-                posList += p1
-            except Exception:
-                posList += (0, 0)  # add the bad-point
-
         try:
             peakAlias = multiplet.peaks[0].aliasing
             alias = getAliasSetting(peakAlias[pIndex[0]], peakAlias[pIndex[1]])
         except Exception:
             alias = 0
 
+        posList = (pxy[0], pxy[1], alias, 0.0)  # p0[:]  # copy
+        for peak in multiplet.peaks:
+            # get the correct coordinates based on the axisCodes
+            pp = peak.pointPositions
+            try:
+                _x, _y = pp[pIndex[0]] - 1.0, pp[pIndex[1]] - 1.0
+                posList += (_x, _y, alias, 0.0)
+            except Exception:
+                posList += (0, 0, alias, 0)  # add the bad-point
+
         numVertices = len(multiplet.peaks) + 1
         drawList.vertices = np.append(drawList.vertices, np.array(posList, dtype=np.float32))
         drawList.colors = np.append(drawList.colors, np.array((*cols, fade) * numVertices, dtype=np.float32))
-        drawList.attribs = np.append(drawList.attribs, np.array((alias,) * numVertices, dtype=np.float32))
-        drawList.offsets = np.append(drawList.offsets, np.array(p0 * numVertices, dtype=np.float32))
+        drawList.attribs = np.append(drawList.attribs, np.array((alias, 0.0, 0.0, 0.0) * numVertices, dtype=np.float32))
+        drawList.offsets = np.append(drawList.offsets, np.array((pxy[0], pxy[1], 0.0, 0.0) * numVertices, dtype=np.float32))
 
         return numVertices
 
-    def insertExtraVertices(self, drawList, vertexPtr, pIndex, multiplet, p0, colour, fade):
+    def insertExtraVertices(self, drawList, vertexPtr, pIndex, multiplet, pxy, colour, fade):
         """insert extra vertices into the vertex list
         """
         if not multiplet.peaks:
@@ -318,59 +327,62 @@ class GLmultipletListMethods():
         cols = getAutoColourRgbRatio(col or DEFAULTLINECOLOUR, multiplet.multipletList.spectrum, self.autoColour,
                                      getColours()[CCPNGLWIDGET_MULTIPLETLINK])
 
-        posList = p0
-        for peak in multiplet.peaks:
-            # get the correct coordinates based on the axisCodes
-            pp = peak.pointPositions
-            try:
-                p1 = (pp[pIndex[0]] - 1.0, pp[pIndex[1]] - 1.0)
-                posList += p1
-            except Exception:
-                posList += (0, 0)  # add the bad-point
-
         try:
             peakAlias = multiplet.peaks[0].aliasing
             alias = getAliasSetting(peakAlias[pIndex[0]], peakAlias[pIndex[1]])
         except Exception:
             alias = 0
 
+        posList = (pxy[0], pxy[1], alias, 0.0)  # p0[:]  # copy
+        for peak in multiplet.peaks:
+            # get the correct coordinates based on the axisCodes
+            pp = peak.pointPositions
+            try:
+                _x, _y = pp[pIndex[0]] - 1.0, pp[pIndex[1]] - 1.0
+                posList += (_x, _y, alias, 0.0)
+            except Exception:
+                posList += (0, 0, alias, 0.0)  # add the bad-point
+
         numVertices = len(multiplet.peaks) + 1
-        drawList.vertices[vertexPtr:vertexPtr + 2 * numVertices] = posList
-        drawList.colors[2 * vertexPtr:2 * vertexPtr + 4 * numVertices] = (*cols, fade) * numVertices
-        drawList.attribs[vertexPtr // 2:(vertexPtr // 2) + numVertices] = (alias,) * numVertices
-        drawList.offsets[vertexPtr:vertexPtr + 2 * numVertices] = p0 * numVertices
+        st, end = vertexPtr, vertexPtr + 4 * numVertices
+        drawList.vertices[st: end] = posList
+        drawList.colors[st: end] = (*cols, fade) * numVertices
+        drawList.attribs[st: end] = (alias, 0.0, 0.0, 0.0) * numVertices
+        drawList.offsets[st: end] = (pxy[0], pxy[1], 0.0, 0.0) * numVertices
 
         return numVertices
 
     def _insertSymbolItemVertices(self, _isInFlankingPlane, _isInPlane, _selected, cols, drawList, fade, iCount, indexing, obj,
-                                  objNum, p0, pIndex, planeIndex, r, vertexPtr, w, alias):
+                                  objNum, pxy, pIndex, planeIndex, r, vertexPtr, w, alias):
 
-        drawList.vertices[vertexPtr:vertexPtr + self.LENSQ2] = (p0[0] - r, p0[1] - w,
-                                                                p0[0] + r, p0[1] + w,
-                                                                p0[0] + r, p0[1] - w,
-                                                                p0[0] - r, p0[1] + w,
-                                                                p0[0], p0[1],
-                                                                p0[0], p0[1] - w,
-                                                                p0[0], p0[1] + w,
-                                                                p0[0] + r, p0[1],
-                                                                p0[0] - r, p0[1],
-                                                                p0[0] + (r * 0.85), p0[1] + (w * 0.50),
-                                                                p0[0] + (r * 0.5), p0[1] + (w * 0.85),
-                                                                p0[0] - (r * 0.5), p0[1] + (w * 0.85),
-                                                                p0[0] - (r * 0.85), p0[1] + (w * 0.50),
-                                                                p0[0] - (r * 0.85), p0[1] - (w * 0.50),
-                                                                p0[0] - (r * 0.5), p0[1] - (w * 0.85),
-                                                                p0[0] + (r * 0.5), p0[1] - (w * 0.85),
-                                                                p0[0] + (r * 0.85), p0[1] - (w * 0.50),
-                                                                )
-        drawList.colors[2 * vertexPtr:2 * vertexPtr + self.LENSQ4] = (*cols, fade) * self.LENSQ
-        drawList.attribs[vertexPtr // 2:(vertexPtr // 2) + self.LENSQ] = (alias,) * self.LENSQ
-        drawList.offsets[vertexPtr:vertexPtr + self.LENSQ2] = (p0[0], p0[1]) * self.LENSQ
+        st, end = vertexPtr, vertexPtr + self.LENSQ4
+        drawList.vertices[st: end] = (pxy[0] - r, pxy[1] - w, alias, 0.0,
+                                      pxy[0] + r, pxy[1] + w, alias, 0.0,
+                                      pxy[0] + r, pxy[1] - w, alias, 0.0,
+                                      pxy[0] - r, pxy[1] + w, alias, 0.0,
+                                      pxy[0], pxy[1], alias, 0.0,
+                                      pxy[0], pxy[1] - w, alias, 0.0,
+                                      pxy[0], pxy[1] + w, alias, 0.0,
+                                      pxy[0] + r, pxy[1], alias, 0.0,
+                                      pxy[0] - r, pxy[1], alias, 0.0,
+                                      pxy[0] + (r * 0.85), pxy[1] + (w * 0.50), alias, 0.0,
+                                      pxy[0] + (r * 0.5), pxy[1] + (w * 0.85), alias, 0.0,
+                                      pxy[0] - (r * 0.5), pxy[1] + (w * 0.85), alias, 0.0,
+                                      pxy[0] - (r * 0.85), pxy[1] + (w * 0.50), alias, 0.0,
+                                      pxy[0] - (r * 0.85), pxy[1] - (w * 0.50), alias, 0.0,
+                                      pxy[0] - (r * 0.5), pxy[1] - (w * 0.85), alias, 0.0,
+                                      pxy[0] + (r * 0.5), pxy[1] - (w * 0.85), alias, 0.0,
+                                      pxy[0] + (r * 0.85), pxy[1] - (w * 0.50), alias, 0.0,
+                                      )
+        drawList.colors[st: end] = (*cols, fade) * self.LENSQ
+        drawList.attribs[st: end] = (alias, 0.0, 0.0, 0.0) * self.LENSQ
+        drawList.offsets[st: end] = (pxy[0], pxy[1], 0.0, 0.0) * self.LENSQ
 
         # add extra indices
         extraIndices, extraIndexCount = self.insertExtraIndices(drawList, indexing.end + iCount, indexing.start + self.LENSQ, obj)
         # add extra vertices for the multiplet
-        extraVertices = self.insertExtraVertices(drawList, vertexPtr + self.LENSQ2, pIndex, obj, p0, (*cols, fade), fade)
+        extraVertices = self.insertExtraVertices(drawList, vertexPtr + self.LENSQ4, pIndex, obj,
+                                                 pxy, (*cols, fade), fade)
         # keep a pointer to the obj
         drawList.pids[objNum:objNum + GLDefs.LENPID] = (obj, drawList.numVertices, (self.LENSQ + extraVertices),
                                                         _isInPlane, _isInFlankingPlane, _selected,
@@ -381,38 +393,57 @@ class GLmultipletListMethods():
         indexing.end += (iCount + extraIndices)
         drawList.numVertices += (self.LENSQ + extraVertices)
         indexing.objNum += GLDefs.LENPID
-        indexing.vertexPtr += (2 * (self.LENSQ + extraVertices))
+        indexing.vertexPtr += (4 * (self.LENSQ + extraVertices))
         indexing.vertexStart += (self.LENSQ + extraVertices)
 
-    def _appendSymbolItemVertices(self, _isInFlankingPlane, _isInPlane, _selected, cols, drawList, fade, iCount, indexing, obj, p0, pIndex,
+    def _appendSymbolItemVertices(self, _isInFlankingPlane, _isInPlane, _selected, cols, drawList, fade, iCount, indexing, obj, pxy, pIndex,
                                   planeIndex, r, w, alias):
 
-        drawList.vertices = np.append(drawList.vertices, np.array((p0[0] - r, p0[1] - w,
-                                                                   p0[0] + r, p0[1] + w,
-                                                                   p0[0] + r, p0[1] - w,
-                                                                   p0[0] - r, p0[1] + w,
-                                                                   p0[0], p0[1],
-                                                                   p0[0], p0[1] - w,
-                                                                   p0[0], p0[1] + w,
-                                                                   p0[0] + r, p0[1],
-                                                                   p0[0] - r, p0[1],
-                                                                   p0[0] + (r * 0.85), p0[1] + (w * 0.50),
-                                                                   p0[0] + (r * 0.5), p0[1] + (w * 0.85),
-                                                                   p0[0] - (r * 0.5), p0[1] + (w * 0.85),
-                                                                   p0[0] - (r * 0.85), p0[1] + (w * 0.50),
-                                                                   p0[0] - (r * 0.85), p0[1] - (w * 0.50),
-                                                                   p0[0] - (r * 0.5), p0[1] - (w * 0.85),
-                                                                   p0[0] + (r * 0.5), p0[1] - (w * 0.85),
-                                                                   p0[0] + (r * 0.85), p0[1] - (w * 0.50),
+        drawList.vertices = np.append(drawList.vertices, np.array((pxy[0] - r, pxy[1] - w, alias, 0.0,
+                                                                   pxy[0] + r, pxy[1] + w, alias, 0.0,
+                                                                   pxy[0] + r, pxy[1] - w, alias, 0.0,
+                                                                   pxy[0] - r, pxy[1] + w, alias, 0.0,
+                                                                   pxy[0], pxy[1], alias, 0.0,
+                                                                   pxy[0], pxy[1] - w, alias, 0.0,
+                                                                   pxy[0], pxy[1] + w, alias, 0.0,
+                                                                   pxy[0] + r, pxy[1], alias, 0.0,
+                                                                   pxy[0] - r, pxy[1], alias, 0.0,
+                                                                   pxy[0] + (r * 0.85), pxy[1] + (w * 0.50), alias, 0.0,
+                                                                   pxy[0] + (r * 0.5), pxy[1] + (w * 0.85), alias, 0.0,
+                                                                   pxy[0] - (r * 0.5), pxy[1] + (w * 0.85), alias, 0.0,
+                                                                   pxy[0] - (r * 0.85), pxy[1] + (w * 0.50), alias, 0.0,
+                                                                   pxy[0] - (r * 0.85), pxy[1] - (w * 0.50), alias, 0.0,
+                                                                   pxy[0] - (r * 0.5), pxy[1] - (w * 0.85), alias, 0.0,
+                                                                   pxy[0] + (r * 0.5), pxy[1] - (w * 0.85), alias, 0.0,
+                                                                   pxy[0] + (r * 0.85), pxy[1] - (w * 0.50), alias, 0.0,
                                                                    ), dtype=np.float32))
+        # drawList.vertices = np.append(drawList.vertices, np.array((- r, - w, 0.0, 0.0,
+        #                                                            + r, + w, 0.0, 0.0,
+        #                                                            + r, - w, 0.0, 0.0,
+        #                                                            - r, + w, 0.0, 0.0,
+        #                                                            0.0, 0.0, 0.0, 0.0,
+        #                                                            0.0, - w, 0.0, 0.0,
+        #                                                            0.0, + w, 0.0, 0.0,
+        #                                                            + r, 0.0, 0.0, 0.0,
+        #                                                            - r, 0.0, 0.0, 0.0,
+        #                                                            + (r * 0.85), + (w * 0.50), 0.0, 0.0,
+        #                                                            + (r * 0.5), + (w * 0.85), 0.0, 0.0,
+        #                                                            - (r * 0.5), + (w * 0.85), 0.0, 0.0,
+        #                                                            - (r * 0.85), + (w * 0.50), 0.0, 0.0,
+        #                                                            - (r * 0.85), - (w * 0.50), 0.0, 0.0,
+        #                                                            - (r * 0.5), - (w * 0.85), 0.0, 0.0,
+        #                                                            + (r * 0.5), - (w * 0.85), 0.0, 0.0,
+        #                                                            + (r * 0.85), - (w * 0.50), 0.0, 0.0,
+        #                                                            ), dtype=np.float32))
         drawList.colors = np.append(drawList.colors, np.array((*cols, fade) * self.LENSQ, dtype=np.float32))
-        drawList.attribs = np.append(drawList.attribs, np.array((alias,) * self.LENSQ, dtype=np.float32))
-        drawList.offsets = np.append(drawList.offsets, np.array((p0[0], p0[1]) * self.LENSQ, dtype=np.float32))
+        drawList.attribs = np.append(drawList.attribs, np.array((alias, 0.0, 0.0, 0.0) * self.LENSQ, dtype=np.float32))
+        drawList.offsets = np.append(drawList.offsets, np.array((pxy[0], pxy[1], 0.0, 0.0) * self.LENSQ, dtype=np.float32))
 
         # add extra indices
         _indexCount, extraIndices = self.appendExtraIndices(drawList, indexing.vertexStart + self.LENSQ, obj)
         # add extra vertices for the multiplet
-        extraVertices = self.appendExtraVertices(drawList, pIndex, obj, p0, (*cols, fade), fade)
+        extraVertices = self.appendExtraVertices(drawList, pIndex, obj,
+                                                 pxy, (*cols, fade), fade)
         # keep a pointer to the obj
         drawList.pids = np.append(drawList.pids, (obj, drawList.numVertices, (self.LENSQ + extraVertices),
                                                   _isInPlane, _isInFlankingPlane, _selected,
@@ -549,41 +580,45 @@ class GLmultiplet1dLabelling(GL1dLabelling, GLmultipletNdLabelling):
     #
     #     self.autoColour = self._GLParent.SPECTRUMNEGCOLOUR
 
-    def appendExtraVertices(self, drawList, pIndex, multiplet, p0, colour, fade):
+    def appendExtraVertices(self, drawList, pIndex, multiplet, pxy, colour, fade):
         """Add extra vertices to the vertex list
         """
         if not multiplet.peaks:
             return 0
 
         col = multiplet.multipletList.lineColour
-        cols = getAutoColourRgbRatio(col if col else DEFAULTLINECOLOUR, multiplet.multipletList.spectrum, self.autoColour,
+        cols = getAutoColourRgbRatio(col or DEFAULTLINECOLOUR, multiplet.multipletList.spectrum, self.autoColour,
                                      getColours()[CCPNGLWIDGET_MULTIPLETLINK])
-
-        posList = p0
-        for peak in multiplet.peaks:
-            # get the correct coordinates based on the axisCodes
-            try:
-                h = peak.height if peak.height is not None else 0  # p0[1]  # error should only occur on next line
-                p1 = (peak.pointPositions[pIndex[0]] - 1, h)
-                posList += p1
-            except Exception:
-                posList += (0, 0)  # add the bad-point
 
         try:
             peakAlias = multiplet.peaks[0].aliasing
-            alias = getAliasSetting(peakAlias[pIndex[0]], 0)
+            if pIndex[0]:  # check that the 1d-dimensions are reversed :|
+                alias = getAliasSetting(0, peakAlias[0])
+            else:
+                alias = getAliasSetting(peakAlias[0], 0)
         except Exception:
             alias = 0
+
+        posList = (pxy[0], pxy[1], alias, 0.0)  # p0[:]  # copy
+        for peak in multiplet.peaks:
+            # get the correct coordinates based on the axisCodes
+            try:
+                _pos = (peak.pointPositions[0] - 1, peak.height if peak.height is not None else 0)
+                _p1 = [_pos[dim] for dim in pIndex]
+                # posList += p1
+                posList += (_p1[0], _p1[1], alias, 0.0)
+            except Exception:
+                posList += (0, 0, alias, 0)  # add the bad-point
 
         numVertices = len(multiplet.peaks) + 1
         drawList.vertices = np.append(drawList.vertices, np.array(posList, dtype=np.float32))
         drawList.colors = np.append(drawList.colors, np.array((*cols, fade) * numVertices, dtype=np.float32))
-        drawList.attribs = np.append(drawList.attribs, np.array((alias,) * numVertices, dtype=np.float32))
-        drawList.offsets = np.append(drawList.offsets, np.array(p0 * numVertices, dtype=np.float32))
+        drawList.attribs = np.append(drawList.attribs, np.array((alias, 0.0, 0.0, 0.0) * numVertices, dtype=np.float32))
+        drawList.offsets = np.append(drawList.offsets, np.array((pxy[0], pxy[1], 0.0, 0.0) * numVertices, dtype=np.float32))
 
         return numVertices
 
-    def insertExtraVertices(self, drawList, vertexPtr, pIndex, multiplet, p0, colour, fade):
+    def insertExtraVertices(self, drawList, vertexPtr, pIndex, multiplet, pxy, colour, fade):
         """insert extra vertices into the vertex list
         """
         if not multiplet.peaks:
@@ -593,27 +628,32 @@ class GLmultiplet1dLabelling(GL1dLabelling, GLmultipletNdLabelling):
         cols = getAutoColourRgbRatio(col or DEFAULTLINECOLOUR, multiplet.multipletList.spectrum, self.autoColour,
                                      getColours()[CCPNGLWIDGET_MULTIPLETLINK])
 
-        posList = p0
-        for peak in multiplet.peaks:
-            # get the correct coordinates based on the axisCodes
-            try:
-                h = peak.height if peak.height is not None else 0  # p0[1]  # error should only occur on next line
-                p1 = (peak.pointPositions[pIndex] - 1, h)
-                posList += p1
-            except Exception:
-                posList += (0, 0)  # add the bad-point
-
         try:
             peakAlias = multiplet.peaks[0].aliasing
-            alias = getAliasSetting(peakAlias[0], 0)
+            if pIndex[0]:  # check that the 1d-dimensions are reversed :|
+                alias = getAliasSetting(0, peakAlias[0])
+            else:
+                alias = getAliasSetting(peakAlias[0], 0)
         except Exception:
             alias = 0
 
+        posList = (pxy[0], pxy[1], alias, 0.0)  # p0[:]  # copy
+        for peak in multiplet.peaks:
+            # get the correct coordinates based on the axisCodes
+            try:
+                _pos = (peak.pointPositions[0] - 1, peak.height if peak.height is not None else 0)
+                _p1 = [_pos[dim] for dim in pIndex]
+                # posList += p1
+                posList += (_p1[0], _p1[1], alias, 0.0)
+            except Exception:
+                posList += (0, 0, alias, 0.0)  # add the bad-point
+
         numVertices = len(multiplet.peaks) + 1
-        drawList.vertices[vertexPtr:vertexPtr + 2 * numVertices] = posList
-        drawList.colors[2 * vertexPtr:2 * vertexPtr + 4 * numVertices] = (*cols, fade) * numVertices
-        drawList.attribs[vertexPtr // 2:(vertexPtr // 2) + numVertices] = (alias,) * numVertices
-        drawList.offsets[vertexPtr:vertexPtr + 2 * numVertices] = p0 * numVertices
+        st, end = vertexPtr, vertexPtr + 4 * numVertices
+        drawList.vertices[st: end] = posList
+        drawList.colors[st: end] = (*cols, fade) * numVertices
+        drawList.attribs[st: end] = (alias, 0.0, 0.0, 0.0) * numVertices
+        drawList.offsets[st: end] = (pxy[0], pxy[1], 0.0, 0.0) * numVertices
 
         return numVertices
 

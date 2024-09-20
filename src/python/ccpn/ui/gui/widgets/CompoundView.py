@@ -5,9 +5,10 @@ Credits to Tim Stevens, University of Cambridge December 2010-2012
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2023"
-__credits__ = ("Ed Brooksbank, Joanna Fox, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
-               "Timothy J Ragan, Brian O Smith, Gary S Thompson & Geerten W Vuister")
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
+               "Timothy J Ragan, Brian O Smith, Daniel Thompson",
+               "Gary S Thompson & Geerten W Vuister")
 __licence__ = ("CCPN licence. See https://ccpn.ac.uk/software/licensing/")
 __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, L.G., & Vuister, G.W.",
                  "CcpNmr AnalysisAssign: a flexible platform for integrated NMR analysis",
@@ -15,9 +16,9 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2023-07-07 12:19:19 +0100 (Fri, July 07, 2023) $"
-__version__ = "$Revision: 3.2.0 $"
+__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
+__dateModified__ = "$dateModified: 2024-08-23 19:21:18 +0100 (Fri, August 23, 2024) $"
+__version__ = "$Revision: 3.2.5 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -48,9 +49,9 @@ class CompoundView(QGraphicsView, Base):
         super(CompoundView, self).__init__(parent)
         Base._init(self, **kwds)
 
-        self.scene = QGraphicsScene(self)
-        self.scene.setSceneRect(0, 0, 300, 300)
-        self.setScene(self.scene)
+        _scene = QGraphicsScene(self)
+        # _scene.setSceneRect(0, 0, 300, 300)
+        self.setScene(_scene)
         self.setCacheMode(QGraphicsView.CacheBackground)
         # QtWidgets.QGraphicsView.__init__(self, parent)
 
@@ -99,8 +100,8 @@ class CompoundView(QGraphicsView, Base):
         self.setInteractive(True)
         self.resetView()
 
-        self.selectionBox = SelectionBox(self.scene, self)
-        self.scene.addItem(self.selectionBox)
+        self.selectionBox = SelectionBox(self.scene(), self)
+        self.scene().addItem(self.selectionBox)
 
         self.editAtom = None
         self.editWidget = QtWidgets.QLineEdit()
@@ -114,10 +115,8 @@ class CompoundView(QGraphicsView, Base):
         #self.editWidget.setGraphicsEffect(effect)
         self.editWidget.returnPressed.connect(self.setAtomName)
         self.editWidget.hide()
-        self.editProxy = self.scene.addWidget(self.editWidget)
+        self.editProxy = self.scene().addWidget(self.editWidget)
         self.editProxy.setZValue(2)
-
-        # self.setBackgroundBrush(self.backgroundColor)
 
         # TODO: Add settings for this
         self.showSkeletalFormula = False
@@ -136,9 +135,19 @@ class CompoundView(QGraphicsView, Base):
         if smiles:
             self.setSmiles(self.smiles)
         self._setFocusColour()
+        self._setStyle()
+
+    def _setStyle(self):
+        self._checkPalette(self.palette())
+        QtWidgets.QApplication.instance()._sigPaletteChanged.connect(self._checkPalette)
+
+    def _checkPalette(self, pal: QtGui.QPalette, *args):
+        self.setBackgroundBrush(pal.base())
+        self.background = pal.base().color()
+        self.bondColor = pal.text().color()
 
     def setSmiles(self, smiles):
-        'set the smiles'
+        """set the smiles"""
         compound = importSmiles(smiles)
         variant = list(compound.variants)[0]
         self.setVariant(variant)
@@ -149,25 +158,32 @@ class CompoundView(QGraphicsView, Base):
         self.updateAll()
         self.show()
 
-    def _setFocusColour(self, focusColour=None, noFocusColour=None):
-        """Set the focus/noFocus colours for the widget
-        """
-        focusColour = getColours()[BORDERFOCUS]
-        noFocusColour = getColours()[BORDERNOFOCUS]
-        styleSheet = "QGraphicsView { " \
-                     "border: 1px solid;" \
-                     "border-radius: 1px;" \
-                     "border-color: %s;" \
-                     "} " \
-                     "QGraphicsView:focus { " \
-                     "border: 1px solid %s; " \
-                     "border-radius: 1px; " \
-                     "}" % (noFocusColour, focusColour)
-        self.setStyleSheet(styleSheet)
+    def _setFocusColour(self):
+        """Set the focus/noFocus colours for the widget."""
+        _style = """QGraphicsView {
+                        border: 1px solid palette(mid);
+                        border-radius: 2px;
+                        background-color: palette(base);
+                    }
+                    QGraphicsView:focus {
+                        border: 1px solid palette(highlight);
+                        border-radius: 2px;
+                    }
+                    QGraphicsView:disabled { background-color: palette(midlight); }
+                    """
+        self.setStyleSheet(_style)
 
-    def resizeEvent(self, event):
+    def minimumSizeHint(self):
+        return QtCore.QSize(200, 200)
 
-        return QtWidgets.QGraphicsView.resizeEvent(self, event)
+    # def resizeEvent(self, event):
+    #     super().resizeEvent(event)
+    #
+    #     self.resetCachedContent()
+    #     self.fitInView(self.scene().itemsBoundingRect(), Qt.KeepAspectRatio)
+    #     self.zoomLevel = 1.0
+
+        # return QtWidgets.QGraphicsView.resizeEvent(self, event)
 
     # def paintEvent(self, event: QtGui.QPaintEvent):
     #   return QtWidgets.QGraphicsView.paintEvent(self, event)
@@ -380,7 +396,7 @@ class CompoundView(QGraphicsView, Base):
     def setVariant(self, variant):
 
         if variant is not self.variant:
-            scene = self.scene
+            scene = self.scene()
 
             self.atomViews = {}
             self.selectedViews = set()
@@ -410,7 +426,7 @@ class CompoundView(QGraphicsView, Base):
     def updateAll(self):
 
         var = self.variant
-        scene = self.scene
+        scene = self.scene()
 
         if var:
             getView = self.atomViews.get
@@ -463,7 +479,7 @@ class CompoundView(QGraphicsView, Base):
         if not self.variant:
             return
 
-        scene = self.scene
+        scene = self.scene()
 
         # Draw groups
 
@@ -552,7 +568,7 @@ class CompoundView(QGraphicsView, Base):
                     printer.setOutputFileName(filePath)
                     pdfPainter = QtGui.QPainter(printer)
                     self.bondColor = Qt.black
-                    scene = self.scene
+                    scene = self.scene()
                     items = scene.items()
                     cache = [None] * len(items)
                     for i, item in enumerate(items):
@@ -568,7 +584,7 @@ class CompoundView(QGraphicsView, Base):
 
         if self.compound:
             printer = QtSvg.QSvgGenerator()
-            scene = self.scene
+            scene = self.scene()
 
             w = scene.width()
             h = scene.height()
@@ -1227,7 +1243,7 @@ class AtomLabel(QtWidgets.QGraphicsItem):
         super(AtomLabel, self).__init__()
 
         # QtWidgets.QGraphicsItem.__init__(self)
-        self.scene = scene
+        self._scene = scene
 
         #effect = QtWidgets.QGraphicsDropShadowEffect(compoundView)
         #effect.setBlurRadius(SHADOW_RADIUS)
@@ -1328,6 +1344,8 @@ class AtomLabel(QtWidgets.QGraphicsItem):
         #if n.element != 'C':
         #return
 
+        # paint the floating text - needs to match the theme
+
         useName = self.compoundView.nameAtoms
 
         if useName and self.drawData:
@@ -1340,7 +1358,7 @@ class AtomLabel(QtWidgets.QGraphicsItem):
                 if hasattr(self.compoundView, 'setAtomColorWhite'):
                     painter.setPen(Qt.white)
                 else:
-                    painter.setPen(Qt.black)
+                    painter.setPen(QtGui.QPalette().windowText().color())
 
             painter.drawText(point, text)
         painter.setRenderHint(QtGui.QPainter.Antialiasing, False)
@@ -1349,7 +1367,7 @@ class AtomLabel(QtWidgets.QGraphicsItem):
 class SelectionBox(QtWidgets.QGraphicsItem):
 
     def __init__(self, scene, compoundView):
-        super(SelectionBox, self).__init__()
+        super().__init__()
         # QtWidgets.QGraphicsItem.__init__(self)
         # self._scene = scene
         # print(self.scene(), scene, 'TEST')
@@ -1400,7 +1418,7 @@ class AtomGroupItem(QtWidgets.QGraphicsItem):
     def __init__(self, scene, compoundView, atomGroup):
         super(AtomGroupItem, self).__init__()
         # QtWidgets.QGraphicsItem.__init__(self)
-        self.scene = scene
+        self._scene = scene
 
         compoundView.groupItems[atomGroup] = self
 
@@ -1595,7 +1613,7 @@ class AromaticItem(AtomGroupItem):
         r1, r2 = self.drawData
         center = self.center
 
-        pen = QtGui.QPen(Qt.black, 1, Qt.SolidLine)
+        pen = QtGui.QPen(QtGui.QPalette().windowText().color(), 1, Qt.SolidLine)
         painter.setPen(pen)
         painter.drawEllipse(center, r1, r2)
 
@@ -1606,7 +1624,7 @@ class AtomItem(QtWidgets.QGraphicsItem):
         super(AtomItem, self).__init__()
 
         # QtWidgets.QGraphicsItem.__init__(self)
-        self.scene = scene
+        self._scene = scene
 
         compoundView.atomViews[atom] = self
 
@@ -1647,7 +1665,7 @@ class AtomItem(QtWidgets.QGraphicsItem):
         self.freeDrag = False
 
         self.atomLabel = AtomLabel(scene, self, compoundView, atom)
-        compoundView.scene.addItem(self.atomLabel)
+        compoundView.scene().addItem(self.atomLabel)
 
         self.syncToAtom()
 
@@ -1962,7 +1980,7 @@ class AtomItem(QtWidgets.QGraphicsItem):
         atom = self.atom
         self.deselect()
 
-        scene = compoundView.scene
+        # scene = compoundView.scene()
 
         for bondItem in list(self.bondItems):
             bondItem.delete()
@@ -2208,7 +2226,8 @@ class AtomItem(QtWidgets.QGraphicsItem):
         drawLine = painter.drawLine
         drawPoly = painter.drawPolygon
 
-        painter.setPen(Qt.black)
+        foreCol = QtGui.QColor('#404040')
+        painter.setPen(foreCol)
         painter.setFont(ELEMENT_FONT)
 
         color = ELEMENT_DATA.get(elem, ELEMENT_DEFAULT)[1]
@@ -2222,12 +2241,12 @@ class AtomItem(QtWidgets.QGraphicsItem):
                 raise NotImplementedError("Needs rewriting - analysisProfile does not exist")
                 backgroundColor = QtGui.QColor()
                 backgroundColor.setRgbF(*self.glWidget._hexToRgba(self.glWidget.spectrumWindow.analysisProfile.bgColor))
-                foregroundColor = Qt.black
+                foregroundColor = foreCol
 
             # Fallback alternative
             else:
-                backgroundColor = Qt.black
-                foregroundColor = Qt.black
+                backgroundColor = Qt.gray
+                foregroundColor = Qt.gray
         else:
             backgroundColor = self.compoundView.backgroundColor
             foregroundColor = Qt.blue
@@ -2497,7 +2516,7 @@ class AtomItem(QtWidgets.QGraphicsItem):
                             poly.append(qPoint(x2, y2))
 
                         drawPoly(poly)
-                        painter.setPen(Qt.black)
+                        painter.setPen(foreCol)
 
                     poly = qPoly()
                     for angle in angles:
@@ -2512,7 +2531,7 @@ class AtomItem(QtWidgets.QGraphicsItem):
                 if self.selected:
                     painter.setPen(HIGHLIGHT)
                     drawEllipse(center, r + 1, r + 1)
-                    painter.setPen(Qt.black)
+                    painter.setPen(foreCol)
 
                 drawEllipse(center, r, r)
                 textPoint = qPoint(x - w2, y + h2)
@@ -2578,7 +2597,7 @@ class BondItem(QtWidgets.QGraphicsItem):
         super(BondItem, self).__init__()
 
         # QtWidgets.QGraphicsItem.__init__(self)
-        self.scene = scene
+        self._scene = scene
 
         compoundView.bondItems[bond] = self
 
@@ -2858,7 +2877,7 @@ class BondItem(QtWidgets.QGraphicsItem):
                 raise NotImplementedError("Needs rewriting - analysisProfile does not exist")
                 backgroundColor = QtGui.QColor()
                 backgroundColor.setRgbF(*self.glWidget._hexToRgba(self.glWidget.spectrumWindow.analysisProfile.bgColor))
-                color = Qt.black
+                color = QtGui.QPalette().windowText().color()
             # Fallback
             else:
                 color = self.compoundView.bondColor
@@ -4475,7 +4494,7 @@ class VarAtom:
 
         return None
 
-    # This function returns a list of neighbours ranked according to Cahn-Ingold-Prelog rules (not taking more than the fourth level of neighbours into account.
+    # This function returns a list of neighbours ranked according to Cahn-Ingold-Prelog rules (not taking more than the fourth level of neighbours into account).
     # The neighbour with highest priority is first in the returned list.
     def getPriorities(self):
 
@@ -4595,7 +4614,7 @@ class VarAtom:
         for localPriorityList in priorityList:
             score = 0
             for i, (a, p) in enumerate(localPriorityList):
-                score += p * (10 ** ((maxLen - i) * 2))
+                score += p * (10**((maxLen - i) * 2))
 
             localPriorityList.append([None, score])
 
@@ -4606,11 +4625,11 @@ class VarAtom:
         priorityList = []
         maxLen = None
 
-        for list in self.getSecondNeighbourPriorities():
+        for lst in self.getSecondNeighbourPriorities():
 
             localPriorityList = []
-            for a, p in list:
-                if a == None:
+            for a, p in lst:
+                if a is None:
                     continue
 
                 for atom, prio in a.getFirstNeighbourPriorities():
@@ -4623,7 +4642,7 @@ class VarAtom:
                             localPriorityList.append([None, prio])
 
             l = len(localPriorityList)
-            if maxLen == None or l > maxLen:
+            if maxLen is None or l > maxLen:
                 maxLen = l
 
             priorityList.append(localPriorityList)
@@ -4633,7 +4652,7 @@ class VarAtom:
         for localPriorityList in priorityList:
             score = 0
             for i, (a, p) in enumerate(localPriorityList):
-                score += p * (10 ** ((maxLen - i) * 2))
+                score += p * (10**((maxLen - i) * 2))
 
             localPriorityList.append([None, score])
 
@@ -4645,18 +4664,18 @@ class VarAtom:
         maxLen = None
         nextNeighbours = set()
 
-        for list in self.getThirdNeighbourPriorities():
+        for lst in self.getThirdNeighbourPriorities():
 
             localPriorityList = []
-            for a, p in list:
-                if a == None:
+            for a, p in lst:
+                if a is None:
                     continue
 
                 for atom, prio in a.getFirstNeighbourPriorities():
                     localPriorityList.append([atom, prio])
 
             l = len(localPriorityList)
-            if maxLen == None or l > maxLen:
+            if maxLen is None or l > maxLen:
                 maxLen = l
 
             priorityList.append(localPriorityList)
@@ -4666,7 +4685,7 @@ class VarAtom:
         for localPriorityList in priorityList:
             score = 0
             for i, (a, p) in enumerate(localPriorityList):
-                score += p * (10 ** ((maxLen - i) * 2))
+                score += p * (10**((maxLen - i) * 2))
 
             localPriorityList.append([None, score])
 
@@ -6883,7 +6902,7 @@ class Compound:
         return hydrogens
 
 
-def importChemComp(chemComp, variantInd:int=0):
+def importChemComp(chemComp, variantInd: int = 0):
     # Main Compound
 
     ccpCode = chemComp.ccpCode

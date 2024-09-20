@@ -5,8 +5,9 @@
 # Licence, Reference and Credits
 #=========================================================================================
 __copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
-__credits__ = ("Ed Brooksbank, Joanna Fox, Morgan Hayward, Victoria A Higman, Luca Mureddu",
-               "Eliza Płoskoń, Timothy J Ragan, Brian O Smith, Gary S Thompson & Geerten W Vuister")
+__credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
+               "Timothy J Ragan, Brian O Smith, Daniel Thompson",
+               "Gary S Thompson & Geerten W Vuister")
 __licence__ = ("CCPN licence. See https://ccpn.ac.uk/software/licensing/")
 __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, L.G., & Vuister, G.W.",
                  "CcpNmr AnalysisAssign: a flexible platform for integrated NMR analysis",
@@ -15,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-03-20 19:06:28 +0000 (Wed, March 20, 2024) $"
-__version__ = "$Revision: 3.2.2.1 $"
+__dateModified__ = "$dateModified: 2024-08-23 19:21:22 +0100 (Fri, August 23, 2024) $"
+__version__ = "$Revision: 3.2.5 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -31,9 +32,11 @@ from functools import partial
 from ccpn.ui.gui.widgets.ToolBar import ToolBar
 from ccpn.ui.gui.widgets.Menu import Menu
 from ccpn.ui.gui.widgets.Font import setWidgetFont, getFontHeight
+from ccpn.core.SpectrumGroup import SpectrumGroup
 from ccpn.core.lib.Notifiers import Notifier
 from ccpn.core.lib import Pid
 from ccpn.util.OrderedSet import OrderedSet
+from ccpn.framework.Application import getCurrent
 
 
 class SpectrumGroupToolBar(ToolBar):
@@ -42,6 +45,50 @@ class SpectrumGroupToolBar(ToolBar):
         self.spectrumDisplay = spectrumDisplay
         self._project = self.spectrumDisplay.project
         self.setToolButtonStyle(QtCore.Qt.ToolButtonTextUnderIcon)
+
+        self._styleSheet = """
+                            /*  currentField is a property on the widgetAction
+                                that can be set to True to enable a highlighted border;
+                                otherwise defaults to the standard 'checked'
+                                section of the stylesheet.
+                                There are not many colouirs available in the palette;
+                                this uses a qlineargradient to pick a small range
+                                between window-colour and medium-grey.
+                                This is theme-agnostic, picks a shade always slightly lighter or
+                                darker than the current background.
+                                [(x1, y1), (x2, y2)] define the box over which the gradient is applied.
+                                The widget is interpolated from [(0, 0), (1, 1)] in this box.
+                                start, stop are normalised points for setting multiple colours in the gradient.
+                            */
+                                
+                            QToolButton {
+                                color: palette(dark);
+                                padding: 0px;
+                            }
+                            QToolButton:checked[currentField=true] {
+                                color: palette(text);
+                                border: 0.5px solid palette(highlight);
+                                border-radius: 2px;
+                                background-color: qlineargradient(
+                                                        x1: 0, y1: -1, x2: 0, y2: 6,
+                                                        stop: 0 palette(window), stop: 1 #808080
+                                                    );
+                            }
+                            QToolButton:checked {
+                                color: palette(text);
+                                border: 0.5px solid palette(dark);
+                                border-radius: 2px;
+                                background-color: qlineargradient(
+                                                        x1: 0, y1: -1, x2: 0, y2: 6,
+                                                        stop: 0 palette(window), stop: 1 #808080
+                                                    );
+                            }
+                            """
+        self._currentSpectrumNotifier = Notifier(getCurrent(),
+                                  [Notifier.CURRENT],
+                                  targetName=SpectrumGroup._pluralLinkName,
+                                  callback=self._onCurrentNotifier,
+                                  onceOnly=True),
 
         # self._spectrumGroups = []
 
@@ -110,16 +157,37 @@ class SpectrumGroupToolBar(ToolBar):
         self._setupButton(action, spectrumGroup)
 
     def _setupButton(self, action, spectrumGroup):
+        from ccpn.ui.gui.lib.GuiSpectrumView import _addActionIcon
+
         widget = self.widgetForAction(action)
         _height1 = max(getFontHeight(size='SMALL') or 12, 12)
         _height2 = max(getFontHeight(size='VLARGE') or 30, 30)
         widget.setIconSize(QtCore.QSize(_height1 * 10, _height1))
         widget.setFixedSize(int(_height2 * 2.5), _height2)
+        if spectrumGroup in getCurrent().spectrumGroups:
+            widget.setProperty('currentField', True)
+        else:
+            widget.setProperty('currentField', False)
+        action._spectrumGroup = spectrumGroup
+        widget.setStyleSheet(self._styleSheet)
+        widget.style().unpolish(widget)  # needed before widget/icon is added?
+        widget.style().polish(widget)
         # widget.setIconSize(QtCore.QSize(120, 10))
         # widget.setFixedSize(75, 30)
-
-        from ccpn.ui.gui.lib.GuiSpectrumView import _addActionIcon
         _addActionIcon(action, spectrumGroup, self.spectrumDisplay)
+
+    def _onCurrentNotifier(self, data):
+        current = getCurrent()
+        for action in self.actions():
+            if widget := self.widgetForAction(action):
+                if (sg := action._spectrumGroup) and not sg.isDeleted:
+                    if sg in current.spectrumGroups:
+                        widget.setProperty('currentField', True)
+                    else:
+                        widget.setProperty('currentField', False)
+                    widget.setStyleSheet(self._styleSheet)
+                    widget.style().unpolish(widget)
+                    widget.style().polish(widget)
 
     def mousePressEvent(self, event: QtGui.QMouseEvent):
         """
@@ -176,6 +244,14 @@ class SpectrumGroupToolBar(ToolBar):
     def _removeSpectrumGroup(self, action, spectrumGroup):
         """Remove the spectrumGroup from the toolbar.
         """
+        # check whether the delete request has come from the parent
+        if not action:
+            if not (action := next((action for action in self.actions()
+                               if getattr(action, '_spectrumGroup', None) == spectrumGroup),
+                              None)):
+                # unrecognised spectrumGroup fom the parent
+                return
+
         strip = self._getStrip()
         if strip is not None:
             from ccpn.core.lib.ContextManagers import undoStackBlocking
@@ -239,14 +315,14 @@ class SpectrumGroupToolBar(ToolBar):
                     if peakList == peakListView.peakList:
                         peakListView.setVisible(True)
 
-    def _getPeakListViews(self, spectrumGroup):
+    @staticmethod
+    def _getPeakListViews(spectrumGroup):
         spectrumGroupPeakLists = [peakList for spectrum in spectrumGroup.spectra for peakList in spectrum.peakLists]
         return [plv for peakList in spectrumGroupPeakLists for plv in peakList.peakListViews]
 
 
 def _spectrumGroupViewHasChanged(data):
     self = data[Notifier.OBJECT]
-
     if self.isDeleted:
         return
 
@@ -257,16 +333,11 @@ def _spectrumGroupViewHasChanged(data):
 
     for specDisplay in specDisplays:
         _actions = [action for action in specDisplay.spectrumGroupToolBar.actions() if action.text() == self.pid]
-
         for action in _actions:
             # add spectrum action for grouped action
             _addActionIcon(action, self, specDisplay)
 
-    from ccpn.ui.gui.lib.OpenGL.CcpnOpenGL import GLNotifier
-
     GLSignals = GLNotifier(parent=self)
-
     self.buildContoursOnly = True
-
     # repaint
     GLSignals.emitPaintEvent()

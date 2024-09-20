@@ -4,9 +4,10 @@ Module Documentation here
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2023"
-__credits__ = ("Ed Brooksbank, Joanna Fox, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
-               "Timothy J Ragan, Brian O Smith, Gary S Thompson & Geerten W Vuister")
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
+               "Timothy J Ragan, Brian O Smith, Daniel Thompson",
+               "Gary S Thompson & Geerten W Vuister")
 __licence__ = ("CCPN licence. See https://ccpn.ac.uk/software/licensing/")
 __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, L.G., & Vuister, G.W.",
                  "CcpNmr AnalysisAssign: a flexible platform for integrated NMR analysis",
@@ -15,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2023-03-06 14:11:00 +0000 (Mon, March 06, 2023) $"
-__version__ = "$Revision: 3.1.1 $"
+__dateModified__ = "$dateModified: 2024-09-05 18:12:52 +0100 (Thu, September 05, 2024) $"
+__version__ = "$Revision: 3.2.5 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -30,6 +31,7 @@ import itertools
 import typing
 import numpy as np
 import pandas as pd
+from functools import partial
 from PyQt5 import QtWidgets, QtGui, QtCore
 from PyQt5.QtCore import Qt, QItemSelectionModel, QSize
 from PyQt5.QtWidgets import QSizePolicy
@@ -38,7 +40,8 @@ from ccpn.ui.gui.guiSettings import getColours, GUITABLEHEADER_GROUP_GRIDLINES, 
 from ccpn.ui.gui.widgets.table._TableCommon import MOUSE_MARGIN, ORIENTATIONS
 from ccpn.ui.gui.widgets.Font import setWidgetFont, TABLEFONT
 
-from ccpn.ui.gui.widgets.table._MITableDelegates import _ExpandHorizontalDelegate, _ExpandVerticalDelegate
+from ccpn.ui.gui.widgets.table._MITableDelegates import (_ExpandHorizontalDelegate, _ExpandVerticalDelegate,
+                                                         _GridDelegate)
 from ccpn.ui.gui.widgets.table._MITableHeaderModel import _HorizontalMITableHeaderModel, _VerticalMITableHeaderModel
 
 
@@ -54,22 +57,55 @@ class _MITableHeaderViewABC(QtWidgets.QTableView):
     """
     sectionClicked = QtCore.pyqtSignal(int)
 
-    # NOTE:ED - item:selected:background-color cannot be found from option.palette :|
     styleSheet = """QTableView {
-                        background-color: %(GUITABLEHEADER_BACKGROUND)s;
-                        alternate-background-color: %(GUITABLE_ALT_BACKGROUND)s;
-                        border: %(_BORDER_WIDTH)spx solid %(BORDER_NOFOCUS)s;
+                        background: qlineargradient(
+                                        x1: 0, y1: -350, x2: 0, y2: 50,
+                                        stop: 0 #8f8f8f, 
+                                        stop: 1 palette(light)
+                                    );
+                        border: 0px;
                         border-radius: 0px;
                         gridline-color: %(_GRID_COLOR)s;
-                        selection-background-color: %(GUITABLEHEADER_SELECTED_BACKGROUND)s;
-                        selection-color: %(GUITABLEHEADER_SELECTED_FOREGROUND)s;
+                        selection-background-color: qlineargradient(
+                                                        x1: 0, y1: -350, x2: 0, y2: 50,
+                                                        stop: 0 #8f8f8f, 
+                                                        stop: 1 palette(light)
+                                                    );;
+                        selection-color: palette(text);
+                        color: palette(text);
+                        outline: 0px;
+                    }
+                    QTableView[selectionField=true] {
+                        background: qlineargradient(
+                                        x1: 0, y1: -350, x2: 0, y2: 50,
+                                        stop: 0 #8f8f8f, 
+                                        stop: 1 palette(light)
+                                    );
+                        border: 0px;
+                        border-radius: 0px;
+                        gridline-color: transparent;
+                        /* use #f8f088 for yellow selection, or palette(highlight) */
+                        selection-background-color: qlineargradient(
+                                                        x1: 0, y1: -300, x2: 0, y2: 200,
+                                                        stop: 0 palette(highlight), 
+                                                        stop: 1 palette(light)
+                                                    ); 
+                        selection-color: palette(text);
+                        color: palette(text);
+                        outline: 0px;
                     }
                     QTableView::item {
                         padding: %(_CELL_PADDING)spx;
-                        color: %(GUITABLE_SELECTED_FOREGROUND)s;
-                    }
-                    QTableView::item:focus {
-                        padding: 0px;
+                        border-top: 1px solid qlineargradient(
+                                        x1: 0, y1: -200, x2: 0, y2: 150,
+                                        stop: 0 #8f8f8f, 
+                                        stop: 1 palette(light)
+                                    );
+                        border-left: 1px solid qlineargradient(
+                                        x1: 0, y1: -200, x2: 0, y2: 150,
+                                        stop: 0 #8f8f8f, 
+                                        stop: 1 palette(light)
+                                    );
                     }
                     """
 
@@ -81,7 +117,8 @@ class _MITableHeaderViewABC(QtWidgets.QTableView):
     _horizontalDividers = None
     _verticalDividers = None
 
-    def __init__(self, parent: 'MITableABC', table: '_MITableView', df, orientation=Qt.Horizontal, dividerColour=None, gridColour=None):
+    def __init__(self, parent: 'MITableABC', table: '_MITableView', df, orientation=Qt.Horizontal, dividerColour=None,
+                 gridColour=None):
         super().__init__(parent)
 
         # Setup
@@ -98,8 +135,6 @@ class _MITableHeaderViewABC(QtWidgets.QTableView):
         self.table = table
         self.setModel(self.headerModelClass(self.table, df=df, orientation=orientation))
 
-        # NOTE:ED - need updateDf
-
         # These are used during row/column resizing
         self.header_being_resized = None
         self.resize_start_position = None
@@ -115,6 +150,7 @@ class _MITableHeaderViewABC(QtWidgets.QTableView):
 
         # set selection behaviour to only items
         self.setSelectionBehavior(self.SelectItems)
+        self.setAlternatingRowColors(False)
 
         # Settings
         self.setSizePolicy(QSizePolicy(QSizePolicy.Maximum, QSizePolicy.Maximum))
@@ -128,19 +164,18 @@ class _MITableHeaderViewABC(QtWidgets.QTableView):
         # Link selection to DataTable
         self.selectionModel().selectionChanged.connect(self._headerSelectionChangedCallback)
 
-        # Styling
-        colours = getColours()
         # add border-width/cell-padding options
-        self._borderWidth = colours['_BORDER_WIDTH'] = 0
-        self._frameBorderWidth = colours['_FRAME_BORDER_WIDTH'] = 1
-        self._cellPadding = colours['_CELL_PADDING'] = 2  # the extra padding for the selected cell-item
+        cols = self._colours = {}  #getColours()
+        self._borderWidth = cols['_BORDER_WIDTH'] = 0
+        # self._frameBorderWidth = 1
+        self._cellPadding = cols['_CELL_PADDING'] = 2  # the extra padding for the selected cell-item
         try:
-            col = QtGui.QColor(gridColour).name() if gridColour else colours[GUITABLE_GRIDLINES]
+            col = QtGui.QColor(gridColour).name() if gridColour else 'palette(mid)'
         except Exception:
-            col = colours[GUITABLE_GRIDLINES]
-        self.gridcolour = colours['_GRID_COLOR'] = col
-
-        self.setStyleSheet(self.styleSheet % colours)
+            # grid colour may be ill-defined
+            col = 'palette(mid)'
+        self._gridColour = cols['_GRID_COLOR'] = col
+        self._checkPalette()
         setWidgetFont(self, name=TABLEFONT)
 
         if self.headerDelegateClass:
@@ -148,11 +183,22 @@ class _MITableHeaderViewABC(QtWidgets.QTableView):
             delegate = self.headerDelegateClass(self, table=table, focusBorderWidth=0)
             self.setItemDelegate(delegate)
 
-        self._dividerColour = (dividerColour and QtGui.QColor(dividerColour)) or QtGui.QColor(getColours()[GUITABLEHEADER_GROUP_GRIDLINES])
+        self._dividerColour = (dividerColour and QtGui.QColor(dividerColour)) or QtGui.QColor(
+                getColours()[GUITABLEHEADER_GROUP_GRIDLINES])
+
+        # property works here and allows stylesheet to apply selection colour
+        self.setProperty('selectionField', False)
+        QtWidgets.QApplication.instance().sigPaletteChanged.connect(
+                partial(QtCore.QTimer.singleShot, 0, self._checkPalette))
+
+    def _checkPalette(self):
+        """Update palette in response to palette change event.
+        """
+        self.setStyleSheet(self.styleSheet % self._colours)
 
     @property
     def _df(self):
-        """Return the dataFrame associated with the table
+        """Return the dataFrame associated with the table.
         """
         return self.model()._df
 
@@ -161,7 +207,8 @@ class _MITableHeaderViewABC(QtWidgets.QTableView):
         self.initSize()
         self.setDelegates()
 
-    def updateDf(self, df, resize=True, setHeightToRows=False, setWidthToColumns=False, setOnHeaderOnly=False, newModel=False):
+    def updateDf(self, df, resize=True, setHeightToRows=False, setWidthToColumns=False, setOnHeaderOnly=False,
+                 newModel=False):
         """Initialise the dataFrame
         """
         if not isinstance(df, (type(None), pd.DataFrame)):
@@ -348,7 +395,8 @@ class _HorizontalMITableHeaderView(_MITableHeaderViewABC):
     headerModelClass = _HorizontalMITableHeaderModel
     headerDelegateClass = _ExpandHorizontalDelegate
 
-    def __init__(self, parent: 'MITableABC', table: '_MITableView', df: typing.Optional[pd.DataFrame], dividerColour=None):
+    def __init__(self, parent: 'MITableABC', table: '_MITableView', df: typing.Optional[pd.DataFrame],
+                 dividerColour=None):
         super().__init__(parent, table, df, orientation=Qt.Horizontal, dividerColour=dividerColour)
 
         # Setup
@@ -530,10 +578,12 @@ class _HorizontalMITableHeaderView(_MITableHeaderViewABC):
             return
 
         if not (isinstance(columns, list) and all(isinstance(val, int) for val in columns)):
-            raise TypeError(f'{self.__class__.__name__}._processSelectionFromColumns: columns is not a list of integers')
+            raise TypeError(
+                    f'{self.__class__.__name__}._processSelectionFromColumns: columns is not a list of integers')
 
         # get the valid visible items
-        sCol = {col for col in columns if 0 <= col < self.model().columnCount() and not self.horizontalHeader().isSectionHidden(col)}
+        sCol = {col for col in columns if
+                0 <= col < self.model().columnCount() and not self.horizontalHeader().isSectionHidden(col)}
 
         self.clearSelection()
         if sCol:
@@ -583,7 +633,8 @@ class _HorizontalMITableHeaderView(_MITableHeaderViewABC):
         headers = np.empty((cols, len(df.columns)), dtype=object)
         for level in range(cols):  # Iterates over the levels
             # Find how many segments the MultiIndex has
-            headers[level, :] = [df.columns[i][level] for i in range(len(df.columns))] if type(df.columns) == pd.MultiIndex else df.columns
+            headers[level, :] = [df.columns[i][level] for i in range(len(df.columns))] if type(
+                    df.columns) == pd.MultiIndex else df.columns
 
         self._setSpans(headers)
 
@@ -629,7 +680,8 @@ class _HorizontalMITableHeaderView(_MITableHeaderViewABC):
 
         return QSize(width, height)
 
-    def updateDf(self, df, resize=True, setHeightToRows=False, setWidthToColumns=False, setOnHeaderOnly=False, newModel=False):
+    def updateDf(self, df, resize=True, setHeightToRows=False, setWidthToColumns=False, setOnHeaderOnly=False,
+                 newModel=False):
         """Initialise the dataFrame
         """
         super().updateDf(df, resize, setHeightToRows, setWidthToColumns, setOnHeaderOnly, newModel)
@@ -646,6 +698,18 @@ class _HorizontalMITableHeaderView(_MITableHeaderViewABC):
         """
         return QSize(0, self.sizeHint().height())
 
+    def _vs(self, row, col):
+        """Return True if the icon can be displayed, i.e., the span is larger than one.
+        """
+        _rowSpan, colSpan = self.rowSpan(row, col), self.columnSpan(row, col)
+        count = 0
+        # count how may columns are visible
+        for cc in range(colSpan):
+            count += (0 if self.horizontalHeader().isSectionHidden(col + cc) else 1)
+
+        # return - can maximise/minimise
+        return (count < colSpan), (count > 1)
+
     def paintEvent(self, e: QtGui.QPaintEvent) -> None:
         """Paint the border to the screen
         """
@@ -656,16 +720,15 @@ class _HorizontalMITableHeaderView(_MITableHeaderViewABC):
         if self._horizontalDividers:
             # create a rectangle and painter over the widget - shrink by 1 pixel to draw correctly
             p = QtGui.QPainter(self.viewport())
+            p.translate(0.5, 0.5)
             offset = -self.horizontalScrollBar().value() if self.horizontalScrollBar() else 0
             h = self.rect().height()
-
             p.setPen(QtGui.QPen(self._dividerColour, 1))
             pos = offset - 1
             for col in range(self.model().columnCount()):
                 if col in self._horizontalDividers:
                     p.drawLine(pos, 0, pos, h)
                 pos += self.columnWidth(col)
-
             p.end()
 
 
@@ -682,7 +745,8 @@ class _VerticalMITableHeaderView(_MITableHeaderViewABC):
     """
     headerModelClass = _VerticalMITableHeaderModel
 
-    def __init__(self, parent: 'MITableABC', table: '_MITableView', df: typing.Optional[pd.DataFrame], dividerColour=None):
+    def __init__(self, parent: 'MITableABC', table: '_MITableView', df: typing.Optional[pd.DataFrame],
+                 dividerColour=None):
         super().__init__(parent, table, df, orientation=Qt.Vertical, dividerColour=dividerColour)
 
         # Setup
@@ -724,6 +788,10 @@ class _VerticalMITableHeaderView(_MITableHeaderViewABC):
             for col in range(lastIdx):
                 # add delegates to show expand/collapse icon
                 self.setItemDelegateForColumn(col, delegate)
+
+            delegate = _GridDelegate(self)
+            # add delegate to show modified grid-lines
+            self.setItemDelegateForColumn(lastIdx, delegate)
 
     def _headerSelectionChangedCallback(self, selected, deSelected):
         """Handle when columns/rows are selected in the headers.
@@ -836,7 +904,8 @@ class _VerticalMITableHeaderView(_MITableHeaderViewABC):
         dataView = self._parent
         lastIdx = self._df.index.nlevels - 1
 
-        indexes = {(ind.row(), ind.column()) for ind in selModel.selectedIndexes() if not self.verticalHeader().isSectionHidden(ind.row())}
+        indexes = {(ind.row(), ind.column()) for ind in selModel.selectedIndexes() if
+                   not self.verticalHeader().isSectionHidden(ind.row())}
 
         if sRow := {row for row, _col in indexes}:
             dataViewSel = QtCore.QItemSelection()
@@ -900,7 +969,8 @@ class _VerticalMITableHeaderView(_MITableHeaderViewABC):
             raise TypeError(f'{self.__class__.__name__}._processSelectionFromRows: rows is not a list of integers')
 
         # get the valid visible items
-        sRow = {row for row in rows if 0 <= row < self.model().rowCount() and not self.verticalHeader().isSectionHidden(row)}
+        sRow = {row for row in rows if
+                0 <= row < self.model().rowCount() and not self.verticalHeader().isSectionHidden(row)}
 
         self.clearSelection()
         if sRow:
@@ -958,9 +1028,11 @@ class _VerticalMITableHeaderView(_MITableHeaderViewABC):
             for col in range(lastIdx - 1, -1, -1):
                 for row in range(self._df.shape[0]):
                     rowSpan, colSpan = self.rowSpan(row, col), self.columnSpan(row, col)
-                    if all((row + rr, lastIdx) in found for rr in range(rowSpan) if not self.verticalHeader().isSectionHidden(row + rr)):
+                    if all((row + rr, lastIdx) in found for rr in range(rowSpan) if
+                           not self.verticalHeader().isSectionHidden(row + rr)):
                         found.add((row, col))
-                        found |= {(row + rr, lastIdx) for rr in range(rowSpan) if not self.verticalHeader().isSectionHidden(row + rr)}
+                        found |= {(row + rr, lastIdx) for rr in range(rowSpan) if
+                                  not self.verticalHeader().isSectionHidden(row + rr)}
 
             # create a merged selection of indexes
             newSel = QtCore.QItemSelection()
@@ -992,7 +1064,8 @@ class _VerticalMITableHeaderView(_MITableHeaderViewABC):
         headers = np.empty((rows, len(df.index)), dtype=object)
         for level in range(rows):  # Iterates over the levels
             # Find how many segments the MultiIndex has
-            headers[level, :] = [df.index[_sortIndex[i]][level] for i in range(len(df.index))] if type(df.index) == pd.MultiIndex else df.index
+            headers[level, :] = [df.index[_sortIndex[i]][level] for i in range(len(df.index))] if type(
+                    df.index) == pd.MultiIndex else df.index
 
         self._setSpans(headers)
 

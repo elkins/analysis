@@ -5,9 +5,9 @@
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2023"
-__credits__ = ("Ed Brooksbank, Joanna Fox, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
-               "Timothy J Ragan, Brian O Smith, Gary S Thompson & Geerten W Vuister")
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__credits__ = ("Ed Brooksbank, Joanna Fox, Morgan Hayward, Victoria A Higman, Luca Mureddu",
+               "Eliza Płoskoń, Timothy J Ragan, Brian O Smith, Gary S Thompson & Geerten W Vuister")
 __licence__ = ("CCPN licence. See https://ccpn.ac.uk/software/licensing/")
 __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, L.G., & Vuister, G.W.",
                  "CcpNmr AnalysisAssign: a flexible platform for integrated NMR analysis",
@@ -16,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2023-04-26 16:08:35 +0100 (Wed, April 26, 2023) $"
-__version__ = "$Revision: 3.1.1 $"
+__dateModified__ = "$dateModified: 2024-04-23 22:03:03 +0100 (Tue, April 23, 2024) $"
+__version__ = "$Revision: 3.2.5 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -87,20 +87,6 @@ KEYVALIDATECURSOR = (QtCore.Qt.Key_Up,
 #=========================================================================================
 
 class DoubleSpinbox(QtWidgets.QDoubleSpinBox, Base):
-    # # To be done more rigorously later
-    # _styleSheet = """
-    # DoubleSpinbox {
-    #   background-color: #f7ffff;
-    #   color: #122043;
-    #   margin: 0px 0px 0px 0px;
-    #   padding: 3px 3px 3px 3px;
-    #   border: 1px solid #182548;
-    # }
-    #
-    # DoubleSpinbox::hover {
-    #   background-color: #e4e15b;
-    # }
-    # """
     returnPressed = pyqtSignal(float)
     wheelChanged = pyqtSignal(float)
     minimizeSignal = pyqtSignal()
@@ -109,6 +95,7 @@ class DoubleSpinbox(QtWidgets.QDoubleSpinBox, Base):
     _validationValid = QtGui.QColor('lightseagreen')
     _validationIntermediate = QtGui.QColor('lightpink')
     _validationInvalid = QtGui.QColor('lightcoral')
+    highlightColour = None
 
     DEFAULTDECIMALS = 6
 
@@ -170,13 +157,20 @@ class DoubleSpinbox(QtWidgets.QDoubleSpinBox, Base):
         # must be set after setting value/limits
         self._callback = None
         self.setCallback(callback)
+        self.setContextMenuPolicy(QtCore.Qt.DefaultContextMenu)
 
         # change focusPolicy so that spin-boxes don't grab focus unless selected
         self.setFocusPolicy(QtCore.Qt.StrongFocus)
-        self.setStyleSheet('DoubleSpinbox { padding: 3px 3px 3px 3px; }'
-                           'DoubleSpinbox:disabled { background-color: whitesmoke; }')
+        self._setStyle()
 
-        self.setContextMenuPolicy(QtCore.Qt.DefaultContextMenu)
+    def _setStyle(self):
+        _style = """QDoubleSpinBox {
+                    padding: 3px 3px 3px 3px;
+                    background-color: palette(base);
+                }
+                QDoubleSpinBox:disabled { background-color: palette(midlight); }
+                """
+        self.setStyleSheet(_style)
 
     def contextMenuEvent(self, event):
         # add an event to add extra items to the menu

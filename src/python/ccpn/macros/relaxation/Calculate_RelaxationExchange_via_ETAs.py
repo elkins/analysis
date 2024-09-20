@@ -22,8 +22,8 @@ Evaluation of two simplified 15N-NMR methods for determining µs–ms dynamics o
 # Licence, Reference and Credits
 #=========================================================================================
 __copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
-__credits__ = ("Ed Brooksbank, Joanna Fox, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
-               "Timothy J Ragan, Brian O Smith, Gary S Thompson & Geerten W Vuister")
+__credits__ = ("Ed Brooksbank, Joanna Fox, Morgan Hayward, Victoria A Higman, Luca Mureddu",
+               "Eliza Płoskoń, Timothy J Ragan, Brian O Smith, Gary S Thompson & Geerten W Vuister")
 __licence__ = ("CCPN licence. See https://ccpn.ac.uk/software/licensing/")
 __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, L.G., & Vuister, G.W.",
                  "CcpNmr AnalysisAssign: a flexible platform for integrated NMR analysis",
@@ -31,9 +31,9 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-01-25 12:33:46 +0000 (Thu, January 25, 2024) $"
-__version__ = "$Revision: 3.2.0 $"
+__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
+__dateModified__ = "$dateModified: 2024-04-04 15:19:21 +0100 (Thu, April 04, 2024) $"
+__version__ = "$Revision: 3.2.5 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -124,8 +124,10 @@ class DataTableSelection(CcpnDialogMainWidget):
         self.setOkButton(callback=self._okClicked, tipText='Run Calculation')
         self.setCloseButton(callback=self.reject, tipText='Close popup')
         self.setDefaultButton(CcpnDialogMainWidget.CLOSEBUTTON)
-        # # initialise the buttons and dialog size
-        self._postInit()
+
+    def _postInit(self):
+        # initialise the buttons and dialog size
+        super()._postInit()
 
         self.widgetETAxy = cw.DataTablePulldown(self.mainWidget,
                                                 mainWindow=self.mainWindow,
@@ -257,7 +259,7 @@ def _ploteExchangeRates(pdf):
     fig, axes  = macrosLib._makeFigureLayoutWithOneColumn(3, height_ratios=[3, 3, 1])
     ax, ax2, axss = axes
     rigidSystem = 'Rigid and Isotropic System' #use R1
-    
+
 
     ax.axhline(y=0, color='grey', linestyle='--',  linewidth=0.5)
     ax.errorbar(x, rexFromR2R1, label='R$_{ex}$ via R$_{1}$',
@@ -266,7 +268,7 @@ def _ploteExchangeRates(pdf):
     eqTitle = 'R$_{ex}$ = R$_{2}$ - < R$_{2}/$R$_{1}$>'
     title = rigidSystem
     ax.set_title(f'{title}\n{eqTitle}', fontsize=fontTitleSize, color=titleColor, pad=1)
-    
+
     ax.set_ylabel('R$_{ex}$', fontsize=fontYSize)
     macrosLib._setXTicks(ax, labelMajorSize, labelMinorSize)
     ax.legend(loc='best', prop={'size': 4})
@@ -287,7 +289,7 @@ def _ploteExchangeRates(pdf):
     ax2.legend(loc='best', prop={'size': 4})
     ax2.spines[['right', 'top']].set_visible(False)
     _setMargins(ax2, rexFromR2ETAxy)
-    
+
     ## plot Secondary structure
     if macrosLib._isSequenceValid(sequence, ss_sequence):
         plotSS(axss, xSequence, sequence, ss_sequence=ss_sequence, startSequenceCode=startSequenceCode, fontsize=5,

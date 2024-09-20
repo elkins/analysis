@@ -1234,6 +1234,22 @@ class SideBar(QtWidgets.QTreeWidget, SideBarStructure, Base, NotifierBase):
 
         self._searchSelection = []
         self._searchNotifiers = []
+        self._setStyle()
+
+    def _setStyle(self):
+        """Set the focus/noFocus colours for the widget
+        """
+        _style = """QTreeWidget {
+                        border: 1px solid palette(mid);
+                        border-radius: 2px;
+                    }
+                    QTreeWidget:focus {
+                        border: 1px solid palette(highlight);
+                        border-radius: 2px;
+                    }
+                    """
+        # set stylesheet - this seems to miss the first paint event
+        self.setStyleSheet(_style)
 
     def _resultsListMenuRequested(self, position):
 

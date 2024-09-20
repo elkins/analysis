@@ -8,10 +8,11 @@
         "userPipesPath"                        : "~/.ccpn/pipes/",
         "userLayoutsPath"                      : "",
         "userWorkingPath"                      : "~",
-        "useProjectPath"                       : false,
+        "userSetWorkingPath"                   : "~",
+        "useProjectPath"                       : "User-defined",
         "language"                             : "English-UK",
         "editor"                               : "default",
-        "colourScheme"                         : "dark",
+        "colourScheme"                         : "default",
         "license"                              : "",
         "autoSetDataPath"                      : false,
         "dataPath"                             : "~",
@@ -175,7 +176,9 @@
         "nefImporterOpenFirstTable"          : false,
         "useOnlineDocumentation"             : false,
         "closeSpectrumDisplayOnLastSpectrum" : false,
-        "closeSpectrumDisplayOnLastStrip"    : false
+        "closeSpectrumDisplayOnLastStrip"    : false,
+        "themeStyle"                         : "light",
+        "themeColour"                        : "dodgerblue"
     },
     "printSettings"    : {
         "font"              : "Helvetica,12,-1,5,50,0,0,0,0,0,Regular",

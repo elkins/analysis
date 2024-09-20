@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-07-24 18:04:27 +0100 (Wed, July 24, 2024) $"
+__dateModified__ = "$dateModified: 2024-09-03 13:20:31 +0100 (Tue, September 03, 2024) $"
 __version__ = "$Revision: 3.2.5 $"
 #=========================================================================================
 # Created
@@ -161,7 +161,6 @@ def main():
     from ccpn.ui.gui.widgets.Application import TestApplication
     from ccpn.ui.gui.Gui import _MyAppProxyStyle
 
-
     aminoAcids = ['alanine', 'arginine',
                   'asparagine', 'aspartic-acid', 'ambiguous asparagine/aspartic-acid',
                   'cysteine', 'glutamine', 'glutamic-acid', 'glycine',
@@ -205,7 +204,7 @@ def main():
     frame.setLayout(layout)
 
     table = TableABC(None, df=df, focusBorderWidth=1, cellPadding=11,
-                     showGrid=True, gridColour='white',
+                     showGrid=True, gridColour=None,
                      setWidthToColumns=False, setHeightToRows=False, _resize=True)
 
     # these two need to be done together - HACK for the minute, need to add a method
@@ -213,10 +212,13 @@ def main():
     table.model().defaultFlags = ENABLED | SELECTABLE | CHECKABLE  # checkboxes are clickable
     table.setEditable(False)  # double-clicking disabled (doesn't affect checkboxes)
 
-    for row in range(table.rowCount()):
+    for row in range(table.rowCount() * 2 // 3):
         for col in range(table.columnCount()):
             table.setBackground(row, col, QtGui.QColor(random.randint(0, 256**3) & 0x3f3f3f | 0x404040))
             table.setForeground(row, col, QtGui.QColor(random.randint(0, 256**3) & 0x3f3f3f | 0x808080))
+    for row in range(table.rowCount() // 2):
+        for col in range(table.columnCount() // 2):
+            table.setBorderVisible(row, col, True)
 
     table.setForeground(0,0, QtCore.Qt.green)
 
@@ -237,7 +239,7 @@ def main():
              )
 
     for row, col, backCol, foreCol in cells:
-        if 0 <= row < table.rowCount() and 0 <= col < table.columnCount():
+        if 0 <= row < (table.rowCount() * 2 // 3) and 0 <= col < table.columnCount():
             table.setBackground(row, col, backCol)
             table.setForeground(row, col, foreCol)
 

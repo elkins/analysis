@@ -16,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-06-19 13:15:42 +0100 (Wed, June 19, 2024) $"
-__version__ = "$Revision: 3.2.3 $"
+__dateModified__ = "$dateModified: 2024-08-23 19:23:04 +0100 (Fri, August 23, 2024) $"
+__version__ = "$Revision: 3.2.5 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -1099,20 +1099,24 @@ class ExportStripToFilePopup(ExportDialogABC):
     @staticmethod
     def _resetPulldownColours(combo):
         model = combo.model()
-        for ii in range(len(combo.getTexts())):
+        for ii in range(combo.count()):
             idx = model.index(ii)
             itm = combo.itemFromIndex(idx)
             if itm.text().startswith(PulldownFill):
                 itm.setFlags(itm.flags() & ~QtCore.Qt.ItemIsEnabled)
+                # reset the foreground colour to follow palette
+                itm.setData(None, QtCore.Qt.ForegroundRole)
 
     @staticmethod
     def _setListColours(combo, validStripIds):
         model = combo.model()
-        for ind in range(len(combo.getTexts())):
+        for ind in range(combo.count()):
             idx = model.index(ind)
             itm = combo.itemFromIndex(idx)
-            if PulldownFill not in itm.text():
-                itm.setForeground(PRINT_COLOR if itm.text() in validStripIds else DEFAULT_COLOR)
+            if PulldownFill not in itm.text() and itm.text() in validStripIds:
+                itm.setData(PRINT_COLOR, QtCore.Qt.ForegroundRole)
+            else:
+                itm.setData(None, QtCore.Qt.ForegroundRole)
 
     def _populateRange(self):
         """Populate the list/spinboxes in range widget
@@ -1640,9 +1644,9 @@ class ExportStripToFilePopup(ExportDialogABC):
         """post-initialise functions
         CCPN-Internal to be called at the end of __init__
         """
-        super()._postInit()
-
-        # self._populate()
+        with self._changes.blockChanges():
+            # stop the popup from firing events
+            super()._postInit()
         self._revertButton = self.getButton(self.RESETBUTTON)
 
     def _closeDialog(self):

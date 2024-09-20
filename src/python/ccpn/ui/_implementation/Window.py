@@ -15,8 +15,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-05-10 16:24:09 +0100 (Fri, May 10, 2024) $"
-__version__ = "$Revision: 3.2.4 $"
+__dateModified__ = "$dateModified: 2024-05-10 16:28:56 +0100 (Fri, May 10, 2024) $"
+__version__ = "$Revision: 3.2.5 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -464,7 +464,7 @@ class Window(AbstractWrapperObject):
 
     #Command logging done inside the method
     def newSpectrumDisplay(self, spectra, axisCodes: Sequence[str] = (), stripDirection: str = 'Y',
-                           position='right', relativeTo=None):
+                           position='right', relativeTo=None, flip1D=False):
         """Create new SpectrumDisplay.
 
         :param spectra: a Spectrum or SpectrumGroup instance, or a list,tuple of Spectrum Instances to be displayed.
@@ -485,7 +485,6 @@ class Window(AbstractWrapperObject):
             raise ValueError(
                     f'Invalid spectra argument, expected Spectrum, list of Spectra or SpectrumGroup; got "{spectra}"')
 
-        spectrum = None
         if isinstance(spectra, Spectrum):
             isGrouped = False
             isList = False
@@ -504,7 +503,12 @@ class Window(AbstractWrapperObject):
             raise ValueError(f'{spectra} has no spectra')
 
         if not axisCodes:
-            axisCodes = tuple(spectrum.axisCodes[ac] for ac in spectrum._preferredAxisOrdering)
+            if len(spectrum.axisCodes) > 1:
+                axisCodes = tuple(spectrum.axisCodes[ac] for ac in spectrum._preferredAxisOrdering)
+            else:
+                # disregard the preferred ordering for 1d spectra and set the flipped flag instead
+                axisCodes = tuple(spectrum.axisCodes)
+                flip1D = spectrum._preferredAxisOrdering[0] == 1
 
         # change string names to objects
         if isinstance(relativeTo, str):
@@ -536,7 +540,8 @@ class Window(AbstractWrapperObject):
                                               axisCodes=axisCodes,
                                               stripDirection=stripDirection,
                                               zPlaneNavigationMode=zPlaneNavigationMode,
-                                              isGrouped=isGrouped
+                                              isGrouped=isGrouped,
+                                              flip1D=flip1D,
                                               )
 
                 # add the new module to mainWindow at the required position

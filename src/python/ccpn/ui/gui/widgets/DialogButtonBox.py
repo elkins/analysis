@@ -4,19 +4,20 @@ Module Documentation here
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (http://www.ccpn.ac.uk) 2014 - 2021"
-__credits__ = ("Ed Brooksbank, Joanna Fox, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
-               "Timothy J Ragan, Brian O Smith, Gary S Thompson & Geerten W Vuister")
-__licence__ = ("CCPN licence. See http://www.ccpn.ac.uk/v3-software/downloads/license")
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
+               "Timothy J Ragan, Brian O Smith, Daniel Thompson",
+               "Gary S Thompson & Geerten W Vuister")
+__licence__ = ("CCPN licence. See https://ccpn.ac.uk/software/licensing/")
 __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, L.G., & Vuister, G.W.",
                  "CcpNmr AnalysisAssign: a flexible platform for integrated NMR analysis",
-                 "J.Biomol.Nmr (2016), 66, 111-124, http://doi.org/10.1007/s10858-016-0060-y")
+                 "J.Biomol.Nmr (2016), 66, 111-124, https://doi.org/10.1007/s10858-016-0060-y")
 #=========================================================================================
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2021-05-26 19:50:50 +0100 (Wed, May 26, 2021) $"
-__version__ = "$Revision: 3.0.4 $"
+__dateModified__ = "$dateModified: 2024-08-23 19:21:19 +0100 (Fri, August 23, 2024) $"
+__version__ = "$Revision: 3.2.5 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -26,12 +27,13 @@ __date__ = "$Date: 2020-05-26 14:50:42 +0000 (Tue, May 26, 2020) $"
 # Start of code
 #=========================================================================================
 
-from PyQt5 import QtCore, QtWidgets
+from PyQt5 import QtCore, QtWidgets, QtGui
 from ccpn.ui.gui.widgets.Base import Base
 from ccpn.ui.gui.widgets.Icon import Icon
 from operator import or_
 from functools import reduce
 from ccpn.ui.gui.widgets.Font import setWidgetFont
+from ccpn.ui.gui.guiSettings import getColours
 
 
 class DialogButtonBox(QtWidgets.QDialogButtonBox, Base):
@@ -81,12 +83,9 @@ class DialogButtonBox(QtWidgets.QDialogButtonBox, Base):
         visibleStates = (list(visibleStates) + N * [None])[:N]
 
         if defaultButton is not None and defaultButton not in buttons:
-            raise TypeError("Error, defaultButton not in buttons")
-
+            raise TypeError(f"Error, defaultButton not in buttons")
         if not isinstance(orientation, str):
             raise TypeError("Error, orientation must be str: 'h' or 'v'")
-
-        self.setStyleSheet('QPushButton { padding: 0px 8px 0px 8px; }')
 
         if 'h' in orientation.lower():
             self.setOrientation(QtCore.Qt.Horizontal)
@@ -114,14 +113,10 @@ class DialogButtonBox(QtWidgets.QDialogButtonBox, Base):
                             thisButton.clicked.connect(callback)
                         if text is not None:
                             thisButton.setText(text)
-                            if not text:
-                                # reduce the padding to give a better shape
-                                thisButton.setStyleSheet('QPushButton { padding: 0px 2px 0px 2px; }')
-
                         if tipText is not None:
                             thisButton.setToolTip(tipText)
 
-                        if enableIcons and icon is not None: # filename or pixmap
+                        if enableIcons and icon is not None:  # filename or pixmap
                             thisButton.setIcon(Icon(icon))
                             # NOTE: sometimes this causes the button to reset its stylesheet
                             thisButton.setIconSize(QtCore.QSize(22, 22))
@@ -136,6 +131,26 @@ class DialogButtonBox(QtWidgets.QDialogButtonBox, Base):
 
             if defaultButton is not None:
                 self._parent.setDefaultButton(self.button(defaultButton))
+
+        self._setStyle()
+
+    def _setStyle(self):
+        _style = """QPushButton { padding: 3px 5px 3px 5px; }
+                    QPushButton:focus {
+                        padding: 0px;
+                        border-color: palette(highlight);
+                        border-style: solid;
+                        border-width: 1px;
+                        border-radius: 2px;
+                    }
+                    QPushButton:disabled {
+                        color: palette(dark);
+                        background-color: palette(midlight);
+                    }
+                    """
+        self.setStyleSheet(_style)
+        for button in self.buttons():
+            button.setStyleSheet(_style)
 
     def button(self, which: 'QtWidgets.QDialogButtonBox.StandardButton') -> QtWidgets.QPushButton:
         # subclass 'button' to allow searching for user buttons in _userButtonDict before standardButtons

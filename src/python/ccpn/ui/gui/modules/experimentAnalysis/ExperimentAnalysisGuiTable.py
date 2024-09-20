@@ -12,9 +12,9 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-08-21 13:51:14 +0100 (Wed, August 21, 2024) $"
-__version__ = "$Revision: 3.2.5 $"
+__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
+__dateModified__ = "$dateModified: 2024-09-13 15:20:23 +0100 (Fri, September 13, 2024) $"
+__version__ = "$Revision: 3.2.7 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -24,6 +24,9 @@ __date__ = "$Date: 2022-05-20 12:59:02 +0100 (Fri, May 20, 2022) $"
 # Start of code
 #=========================================================================================
 
+import numpy as np
+
+from ccpn.core.lib.OrderedSpectrumViews import mainTest
 from ccpn.util.DataEnum import DataEnum
 import ccpn.framework.lib.experimentAnalysis.SeriesAnalysisVariables as sv
 from ccpn.util.Logging import getLogger
@@ -46,9 +49,14 @@ class _NavigateTrigger(DataEnum):
     _NavigateTrigger = 1 # status: Callback on single click, navigate to SpectrumDisplay at each table selection.
     _NavigateTrigger = 2 # status: Callback on double click, navigate only with a doubleClick on a table row.
     """
-    DISABLED        = 0, guiNameSpaces.Disabled
-    SINGLECLICK     = 1, guiNameSpaces.SingleClick
-    DOUBLECLICK     = 2, guiNameSpaces.DoubleClick
+    DISABLED = 0, guiNameSpaces.Disabled
+    SINGLECLICK = 1, guiNameSpaces.SingleClick
+    DOUBLECLICK = 2, guiNameSpaces.DoubleClick
+
+
+#=========================================================================================
+# _ExperimentalAnalysisTableABC
+#=========================================================================================
 
 class _ExperimentalAnalysisTableABC(Table):
     """
@@ -100,11 +108,11 @@ class _ExperimentalAnalysisTableABC(Table):
         self.headerColumnMenu.setInternalColumns(self._internalColumns)
         self.guiModule = guiModule
         self.moduleParent = guiModule
-        self._selectionHeader =sv.COLLECTIONPID
+        self._selectionHeader = sv.COLLECTIONPID
 
         # Initialise the notifier for processing dropped items
         self._postInitTableCommonWidgets()
-        self._navigateTrigger = _NavigateTrigger.SINGLECLICK # Default Behaviour
+        self._navigateTrigger = _NavigateTrigger.SINGLECLICK  # Default Behaviour
         navigateTriggerName = self.guiModule.getSettings(grouped=False).get(guiNameSpaces.WidgetVarName_NavigateToOpt)
         self.setNavigateToPeakTrigger(navigateTriggerName)
         self._selectCurrentCONotifier = Notifier(self.current, [Notifier.CURRENT], targetName='collections',
@@ -134,7 +142,7 @@ class _ExperimentalAnalysisTableABC(Table):
         selectedRows = self.getSelectedData()
         self._dataFrame = dataFrame
         self.build(dataFrame)
-        if self._selectionHeader in self.headerColumnMenu.columnTexts and len(selectedRows)>0:
+        if self._selectionHeader in self.headerColumnMenu.columnTexts and len(selectedRows) > 0:
             selPids = selectedRows[sv.COLLECTIONPID].values
             self.selectRowsByValues(selPids, sv.COLLECTIONPID, scrollToSelection=True, doCallback=True)
 
@@ -146,7 +154,6 @@ class _ExperimentalAnalysisTableABC(Table):
             self._hideExcludedColumns()
             self._setExclusionColours()
 
-
     #=========================================================================================
     # Selection/action callbacks
     #=========================================================================================
@@ -155,6 +162,7 @@ class _ExperimentalAnalysisTableABC(Table):
         """Set the current collection and navigate to SpectrumDisplay if the trigger is enabled as singleClick. """
         from ccpn.ui.gui.modules.experimentAnalysis.ExperimentAnalysisGuiModuleBC import _navigateToPeak, \
             getPeaksFromCollection
+
         collections = self.getSelectedCollections()
         if len(collections) == 0:
             return
@@ -170,6 +178,7 @@ class _ExperimentalAnalysisTableABC(Table):
         """Perform a navigate to SpectrumDisplay if the trigger is enabled as doubleClick"""
         if self._navigateTrigger == _NavigateTrigger.DOUBLECLICK:
             from ccpn.ui.gui.modules.experimentAnalysis.ExperimentAnalysisGuiModuleBC import _navigateToPeak
+
             _navigateToPeak(self.guiModule, self.current.peaks[-1])
 
     def setNavigateToPeakTrigger(self, trigger):
@@ -194,13 +203,6 @@ class _ExperimentalAnalysisTableABC(Table):
         pids = data.get('pids', [])
         # self._handleDroppedItems(pids, KlassTable, self.moduleParent._modulePulldown)
         getLogger().warning('Drop not yet implemented for this module.')
-
-    def _close(self):
-        """
-        Cleanup the notifiers when the window is closed
-        """
-        pass
-
 
     #=========================================================================================
     # Table context menu
@@ -252,8 +254,9 @@ class _ExperimentalAnalysisTableABC(Table):
 
     def _editCollection(self):
         from ccpn.ui.gui.popups.CollectionPopup import CollectionPopup
+
         collections = self.getSelectedCollections()
-        if len(collections)>0:
+        if len(collections) > 0:
             co = collections[-1]
             if co is not None:
                 popup = CollectionPopup(self, mainWindow=self.mainWindow, obj=co, editMode=True)
@@ -395,7 +398,7 @@ class _ExperimentalAnalysisTableABC(Table):
         extraHeaders = []
         for header in headers:
             for columnHeader in self.headerColumnMenu.columnTexts:
-                if str(columnHeader).startswith(str(header)) and sv.SEP in columnHeader :
+                if str(columnHeader).startswith(str(header)) and sv.SEP in columnHeader:
                     extraHeaders.append(columnHeader)
         headers += extraHeaders
         self._setVisibleColumns(headers, setVisible)
@@ -456,37 +459,43 @@ class _ExperimentalAnalysisTableABC(Table):
         self.current.collections = []
         self.guiModule.updateAll()
 
-class TablePanel(GuiPanel):
 
+#=========================================================================================
+# TablePanel
+#=========================================================================================
+
+class TablePanel(GuiPanel):
     position = 1
     panelName = 'TablePanel'
     TABLE = _ExperimentalAnalysisTableABC
 
     def __init__(self, guiModule, *args, **Framekwargs):
-        GuiPanel.__init__(self, guiModule, *args , **Framekwargs)
+        GuiPanel.__init__(self, guiModule, *args, **Framekwargs)
 
     def initWidgets(self):
         row = 0
         # Label(self, 'TablePanel', grid=(row, 0))
         self.mainTable = self.TABLE(self,
                                     mainWindow=self.mainWindow,
-                                    guiModule = self.guiModule,
+                                    guiModule=self.guiModule,
                                     grid=(0, 0), gridSpan=(1, 2))
-    
+
     def setInputData(self, dataFrame):
         """Provide the DataFrame to populate the table."""
         self.mainTable.dataFrame = dataFrame
 
     def updatePanel(self, *args, **kwargs):
-
         dataFrame = self.guiModule.backendHandler.getResultDataFrame(useFiltered=True)
         self.setInputData(dataFrame)
         # update here the X-Y selectors on the settings. Has to be done here because the mainplot has to be in sync with the table.
         appearance = self.guiModule.settingsPanelHandler.getTab(guiNameSpaces.Label_GeneralAppearance)
         appearance._setXYAxisSelectors()
 
+    def close(self):
+        if self.mainTable:
+            self.mainTable.close()
+        super().close()
 
-
-def clearData(self):
-        self.mainTable.dataFrame = None
-        self.mainTable.clearTable()
+    # def clearData(self):
+    #     self.mainTable.dataFrame = None
+    #     self.mainTable.clearTable()

@@ -15,9 +15,9 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: Geerten Vuister $"
-__dateModified__ = "$dateModified: 2024-07-25 10:11:17 +0100 (Thu, July 25, 2024) $"
-__version__ = "$Revision: 3.2.5 $"
+__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
+__dateModified__ = "$dateModified: 2024-09-06 11:32:58 +0100 (Fri, September 06, 2024) $"
+__version__ = "$Revision: 3.2.6 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -30,8 +30,9 @@ __date__ = "$Date: 2017-03-16 18:20:01 +0000 (Thu, March 16, 2017) $"
 import sys
 import typing
 import re
+import json
 from PyQt5 import QtWidgets, QtCore, QtGui
-
+from functools import partial
 from ccpn.core.Project import Project
 
 from ccpn.framework.Application import getApplication
@@ -45,19 +46,23 @@ from ccpn.core.lib.ContextManagers import (
 from ccpn.ui.Ui import Ui
 from ccpn.ui.gui.popups.RegisterPopup import RegisterPopup, NewTermsConditionsPopup
 from ccpn.ui.gui.widgets.Application import Application
+from ccpn.ui.gui.widgets.Base import Base
 from ccpn.ui.gui.widgets import MessageDialog
 from ccpn.ui.gui.widgets import FileDialog
 from ccpn.ui.gui.widgets.Font import getSystemFonts
+# from ccpn.ui.gui.widgets.Frame import ScrollableFrame
 from ccpn.ui.gui.popups.ImportStarPopup import StarImporterPopup
 
 # This import initializes relative paths for QT style-sheets.  Do not remove! GWV ????
-from ccpn.ui.gui.guiSettings import FontSettings, consoleStyle
+from ccpn.ui.gui.guiSettings import (FontSettings, consoleStyle, getTheme,
+                                     getColours, PALETTE, Theme, setColourScheme)
+# from ccpn.ui.gui.widgets.Font import getFontHeight
 from ccpn.ui.gui.widgets.Icon import Icon
 
 from ccpn.util.Logging import getLogger
 from ccpn.util import Logging
 from ccpn.util import Register
-from ccpn.util.Path import aPath, Path
+from ccpn.util.Path import aPath
 from ccpn.util.decorators import logCommand
 
 from ccpnmodel.ccpncore.memops.ApiError import ApiError
@@ -71,20 +76,20 @@ def _ccpnExceptionhook(ccpnType, value, tback):
     """This because PyQT raises and catches exceptions,
     but doesn't pass them along instead makes the program crashing miserably.
     """
-    application = getApplication()
-    if application and application._isInDebugMode:
-        sys.stderr.write('_ccpnExceptionhook: type = %s\n' % ccpnType)
-        sys.stderr.write('_ccpnExceptionhook: value = %s\n' % value)
-        sys.stderr.write('_ccpnExceptionhook: tback = %s\n' % tback)
+    if (application := getApplication()):
+        if application._isInDebugMode:
+            sys.stderr.write('_ccpnExceptionhook: type = %s\n' % ccpnType)
+            sys.stderr.write('_ccpnExceptionhook: value = %s\n' % value)
+            sys.stderr.write('_ccpnExceptionhook: tback = %s\n' % tback)
 
-    # this is crashing on Windows 10 Enterprise :|
-    # if application and application.hasGui:
-    #     title = f'{str(ccpnType)[8:-2]}:'
-    #     text = str(value)
-    #     MessageDialog.showError(title=title, message=text)
+        # # this is crashing on Windows 10 Enterprise :|
+        # if application.hasGui:
+        #     title = f'{str(ccpnType)[8:-2]}:'
+        #     text = str(value)
+        #     MessageDialog.showError(title=title, message=text)
 
-    if application.project and not application.project.readOnly:
-        application.project._updateLoggerState(readOnly=False, flush=True)
+        if application.project and not application.project.readOnly:
+            application.project._updateLoggerState(readOnly=False, flush=True)
 
     sys.__excepthook__(ccpnType, value, tback)
 
@@ -119,14 +124,101 @@ class _MyAppProxyStyle(QtWidgets.QProxyStyle):
     """Class to handle resizing icons in menus
     """
 
+    # def drawPrimitive(self, element: QtWidgets.QStyle.PrimitiveElement,
+    #                   option: QtWidgets.QStyleOption,
+    #                   painter: QtGui.QPainter,
+    #                   widget: typing.Optional[QtWidgets.QWidget] = ...) -> None:
+    #     focus = False
+    #     if element in {QtWidgets.QStyle.PE_FrameLineEdit,
+    #                    QtWidgets.QStyle.PE_FrameFocusRect,
+    #                    QtWidgets.QStyle.PE_PanelButtonCommand,
+    #                    }:
+    #         focus = option.state & QtWidgets.QStyle.State_HasFocus
+    #         option.state &= ~(QtWidgets.QStyle.State_HasFocus | QtWidgets.QStyle.State_Selected)
+    #         # Customise the highlight color for a soft background
+    #         if Base._highlightMid is not None:
+    #             option.palette.setColor(option.palette.Highlight, Base._highlightMid)
+    #     if element == QtWidgets.QStyle.PE_FrameFocusRect and isinstance(widget, QtWidgets.QPushButton):
+    #         # replace the QPushButton focus with just a border
+    #         if (efb := getattr(widget, '_enableFocusBorder', None)) is None or efb is True:
+    #             self._drawBorder(element, painter, widget, col=Base._highlightVivid)
+    #         return
+    #     super().drawPrimitive(element, option, painter, widget)
+    #     if focus and element in {QtWidgets.QStyle.PE_FrameLineEdit,
+    #                              }:
+    #         # draw new focus-border
+    #         self._drawBorder(element, painter, widget, col=Base._highlightVivid)
+
     def drawControl(self, element, option, painter, widget=None):
-        if (element in {QtWidgets.QStyle.CE_MenuItem} and isinstance(option, QtWidgets.QStyleOptionMenuItem) and
+        # if element in {QtWidgets.QStyle.CE_TabBarTab,
+        #                }:
+        #     # Customise the highlight color for the tab-widget
+        #     if Base._highlightVivid is not None:
+        #         option.palette.setColor(option.palette.Highlight, Base._highlightVivid)
+        if (element in {QtWidgets.QStyle.CE_MenuItem,} and
+              isinstance(option, QtWidgets.QStyleOptionMenuItem) and
                 (_actionGeometries := getattr(widget, '_actionGeometries', None)) and
                 (action := _actionGeometries.get(str(option.rect))) and
                 (colour := getattr(action, '_foregroundColour', None))):
             # Customise the foreground colour for the menu-item from the QAction
+            # - menu-items don't have a stylesheet or palette
             option.palette.setColor(option.palette.Text, colour)
-        return super().drawControl(element, option, painter, widget)
+        super().drawControl(element, option, painter, widget)
+        # if element in {QtWidgets.QStyle.CE_ItemViewItem, } and (option.state & QtWidgets.QStyle.State_HasFocus):
+        #     # draw border inside the listWidget/listView/TreeView
+        #     #   - draws border inside pulldowns though, shame :(
+        #     self._drawBorder(element, painter, widget, col=Base._highlightVivid)
+
+    def drawComplexControl(self, control: QtWidgets.QStyle.ComplexControl,
+                           option: QtWidgets.QStyleOptionComplex,
+                           painter: QtGui.QPainter,
+                           widget: typing.Optional[QtWidgets.QWidget] = ...) -> None:
+        focus = None
+        if control in {QtWidgets.QStyle.CC_ComboBox,
+                       QtWidgets.QStyle.CC_SpinBox,
+                       }:
+            focus = option.state & QtWidgets.QStyle.State_HasFocus
+            option.state &= ~QtWidgets.QStyle.State_HasFocus
+            if control in {QtWidgets.QStyle.CC_ComboBox,}:
+                # hack to set the drop-arrow colour
+                # using window-text allows setting the text colour on non-editable combobox
+                option.palette.setColor(option.palette.ButtonText,
+                                        option.palette.color(QtGui.QPalette.Active,
+                                                             QtGui.QPalette.ColorRole(QtGui.QPalette.WindowText)))
+        # elif control in {QtWidgets.QStyle.CC_Slider,} and Base._highlightVivid is not None:
+        #     option.palette.setColor(option.palette.Highlight, Base._highlightVivid)
+        super().drawComplexControl(control, option, painter, widget)
+        if focus:
+            # draw new focus-border
+            self._drawBorder(control, painter, widget,
+                             col=option.palette.highlight().color())
+
+    @staticmethod
+    def _drawBorder(control, p, widget, col=None):
+        p.save()
+        try:
+            wind = widget.rect()
+            if control == QtWidgets.QStyle.CC_SpinBox:
+                # not sure why the border is off slightly
+                wind = wind.adjusted(0, 1, 0, -1)  # x1, y1 - x2, y2
+            elif control == QtWidgets.QStyle.CE_ItemViewItem:
+                # border is off because the border-width is outside the widget :|
+                wind = wind.adjusted(-1, -1, -1, -1)
+            # paint the new border
+            p.translate(0.5, 0.5)  # move to pixel-centre
+            p.setRenderHint(QtGui.QPainter.Antialiasing, True)
+            col = col or QtGui.QColor('red')
+            col.setAlpha(40)  # feint must be done first so that QSlider draws correctly
+            p.setPen(col)
+            p.drawRoundedRect(wind.adjusted(1, 1, -2, -2), 1.7, 1.7)
+            col.setAlpha(255)
+            p.setPen(col)
+            p.drawRoundedRect(wind.adjusted(0, 0, -1, -1), 2, 2)
+        except Exception:
+            ...
+        finally:
+            p.translate(-0.5, -0.5)
+            p.restore()
 
     def standardIcon(self, standardIcon, option=None, widget=None) -> QtGui.QIcon:
         # change the close-button of the line-edit to a cleaner icon, set by setClearButtonEnabled
@@ -164,10 +256,13 @@ class Gui(Ui):
 
         # NOTE:ED - this is essential for multi-window applications
         QtCore.QCoreApplication.setAttribute(QtCore.Qt.AA_ShareOpenGLContexts, True)
+        # experimental - makes a mess!
+        # QtCore.QCoreApplication.setAttribute(QtCore.Qt.AA_UseStyleSheetPropagationInWidgetStyles, True)
 
         # fm = QtGui.QSurfaceFormat()
         # fm.setSamples(4)
         # # NOTE:ED - Do not do this, they cause QT to exhibit strange behaviour
+        # #     - think is QT bug when recompiling :|
         # # fm.setSwapInterval(0)  # disable VSync
         # # fm.setSwapBehavior(QtGui.QSurfaceFormat.DoubleBuffer)
         # QtGui.QSurfaceFormat.setDefaultFormat(fm)
@@ -175,18 +270,154 @@ class Gui(Ui):
         self.qtApp = Application(self.application.applicationName,
                                  self.application.applicationVersion,
                                  organizationName='CCPN', organizationDomain='ccpn.ac.uk')
-
         # patch for icon sizes in menus, etc.
         styles = QtWidgets.QStyleFactory()
         myStyle = _MyAppProxyStyle(styles.create('fusion'))
         self.qtApp.setStyle(myStyle)
 
+        # override the dark/light theme
+        self._changeThemeInstant()
+
         # read the current system-fonts
         getSystemFonts()
-
         # # original - no patch for icon sizes
         # styles = QtWidgets.QStyleFactory()
         # self.qtApp.setStyle(styles.create('fusion'))
+
+    def _changeThemeInstant(self, theme: str=None, colour: str=None, themeSD: str=None):
+        """Set the light/dark palette in single step.
+        0 - dark, 1 - light, 2 - default = follow OS/application
+        """
+        prefsApp = self.application.preferences.appearance
+        prefsGen = self.application.preferences.general
+
+        _th, _col, _thSD = getTheme()  # should have been set on creation
+        if theme is None: theme = _th.dataValue
+        if themeSD is None: themeSD = _thSD.dataValue
+        if colour is None: colour = _col
+
+        if not isinstance(theme, Theme) and theme not in Theme.dataValues():
+            raise ValueError(f'{self.__class__.__name__}._changeThemeInstant: theme not in {Theme.dataValues()}')
+        if not isinstance(themeSD, Theme) and themeSD not in Theme.dataValues():
+            raise ValueError(f'{self.__class__.__name__}._changeThemeInstant: themeSD not in {Theme.dataValues()}')
+        if not isinstance(colour, str):
+            raise TypeError(f'{self.__class__.__name__}._changeThemeInstant: colour not of type str')
+        try:
+            # test the colour
+            QtGui.QColor(colour)
+        except Exception:
+            raise ValueError(f'{self.__class__.__name__}._changeThemeInstant: colour {colour!r} not valid')
+
+        getLogger().debug(f'{consoleStyle.fg.darkblue}==> start palette-change event.{consoleStyle.reset}')
+        # set highlight to the required highlighting colour
+        # set the theme in preferences
+        th = Theme.getByDataValue(theme)
+        thSD = Theme.getByDataValue(themeSD)
+        prefsApp.themeStyle = th.dataValue  # application theme
+        prefsApp.themeColour = colour
+        prefsGen.colourScheme = thSD.dataValue  # spectrumDisplay theme
+
+        if pal := setColourScheme(th, colour, thSD):
+            self.qtApp.setPalette(pal)
+            # QtCore.QTimer.singleShot(0, partial(self.qtApp.setPalette, pal))
+            QtCore.QTimer.singleShot(0, partial(self.qtApp.sigPaletteChanged.emit, pal,
+                                              prefsApp.themeStyle,
+                                              prefsApp.themeColour,
+                                              prefsGen.colourScheme)
+                                     )
+        getLogger().debug(f'{consoleStyle.fg.darkblue}==> end palette-change event.{consoleStyle.reset}')
+
+        # pal = setColourScheme(th, colour, thSD)
+        # groups = [QtGui.QPalette.Active, QtGui.QPalette.Inactive, QtGui.QPalette.Disabled]
+        # if (colours := getColours()) and (theme := colours.get(PALETTE)):
+        #     for role, cols in theme.items():
+        #         for group, col in zip(groups, cols):
+        #             pal.setColor(group, role, QtGui.QColor(col))
+        #
+        #     base = pal.base().color().lightness()  # use as a guide for light/dark theme
+        #     highlight = QtGui.QColor(prefsApp.themeColour)
+        #     newCol = highlight.fromHslF(highlight.hueF(),
+        #                                 0.95,
+        #                                 highlight.lightnessF()**(0.5 if base > 127 else 2.0))
+        #     for group in groups:
+        #         pal.setColor(group, QtGui.QPalette.Highlight, newCol)
+        #
+        #     self.qtApp.setPalette(pal)
+        #     QtCore.QTimer.singleShot(0, partial(self.qtApp.sigPaletteChanged.emit, pal,
+        #                                       prefsApp.themeStyle,
+        #                                       prefsApp.themeColour,
+        #                                       prefsGen.colourScheme)
+        #                              )
+        #     getLogger().debug(f'{consoleStyle.fg.darkblue}==> end palette-change event.{consoleStyle.reset}')
+
+    # def _changeTheme(self, state: int=0):
+    #     """Set the light/dark palette in multiple-steps.
+    #     Not useful at the moment - redraw between steps taking too long.
+    #     0 - dark, 1 - light.
+    #     """
+    #     getLogger().debug(f'{consoleStyle.fg.darkblue}==> start palette-change event.{consoleStyle.reset}')
+    #     self._lastPalette = self.qtApp.palette()
+    #     self._nextPalette = lightPalette if state else darkPalette
+    #     self._paletteStep = 0
+    #     self._paletteTimer = QtCore.QTimer()
+    #     self._paletteTimer.timeout.connect(self._updatePalette)
+    #     self._paletteTimer.start(25)
+    #     getLogger().debug(f'{consoleStyle.fg.darkblue}==> end palette-change event.{consoleStyle.reset}')
+
+    @staticmethod
+    def _interpolateColor(color1, color2, factor):
+        """Interpolate between two QColor objects.
+        """
+        r = color1.red() + (color2.red() - color1.red()) * factor
+        g = color1.green() + (color2.green() - color1.green()) * factor
+        b = color1.blue() + (color2.blue() - color1.blue()) * factor
+        a = color1.alpha() + (color2.alpha() - color1.alpha()) * factor
+        return QtGui.QColor(int(r), int(g), int(b), int(a))
+
+    def _updatePalette(self):
+        MAXSTEPS = 3
+        if self._paletteStep > MAXSTEPS:
+            self._paletteTimer.stop()
+            self._paletteTimer = None
+            getLogger().debug(f'{consoleStyle.fg.darkblue}==> end palette-change event.{consoleStyle.reset}')
+            return
+        # if self._paletteStep >= MAXSTEPS:
+        #     self.mainWindow._blockPaletteChange = 0
+        # set highlight to the required highlighting colour
+        groups = [QtGui.QPalette.Active, QtGui.QPalette.Inactive, QtGui.QPalette.Disabled]
+        pal = self.qtApp.palette()
+        for role, cols in self._nextPalette.items():
+            for group, col in zip(groups, cols):
+                newCol = self._interpolateColor(pal.color(group, role),
+                                                QtGui.QColor(col),
+                                                self._paletteStep / MAXSTEPS)
+                pal.setColor(group, role, newCol)
+        self.qtApp.setPalette(pal)
+        self._paletteStep += 1
+
+    @property
+    def theme(self):
+        """Return the current theme as dark/light.
+        """
+        pal = self.qtApp.palette()
+        base = pal.base().color().lightness()  # use as a guide for light/dark theme
+        return 'dark' if base < 127 else 'light'
+
+    def setTheme(self, theme: str | int = 'light'):
+        """Set the new light/dark theme.
+        theme = 0|'dark' for dark, 1|'light' for light.
+        """
+        themeStates = {'dark': 0,
+                       'light': 1,
+                       0 : 0,
+                       1 : 1}
+        if theme not in themeStates:
+            raise ValueError(f'{self.__class__.__name__}.setTheme: '
+                             f'theme must be in {json.dumps(list(themeStates.keys()))}')
+        pal = self.qtApp.palette()
+        base = pal.base().color().lightness()  # use as a guide for light/dark theme
+        if int(base > 127) != themeStates[theme]:
+            self._changeThemeInstant(themeStates[theme])
 
     def initialize(self, mainWindow):
         """UI operations done after every project load/create

@@ -15,8 +15,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-04-18 17:09:04 +0100 (Thu, April 18, 2024) $"
-__version__ = "$Revision: 3.2.2.1 $"
+__dateModified__ = "$dateModified: 2024-04-18 17:29:10 +0100 (Thu, April 18, 2024) $"
+__version__ = "$Revision: 3.2.5 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -125,7 +125,9 @@ class UpdatePopup(CcpnDialogMainWidget):
 
         # initialise the buttons and dialog size
         self.setDefaultButton(None)
-        self._postInit()
+
+    def _postInit(self):
+        super()._postInit()
 
         self._defaultHeight = self.minimumSizeHint().height()
         self.resetFromServer()
@@ -179,10 +181,10 @@ class UpdatePopup(CcpnDialogMainWidget):
                                      setMinimumWidth=False)
         # set some padding for the buttons
         self.fontHeight = getFontHeight()
-        _style = f'QPushButton {{padding-left: {self.fontHeight}px; padding-right: {self.fontHeight}px; padding-top: 1px; padding-bottom: 1px;}}'
-        for button in self.buttonList.buttons:
-            button.setStyleSheet(_style)
-        self._updateButton.setStyleSheet(_style)
+        # _style = f'QPushButton {{padding-left: {self.fontHeight}px; padding-right: {self.fontHeight}px; padding-top: 1px; padding-bottom: 1px;}}'
+        # for button in self.buttonList.buttons:
+        #     button.setStyleSheet(_style)
+        # self._updateButton.setStyleSheet(_style)
         row += 1
         if self.preferences:
             CheckBoxCompoundWidget(self.mainWidget,

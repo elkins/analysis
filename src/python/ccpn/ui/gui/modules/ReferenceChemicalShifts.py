@@ -4,9 +4,10 @@ Module documentation here
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2022"
-__credits__ = ("Ed Brooksbank, Joanna Fox, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
-               "Timothy J Ragan, Brian O Smith, Gary S Thompson & Geerten W Vuister")
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
+               "Timothy J Ragan, Brian O Smith, Daniel Thompson",
+               "Gary S Thompson & Geerten W Vuister")
 __licence__ = ("CCPN licence. See https://ccpn.ac.uk/software/licensing/")
 __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, L.G., & Vuister, G.W.",
                  "CcpNmr AnalysisAssign: a flexible platform for integrated NMR analysis",
@@ -15,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2022-11-30 11:22:05 +0000 (Wed, November 30, 2022) $"
-__version__ = "$Revision: 3.1.0 $"
+__dateModified__ = "$dateModified: 2024-08-23 19:21:55 +0100 (Fri, August 23, 2024) $"
+__version__ = "$Revision: 3.2.5 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -29,30 +30,31 @@ __date__ = "$Date: 2017-04-07 10:28:41 +0000 (Fri, April 07, 2017) $"
 import numpy as np
 from functools import partial
 import pyqtgraph as pg
-from ccpn.ui.gui.guiSettings import CCPNGLWIDGET_HEXBACKGROUND, MEDIUM_BLUE, GUISTRIP_PIVOT, CCPNGLWIDGET_HIGHLIGHT, CCPNGLWIDGET_GRID, CCPNGLWIDGET_LABELLING
+from ccpn.ui.gui.guiSettings import (CCPNGLWIDGET_HIGHLIGHT, CCPNGLWIDGET_LABELLING,
+                                     getColours, CCPNGLWIDGET_HEXBACKGROUND,
+                                     CCPNGLWIDGET_HEXFOREGROUND)
 from ccpn.ui.gui.widgets.Font import Font, getFont
-from ccpn.ui.gui.lib.OpenGL.CcpnOpenGLDefs import PaintModes
+# from ccpn.ui.gui.lib.OpenGL.CcpnOpenGLDefs import PaintModes
 from PyQt5 import QtWidgets, QtCore, QtGui
 from ccpn.core.lib.AssignmentLib import CCP_CODES
 from ccpn.ui.gui.modules.CcpnModule import CcpnModule
 from ccpn.ui.gui.widgets.Label import Label, DividerLabel
 from ccpn.ui.gui.widgets.PulldownList import PulldownList
-from ccpn.util.Colour import spectrumHexDarkColours, spectrumHexLightColours
-from ccpn.ui.gui.guiSettings import getColours, CCPNGLWIDGET_HEXBACKGROUND
+# from ccpn.util.Colour import spectrumHexDarkColours, spectrumHexLightColours
 from ccpn.ui.gui.widgets.Frame import Frame
 from ccpn.ui.gui.widgets.ToolBar import ToolBar
 from ccpn.ui.gui.widgets.Action import Action
 from ccpn.ui.gui.widgets.Button import Button
 from ccpn.ui.gui.widgets.RadioButtons import RadioButtons
 from ccpn.ui.gui.widgets.Icon import Icon
-from ccpn.ui.gui.widgets.ListWidget import ListWidget
+# from ccpn.ui.gui.widgets.ListWidget import ListWidget
 from ccpn.ui.gui.lib.OpenGL.CcpnOpenGLNotifier import GLNotifier
 from ccpn.core.lib.Notifiers import Notifier
 from collections import defaultdict
-from ccpn.util.Colour import spectrumColours, hexToRgb, rgbaRatioToHex, _getRandomColours
+from ccpn.util.Colour import rgbaRatioToHex
 from ccpn.AnalysisAssign.modules.NmrAtomAssigner import BACKBONEATOMS
 from ccpn.util.isotopes import name2IsotopeCode
-from ccpn.ui.gui.widgets.MessageDialog import showWarning, _stoppableProgressBar, progressManager
+from ccpn.ui.gui.widgets.MessageDialog import progressManager
 
 
 CCPCODES = sorted(CCP_CODES)
@@ -201,6 +203,11 @@ CurveColours4DarkDisplay = {'C'   : '#b0f7ee',  ## BB
                             'NH2' : '#1E90FF',
                             'NZ'  : '#6495ED', }
 
+_ITEMDATA = '_itemData'
+_CURRENTCOLOUR = '_currentColour'
+_GRIDPEN = '_gridPen'
+_GRIDCOLOUR = 'gridColour'
+
 
 class ReferenceChemicalShifts(CcpnModule):  # DropBase needs to be first, else the drop events are not processed
 
@@ -243,7 +250,8 @@ class ReferenceChemicalShifts(CcpnModule):  # DropBase needs to be first, else t
         col = 0
         self.residueTypeLabel = Label(self._RCwidget, "Residue Type:", grid=(0, col))
         col += 1
-        self.residueTypePulldown = PulldownList(self._RCwidget, index=1, callback=self._updateModule, hAlign='l', grid=(0, col))
+        self.residueTypePulldown = PulldownList(self._RCwidget, index=1, callback=self._updateModule, hAlign='l',
+                                                grid=(0, col))
         ccpnCodes = [All] + CCPCODES
         self.residueTypePulldown.setData(ccpnCodes)
         col += 1
@@ -289,6 +297,7 @@ class ReferenceChemicalShifts(CcpnModule):  # DropBase needs to be first, else t
                                               # 'fill':self.currentColour
                                               },
                                    name=str(i))
+            setattr(line, _ITEMDATA, _CURRENTCOLOUR)
             self.plotWidget.addItem(line, ignoreBounds=True, )
             self.lines.append(line)
             line.hide()
@@ -307,6 +316,42 @@ class ReferenceChemicalShifts(CcpnModule):  # DropBase needs to be first, else t
         self.GLSignals = GLNotifier(parent=self, strip=None)
         with progressManager(self, f'Loading all available reference spectra. Please wait...'):
             self._updateModule()
+
+        QtWidgets.QApplication.instance()._sigPaletteChanged.connect(self._checkPalette)
+
+    def _checkPalette(self, pal: QtGui.QPalette, *args):
+        """Update the colour-palette in response to application theme change."""
+        pw = self.plotWidget
+        self.currentColour = rgbaRatioToHex(*getColours()[CCPNGLWIDGET_HIGHLIGHT])
+        self.gridColour = rgbaRatioToHex(*getColours()[CCPNGLWIDGET_LABELLING])
+        self.gridPen = pg.functions.mkPen(self.gridColour, width=1, style=QtCore.Qt.SolidLine)
+        self.backgroundColour = getColours()[CCPNGLWIDGET_HEXBACKGROUND]
+        pw.setBackground(self.backgroundColour)
+        foreground = QtGui.QColor(getColours()[CCPNGLWIDGET_HEXFOREGROUND])
+        # Set foreground color for text, axes, and grid
+        pw.getAxis('left').setPen(foreground)
+        pw.getAxis('bottom').setPen(foreground)
+        pw.getAxis('left').setTextPen(foreground)
+        pw.getAxis('bottom').setTextPen(foreground)
+
+        colDict = {_GRIDCOLOUR   : self.gridColour,
+                   _GRIDPEN      : self.gridColour,
+                   _CURRENTCOLOUR: self.currentColour}
+        self._updateModule()
+        plotItem = pw.getPlotItem()
+        for itm in plotItem.items:
+            if (colName := getattr(itm, _ITEMDATA, None)) in {_GRIDPEN, _GRIDCOLOUR, _CURRENTCOLOUR}:
+                col = colDict.get(colName)[:7]
+                if isinstance(itm, pg.TextItem):
+                    itm.setColor(QtGui.QColor(col))
+                elif isinstance(itm, pg.InfiniteLine):
+                    itm.setPen(QtGui.QColor(col))
+                    # set label colour and border
+                    label = itm.label
+                    label.setColor(QtGui.QColor(col))
+                    # this is a bit of a hack - doesn't seem to be a method to change
+                    label.border = pg.functions.mkPen(QtGui.QColor(col))
+        self.update()
 
     def _toggleByAtom(self):
         """Toggle spectra if the atom name is in Backbone atoms.
@@ -440,10 +485,17 @@ class ReferenceChemicalShifts(CcpnModule):  # DropBase needs to be first, else t
             valuePerPoint = ccpData[atomName].valuePerPoint
             x = []
             y = []
+            # get the spectrumDisplay colour theme
             if self.preferences.general.colourScheme == 'dark':
-                colour = CurveColours4DarkDisplay.get(atomName, '#ffffff')
+                colour = CurveColours4DarkDisplay.get(atomName, '#f4f4f4')
+            elif self.preferences.general.colourScheme == 'light':
+                colour = CurveColours4LightDisplay.get(atomName, '#060606')
             else:
-                colour = CurveColours4LightDisplay.get(atomName, '#000000')
+                # get the appearance->style colour-scheme
+                if self.preferences.appearance.themeStyle == 'dark':
+                    colour = CurveColours4DarkDisplay.get(atomName, '#f4f4f4')
+                else:
+                    colour = CurveColours4LightDisplay.get(atomName, '#060606')
             for i in range(len(distribution)):
                 x.append(refValue + valuePerPoint * (i - refPoint))
                 y.append(distribution[i])
@@ -457,11 +509,12 @@ class ReferenceChemicalShifts(CcpnModule):  # DropBase needs to be first, else t
 
         return dataSets
 
-    def _addBAseline(self, atomType, offset, ccpCode):
+    def _addBaseline(self, atomType, offset, ccpCode):
         maxBaseline = 20 if atomType == Hydrogen else 300
         xBaseline = np.arange(0, maxBaseline)
         yBaseline = np.array([offset] * len(xBaseline))
         baselinePlot = self.plotWidget.plot(xBaseline, yBaseline, name=ccpCode, pen=self.gridPen)
+        setattr(baselinePlot, _ITEMDATA, _GRIDPEN)
         return baselinePlot
 
     def _showAllResidues(self, offset=0.175):
@@ -474,15 +527,15 @@ class ReferenceChemicalShifts(CcpnModule):  # DropBase needs to be first, else t
         self.toolBar.setToolButtonStyle(QtCore.Qt.ToolButtonTextUnderIcon)
         self.plotWidget.showGrid(x=False, y=False)
         atomType = self.atomTypeRadioButtons.get()
-        inititialOffset = 0
+        initialOffset = 0
         for i, ccpCode in enumerate(CCPCODES):
             dataSets = self._getDistributionForResidue(ccpCode, atomType)
             resCurves = []
             textItems = []
-            baselinePlot = self._addBAseline(atomType, inititialOffset, ccpCode)
+            baselinePlot = self._addBaseline(atomType, initialOffset, ccpCode)
             for atomName, dataSet in dataSets.items():
                 xs = dataSet[0]
-                ys = dataSet[1] + inititialOffset
+                ys = dataSet[1] + initialOffset
                 color = dataSet[2]
                 plotPen = pg.functions.mkPen(color, width=2, style=QtCore.Qt.SolidLine)
                 plot = self.plotWidget.plot(xs, ys, pen=plotPen, name=atomName)
@@ -500,19 +553,59 @@ class ReferenceChemicalShifts(CcpnModule):  # DropBase needs to be first, else t
                 self.plotWidget.addItem(textItem)
 
             ccpCodeTextItem = pg.TextItem(ccpCode, color=self.gridColour, angle=0, anchor=(-0.1, 0.5))
-            ccpCodeTextItem.setPos(0, inititialOffset)
+            ccpCodeTextItem.setPos(0, initialOffset)
+            setattr(ccpCodeTextItem, _ITEMDATA, _GRIDCOLOUR)
             self.plotWidget.addItem(ccpCodeTextItem)
 
             action = Action(self, text=ccpCode,
-                            callback=partial(self.residueToolbarActionCallback, resCurves, textItems, ccpCodeTextItem, baselinePlot),
+                            callback=partial(self.residueToolbarActionCallback, resCurves, textItems, ccpCodeTextItem,
+                                             baselinePlot),
                             checked=True, shortcut=None, checkable=True)
             action.setObjectName(ccpCode)
             action.setIconText(ccpCode)
             self.toolBar.addAction(action)
             widgetAction = self.toolBar.widgetForAction(action)
             widgetAction.setFixedSize(55, 30)
-
-            inititialOffset += offset
+            self._styleSheet = """
+                                /*  currentField is a property on the widgetAction
+                                    that can be set to True to enable a highlighted border;
+                                    otherwise defaults to the standard 'checked'
+                                    section of the stylesheet.
+                                    There are not many colouirs available in the palette;
+                                    this uses a qlineargradient to pick a small range
+                                    between window-colour and medium-grey.
+                                    This is theme-agnostic, picks a shade always slightly lighter or
+                                    darker than the current background.
+                                    [(x1, y1), (x2, y2)] define the box over which the gradient is applied.
+                                    The widget is interpolated from [(0, 0), (1, 1)] in this box.
+                                    start, stop are normalised points for setting multiple colours in the gradient.
+                                */
+                                
+                                QToolButton {
+                                    color: palette(dark);
+                                    padding: 0px;
+                                }
+                                QToolButton:checked[currentField=true] {
+                                    color: palette(text);
+                                    border: 0.5px solid palette(highlight);
+                                    border-radius: 2px;
+                                    background-color: qlineargradient(
+                                                            x1: 0, y1: -1, x2: 0, y2: 6,
+                                                            stop: 0 palette(window), stop: 1 #808080
+                                                        );
+                                }
+                                QToolButton:checked {
+                                    color: palette(text);
+                                    border: 0.5px solid palette(dark);
+                                    border-radius: 2px;
+                                    background-color: qlineargradient(
+                                                            x1: 0, y1: -1, x2: 0, y2: 6,
+                                                            stop: 0 palette(window), stop: 1 #808080
+                                                        );
+                                }
+                                """
+            widgetAction.setStyleSheet(self._styleSheet)
+            initialOffset += offset
 
         self._zoomAllCallback()
         self._toggleByAtom()
@@ -539,7 +632,7 @@ class ReferenceChemicalShifts(CcpnModule):  # DropBase needs to be first, else t
         dataSets = self._getDistributionForResidue(ccpCode, atomType)
         self.toolBar.setToolButtonStyle(QtCore.Qt.ToolButtonTextUnderIcon)
         sortedAtomNames = sorted(dataSets.keys(), key=lambda x: x.lower())
-        self._addBAseline(atomType, 0, ccpCode)
+        self._addBaseline(atomType, 0, ccpCode)
         for atomName in sortedAtomNames:
             dataSet = dataSets[atomName]
             xs = dataSet[0]

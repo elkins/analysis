@@ -15,8 +15,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-07-03 15:54:54 +0100 (Wed, July 03, 2024) $"
+__modifiedBy__ = "$modifiedBy: Daniel Thompson $"
+__dateModified__ = "$dateModified: 2024-09-13 15:21:58 +0100 (Fri, September 13, 2024) $"
 __version__ = "$Revision: 3.2.5 $"
 #=========================================================================================
 # Created
@@ -29,7 +29,7 @@ __date__ = "$Date: 2023-01-24 10:28:48 +0000 (Tue, January 24, 2023) $"
 
 import os
 import time
-from functools import partial
+from functools import partial, partialmethod
 
 from PyQt5 import QtWidgets, QtCore, QtGui
 from PyQt5.QtGui import QKeySequence
@@ -51,10 +51,11 @@ from ccpn.ui.gui.lib.mouseEvents import SELECT, PICK, MouseModes, \
     setCurrentMouseMode, getCurrentMouseMode
 from ccpn.ui.gui.lib import GuiStrip
 from ccpn.ui.gui.lib.Shortcuts import Shortcuts
-from ccpn.ui.gui.guiSettings import getColours
+from ccpn.ui.gui.guiSettings import (getColours, GUITABLE_SELECTED_BACKGROUND, consoleStyle)
 
 from ccpn.ui.gui.modules.MacroEditor import MacroEditor
 
+from ccpn.ui.gui.widgets.Base import Base
 from ccpn.ui.gui.widgets.PlotterWidget import plotter
 from ccpn.ui.gui.widgets.Icon import Icon
 from ccpn.ui.gui.widgets import MessageDialog
@@ -97,9 +98,38 @@ _INTEGRAL_PEAKS = 8
 _MULTIPLET_PEAKS = 16
 
 READONLYCHANGED = 'readOnlyChanged'
+_transparent = QtGui.QColor('orange')
 
 
-class GuiMainWindow(Shortcuts, QtWidgets.QMainWindow):
+# def _paintEvent(widget: QtWidgets.QWidget, event: QtGui.QPaintEvent, func=None) -> None:
+#     result = func(widget, event)
+#     if widget.hasFocus():
+#         p = QtGui.QPainter(widget)
+#         p.translate(0.5, 0.5)  # move to pixel-centre
+#         p.setRenderHint(QtGui.QPainter.Antialiasing, True)
+#         col = QtGui.QColor('dodgerblue')  # Base._highlightVivid
+#         col.setAlpha(255)
+#         pen = QtGui.QPen(col)
+#         p.setPen(pen)
+#         p.drawRoundedRect(widget.rect().adjusted(0, 0, -1, -1), 2, 2)
+#         col.setAlpha(40)
+#         p.setPen(col)
+#         p.drawRoundedRect(widget.rect().adjusted(1, 1, -2, -2), 1.7, 1.7)
+#         p.end()
+#     return result
+#
+
+# _paintQLineEdit = QtWidgets.QLineEdit.paintEvent
+# QtWidgets.QLineEdit.paintEvent = partialmethod(_paintEvent, func=_paintQLineEdit)
+# _paintQSpinBox = QtWidgets.QSpinBox.paintEvent
+# QtWidgets.QSpinBox.paintEvent = partialmethod(_paintEvent, func=_paintQSpinBox)
+# _paintQDoubleSpinBox = QtWidgets.QDoubleSpinBox.paintEvent
+# QtWidgets.QDoubleSpinBox.paintEvent = partialmethod(_paintEvent, func=_paintQDoubleSpinBox)
+# _pp = QtWidgets.QToolButton.paintEvent
+# QtWidgets.QToolButton.paintEvent = partialmethod(_paintEvent, func=_pp)
+
+
+class GuiMainWindow(QtWidgets.QMainWindow, Shortcuts):
     # inherits NotifierBase from _Implementation.Window
 
     WindowMaximiseMinimise = QtCore.pyqtSignal(bool)
@@ -107,9 +137,9 @@ class GuiMainWindow(Shortcuts, QtWidgets.QMainWindow):
     def __init__(self, application=None):
 
         # Shortcuts only inserts methods
-        super(QtWidgets.QMainWindow, self).__init__()
+        super().__init__()
 
-        # format = QtGui.QSurfaceFormat()
+        # format = QtGui.QSurfaceFormat()  # I think these can be removed now
         # format.setSwapInterval(0)
         # QtGui.QSurfaceFormat.setDefaultFormat(format)
 
@@ -180,11 +210,67 @@ class GuiMainWindow(Shortcuts, QtWidgets.QMainWindow):
         self.hide()
 
     def show(self):
+        # self._checkPalette(self.palette())
+        # self.application.ui._changeThemeInstant()
+        # catch the initial palette-changed signal
+        QtWidgets.QApplication.instance().sigPaletteChanged.connect(self._checkPalette)
         super().show()
-
         # install handler to resize when moving between displays
         #   cannot be done in __init__ as crashes on linux/windows :O
         self.window().windowHandle().screenChanged.connect(self._screenChangedEvent)
+
+    def _checkPalette(self, pal: QtGui.QPalette, theme: str = None, themeColour: str = None, themeSD: str = None):
+        # test the stylesheet of the QTableView
+        styleSheet = """
+                        QPushButton {
+                            color: palette(text);
+                        }
+                        QToolTip {
+                            background-color: %(TOOLTIP_BACKGROUND)s;
+                            color: %(TOOLTIP_FOREGROUND)s;
+                            font-size: %(_fontSize)spt;
+                            border: 1px solid %(TOOLTIP_FOREGROUND)s;
+                            qproperty-margin: 4; 
+                        }
+                        QMenu::item:disabled {
+                            color: palette(dark);
+                        }
+                        QMenu::separator {
+                            height: 1px;
+                            background: qlineargradient(
+                                            x1: 0, y1: -1, x2: 0, y2: 8,
+                                            stop: 0 palette(base),
+                                            stop: 1 palette(text)
+                                        );
+                        }
+                        QMenuBar {
+                            color: palette(text);
+                        }
+                        QMenuBar::item:disabled {
+                            color: palette(dark);
+                        }
+                        """
+        # set stylesheet
+        base = pal.base().color().lightness()  # use as a guide for light/dark theme
+        colours = getColours()
+        highlight = pal.highlight().color()
+        colours[GUITABLE_SELECTED_BACKGROUND] = highlight.fromHslF(highlight.hueF(),
+                                                                   0.55 if base > 127 else 0.65,
+                                                                   0.80 if base > 127 else 0.35,
+                                                                   ).name()
+        colours['_fontSize'] = self.font().pointSize()
+        colours['_BORDER_WIDTH'] = 2  # need to grab from the table-instance :|
+        self.ui.qtApp.setStyleSheet(styleSheet % colours)
+
+        # store the colours in the baseclass, is this the best place?
+        Base._highlight = highlight
+        Base._highlightMid = QtGui.QColor.fromHslF(highlight.hueF(), 0.75, 0.65)
+        Base._basePalette = pal
+        Base._transparent = pal.highlight().color()  # grab again to stop overwrite
+        Base._transparent.setAlpha(40)
+        # pass through the palette-changed to other widgets
+        self.ui.qtApp._sigPaletteChanged.emit(pal, theme, themeColour, themeSD)
+        getLogger().debug(f'{consoleStyle.fg.darkblue}qtApp changePalette event{consoleStyle.reset}')
 
     def _initReadOnlyIcon(self):
         """Add icon to the statusBar that reflects the read-only state of the current project
@@ -388,6 +474,12 @@ class GuiMainWindow(Shortcuts, QtWidgets.QMainWindow):
         else:
             self.getMenuAction('File->Archive').setEnabled(True)
 
+        # sets working path to current path if required
+        if (genPrefs := self.application.preferences.general).useProjectPath == 'Alongside':
+            genPrefs.userWorkingPath = project.projectPath.parent.asString()
+        elif genPrefs.useProjectPath == 'Inside':
+            genPrefs.userWorkingPath = project.projectPath.asString()
+
         from copy import deepcopy
 
         self._spectrumModuleLayouts = self.moduleLayouts = None
@@ -528,9 +620,9 @@ class GuiMainWindow(Shortcuts, QtWidgets.QMainWindow):
         self._temporaryWidgetStore.hide()
 
         # set the background/fontSize for the tooltips
-        self.setStyleSheet('QToolTip {{ background-color: {TOOLTIP_BACKGROUND}; '
-                           'color: {TOOLTIP_FOREGROUND}; '
-                           'font-size: {_size}pt ; }}'.format(_size=self.font().pointSize(), **getColours()))
+        # self.setStyleSheet('QToolTip {{ background-color: {TOOLTIP_BACKGROUND}; '
+        #                    'color: {TOOLTIP_FOREGROUND}; '
+        #                    'font-size: {_size}pt ; }}'.format(_size=self.font().pointSize(), **getColours()))
 
     def _setupMenus(self):
         """
@@ -1680,7 +1772,8 @@ class GuiMainWindow(Shortcuts, QtWidgets.QMainWindow):
                     if strip.spectrumDisplay.is1D:
                         cursorPosition = self.application.current.cursorPosition
                         if cursorPosition is not None and len(cursorPosition) > 1:
-                            limits = [cursorPosition[0], cursorPosition[0] + 0.01]
+                            pos = cursorPosition[strip.spectrumDisplay._flipped]
+                            limits = [pos, pos + 0.01]
 
                             validViews = [sv for sv in strip.spectrumViews if sv.isDisplayed]
                             currentIntegrals = list(self.current.integrals)
@@ -1840,8 +1933,10 @@ class GuiMainWindow(Shortcuts, QtWidgets.QMainWindow):
                         multipletList = spectrum.multipletLists[-1]
                     peaks = [peak for peakList in spectrum.peakLists for peak in peakList.peaks if
                              peak in self.application.current.peaks]
-                    multiplet = multipletList.newMultiplet(peaks=peaks)
-                    self.application.current.multiplet = multiplet
+                    if peaks:
+                        # only create a multiplet that contains peaks
+                        multiplet = multipletList.newMultiplet(peaks=peaks)
+                        self.application.current.multiplet = multiplet
 
     def mergeCurrentMultiplet(self):
         """Merge current peaks into current multiplet

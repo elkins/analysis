@@ -16,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-08-07 09:20:37 +0100 (Wed, August 07, 2024) $"
+__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
+__dateModified__ = "$dateModified: 2024-08-23 19:21:20 +0100 (Fri, August 23, 2024) $"
 __version__ = "$Revision: 3.2.5 $"
 #=========================================================================================
 # Created
@@ -47,17 +47,6 @@ from ccpn.ui.gui.widgets.Widget import Widget
 # object e.g objects with text() methods and which have items associated with them
 # maybe needs a refactoring or a rename (or both)... or of course I maybe reading this wrong...
 class ListWidget(QtWidgets.QListWidget, Base):
-    # # To be done more rigeriously later
-    # _styleSheet = """
-    # QListWidget {background-color: #f7ffff;
-    #              color: #122043;
-    #              font-weight: normal;
-    #              margin: 0px 0px 0px 0px;
-    #              padding: 3px 3px 3px 3px;
-    #              border: 1px solid #182548;
-    #              }
-    # """
-
     dropped = pyqtSignal(list)
     cleared = pyqtSignal()
     changed = pyqtSignal()
@@ -110,14 +99,10 @@ class ListWidget(QtWidgets.QListWidget, Base):
 
         self.contextMenuItem = 'Remove'
         self.currentContextMenu = self.getContextMenu
-
         self.infinitleyTallVerically = infiniteHeight
         self.minRowsVisible = minRowsVisible
-
         self._emptyText = str(emptyText)
-        # self.setStyleSheet(self._styleSheet)
-
-        self._setFocusColour()
+        self._setStyle()
         self._setChangedConnections()
         self.setAllowSelections(allowSelections)
 
@@ -130,21 +115,20 @@ class ListWidget(QtWidgets.QListWidget, Base):
         else:
             self.setSelectionMode(QtWidgets.QListWidget.NoSelection)
 
-    def _setFocusColour(self, focusColour=None, noFocusColour=None):
+    def _setStyle(self):
         """Set the focus/noFocus colours for the widget
         """
-        focusColour = getColours()[BORDERFOCUS]
-        noFocusColour = getColours()[BORDERNOFOCUS]
-        styleSheet = "ListWidget { " \
-                     "border: 1px solid;" \
-                     "border-radius: 1px;" \
-                     "border-color: %s;" \
-                     "} " \
-                     "ListWidget:focus { " \
-                     "border: 1px solid %s; " \
-                     "border-radius: 1px; " \
-                     "}" % (noFocusColour, focusColour)
-        self.setStyleSheet(styleSheet)
+        _style = """QListWidget {
+                        border: 1px solid palette(mid);
+                        border-radius: 2px;
+                    }
+                    QListWidget:focus {
+                        border: 1px solid palette(highlight);
+                        border-radius: 2px;
+                    }
+                    QListWidget:disabled { background-color: palette(midlight); }
+                    """
+        self.setStyleSheet(_style)
 
     def _setChangedConnections(self):
         self.model().dataChanged.connect(lambda val: self.changed.emit())

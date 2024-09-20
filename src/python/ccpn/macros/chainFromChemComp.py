@@ -30,9 +30,9 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-01-29 11:45:32 +0000 (Mon, January 29, 2024) $"
-__version__ = "$Revision: 3.2.2 $"
+__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
+__dateModified__ = "$dateModified: 2024-04-04 15:19:21 +0100 (Thu, April 04, 2024) $"
+__version__ = "$Revision: 3.2.5 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -127,10 +127,6 @@ class NewChainFromChemComp(CcpnDialogMainWidget):
         self.setOkButton(callback=self._okCallback, tipText =self.tipText, text='Ok', enabled=True)
         self.setCloseButton(callback=self.reject, tipText='Close')
         self.setDefaultButton(CcpnDialogMainWidget.CLOSEBUTTON)
-
-        # initialise the buttons and dialog size
-        self._postInit()
-        self._okButton = self.dialogButtons.button(self.OKBUTTON)
 
     def _createWidgets(self):
 

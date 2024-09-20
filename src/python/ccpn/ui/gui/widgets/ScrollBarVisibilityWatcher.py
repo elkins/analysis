@@ -4,23 +4,26 @@ Module Documentation here
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (http://www.ccpn.ac.uk) 2014 - 2020"
-__credits__ = ("Ed Brooksbank, Luca Mureddu, Timothy J Ragan & Geerten W Vuister")
-__licence__ = ("CCPN licence. See http://www.ccpn.ac.uk/v3-software/downloads/license")
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
+               "Timothy J Ragan, Brian O Smith, Daniel Thompson",
+               "Gary S Thompson & Geerten W Vuister")
+__licence__ = ("CCPN licence. See https://ccpn.ac.uk/software/licensing/")
 __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, L.G., & Vuister, G.W.",
                  "CcpNmr AnalysisAssign: a flexible platform for integrated NMR analysis",
-                 "J.Biomol.Nmr (2016), 66, 111-124, http://doi.org/10.1007/s10858-016-0060-y")
+                 "J.Biomol.Nmr (2016), 66, 111-124, https://doi.org/10.1007/s10858-016-0060-y")
 #=========================================================================================
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2020-03-26 12:02:35 +0000 (Thu, March 26, 2020) $"
-__version__ = "$Revision: 3.0.1 $"
+__dateModified__ = "$dateModified: 2024-08-23 19:21:22 +0100 (Fri, August 23, 2024) $"
+__version__ = "$Revision: 3.2.5 $"
 #=========================================================================================
 # Created
 #=========================================================================================
 __author__ = "$Author: Ed Brooksbank $"
 __date__ = "$Date: 2020-03-26 11:44:06 +0000 (Thu, March 26, 2020) $"
+
 #=========================================================================================
 # Start of code
 #=========================================================================================
@@ -28,13 +31,13 @@ __date__ = "$Date: 2020-03-26 11:44:06 +0000 (Thu, March 26, 2020) $"
 from PyQt5 import QtWidgets
 from PyQt5.QtCore import QObject
 from PyQt5.QtGui import QShowEvent, QHideEvent
-from ccpn.ui.gui.guiSettings import BORDERNOFOCUS_COLOUR
 
 
 class ScrollBarVisibilityWatcher(QObject):
     """
     Class to insert new widget into the corner of scroll areas
     """
+
     def __init__(self, widget, cornerWidget=None):
         """
         Initialise the widgets for the class
@@ -45,9 +48,9 @@ class ScrollBarVisibilityWatcher(QObject):
         if not cornerWidget:
             cornerWidget = QtWidgets.QWidget()
             # add a small widget with the top/left borders defined
-            cornerWidget.setStyleSheet('border-top: 1px solid %s;'
-                                  'border-left: 1px solid %s;'
-                                  'background: transparent;' % (BORDERNOFOCUS_COLOUR, BORDERNOFOCUS_COLOUR))
+            cornerWidget.setStyleSheet('border-top: 1px solid palette(mid);'
+                                       'border-left: 1px solid palette(mid);'
+                                       'background: transparent;')
 
         self._cornerWidget = cornerWidget
         self._widget = widget

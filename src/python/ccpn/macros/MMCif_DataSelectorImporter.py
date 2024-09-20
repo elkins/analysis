@@ -59,10 +59,6 @@ class MMCif_DataSelectorImporter(CcpnDialogMainWidget):
         self.setCloseButton(callback=self.reject, tipText='Close')
         self.setDefaultButton(CcpnDialogMainWidget.CLOSEBUTTON)
 
-        # initialise the buttons and dialog size
-        self._postInit()
-
-
     def save_to_json(self, data, file_path):
         """
         Save a dictionary to a JSON file.

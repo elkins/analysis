@@ -43,16 +43,15 @@ SHORTCUT_SHORTCUT = 'shortcut'
 _shortcutList = {}
 
 
-class Shortcuts( object ):
+class Shortcuts:
+
+    application = None
 
     def _setShortcuts(self, mainWindow):
         """
         Sets shortcuts for functions not specified in the main window menubar
         :param mainWindow: the MainWindow instance (couod be self, but not always (i.e. for TempAreaWindow)
         """
-        # TODO:ED test that the shortcuts can be added to the modules
-        # return
-
         # avoiding circular imports
         from ccpn.core.lib import AssignmentLib
         from ccpn.ui.gui.lib import SpectrumDisplayLib
@@ -79,10 +78,13 @@ class Shortcuts( object ):
         addShortCut("u, y", self, partial(mainWindow.createMultipletAxisMarks, 1), context=context)
         addShortCut("u, z", self, partial(mainWindow.createMultipletAxisMarks, 2), context=context)
         addShortCut("u, w", self, partial(mainWindow.createMultipletAxisMarks, 3), context=context)
-        addShortCut("f, n", self, partial(SpectrumDisplayLib.navigateToCurrentNmrResiduePosition, mainWindow.application), context=context)
-        addShortCut("f, p", self, partial(SpectrumDisplayLib.navigateToCurrentPeakPosition, mainWindow.application), context=context)
-        # addShortCut("p, o", self, mainWindow.propagateAssignments, context=context)  # defined in menu
-        # addShortCut("c, a", self, mainWindow.copyAssignments, context=context)
+        addShortCut("f, n", self, partial(SpectrumDisplayLib.navigateToCurrentNmrResiduePosition,
+                                          mainWindow.application), context=context)
+        addShortCut("f, p", self, partial(SpectrumDisplayLib.navigateToCurrentPeakPosition,
+                                          mainWindow.application), context=context)
+        # addShortCut("p, g", self, mainWindow.propagateAssignments, context=context)  # defined in menu
+        # addShortCut("c, a", self, mainWindow.copyAssignments,
+        #             context=context)
         addShortCut("c, z", self, mainWindow._clearCurrentPeaks, context=context)
         addShortCut("c, o", self, mainWindow.setContourLevels, context=context)
 
@@ -188,36 +190,38 @@ class Shortcuts( object ):
             #     getLogger().warning('Function cannot be found')
 
 
-def addShortCut(keys=None, obj=None, func=None, context=None):
+def addShortCut(keys: str | QtGui.QKeySequence = None, obj=None, func=None, context=None, autoRepeat=False):
     """
     Add a new shortcut to the widget/context and store in the shortcut list
-    :param keys - string containing the keys; e.g., 'a, b' or the keySequence object:
+    :param keys: - string containing the keys; e.g., 'a, b' or the keySequence object
                   e.g., QtGui.QKeySequence.SelectAll
-    :param obj - widget to attach keySequence to:
-    :param func - function to attach:
-    :param context - context; e.g., WidgetShortcut|ApplicationShortcut:
+    :param obj: - widget to attach keySequence to
+    :param func: - function to attach
+    :param context: - context; e.g., WidgetShortcut|ApplicationShortcut
     """
     from ccpn.ui.gui.lib.GuiMainWindow import GuiMainWindow
+
     if isinstance(keys, str):
         # print(keys, func)
         keys = QtGui.QKeySequence(keys)
 
     shortcut = QtWidgets.QShortcut(keys, obj, func, context=context)
+    shortcut.setAutoRepeat(autoRepeat)
     storeShortcut(keys, obj, func, context, shortcut)
-    tl =  keys.toString()
+    tl = keys.toString()
     if isinstance(obj, GuiMainWindow):
-        obj._storeShortcut(tl,func)
+        obj._storeShortcut(tl, func)
     return shortcut
 
 
-def storeShortcut(keys=None, obj=None, func=None, context=None, shortcut=None):
+def storeShortcut(keys: str | QtGui.QKeySequence = None, obj=None, func=None, context=None, shortcut=None):
     """
     Store the new shortcut in the dict, may be an Action from the menu
-    :param keys - string containing the keys; e.g., 'a, b' or the keySequence object:
+    :param keys: - string containing the keys; e.g., 'a, b' or the keySequence object
                   e.g., QtGui.QKeySequence.SelectAll
-    :param obj - widget to attach keySequence to:
-    :param func - function to attach:
-    :param context - context; e.g., WidgetShortcut|ApplicationShortcut:
+    :param obj: - widget to attach keySequence to
+    :param func: - function to attach
+    :param context: - context; e.g., WidgetShortcut|ApplicationShortcut
     """
     if obj not in _shortcutList:
         _shortcutList[obj] = {}
@@ -235,13 +239,11 @@ def storeShortcut(keys=None, obj=None, func=None, context=None, shortcut=None):
         _shortcutList[obj][keyString] = shortcutItem
 
 
-
 def clearShortcuts(widget=None):
     """
     Clear all shortcuts that exist in all objects from the current widget
     :param widget - target widget:
     """
-    toast = _shortcutList
     context = QtCore.Qt.WidgetWithChildrenShortcut
     for obj in _shortcutList.values():
         for shortcutItem in obj.values():

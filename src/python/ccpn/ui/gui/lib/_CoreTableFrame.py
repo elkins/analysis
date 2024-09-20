@@ -16,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-06-21 19:48:43 +0100 (Fri, June 21, 2024) $"
-__version__ = "$Revision: 3.2.4 $"
+__dateModified__ = "$dateModified: 2024-09-13 20:32:52 +0100 (Fri, September 13, 2024) $"
+__version__ = "$Revision: 3.2.7 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -42,6 +42,7 @@ from ccpn.util.Logging import getLogger
 
 _TABLES = 'tables'
 _HIDDENCOLUMNS = 'hiddenColumns'
+
 
 #=========================================================================================
 # _CoreTableWidgetABC
@@ -404,9 +405,7 @@ class _CoreTableFrameABC(Frame):
             self.current = mainWindow.application.current
         else:
             self.application = self.project = self.current = None
-        # self._table = None
         self.moduleParent = moduleParent
-
         # add the widgets to frame
         self._setWidgets(container=self)
 
@@ -457,6 +456,7 @@ class _CoreTableFrameABC(Frame):
         self._tableWidget = self._TableKlass(parent=container,
                                              mainWindow=self.mainWindow,
                                              grid=(row, 0), gridSpan=(1, 2),
+                                             moduleParent=self.moduleParent,
                                              # pass on extra keywords to table-widget here
                                              )
 
@@ -560,7 +560,9 @@ class _CoreTableFrameABC(Frame):
             pulldown.select(selectableObjects[0].pid)
 
         elif othersClassNames := list({obj.className for obj in others if hasattr(obj, 'className')}):
-            title, msg = ('Dropped wrong item.', f"Do you want to open the {''.join(othersClassNames)} in a new module?") if len(othersClassNames) == 1 else ('Dropped wrong items.', 'Do you want to open items in new modules?')
+            title, msg = (
+                'Dropped wrong item.', f"Do you want to open the {''.join(othersClassNames)} in a new module?") if len(
+                    othersClassNames) == 1 else ('Dropped wrong items.', 'Do you want to open items in new modules?')
 
             if showYesNo(title, msg):
                 _openItemObject(self.mainWindow, others)

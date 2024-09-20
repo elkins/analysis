@@ -4,9 +4,10 @@ Module Documentation here
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2023"
-__credits__ = ("Ed Brooksbank, Joanna Fox, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
-               "Timothy J Ragan, Brian O Smith, Gary S Thompson & Geerten W Vuister")
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
+               "Timothy J Ragan, Brian O Smith, Daniel Thompson",
+               "Gary S Thompson & Geerten W Vuister")
 __licence__ = ("CCPN licence. See https://ccpn.ac.uk/software/licensing/")
 __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, L.G., & Vuister, G.W.",
                  "CcpNmr AnalysisAssign: a flexible platform for integrated NMR analysis",
@@ -15,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2023-06-28 19:17:56 +0100 (Wed, June 28, 2023) $"
-__version__ = "$Revision: 3.2.0 $"
+__dateModified__ = "$dateModified: 2024-08-23 19:23:05 +0100 (Fri, August 23, 2024) $"
+__version__ = "$Revision: 3.2.5 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -45,7 +46,7 @@ from ccpn.ui.gui.guiSettings import getColours, DIVIDER
 from ccpn.ui.gui.widgets.Button import Button
 from ccpn.ui.gui.widgets.CheckBox import CheckBox
 from ccpn.ui.gui.widgets.ColourDialog import ColourDialog
-from ccpn.ui.gui.widgets.DoubleSpinbox import ScientificDoubleSpinBox, DoubleSpinbox
+from ccpn.ui.gui.widgets.DoubleSpinbox import ScientificDoubleSpinBox
 from ccpn.ui.gui.widgets.FilteringPulldownList import FilteringPulldownList
 from ccpn.ui.gui.widgets.Label import Label
 from ccpn.ui.gui.widgets.LineEdit import LineEdit
@@ -384,9 +385,6 @@ class SpectrumPropertiesPopup(SpectrumPropertiesPopupABC):
 
             self.tabWidget.setCurrentIndex(2)
 
-        # don't forget to call postInit to finish initialise
-        self._postInit()
-
     def _fillPullDowns(self):
         if self.spectrum.dimensionCount == 1:
             self._generalTab._fillPullDowns()
@@ -459,9 +457,6 @@ class SpectrumDisplayPropertiesPopupNd(SpectrumPropertiesPopupABC):
             contoursTab.setContentsMargins(*TABMARGINS)
 
         self.tabWidget.setTabClickCallback(self._tabClicked)
-
-        # don't forget to call postInit to finish initialise
-        self._postInit()
 
     def _fillPullDowns(self):
         for aTab in self.tabs:
@@ -536,9 +531,6 @@ class SpectrumDisplayPropertiesPopup1d(SpectrumPropertiesPopupABC):
             colourTab.setContentsMargins(*TABMARGINS)
 
         self.tabWidget.setTabClickCallback(self._tabClicked)
-
-        # don't forget to call postInit to finish initialise
-        self._postInit()
 
     def _fillPullDowns(self):
         for aTab in self.tabs:
@@ -645,10 +637,11 @@ class GeneralTab(Widget):
         row += 1
 
         from ccpn.core.lib.SpectrumDataSources.SpectrumDataSourceABC import getDataFormats
+
         _dataFormats = list(getDataFormats().keys())
         Label(self, text="DataFormat ", grid=(row, 0), tipText=getAttributeTipText(Spectrum, 'Format of the binary data defined by path'))
         self.dataFormatWidget = PulldownList(parent=self, vAlign='t', grid=(row, 1), editable=False, texts=_dataFormats,
-                                           )
+                                             )
         self.dataFormatWidget.select(self.spectrum.dataFormat)
         self.dataFormatWidget.disable()
         row += 1
@@ -1060,7 +1053,7 @@ class DimensionsTab(Widget):
             _magTransferLabel.setVisible(False)
 
         row += 1
-        hLine = HLine(self, grid=(row, 0), gridSpan=(1, dimensions + 1), colour=getColours()[DIVIDER], height=15, divisor=2)
+        hLine = HLine(self, grid=(row, 0), gridSpan=(1, dimensions + 2), colour=getColours()[DIVIDER], height=15)
         hLine.setContentsMargins(5, 0, 0, 0)
 
         row += 1
@@ -1091,7 +1084,7 @@ class DimensionsTab(Widget):
         Label(self, text="Second Cursor Offset (Hz) ", grid=(row, 0), hAlign='l', tipText=getAttributeTipText(Spectrum, 'doubleCrosshairOffsets'))
 
         row += 1
-        hLine = HLine(self, grid=(row, 0), gridSpan=(1, dimensions + 1), colour=getColours()[DIVIDER], height=15, divisor=2)
+        hLine = HLine(self, grid=(row, 0), gridSpan=(1, dimensions + 2), colour=getColours()[DIVIDER], height=15)
         hLine.setContentsMargins(5, 0, 0, 0)
 
         row += 1
@@ -1260,16 +1253,15 @@ class DimensionsTab(Widget):
             self.minAliasingPullDowns[i] = PulldownList(self, grid=(row, i + 1), vAlign='t', )
             self.minAliasingPullDowns[i].activated.connect(partial(self._queueSetMinAliasing, spectrum, self.minAliasingPullDowns[i].getText, i))
 
-        # add preferred order widgets for Nd and
-        if spectrum.dimensionCount > 1:
-            row += 1
-            hLine = HLine(self, grid=(row, 0), gridSpan=(1, dimensions + 1), colour=getColours()[DIVIDER], height=15, divisor=2)
-            hLine.setContentsMargins(5, 0, 0, 0)
+        # add preferred order widgets
+        row += 1
+        hLine = HLine(self, grid=(row, 0), gridSpan=(1, dimensions + 1), colour=getColours()[DIVIDER], height=15, divisor=2)
+        hLine.setContentsMargins(5, 0, 0, 0)
 
-            row += 1
-            self.preferredAxisOrderPulldown = PulldownListCompoundWidget(self, labelText="Preferred Dimension Order",
-                                                                         grid=(row, 0), gridSpan=(1, dimensions + 1), vAlign='t', tipText=getAttributeTipText(Spectrum, 'setDimensionOrdering'))
-            self.preferredAxisOrderPulldown.pulldownList.setCallback(partial(self._queueSetSpectrumOrderingComboIndex, spectrum))
+        row += 1
+        self.preferredAxisOrderPulldown = PulldownListCompoundWidget(self, labelText="Preferred Dimension Order",
+                                                                     grid=(row, 0), gridSpan=(1, dimensions + 1), vAlign='t', tipText=getAttributeTipText(Spectrum, 'setDimensionOrdering'))
+        self.preferredAxisOrderPulldown.pulldownList.setCallback(partial(self._queueSetSpectrumOrderingComboIndex, spectrum))
 
         row += 1
         Spacer(self, 5, 5, QtWidgets.QSizePolicy.MinimumExpanding, QtWidgets.QSizePolicy.MinimumExpanding,
@@ -1286,8 +1278,15 @@ class DimensionsTab(Widget):
         """
         specOrder = tuple(self.spectrum._preferredAxisOrdering) if self.spectrum._preferredAxisOrdering is not None else None
 
-        axisCodeTexts = tuple([ss.text() for ss in self.axisCodeEdits])
+        axisCodeTexts = tuple(ss.text() for ss in self.axisCodeEdits)
         ll = ['<None>']
+
+        if self.spectrum.dimensionCount == 1:
+            # a bit of a hack, but, for 1d the specOrder is saved as (0,) or (1,) which is potentially dangerous
+            #   but is changed to (0, 1) or (1, 0) for the popup
+            axisCodeTexts += ('intensity',)
+            if len(specOrder) == 1:
+                specOrder += (1-specOrder[0],)
 
         # add permutations for the axes
         axisPerms = permutations([axisCode for axisCode in axisCodeTexts])
@@ -1307,12 +1306,23 @@ class DimensionsTab(Widget):
         if item:
             index = self.preferredAxisOrderPulldown.getIndex()
 
-            axisOrder = tuple(permutations(list(range(len(spectrum.axisCodes)))))
-            value = tuple(axisOrder[index - 1])
-            if value != spectrum._preferredAxisOrdering:
-                return partial(self._setSpectrumOrdering, spectrum, value)
+            axisCodes = spectrum.axisCodes
+            if self.spectrum.dimensionCount > 1:
+                axisOrder = tuple(permutations(list(range(len(axisCodes)))))
+                value = tuple(axisOrder[index - 1])
+                if value != spectrum._preferredAxisOrdering:
+                    return partial(self._setSpectrumOrdering, spectrum, value)
 
-    def _setSpectrumOrdering(self, spectrum, value):
+            else:
+                axisCodes += ['intensity']
+
+                axisOrder = tuple(permutations(list(range(len(axisCodes)))))
+                value = tuple(axisOrder[index - 1])
+                if value != spectrum._preferredAxisOrdering:
+                    return partial(self._setSpectrumOrdering, spectrum, value[:1])  # only store the first value
+
+    @staticmethod
+    def _setSpectrumOrdering(spectrum, value):
         """Set the preferred axis ordering from the pullDown selection
         """
         spectrum._preferredAxisOrdering = value
@@ -1374,30 +1384,19 @@ class DimensionsTab(Widget):
                             _referenceLists[ii].append(ac[ii])
 
             for ii, (refList, ref, combo) in enumerate(zip(_referenceLists, _refDimensions, self.referenceDimensionPullDowns)):
+                model = combo.model()
                 if ref not in refList:
-                    model = combo.model()
-
                     refList.append(ref)
                     combo.setData(list(refList))
-
                     self.referenceDimensionPullDowns[ii].set(ref)
                     color = QtGui.QColor('red')
-                    model.item(len(refList) - 1).setForeground(color)
-
+                    itm = model.item(len(refList) - 1)
+                    itm.setData(color, QtCore.Qt.ForegroundRole)
                 else:
+                    # clears/resets the foreground colours
                     combo.setData(list(refList))
                     combo.set(ref)
-
-                index = combo.currentIndex()
-                model = combo.model()
-                item = model.item(index)
-                if item is not None:
-                    color = item.foreground().color()
-                    # use the palette to change the colour of the selection text - may not match for other themes
-                    palette = combo.palette()
-                    palette.setColor(QtGui.QPalette.Text, color)
-                    combo.setPalette(palette)
-                    # combo.setStyleSheet('PulldownList { padding: 3px 3px 3px 3px; combobox-popup: 0; color: red; }')
+                combo.update()
 
     def _populateExperimentType(self):
         """Populate the experimentType pulldown
@@ -1532,9 +1531,8 @@ class DimensionsTab(Widget):
                 # self.minAliasingPullDowns[i].setIndex(int(_close))
                 self.minAliasingPullDowns[i].setIndex(-self.aliasInds[i][0])
 
-            if self.spectrum.dimensionCount > 1:
-                self.preferredAxisOrderPulldown.setPreSelect(self._fillPreferredWidgetFromAxisTexts)
-                self._populatePreferredOrder()
+            self.preferredAxisOrderPulldown.setPreSelect(self._fillPreferredWidgetFromAxisTexts)
+            self._populatePreferredOrder()
 
             self._populateExperimentType()
             self._populateReferenceDimensions()

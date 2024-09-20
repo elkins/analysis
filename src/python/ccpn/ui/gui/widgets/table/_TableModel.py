@@ -15,8 +15,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-07-24 18:04:27 +0100 (Wed, July 24, 2024) $"
+__modifiedBy__ = "$modifiedBy: Daniel Thompson $"
+__dateModified__ = "$dateModified: 2024-09-03 15:47:08 +0100 (Tue, September 03, 2024) $"
 __version__ = "$Revision: 3.2.5 $"
 #=========================================================================================
 # Created
@@ -35,10 +35,12 @@ from ccpn.util.floatUtils import numZeros
 from ccpn.core.lib.CcpnSorting import universalSortKey
 from ccpn.ui.gui.guiSettings import getColours, GUITABLE_ITEM_FOREGROUND, consoleStyle
 from ccpn.ui.gui.widgets.Icon import Icon
-from ccpn.ui.gui.widgets.table._TableCommon import EDIT_ROLE, DISPLAY_ROLE, TOOLTIP_ROLE, \
-    BACKGROUND_ROLE, FOREGROUND_ROLE, CHECK_ROLE, ICON_ROLE, SIZE_ROLE, ALIGNMENT_ROLE, \
-    FONT_ROLE, CHECKABLE, ENABLED, SELECTABLE, EDITABLE, CHECKED, UNCHECKED, VALUE_ROLE, \
-    INDEX_ROLE, BORDER_ROLE, ORIENTATIONS
+from ccpn.ui.gui.widgets.table._TableCommon import (
+    EDIT_ROLE, DISPLAY_ROLE, TOOLTIP_ROLE,
+    BACKGROUND_ROLE, FOREGROUND_ROLE, CHECK_ROLE, ICON_ROLE, SIZE_ROLE,
+    ALIGNMENT_ROLE, FONT_ROLE, CHECKABLE, ENABLED, SELECTABLE, EDITABLE, CHECKED,
+    UNCHECKED, VALUE_ROLE, INDEX_ROLE, BORDER_ROLE, ORIENTATIONS
+    )
 from ccpn.util.Logging import getLogger
 
 
@@ -90,14 +92,11 @@ def _getForegroundRole(self, row, col):
         # get the colour from the dict
         return indexGui.get(FOREGROUND_ROLE)
 
-    # return the default foreground colour
-    return self._defaultForegroundColour
-
 
 def _getBorderRole(self, row, col):
     if (indexGui := self._guiState[row, col]):
         # get the colour from the dict
-        return bool(indexGui.get(BACKGROUND_ROLE))
+        return bool(indexGui.get(BORDER_ROLE))
 
 
 def _getToolTipRole(self, row, col):
@@ -207,12 +206,12 @@ class _TableModel(QtCore.QAbstractTableModel):
             bbox = fontMetric.boundingRect
 
             # get an estimate for an average character width/height - must be floats for estimate-column-widths
-            test = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789,./;\<>?:|!@£$%^&*()'
+            test = 'WMB' # Selection of wider letters to prevent collapsing column
             self._chrWidth = bbox(test).width() / len(test)
             self._chrHeight = bbox('A').height() + self._chrPixelPadding
 
         # set default colours
-        self._defaultForegroundColour = QtGui.QColor(getColours()[GUITABLE_ITEM_FOREGROUND])
+        # self._defaultForegroundColour = QtGui.QColor(getColours()[GUITABLE_ITEM_FOREGROUND])
 
         # initialise sorting/filtering
         self._sortColumn = None
@@ -243,7 +242,7 @@ class _TableModel(QtCore.QAbstractTableModel):
         self._filterIndex = None
 
         # create numpy arrays to match the data that will hold fore/background-colour, and other info
-        self._guiState = np.empty(value.shape, dtype=object)
+        self._guiState = np.full(value.shape, None, dtype=object)
         self._headerToolTips = {orient: np.empty(value.shape[ii], dtype=object)
                                 for ii, orient in enumerate([QtCore.Qt.Vertical, QtCore.Qt.Horizontal])}
 
@@ -316,7 +315,8 @@ class _TableModel(QtCore.QAbstractTableModel):
             self._headerToolTips[orientation] = values
 
         except Exception as es:
-            raise ValueError(f'{self.__class__.__name__}.setToolTips: Error setting values {orientation} -> {values}\n{es}') from es
+            raise ValueError(
+                    f'{self.__class__.__name__}.setToolTips: Error setting values {orientation} -> {values}\n{es}') from es
 
     def _insertRow(self, row, newRow):
         """Insert a new row into the table.
@@ -435,7 +435,8 @@ class _TableModel(QtCore.QAbstractTableModel):
                 if self._filterIndex is not None:
                     # remove from the filtered list - undo?
                     filt = self._sortIndex.index(iLoc)
-                    self._filterIndex[:] = [(val if val < filt else val - 1) for val in self._filterIndex if val != filt]
+                    self._filterIndex[:] = [(val if val < filt else val - 1) for val in self._filterIndex if
+                                            val != filt]
 
                 # remove from the sorted list
                 self._sortIndex[:] = [(val if val < iLoc else val - 1) for val in self._sortIndex if val != iLoc]
@@ -490,7 +491,8 @@ class _TableModel(QtCore.QAbstractTableModel):
 
         try:
             # get the source cell
-            fRow = self._filterIndex[index.row()] if self._filterIndex is not None and 0 <= index.row() < len(self._filterIndex) else index.row()
+            fRow = self._filterIndex[index.row()] if self._filterIndex is not None and 0 <= index.row() < len(
+                    self._filterIndex) else index.row()
             row, col = self._sortIndex[fRow], index.column()
 
             if role == DISPLAY_ROLE:
@@ -539,13 +541,11 @@ class _TableModel(QtCore.QAbstractTableModel):
                 if (indexGui := self._guiState[row, col]):
                     # get the colour from the dict
                     return indexGui.get(role)
-                # return the default foreground colour
-                return self._defaultForegroundColour
 
             elif role == BORDER_ROLE:
                 if (indexGui := self._guiState[row, col]):
                     # get the colour from the dict
-                    return bool(indexGui.get(BACKGROUND_ROLE))
+                    return bool(indexGui.get(role))
 
             elif role == TOOLTIP_ROLE:
                 if self._view._toolTipsEnabled:
@@ -774,7 +774,6 @@ class _TableModel(QtCore.QAbstractTableModel):
         :param row: row as integer
         :param column: column as integer
         :param colour: colour compatible with QtGui.QColor
-        :return:
         """
         if not (0 <= row < self.rowCount() and 0 <= column < self.columnCount()):
             raise ValueError(f'({row}, {column}) must be less than ({self.rowCount()}, {self.columnCount()})')
@@ -785,6 +784,20 @@ class _TableModel(QtCore.QAbstractTableModel):
             indexGui[BACKGROUND_ROLE] = QtGui.QColor(colour)
         else:
             indexGui.pop(BACKGROUND_ROLE, None)
+
+    def setBorderVisible(self, row: int, column: int, enabled: bool):
+        """Enable the border for dataFrame cell at position (row, column).
+
+        :param int row: row as integer
+        :param int column: column as integer
+        :param bool enabled: True/False or None
+        """
+        if not (0 <= row < self.rowCount() and 0 <= column < self.columnCount()):
+            raise ValueError(f'({row}, {column}) must be less than ({self.rowCount()}, {self.columnCount()})')
+
+        if not (indexGui := self._guiState[row, column]):
+            indexGui = self._guiState[row, column] = {}
+        indexGui[BORDER_ROLE] = bool(enabled)
 
     def setCellFont(self, row, column, font):
         """Set the font for dataFrame cell at position (row, column).
@@ -850,7 +863,8 @@ class _TableModel(QtCore.QAbstractTableModel):
             if not idx.isValid():
                 mapped.append((None, None))
             else:
-                fRow = self._filterIndex[idx.row()] if self._filterIndex is not None and 0 <= idx.row() < len(self._filterIndex) else idx.row()
+                fRow = self._filterIndex[idx.row()] if self._filterIndex is not None and 0 <= idx.row() < len(
+                        self._filterIndex) else idx.row()
                 mapped.append((self._sortIndex[fRow], idx.column()))
 
         return mapped
@@ -915,7 +929,8 @@ class _TableObjectModel(_TableModel):
                      }
 
     setAttribRole = {EDIT_ROLE : lambda colDef, obj, value: colDef.setEditValue(obj, value),
-                     CHECK_ROLE: lambda colDef, obj, value: colDef.setEditValue(obj, True if (value == CHECKED) else False)
+                     CHECK_ROLE: lambda colDef, obj, value: colDef.setEditValue(obj,
+                                                                                True if (value == CHECKED) else False)
                      }
 
     # def _setSortOrder(self, column: int, order: QtCore.Qt.SortOrder = ...):

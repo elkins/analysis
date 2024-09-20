@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-07-24 18:05:24 +0100 (Wed, July 24, 2024) $"
+__dateModified__ = "$dateModified: 2024-08-23 19:21:19 +0100 (Fri, August 23, 2024) $"
 __version__ = "$Revision: 3.2.5 $"
 #=========================================================================================
 # Created
@@ -40,13 +40,14 @@ from PyQt5.QtCore import pyqtSlot, Qt
 from ccpn.core.lib.AxisCodeLib import getAxisCodeMatchIndices
 from ccpn.util.Constants import AXIS_MATCHATOMTYPE, AXIS_FULLATOMNAME, MOUSEDICTSTRIP
 from ccpn.util.Logging import getLogger
-from ccpn.ui.gui.guiSettings import getColours, CCPNGLWIDGET_HEXBACKGROUND, CCPNGLWIDGET_BACKGROUND, \
-    CCPNGLWIDGET_FOREGROUND, CCPNGLWIDGET_PICKCOLOUR, CCPNGLWIDGET_GRID, CCPNGLWIDGET_HIGHLIGHT, \
-    CCPNGLWIDGET_LABELLING, CCPNGLWIDGET_PHASETRACE, CCPNGLWIDGET_ZOOMAREA, CCPNGLWIDGET_PICKAREA, \
-    CCPNGLWIDGET_SELECTAREA, CCPNGLWIDGET_ZOOMLINE, CCPNGLWIDGET_MOUSEMOVELINE, CCPNGLWIDGET_HARDSHADE
+from ccpn.ui.gui.guiSettings import (getColours, CCPNGLWIDGET_HEXBACKGROUND, CCPNGLWIDGET_BACKGROUND,
+    CCPNGLWIDGET_FOREGROUND, CCPNGLWIDGET_PICKCOLOUR, CCPNGLWIDGET_GRID, CCPNGLWIDGET_HIGHLIGHT,
+    CCPNGLWIDGET_LABELLING, CCPNGLWIDGET_PHASETRACE, CCPNGLWIDGET_ZOOMAREA, CCPNGLWIDGET_PICKAREA,
+    CCPNGLWIDGET_SELECTAREA, CCPNGLWIDGET_ZOOMLINE, CCPNGLWIDGET_MOUSEMOVELINE, CCPNGLWIDGET_HARDSHADE)
 from ccpn.ui.gui.lib.GuiStrip import STRIP_MINIMUMHEIGHT, STRIP_MINIMUMWIDTH, AxisMenu
 from ccpn.ui.gui.lib.OpenGL import CcpnOpenGLDefs as GLDefs
-from ccpn.ui.gui.lib.OpenGL.CcpnOpenGL import ZOOMHISTORYSTORE, CURSOR_SOURCE_NONE, CURSOR_SOURCE_OTHER, ZOOMTIMERDELAY, CURSOR_SOURCE_SELF
+from ccpn.ui.gui.lib.OpenGL.CcpnOpenGL import (ZOOMHISTORYSTORE, CURSOR_SOURCE_NONE, CURSOR_SOURCE_OTHER,
+                                               ZOOMTIMERDELAY, CURSOR_SOURCE_SELF)
 from ccpn.ui.gui.lib.OpenGL.CcpnOpenGLArrays import GLRENDERMODE_REBUILD, GLRENDERMODE_DRAW, GLVertexArray
 from ccpn.ui.gui.lib.OpenGL.CcpnOpenGLDefs import YAXISUNITS1D, PaintModes
 from ccpn.ui.gui.lib.OpenGL.CcpnOpenGLFonts import GLString
@@ -55,7 +56,9 @@ from ccpn.ui.gui.lib.OpenGL.CcpnOpenGLNotifier import GLNotifier
 from ccpn.ui.gui.lib.OpenGL.CcpnOpenGLViewports import GLViewports
 from ccpn.ui.gui.lib.mouseEvents import rightMouse
 
+
 AXES_MARKER_MIN_PIXEL = 10
+
 
 class _AxisOverlay(QtWidgets.QWidget):
     """Overlay widget that draws highlight over the current strip during a drag-drop/highlight operation
@@ -110,6 +113,10 @@ class _AxisOverlay(QtWidgets.QWidget):
         p.end()
 
 
+#=========================================================================================
+# Gui1dWidgetAxis
+#=========================================================================================
+
 class Gui1dWidgetAxis(QtWidgets.QOpenGLWidget):
     is1D = True
     AXIS_MARGINRIGHT = 80
@@ -118,18 +125,19 @@ class Gui1dWidgetAxis(QtWidgets.QOpenGLWidget):
     AXIS_OFFSET = 3
     AXIS_INSIDE = False
     YAXISUSEEFORMAT = True
-    INVERTXAXIS = True
-    INVERTYAXIS = True
+    XDIRECTION = -1.0
+    YDIRECTION = -1.0
     AXISLOCKEDBUTTON = False
     AXISLOCKEDBUTTONALLSTRIPS = False
     SPECTRUMXZOOM = 5.0e1
     SPECTRUMYZOOM = 5.0e1
     SHOWSPECTRUMONPHASING = False
     XAXES = GLDefs.XAXISUNITS
-    YAXES = YAXISUNITS1D
+    YAXES = GLDefs.YAXISUNITS  # YAXISUNITS1D
     AXIS_MOUSEYOFFSET = AXIS_MARGINBOTTOM + (0 if AXIS_INSIDE else AXIS_LINE)
 
-    def __init__(self, parent, spectrumDisplay=None, mainWindow=None, antiAlias=4, drawRightAxis=False, drawBottomAxis=False,
+    def __init__(self, parent, spectrumDisplay=None, mainWindow=None, antiAlias=4,
+                 drawRightAxis=False, drawBottomAxis=False,
                  fullHeightRightAxis=False, fullWidthBottomAxis=False):
 
         # add a flag so that scaling cannot be done until the gl attributes are initialised
@@ -173,6 +181,13 @@ class Gui1dWidgetAxis(QtWidgets.QOpenGLWidget):
         self._preferences = self.application.preferences.general
         self.globalGL = None
 
+        if spectrumDisplay.is1D:
+            if spectrumDisplay._flipped:
+                self.YDIRECTION = -1.0
+                self.XAXES = YAXISUNITS1D
+            else:
+                self.YAXES = YAXISUNITS1D
+
         self.setMouseTracking(True)  # generate mouse events when button not pressed
 
         # always respond to mouse events
@@ -211,6 +226,17 @@ class Gui1dWidgetAxis(QtWidgets.QOpenGLWidget):
         # create an overlay for drag-drop/highlight operations
         self._overlayArea = _AxisOverlay(self)
         self._overlayArea.raise_()
+        self._setStyle()
+
+    def _setStyle(self):
+        self._checkPalette(self.palette())
+
+    def _checkPalette(self, pal: QtGui.QPalette, *args):
+        # this is effectively handled by _preferencesUpdate
+        self._setColourScheme(pal)
+        # set the flag to update the background in the paint event
+        self._updateBackgroundColour = True
+        self.update()
 
     @property
     def tilePosition(self) -> Tuple[int, int]:
@@ -422,32 +448,31 @@ class Gui1dWidgetAxis(QtWidgets.QOpenGLWidget):
         if gridGLList.renderMode == GLRENDERMODE_REBUILD:
 
             # get the list of visible spectrumViews, or the first in the list
-            visibleSpectrumViews = [specView for specView in self._ordering if not specView.isDeleted and specView.isDisplayed]
-            thisSpecView = visibleSpectrumViews[0] if visibleSpectrumViews else self._ordering[0] if self._ordering and not self._ordering[
-                0].isDeleted else None
+            visibleSpectrumViews = [specView for specView in self._ordering
+                                    if not specView.isDeleted and specView.isDisplayed]
+            thisSpecView = visibleSpectrumViews[0] if visibleSpectrumViews else \
+                self._ordering[0] if self._ordering and not self._ordering[0].isDeleted else None
 
             if thisSpecView and thisSpecView in self._spectrumSettings:
                 # axes are built before _spectrumSettings
-                thisSpec = thisSpecView.spectrum
+                specSet = self._spectrumSettings[thisSpecView]
 
                 # generate different axes depending on units - X Axis
-                if self.XAXES[self._xUnits] == GLDefs.AXISUNITSPPM:
+                if self.XAXES[self._xUnits] == GLDefs.AXISUNITSINTENSITY:  # self.is1D:
+                    axisLimitL = self.axisL
+                    axisLimitR = self.axisR
+                    self.XMode = self._eFormat  # '%.6g'
+
+                elif self.XAXES[self._xUnits] == GLDefs.AXISUNITSPPM:
                     axisLimitL = self.axisL
                     axisLimitR = self.axisR
                     self.XMode = self._floatFormat
 
                 elif self.XAXES[self._xUnits] == GLDefs.AXISUNITSHZ:
                     if self._ordering:
-
-                        if self.is1D:
-                            axisLimitL = self.axisL * thisSpec.spectrometerFrequencies[0]
-                            axisLimitR = self.axisR * thisSpec.spectrometerFrequencies[0]
-
-                        else:
-                            # get the axis ordering from the spectrumDisplay and map to the strip
-                            indices = self._spectrumSettings[thisSpecView][GLDefs.SPECTRUM_POINTINDEX]
-                            axisLimitL = self.axisL * thisSpec.spectrometerFrequencies[indices[0]]
-                            axisLimitR = self.axisR * thisSpec.spectrometerFrequencies[indices[0]]
+                        freq = specSet.spectrometerFrequency[0]
+                        axisLimitL = self.axisL * freq
+                        axisLimitR = self.axisR * freq
 
                     else:
                         # error trap all spectra deleted
@@ -457,18 +482,9 @@ class Gui1dWidgetAxis(QtWidgets.QOpenGLWidget):
 
                 else:
                     if self._ordering:
-
-                        if self.is1D:
-                            axisLimitL = thisSpec.spectrumReferences[0].valueToPoint(self.axisL)
-                            axisLimitR = thisSpec.spectrumReferences[0].valueToPoint(self.axisR)
-
-                        else:
-                            # get the axis ordering from the spectrumDisplay and map to the strip
-                            indices = self._spectrumSettings[thisSpecView][GLDefs.SPECTRUM_POINTINDEX]
-
-                            # map to a point
-                            axisLimitL = thisSpec.spectrumReferences[indices[0]].valueToPoint(self.axisL)
-                            axisLimitR = thisSpec.spectrumReferences[indices[0]].valueToPoint(self.axisR)
+                        ppm2point = specSet.ppmToPoint[0]
+                        axisLimitL = ppm2point(self.axisL)
+                        axisLimitR = ppm2point(self.axisR)
 
                     else:
                         # error trap all spectra deleted
@@ -477,7 +493,7 @@ class Gui1dWidgetAxis(QtWidgets.QOpenGLWidget):
                     self.XMode = self._intFormat
 
                 # generate different axes depending on units - Y Axis, always use first option for 1d
-                if self.is1D:
+                if self.YAXES[self._yUnits] == GLDefs.AXISUNITSINTENSITY:  # self.is1D:
                     axisLimitT = self.axisT
                     axisLimitB = self.axisB
                     self.YMode = self._eFormat  # '%.6g'
@@ -489,11 +505,9 @@ class Gui1dWidgetAxis(QtWidgets.QOpenGLWidget):
 
                 elif self.YAXES[self._yUnits] == GLDefs.AXISUNITSHZ:
                     if self._ordering:
-
-                        # get the axis ordering from the spectrumDisplay and map to the strip
-                        indices = self._spectrumSettings[thisSpecView][GLDefs.SPECTRUM_POINTINDEX]
-                        axisLimitT = self.axisT * thisSpec.spectrometerFrequencies[indices[1]]
-                        axisLimitB = self.axisB * thisSpec.spectrometerFrequencies[indices[1]]
+                        freq = specSet.spectrometerFrequency[1]
+                        axisLimitT = self.axisT * freq
+                        axisLimitB = self.axisB * freq
 
                     else:
                         # error trap all spectra deleted
@@ -503,13 +517,10 @@ class Gui1dWidgetAxis(QtWidgets.QOpenGLWidget):
 
                 else:
                     if self._ordering:
-
-                        # get the axis ordering from the spectrumDisplay and map to the strip
-                        indices = self._spectrumSettings[thisSpecView][GLDefs.SPECTRUM_POINTINDEX]
-
+                        ppm2point = specSet.ppmToPoint[1]
                         # map to a point
-                        axisLimitT = thisSpec.spectrumReferences[indices[1]].valueToPoint(self.axisT)
-                        axisLimitB = thisSpec.spectrumReferences[indices[1]].valueToPoint(self.axisB)
+                        axisLimitT = ppm2point(self.axisT)
+                        axisLimitB = ppm2point(self.axisB)
 
                     else:
                         # error trap all spectra deleted
@@ -577,9 +588,11 @@ class Gui1dWidgetAxis(QtWidgets.QOpenGLWidget):
                                 d[1] = self._round_sig(d[1], sig=4)
 
                                 if ax == 0:
-                                    includeGrid = not (self.XMode == self._intFormat and d[0] < 1 and abs(p1[0] - int(p1[0])) > d[0] / 2.0)
+                                    includeGrid = not (self.XMode == self._intFormat and d[0] < 1 and
+                                                       abs(p1[0] - int(p1[0])) > d[0] / 2.0)
                                 else:
-                                    includeGrid = not (self.YMode == self._intFormat and d[1] < 1 and abs(p1[1] - int(p1[1])) > d[1] / 2.0)
+                                    includeGrid = not (self.YMode == self._intFormat and d[1] < 1 and
+                                                       abs(p1[1] - int(p1[1])) > d[1] / 2.0)
 
                                 if includeGrid:
                                     if '%.5f' % p1[0] == '%.5f' % p2[0]:  # check whether a vertical line - x axis
@@ -735,118 +748,26 @@ class Gui1dWidgetAxis(QtWidgets.QOpenGLWidget):
             GL.glDisable(GL.GL_MULTISAMPLE)
 
     def _buildSpectrumSetting(self, spectrumView, stackCount=0):
-        # if spectrumView.spectrum.headerSize == 0:
-        #     return
 
-        self._spectrumSettings[spectrumView] = {}
+        delta = [self.XDIRECTION, self.YDIRECTION]
+        stack = [stackCount * self._stackingValue[0],
+                 stackCount * self._stackingValue[1]]
+        self._spectrumSettings[spectrumView] = specVals = spectrumView._getVisibleSpectrumViewParams(delta=delta,
+                                                                                                     stacking=stack)
 
-        self._spectrumValues = spectrumView.getVisibleState()
-
-        # set defaults for undefined spectra
-        if not self._spectrumValues[0].pointCount:
-            dx = -1.0 if self.INVERTXAXIS else -1.0
-            fxMax, fxMin = 1.0, -1.0
-            fxFoldMax, fxFoldMin = 1.0, -1.0
-            dxAF = fxMax - fxMin
-            xScale = dx * dxAF
-
-            dy = -1.0 if self.INVERTYAXIS else -1.0
-            fyMax, fyMin = 1.0, -1.0
-            fyFoldMax, fyFoldMin = 1.0, -1.0
-            dyAF = fyMax - fyMin
-            yScale = dy * dyAF
-            # xAliasingIndex = (0, 0)
-            # yAliasingIndex = (0, 0)
-            # xFoldingMode = yFoldingMode = None
-
-            self._minXRange = min(self._minXRange, GLDefs.RANGEMINSCALE * dxAF)
-            self._maxXRange = max(self._maxXRange, dxAF)
-            self._minYRange = min(self._minYRange, GLDefs.RANGEMINSCALE * dyAF)
-            self._maxYRange = max(self._maxYRange, dyAF)
-
-        else:
-
-            # get the bounding box of the spectra
-            dx = -1.0 if self.INVERTXAXIS else -1.0  # self.sign(self.axisR - self.axisL)
-            fxMax, fxMin = self._spectrumValues[0].maxSpectrumFrequency, self._spectrumValues[0].minSpectrumFrequency
-            # xAliasingIndex = self._spectrumValues[0].aliasingIndex
-            # xFoldingMode = self._spectrumValues[0].foldingMode
-            fxFoldMax, fxFoldMin = self._spectrumValues[0].maxFoldingFrequency, self._spectrumValues[0].minFoldingFrequency
-
-            # check tolerances
-            if not self._widthsChangedEnough((fxMax, 0.0), (fxMin, 0.0), tol=1e-10):
-                fxMax, fxMin = 1.0, -1.0
-
-            dxAF = fxFoldMax - fxFoldMin  # fxMax - fxMin
-            xScale = dx * dxAF / self._spectrumValues[0].pointCount
-
-            dy = -1.0 if self.INVERTYAXIS else -1.0  # dy = self.sign(self.axisT - self.axisB)
-
-            if spectrumView.spectrum.intensities is not None and spectrumView.spectrum.intensities.size != 0:
-                fyMax = float(np.max(spectrumView.spectrum.intensities))
-                fyMin = float(np.min(spectrumView.spectrum.intensities))
-            else:
-                fyMax, fyMin = 0.0, 0.0
-            # yAliasingIndex = (0, 0)
-            # yFoldingMode = None
-
-            # check tolerances
-            if not self._widthsChangedEnough((fyMax, 0.0), (fyMin, 0.0), tol=1e-10):
-                fyMax, fyMin = 1.0, -1.0
-
-            dyAF = fyMax - fyMin
-            yScale = dy * dyAF / 1.0
-
-            # set to 1D limits to twice the width of the spectrum and the intensity limit
-            self._minXRange = min(self._minXRange, GLDefs.RANGEMINSCALE * dxAF / max(self._spectrumValues[0].pointCount, self.SPECTRUMXZOOM))
-            self._maxXRange = max(self._maxXRange, dxAF)
-            # self._minYRange = min(self._minYRange, 3.0 * dyAF / self.SPECTRUMYZOOM)
-            self._minYRange = min(self._minYRange, self._intensityLimit)
-            self._maxYRange = max(self._maxYRange, dyAF)
-
-            self._spectrumSettings[spectrumView][GLDefs.SPECTRUM_STACKEDMATRIX] = np.zeros((16,), dtype=np.float32)
-
-            # if self._stackingMode:
-            stX = stackCount * self._stackingValue[0]
-            stY = stackCount * self._stackingValue[1]
-            # stackCount += 1
-            self._spectrumSettings[spectrumView][GLDefs.SPECTRUM_STACKEDMATRIX][0:16] = [1.0, 0.0, 0.0, 0.0,
-                                                                                         0.0, 1.0, 0.0, 0.0,
-                                                                                         0.0, 0.0, 1.0, 0.0,
-                                                                                         stX, stY, 0.0, 1.0]
-            self._spectrumSettings[spectrumView][GLDefs.SPECTRUM_STACKEDMATRIXOFFSET] = np.array((stX, stY), dtype=np.float32)
+        self._minXRange = min(self._minXRange,
+                              GLDefs.RANGEMINSCALE * specVals.spectralWidth[0] / specVals.pointCount[0])
+        self._maxXRange = max(self._maxXRange, specVals.spectralWidth[0])
+        self._minYRange = min(self._minYRange,
+                              GLDefs.RANGEMINSCALE * specVals.spectralWidth[1] / specVals.pointCount[1])
+        self._maxYRange = max(self._maxYRange, specVals.spectralWidth[1])
 
         self._rangeXDefined = True
         self._rangeYDefined = True
-
-        # create modelview matrix for the spectrum to be drawn
-        self._spectrumSettings[spectrumView][GLDefs.SPECTRUM_MATRIX] = np.zeros((16,), dtype=np.float32)
-
-        self._spectrumSettings[spectrumView][GLDefs.SPECTRUM_MATRIX][0:16] = [xScale, 0.0, 0.0, 0.0,
-                                                                              0.0, yScale, 0.0, 0.0,
-                                                                              0.0, 0.0, 1.0, 0.0,
-                                                                              fxMax, fyMax, 0.0, 1.0]
-        # setup information for the horizontal/vertical traces
-        self._spectrumSettings[spectrumView][GLDefs.SPECTRUM_XLIMITS] = (fxMin, fxMax)
-        self._spectrumSettings[spectrumView][GLDefs.SPECTRUM_YLIMITS] = (fyMin, fyMax)
-        self._spectrumSettings[spectrumView][GLDefs.SPECTRUM_AF] = (dxAF, dyAF)
-        self._spectrumSettings[spectrumView][GLDefs.SPECTRUM_SCALE] = (xScale, yScale)
-        # self._spectrumSettings[spectrumView][GLDefs.SPECTRUM_SPINNINGRATE] = spectrumView.spectrum.spinningRate
-        # self._spectrumSettings[spectrumView][GLDefs.SPECTRUM_ALIASINGINDEX] = (xAliasingIndex, yAliasingIndex)
-        # self._spectrumSettings[spectrumView][GLDefs.SPECTRUM_FOLDINGMODE] = (xFoldingMode, yFoldingMode)
-        self._spectrumSettings[spectrumView][GLDefs.SPECTRUM_XFOLDLIMITS] = (fxFoldMin, fxFoldMax)
-
-        indices = getAxisCodeMatchIndices(self.spectrumDisplay.axisCodes, spectrumView.spectrum.axisCodes)
-        # only need the axes for this spectrum
-        indices = indices[:spectrumView.spectrum.dimensionCount]
-        self._spectrumSettings[spectrumView][GLDefs.SPECTRUM_POINTINDEX] = indices
-        self._spectrumSettings[spectrumView][GLDefs.SPECTRUM_VALUEPERPOINT] = None
-        self._spectrumSettings[spectrumView][GLDefs.SPECTRUM_REGIONBOUNDS] = (self._spectrumValues[0].regionBounds, 0)
-
-        self._maxX = max(self._maxX, fxMax)
-        self._minX = min(self._minX, fxMin)
-        self._maxY = max(self._maxY, fyMax)
-        self._minY = min(self._minY, fyMin)
+        self._maxX = max(self._maxX, specVals.maxSpectrumFrequency[0])
+        self._minX = min(self._minX, specVals.minSpectrumFrequency[0])
+        self._maxY = max(self._maxY, specVals.maxSpectrumFrequency[1])
+        self._minY = min(self._minY, specVals.minSpectrumFrequency[1])
 
         self._buildAxisCodesWithWildCards()
 
@@ -854,9 +775,8 @@ class Gui1dWidgetAxis(QtWidgets.QOpenGLWidget):
         if self.spectrumDisplay.isDeleted:
             return
 
-        # self._spectrumSettings = {}
         rebuildFlag = False
-        for spectrumView in self._ordering:  # strip.spectrumViews:
+        for spectrumView in self._ordering:
             if spectrumView.isDeleted:
                 continue
 
@@ -895,30 +815,33 @@ class Gui1dWidgetAxis(QtWidgets.QOpenGLWidget):
         GL.glClear(GL.GL_COLOR_BUFFER_BIT)
         GL.glEnable(GL.GL_MULTISAMPLE)
 
-        currentShader = self.globalGL._shaderProgram1.makeCurrent()
+        shader = self._shaderPixel.bind()
 
         # start with the grid mapped to (0..1, 0..1) to remove zoom errors here
-        currentShader.setProjectionAxes(self._uPMatrix, 0.0, 1.0, 0.0, 1.0, -1.0, 1.0)
-        currentShader.setPMatrix(self._uPMatrix)
+        shader.setProjection(0.0, 1.0, 0.0, 1.0, -1.0, 1.0)
+        shader.setMVMatrixToIdentity()
 
         with self._disableGLAliasing():
             # draw the grid components
             self.drawGrid()
 
-        currentShader = self.globalGL._shaderProgramTex.makeCurrent()
+        shader = self._shaderText.bind()
+        shader.setBlendEnabled(True)
 
-        self._axisScale[:4] = [self.pixelX, self.pixelY, 1.0, 1.0]
-        currentShader.setAxisScale(self._axisScale)
+        # shader.setProjection(self.axisL, self.axisR, self.axisB, self.axisT, -1.0, 1.0)
+        # self._axisScale = QtGui.QVector4D(self.pixelX, self.pixelY, 1.0, 1.0)
+        # shader.setAxisScale(self._axisScale)
+        # shader.setStackOffset(QtGui.QVector2D(0.0, 0.0))
 
         # draw the text to the screen
         self.enableTexture()
         self.enableTextClientState()
-        self._setViewPortFontScale()
+        # self._setViewPortFontScale()
 
         # make the overlay/axis solid
-        currentShader.setBlendEnabled(False)
+        shader.setBlendEnabled(False)
         self.drawAxisLabels()
-        currentShader.setBlendEnabled(True)
+        shader.setBlendEnabled(True)
 
         self.disableTextClientState()
         self.disableTexture()
@@ -1100,16 +1023,8 @@ class Gui1dWidgetAxis(QtWidgets.QOpenGLWidget):
         self.w = 0
         self.h = 0
 
-        self._uPMatrix = np.zeros((16,), dtype=np.float32)
-        self._uMVMatrix = np.zeros((16,), dtype=np.float32)
-        self._uVMatrix = np.zeros((16,), dtype=np.float32)
-        self._dataMatrix = np.zeros((16,), dtype=np.float32)
-        self._aMatrix = np.zeros((16,), dtype=np.float32)
-        self._IMatrix = np.zeros((16,), dtype=np.float32)
-        self._IMatrix[0:16] = [1.0, 0.0, 0.0, 0.0,
-                               0.0, 1.0, 0.0, 0.0,
-                               0.0, 0.0, 1.0, 0.0,
-                               0.0, 0.0, 0.0, 1.0]
+        self._uVMatrix = QtGui.QMatrix4x4()
+        self._aMatrix = QtGui.QMatrix4x4()
 
         self.vInv = None
         self.mouseTransform = None
@@ -1118,7 +1033,6 @@ class Gui1dWidgetAxis(QtWidgets.QOpenGLWidget):
         self._axisScale = np.zeros((4,), dtype=np.float32)
         self._background = np.zeros((4,), dtype=np.float32)
         self._parameterList = np.zeros((4,), dtype=np.int32)
-        # self._view = np.zeros((4,), dtype=np.float32)
         self._updateBackgroundColour = True
 
         # get information from the parent class (strip)
@@ -1144,28 +1058,28 @@ class Gui1dWidgetAxis(QtWidgets.QOpenGLWidget):
         self._menuActive = False
         self._disableCursorUpdate = False
 
-    def _setColourScheme(self):
+    def _setColourScheme(self, pal: QtGui.QPalette = None):
         """Update colours from colourScheme
         """
-        self.colours = getColours()
-        self.hexBackground = self.colours[CCPNGLWIDGET_HEXBACKGROUND]
-        self.background = self.colours[CCPNGLWIDGET_BACKGROUND]
-        self.foreground = self.colours[CCPNGLWIDGET_FOREGROUND]
-        self.mousePickColour = self.colours[CCPNGLWIDGET_PICKCOLOUR]
-        self.gridColour = self.colours[CCPNGLWIDGET_GRID]
-        self.highlightColour = self.colours[CCPNGLWIDGET_HIGHLIGHT]
-        self._labellingColour = self.colours[CCPNGLWIDGET_LABELLING]
-        self._phasingTraceColour = self.colours[CCPNGLWIDGET_PHASETRACE]
+        cols = self.colours = getColours()
+        self.hexBackground = cols[CCPNGLWIDGET_HEXBACKGROUND]
+        self.background = cols[CCPNGLWIDGET_BACKGROUND]
+        self.foreground = cols[CCPNGLWIDGET_FOREGROUND]
+        self.mousePickColour = cols[CCPNGLWIDGET_PICKCOLOUR]
+        self.gridColour = cols[CCPNGLWIDGET_GRID]
+        self.highlightColour = cols[CCPNGLWIDGET_HIGHLIGHT]
+        self._labellingColour = cols[CCPNGLWIDGET_LABELLING]
+        self._phasingTraceColour = cols[CCPNGLWIDGET_PHASETRACE]
 
-        self.zoomAreaColour = self.colours[CCPNGLWIDGET_ZOOMAREA]
-        self.pickAreaColour = self.colours[CCPNGLWIDGET_PICKAREA]
-        self.selectAreaColour = self.colours[CCPNGLWIDGET_SELECTAREA]
-        self.zoomLineColour = self.colours[CCPNGLWIDGET_ZOOMLINE]
-        self.mouseMoveLineColour = self.colours[CCPNGLWIDGET_MOUSEMOVELINE]
+        self.zoomAreaColour = cols[CCPNGLWIDGET_ZOOMAREA]
+        self.pickAreaColour = cols[CCPNGLWIDGET_PICKAREA]
+        self.selectAreaColour = cols[CCPNGLWIDGET_SELECTAREA]
+        self.zoomLineColour = cols[CCPNGLWIDGET_ZOOMLINE]
+        self.mouseMoveLineColour = cols[CCPNGLWIDGET_MOUSEMOVELINE]
 
-        self.zoomAreaColourHard = (*self.colours[CCPNGLWIDGET_ZOOMAREA][0:3], CCPNGLWIDGET_HARDSHADE)
-        self.pickAreaColourHard = (*self.colours[CCPNGLWIDGET_PICKAREA][0:3], CCPNGLWIDGET_HARDSHADE)
-        self.selectAreaColourHard = (*self.colours[CCPNGLWIDGET_SELECTAREA][0:3], CCPNGLWIDGET_HARDSHADE)
+        self.zoomAreaColourHard = (*cols[CCPNGLWIDGET_ZOOMAREA][0:3], CCPNGLWIDGET_HARDSHADE)
+        self.pickAreaColourHard = (*cols[CCPNGLWIDGET_PICKAREA][0:3], CCPNGLWIDGET_HARDSHADE)
+        self.selectAreaColourHard = (*cols[CCPNGLWIDGET_SELECTAREA][0:3], CCPNGLWIDGET_HARDSHADE)
 
     def resetRangeLimits(self, allLimits=True):
         # reset zoom limits for the display
@@ -1263,10 +1177,12 @@ class Gui1dWidgetAxis(QtWidgets.QOpenGLWidget):
                 elif self.spectrumDisplay.stripArrangement == 'T':
 
                     # NOTE:ED - Tiled plots not fully implemented yet
-                    getLogger().warning('Tiled plots not implemented for spectrumDisplay: %s' % str(self.spectrumDisplay.pid))
+                    getLogger().warning(f'Tiled plots not implemented for spectrumDisplay: '
+                                        f'{str(self.spectrumDisplay.pid)}')
 
                 else:
-                    getLogger().warning('Strip direction is not defined for spectrumDisplay: %s' % str(self.spectrumDisplay.pid))
+                    getLogger().warning(f'Strip direction is not defined for spectrumDisplay: '
+                                        f'{str(self.spectrumDisplay.pid)}')
 
             else:
                 # paint to update lock button colours
@@ -1311,7 +1227,8 @@ class Gui1dWidgetAxis(QtWidgets.QOpenGLWidget):
                     gr.renderMode = GLRENDERMODE_REBUILD
             self.update()
 
-    def _widthsChangedEnough(self, r1, r2, tol=1e-5):
+    @staticmethod
+    def _widthsChangedEnough(r1, r2, tol=1e-5):
         if len(r1) != len(r2):
             raise ValueError('WidthsChanged must be the same length')
 
@@ -1545,7 +1462,8 @@ class Gui1dWidgetAxis(QtWidgets.QOpenGLWidget):
             return
 
         # initialise a common to all OpenGL windows
-        self.globalGL = GLGlobalData(parent=self, mainWindow=self.mainWindow)  #, strip=None, spectrumDisplay=self.spectrumDisplay)
+        self.globalGL = GLGlobalData(parent=self, mainWindow=self.mainWindow)
+        self.globalGL.initialiseShaders(self)
 
         # initialise the arrays for the grid and axes
         self.gridList = []
@@ -1560,14 +1478,17 @@ class Gui1dWidgetAxis(QtWidgets.QOpenGLWidget):
         self.viewports = GLViewports()
         self._initialiseViewPorts()
 
-        # This is the correct blend function to ignore stray surface blending functions
-        GL.glBlendFuncSeparate(GL.GL_SRC_ALPHA, GL.GL_ONE_MINUS_SRC_ALPHA, GL.GL_ONE, GL.GL_ONE)
+        # This is the required blend function to ignore stray surface blending functions
+        #   think this was an old QT bug
+        # GL.glBlendFuncSeparate(GL.GL_SRC_ALPHA, GL.GL_ONE_MINUS_SRC_ALPHA, GL.GL_ONE, GL.GL_ONE)
+        GL.glBlendFunc(GL.GL_SRC_ALPHA, GL.GL_ONE_MINUS_SRC_ALPHA)  # arbitrary order
 
         self._setColourScheme()
         self.setBackgroundColour(self.background, silent=True)
-        # _shader = self.globalGL._shaderProgramTex
-        # _shader.setBlendEnabled(0)
-        # _shader.setAlpha(1.0)
+        shader = self._shaderText
+        shader.bind()
+        shader.setBlendEnabled(False)
+        shader.setAlpha(1.0)
 
         self.updateVisibleSpectrumViews()
         self.initialiseAxes()
@@ -1653,7 +1574,7 @@ class Gui1dWidgetAxis(QtWidgets.QOpenGLWidget):
         self._parentStrip = stripList[0]
 
         axis = self._orderedAxes[0]
-        if self.INVERTXAXIS:
+        if self.XDIRECTION < 0:
             self.axisL = max(axis.region[0], axis.region[1])
             self.axisR = min(axis.region[0], axis.region[1])
         else:
@@ -1661,7 +1582,7 @@ class Gui1dWidgetAxis(QtWidgets.QOpenGLWidget):
             self.axisR = max(axis.region[0], axis.region[1])
 
         axis = self._orderedAxes[1]
-        if self.INVERTYAXIS:
+        if self.YDIRECTION < 0:
             self.axisB = max(axis.region[0], axis.region[1])
             self.axisT = min(axis.region[0], axis.region[1])
         else:
@@ -1676,19 +1597,24 @@ class Gui1dWidgetAxis(QtWidgets.QOpenGLWidget):
 
         # define the main viewports
         if self.AXIS_INSIDE:
-            self.viewports.addViewport(GLDefs.MAINVIEW, self, (0, 'a'), (self.AXIS_MARGINBOTTOM, 'a'),
+            self.viewports.addViewport(GLDefs.MAINVIEW, self,
+                                       (0, 'a'), (self.AXIS_MARGINBOTTOM, 'a'),
                                        (-self.AXIS_MARGINRIGHT, 'w'), (-self.AXIS_MARGINBOTTOM, 'h'))
 
-            self.viewports.addViewport(GLDefs.MAINVIEWFULLWIDTH, self, (0, 'a'), (self.AXIS_MARGINBOTTOM, 'a'),
+            self.viewports.addViewport(GLDefs.MAINVIEWFULLWIDTH, self,
+                                       (0, 'a'), (self.AXIS_MARGINBOTTOM, 'a'),
                                        (0, 'w'), (-self.AXIS_MARGINBOTTOM, 'h'))
 
             self.viewports.addViewport(GLDefs.MAINVIEWFULLHEIGHT, self, (0, 'a'), (0, 'a'),
                                        (-self.AXIS_MARGINRIGHT, 'w'), (0, 'h'))
         else:
-            self.viewports.addViewport(GLDefs.MAINVIEW, self, (0, 'a'), (self.AXIS_MARGINBOTTOM + self.AXIS_LINE, 'a'),
-                                       (-(self.AXIS_MARGINRIGHT + self.AXIS_LINE), 'w'), (-(self.AXIS_MARGINBOTTOM + self.AXIS_LINE), 'h'))
+            self.viewports.addViewport(GLDefs.MAINVIEW, self,
+                                       (0, 'a'), (self.AXIS_MARGINBOTTOM + self.AXIS_LINE, 'a'),
+                                       (-(self.AXIS_MARGINRIGHT + self.AXIS_LINE), 'w'),
+                                       (-(self.AXIS_MARGINBOTTOM + self.AXIS_LINE), 'h'))
 
-            self.viewports.addViewport(GLDefs.MAINVIEWFULLWIDTH, self, (0, 'a'), (self.AXIS_MARGINBOTTOM + self.AXIS_LINE, 'a'),
+            self.viewports.addViewport(GLDefs.MAINVIEWFULLWIDTH, self,
+                                       (0, 'a'), (self.AXIS_MARGINBOTTOM + self.AXIS_LINE, 'a'),
                                        (0, 'w'), (-(self.AXIS_MARGINBOTTOM + self.AXIS_LINE), 'h'))
 
             self.viewports.addViewport(GLDefs.MAINVIEWFULLHEIGHT, self, (0, 'a'), (0, 'a'),
@@ -1696,54 +1622,67 @@ class Gui1dWidgetAxis(QtWidgets.QOpenGLWidget):
 
         # define the viewports for the right axis bar
         if self.AXIS_INSIDE:
-            self.viewports.addViewport(GLDefs.RIGHTAXIS, self, (-(self.AXIS_MARGINRIGHT + self.AXIS_LINE), 'w'),
+            self.viewports.addViewport(GLDefs.RIGHTAXIS, self,
+                                       (-(self.AXIS_MARGINRIGHT + self.AXIS_LINE), 'w'),
                                        (self.AXIS_MARGINBOTTOM, 'a'),
                                        (self.AXIS_LINE, 'a'), (-self.AXIS_MARGINBOTTOM, 'h'))
-            self.viewports.addViewport(GLDefs.RIGHTAXISBAR, self, (-self.AXIS_MARGINRIGHT, 'w'),
+            self.viewports.addViewport(GLDefs.RIGHTAXISBAR, self,
+                                       (-self.AXIS_MARGINRIGHT, 'w'),
                                        (self.AXIS_MARGINBOTTOM, 'a'),
                                        (0, 'w'), (-self.AXIS_MARGINBOTTOM, 'h'))
 
         else:
-            self.viewports.addViewport(GLDefs.RIGHTAXIS, self, (-(self.AXIS_MARGINRIGHT + self.AXIS_LINE), 'w'),
+            self.viewports.addViewport(GLDefs.RIGHTAXIS, self,
+                                       (-(self.AXIS_MARGINRIGHT + self.AXIS_LINE), 'w'),
                                        (self.AXIS_MARGINBOTTOM + self.AXIS_LINE, 'a'),
                                        (self.AXIS_LINE, 'a'), (-(self.AXIS_MARGINBOTTOM + self.AXIS_LINE), 'h'))
 
-            self.viewports.addViewport(GLDefs.RIGHTAXISBAR, self, (-self.AXIS_MARGINRIGHT, 'w'),
+            self.viewports.addViewport(GLDefs.RIGHTAXISBAR, self,
+                                       (-self.AXIS_MARGINRIGHT, 'w'),
                                        (self.AXIS_MARGINBOTTOM + self.AXIS_LINE, 'a'),
                                        (0, 'w'), (-(self.AXIS_MARGINBOTTOM + self.AXIS_LINE), 'h'))
 
-        self.viewports.addViewport(GLDefs.FULLRIGHTAXIS, self, (-(self.AXIS_MARGINRIGHT + self.AXIS_LINE), 'w'),
-                                   (0, 'a'),
+        self.viewports.addViewport(GLDefs.FULLRIGHTAXIS, self,
+                                   (-(self.AXIS_MARGINRIGHT + self.AXIS_LINE), 'w'), (0, 'a'),
                                    (self.AXIS_LINE, 'a'), (0, 'h'))
 
-        self.viewports.addViewport(GLDefs.FULLRIGHTAXISBAR, self, (-self.AXIS_MARGINRIGHT, 'w'), (0, 'a'),
+        self.viewports.addViewport(GLDefs.FULLRIGHTAXISBAR, self,
+                                   (-self.AXIS_MARGINRIGHT, 'w'), (0, 'a'),
                                    (0, 'w'), (0, 'h'))
 
         # define the viewports for the bottom axis bar
         if self.AXIS_INSIDE:
-            self.viewports.addViewport(GLDefs.BOTTOMAXIS, self, (0, 'a'), (self.AXIS_MARGINBOTTOM, 'a'),
+            self.viewports.addViewport(GLDefs.BOTTOMAXIS, self,
+                                       (0, 'a'), (self.AXIS_MARGINBOTTOM, 'a'),
                                        (-self.AXIS_MARGINRIGHT, 'w'), (self.AXIS_LINE, 'a'))
 
-            self.viewports.addViewport(GLDefs.BOTTOMAXISBAR, self, (0, 'a'), (0, 'a'),
+            self.viewports.addViewport(GLDefs.BOTTOMAXISBAR, self,
+                                       (0, 'a'), (0, 'a'),
                                        (-self.AXIS_MARGINRIGHT, 'w'), (self.AXIS_MARGINBOTTOM, 'a'))
         else:
-            self.viewports.addViewport(GLDefs.BOTTOMAXIS, self, (0, 'a'), (self.AXIS_MARGINBOTTOM, 'a'),
+            self.viewports.addViewport(GLDefs.BOTTOMAXIS, self,
+                                       (0, 'a'), (self.AXIS_MARGINBOTTOM, 'a'),
                                        (-(self.AXIS_MARGINRIGHT + self.AXIS_LINE), 'w'), (self.AXIS_LINE, 'a'))
 
-            self.viewports.addViewport(GLDefs.BOTTOMAXISBAR, self, (0, 'a'), (0, 'a'),
+            self.viewports.addViewport(GLDefs.BOTTOMAXISBAR, self,
+                                       (0, 'a'), (0, 'a'),
                                        (-(self.AXIS_MARGINRIGHT + self.AXIS_LINE), 'w'), (self.AXIS_MARGINBOTTOM, 'a'))
 
-        self.viewports.addViewport(GLDefs.FULLBOTTOMAXIS, self, (0, 'a'), (self.AXIS_MARGINBOTTOM, 'a'),
+        self.viewports.addViewport(GLDefs.FULLBOTTOMAXIS, self,
+                                   (0, 'a'), (self.AXIS_MARGINBOTTOM, 'a'),
                                    (0, 'w'), (self.AXIS_LINE, 'a'))
 
-        self.viewports.addViewport(GLDefs.FULLBOTTOMAXISBAR, self, (0, 'a'), (0, 'a'),
+        self.viewports.addViewport(GLDefs.FULLBOTTOMAXISBAR, self,
+                                   (0, 'a'), (0, 'a'),
                                    (0, 'w'), (self.AXIS_MARGINBOTTOM, 'a'))
 
         # define the full viewport
         self.viewports.addViewport(GLDefs.FULLVIEW, self, (0, 'a'), (0, 'a'), (0, 'w'), (0, 'h'))
 
         # define the remaining corner
-        self.viewports.addViewport(GLDefs.AXISCORNER, self, (-self.AXIS_MARGINRIGHT, 'w'), (0, 'a'), (0, 'w'), (self.AXIS_MARGINBOTTOM, 'a'))
+        self.viewports.addViewport(GLDefs.AXISCORNER, self,
+                                   (-self.AXIS_MARGINRIGHT, 'w'), (0, 'a'), (0, 'w'),
+                                   (self.AXIS_MARGINBOTTOM, 'a'))
 
         # define an empty view (for printing mainly)
         self.viewports.addViewport(GLDefs.BLANKVIEW, self, (0, 'a'), (0, 'a'), (0, 'a'), (0, 'a'))
@@ -1772,36 +1711,47 @@ class Gui1dWidgetAxis(QtWidgets.QOpenGLWidget):
         # set the flag to update the background in the paint event
         self._updateBackgroundColour = True
 
-    def setBackgroundColour(self, col, silent=False):
+    def setBackgroundColour(self, col, silent=False, makeCurrent=False):
         """
         set all background colours in the shaders
         :param col - vec4, 4 element list e.g.: [0.05, 0.05, 0.05, 1.0], very dark gray
         """
+        if makeCurrent:
+            self.makeCurrent()
+
         GL.glClearColor(*col)
         self.background = np.array(col, dtype=np.float32)
+        bg = QtGui.QVector4D(*col)
+        shader = self._shaderText
+        shader.bind()
+        shader.setBackground(bg)
+        shader = self._shaderPixelAlias
+        shader.bind()
+        shader.setBackground(bg)
+        shader = self._shaderTextAlias
+        shader.bind()
+        shader.setBackground(bg)
 
-        self.globalGL._shaderProgramTex.makeCurrent()
-        self.globalGL._shaderProgramTex.setBackground(self.background)
-        self.globalGL._shaderProgramAlias.makeCurrent()
-        self.globalGL._shaderProgramAlias.setBackground(self.background)
-        self.globalGL._shaderProgramTexAlias.makeCurrent()
-        self.globalGL._shaderProgramTexAlias.setBackground(self.background)
         if not silent:
             self.update()
+        if makeCurrent:
+            self.doneCurrent()
 
     def setOverlayArea(self, value):
         """Set the overlay type.
         """
         self._overlayArea.setOverlayArea(value)
 
-    def enableTextClientState(self):
+    @staticmethod
+    def enableTextClientState():
         _attribArrayIndex = 1
         GL.glEnableClientState(GL.GL_VERTEX_ARRAY)
         GL.glEnableClientState(GL.GL_COLOR_ARRAY)
         GL.glEnableClientState(GL.GL_TEXTURE_COORD_ARRAY)
         GL.glEnableVertexAttribArray(_attribArrayIndex)
 
-    def disableTextClientState(self):
+    @staticmethod
+    def disableTextClientState():
         _attribArrayIndex = 1
         GL.glDisableClientState(GL.GL_TEXTURE_COORD_ARRAY)
         GL.glDisableClientState(GL.GL_VERTEX_ARRAY)
@@ -1810,10 +1760,10 @@ class Gui1dWidgetAxis(QtWidgets.QOpenGLWidget):
 
     def _setViewPortFontScale(self):
         # set the scale for drawing the overlay text correctly
-        self._axisScale[0:4] = [self.deltaX, self.deltaY, 1.0, 1.0]
-        self.globalGL._shaderProgramTex.setAxisScale(self._axisScale)
-        self.globalGL._shaderProgramTex.setProjectionAxes(self._uPMatrix, 0.0, 1.0, 0, 1.0, -1.0, 1.0)
-        self.globalGL._shaderProgramTex.setPTexMatrix(self._uPMatrix)
+        self._axisScale = QtGui.QVector4D(self.deltaX, self.deltaY, 1.0, 1.0)
+        shader = self._shaderText
+        shader.setAxisScale(self._axisScale)
+        shader.setProjection(0.0, 1.0, 0, 1.0, -1.0, 1.0)
 
     def buildAxisLabels(self, refresh=False):
         # build axes labelling
@@ -1847,12 +1797,13 @@ class Gui1dWidgetAxis(QtWidgets.QOpenGLWidget):
                                                          obj=None))
 
                 # append the axisCode
-                self._axisXLabelling.append(GLString(text=self._visibleOrderingAxisCodes[0] if self._visibleOrderingAxisCodes else '*',
-                                                     font=smallFont,
-                                                     x=GLDefs.AXISTEXTXOFFSET * self.deltaX,
-                                                     y=self.AXIS_MARGINBOTTOM - GLDefs.TITLEYOFFSET * smallFont.charHeight,
-                                                     colour=labelColour, GLContext=self,
-                                                     obj=None))
+                self._axisXLabelling.append(GLString(
+                        text=self._visibleOrderingAxisCodes[0] if self._visibleOrderingAxisCodes else '*',
+                        font=smallFont,
+                        x=GLDefs.AXISTEXTXOFFSET * self.deltaX,
+                        y=self.AXIS_MARGINBOTTOM - GLDefs.TITLEYOFFSET * smallFont.charHeight,
+                        colour=labelColour, GLContext=self,
+                        obj=None))
                 # and the axis dimensions
                 xUnitsLabels = self.XAXES[self._xUnits]
                 self._axisXLabelling.append(GLString(text=xUnitsLabels,
@@ -1883,12 +1834,14 @@ class Gui1dWidgetAxis(QtWidgets.QOpenGLWidget):
                                                          obj=None))
 
                 # append the axisCode
-                self._axisYLabelling.append(GLString(text=self._visibleOrderingAxisCodes[1] if self._visibleOrderingAxisCodes and len(self._visibleOrderingAxisCodes) > 1 else '*',
-                                                     font=smallFont,
-                                                     x=self.AXIS_OFFSET,
-                                                     y=1.0 - (GLDefs.TITLEYOFFSET * smallFont.charHeight * self.deltaY),
-                                                     colour=labelColour, GLContext=self,
-                                                     obj=None))
+                self._axisYLabelling.append(GLString(
+                        text=self._visibleOrderingAxisCodes[1] if self._visibleOrderingAxisCodes and
+                                                                  len(self._visibleOrderingAxisCodes) > 1 else '*',
+                        font=smallFont,
+                        x=self.AXIS_OFFSET,
+                        y=1.0 - (GLDefs.TITLEYOFFSET * smallFont.charHeight * self.deltaY),
+                        colour=labelColour, GLContext=self,
+                        obj=None))
                 # and the axis dimensions
                 yUnitsLabels = self.YAXES[self._yUnits]
                 self._axisYLabelling.append(GLString(text=yUnitsLabels,
@@ -1904,36 +1857,30 @@ class Gui1dWidgetAxis(QtWidgets.QOpenGLWidget):
         if self._axesVisible:
             self.buildAxisLabels()
 
+            shader = self._shaderText
+
             if self._drawBottomAxis and self._drawRightAxis:
                 # NOTE:ED - this case should never occur
                 return
 
             if self._drawBottomAxis and self._axisType == GLDefs.BOTTOMAXIS:
                 # put the axis labels into the bottom bar
-                self.viewports.setViewport(self._currentBottomAxisBarView)
+                _w, _h = self.viewports.setViewport(self._currentBottomAxisBarView)
 
-                # self._axisScale[0:4] = [self.pixelX, 1.0, 1.0, 1.0]
-                self._axisScale[0:4] = [self.deltaX, 1.0, 1.0, 1.0]
-
-                self.globalGL._shaderProgramTex.setAxisScale(self._axisScale)
-                self.globalGL._shaderProgramTex.setProjectionAxes(self._uPMatrix, 0.0, 1.0, 0,
-                                                                  self.AXIS_MARGINBOTTOM, -1.0, 1.0)
-                self.globalGL._shaderProgramTex.setPTexMatrix(self._uPMatrix)
+                self._axisScale = QtGui.QVector4D(self.deltaX, 1.0, 1.0, 1.0)
+                shader.setAxisScale(self._axisScale)
+                shader.setProjection(0.0, 1.0, 0, self.AXIS_MARGINBOTTOM, -1.0, 1.0)
 
                 for lb in self._axisXLabelling:
                     lb.drawTextArrayVBO()
 
             if self._drawRightAxis and self._axisType == GLDefs.RIGHTAXIS:
                 # put the axis labels into the right bar
-                self.viewports.setViewport(self._currentRightAxisBarView)
+                _w, _h = self.viewports.setViewport(self._currentRightAxisBarView)
 
-                # self._axisScale[0:4] = [1.0, self.pixelY, 1.0, 1.0]
-                self._axisScale[0:4] = [1.0, self.deltaY, 1.0, 1.0]
-
-                self.globalGL._shaderProgramTex.setAxisScale(self._axisScale)
-                self.globalGL._shaderProgramTex.setProjectionAxes(self._uPMatrix, 0, self.AXIS_MARGINRIGHT,
-                                                                  0.0, 1.0, -1.0, 1.0)
-                self.globalGL._shaderProgramTex.setPTexMatrix(self._uPMatrix)
+                self._axisScale = QtGui.QVector4D(1.0, self.deltaY, 1.0, 1.0)
+                shader.setAxisScale(self._axisScale)
+                shader.setProjection(0, self.AXIS_MARGINRIGHT, 0.0, 1.0, -1.0, 1.0)
 
                 for lb in self._axisYLabelling:
                     lb.drawTextArrayVBO()
@@ -2016,10 +1963,12 @@ class Gui1dWidgetAxis(QtWidgets.QOpenGLWidget):
             elif self.spectrumDisplay.stripArrangement == 'T':
 
                 # NOTE:ED - Tiled plots not fully implemented yet
-                getLogger().warning('Tiled plots not implemented for spectrumDisplay: %s' % str(self.spectrumDisplay.pid))
+                getLogger().warning(f'Tiled plots not implemented for spectrumDisplay: '
+                                    f'{str(self.spectrumDisplay.pid)}')
 
             else:
-                getLogger().warning('Strip direction is not defined for spectrumDisplay: %s' % str(self.spectrumDisplay.pid))
+                getLogger().warning(f'Strip direction is not defined for spectrumDisplay: '
+                                    f'{str(self.spectrumDisplay.pid)}')
 
         self.rescale()
 
@@ -2105,18 +2054,16 @@ class Gui1dWidgetAxis(QtWidgets.QOpenGLWidget):
             currentPos = self.mapFromGlobal(QtGui.QCursor.pos())
 
             # calculate mouse coordinate within the mainView
-            _mouseX = currentPos.x()
+            mx = currentPos.x()
             if not self._fullHeightRightAxis:
-                _mouseY = self.height() - currentPos.y() - self.AXIS_MOUSEYOFFSET
+                my = self.height() - currentPos.y() - self.AXIS_MOUSEYOFFSET
                 _top = self.height() - self.AXIS_MOUSEYOFFSET
             else:
-                _mouseY = self.height() - currentPos.y()
+                my = self.height() - currentPos.y()
                 _top = self.height()
 
-            # translate from screen (0..w, 0..h) to NDC (-1..1, -1..1) to axes (axisL, axisR, axisT, axisB)
-            result = self.mouseTransform.dot([_mouseX, _mouseY, 0.0, 1.0])
-
-            # print('updated current pos GLWidget:', currentPos, self.height(), self.AXIS_MOUSEYOFFSET, result[:2])
+            result = self.mouseTransform * QtGui.QVector4D(mx, my, 0.0, 1.0)
+            result = (result.x(), result.y(), result.z(), result.w())
 
         else:
             result = self.cursorCoordinate
@@ -2332,7 +2279,8 @@ class Gui1dWidgetAxis(QtWidgets.QOpenGLWidget):
             # self._storeZoomHistory()
 
         if not int(event.buttons()):
-            self.GLSignals._emitMouseMoved(source=self, coords=cursorCoordinate, mouseMovedDict=mouseMovedDict, mainWindow=self.mainWindow)
+            self.GLSignals._emitMouseMoved(source=self, coords=cursorCoordinate, mouseMovedDict=mouseMovedDict,
+                                           mainWindow=self.mainWindow)
 
         self.update()
 
@@ -2450,12 +2398,10 @@ class Gui1dWidgetAxis(QtWidgets.QOpenGLWidget):
         w = self.w
         h = self.h
 
-        currentShader = self.globalGL._shaderProgram1.makeCurrent()
+        shader = self._shaderPixel.bind()
 
         # set projection to axis coordinates
-        currentShader.setProjectionAxes(self._uPMatrix, self.axisL, self.axisR, self.axisB,
-                                        self.axisT, -1.0, 1.0)
-        currentShader.setPMatrix(self._uPMatrix)
+        shader.setProjection(self.axisL, self.axisR, self.axisB, self.axisT, -1.0, 1.0)
 
         # needs to be offset from (0,0) for mouse scaling
         if self._drawRightAxis and self._drawBottomAxis:
@@ -2486,55 +2432,32 @@ class Gui1dWidgetAxis(QtWidgets.QOpenGLWidget):
 
         # get the dimensions of the main view for the current strip
         vpwidth, vpheight = self._parentStrip.mainViewSize()
-        currentShader.setViewportMatrix(self._uVMatrix, 0, vpwidth, 0, vpheight,
-                                        -1.0, 1.0)
+        self._uVMatrix = shader.getViewportMatrix(0, vpwidth, 0, vpheight, -1.0, 1.0)
 
         self.pixelX = (self.axisR - self.axisL) / vpwidth
         self.pixelY = (self.axisT - self.axisB) / vpheight
         self.deltaX = 1.0 / vpwidth
         self.deltaY = 1.0 / vpheight
 
-        # self._dataMatrix[0:16] = [self.axisL, self.axisR, self.axisT, self.axisB,
-        #                           self.pixelX, self.pixelY, w, h,
-        #                           0.2, 1.0, 0.4, 1.0,
-        #                           0.3, 0.1, 1.0, 1.0]
-        # currentShader.setGLUniformMatrix4fv('dataMatrix', 1, GL.GL_FALSE, self._dataMatrix)
-        currentShader.setMVMatrix(self._IMatrix)
+        shader.setMVMatrixToIdentity()
 
         # map mouse coordinates to world coordinates - only needs to change on resize, move soon
-        currentShader.setViewportMatrix(self._aMatrix, self.axisL, self.axisR, self.axisB,
-                                        self.axisT, -1.0, 1.0)
+        self._aMatrix = shader.getViewportMatrix(self.axisL, self.axisR, self.axisB,
+                                                 self.axisT, -1.0, 1.0)
 
         # calculate the screen to axes transform
-        self.vInv = np.linalg.inv(self._uVMatrix.reshape((4, 4)))
-        self.mouseTransform = np.matmul(self._aMatrix.reshape((4, 4)), self.vInv)
+        self.vInv = self._uVMatrix.inverted()
+        self.mouseTransform = self._aMatrix * self.vInv[0]
 
-        # NOTE:ED - raising numpy runtimewarnings as errors
-        # with np.errstate(all='raise'):
-        #     try:
-        #         self.mouseTransform = np.matmul(self._aMatrix.reshape((4, 4)), self.vInv)
-        #     except Exception as es:
-        #         # catch runtime error and set to identity
-        #         print('>>> RuntimeWarning', str(es))
-        #         self.mouseTransform = self._IMatrix
-
-        self.modelViewMatrix = (GL.GLdouble * 16)()
-        self.projectionMatrix = (GL.GLdouble * 16)()
-        self.viewport = (GL.GLint * 4)()
+        # self.modelViewMatrix = (GL.GLdouble * 16)()
+        # self.projectionMatrix = (GL.GLdouble * 16)()
+        # self.viewport = (GL.GLint * 4)()
 
         # change to the text shader
-        currentShader = self.globalGL._shaderProgramTex.makeCurrent()
-
-        currentShader.setProjectionAxes(self._uPMatrix, self.axisL, self.axisR, self.axisB, self.axisT, -1.0, 1.0)
-        currentShader.setPTexMatrix(self._uPMatrix)
-
-        self._axisScale[0:4] = [self.pixelX, self.pixelY, 1.0, 1.0]
-        # self._view[0:4] = [w - self.AXIS_MARGINRIGHT, h - self.AXIS_MOUSEYOFFSET, 1.0, 1.0]
-        # self._view[0:4] = [vpwidth, vpheight, 1.0, 1.0]
-
-        # self._axisScale[0:4] = [1.0/(self.axisR-self.axisL), 1.0/(self.axisT-self.axisB), 1.0, 1.0]
-        currentShader.setAxisScale(self._axisScale)
-        # currentShader.setGLUniform4fv('viewport', 1, self._view)
+        self._axisScale = QtGui.QVector4D(self.pixelX, self.pixelY, 1.0, 1.0)
+        shader = self._shaderText.bind()
+        shader.setProjection(self.axisL, self.axisR, self.axisB, self.axisT, -1.0, 1.0)
+        shader.setAxisScale(self._axisScale)
 
     def _updateVisibleSpectrumViews(self):
         """Update the list of visible spectrumViews when change occurs
@@ -2568,13 +2491,14 @@ class Gui1dWidgetAxis(QtWidgets.QOpenGLWidget):
 
         # make a list of the visible and not-deleted spectrumViews
         # visibleSpectra = [specView.spectrum for specView in self._ordering if not specView.isDeleted and specView.isDisplayed]
-        visibleSpectrumViews = [specView for specView in self._ordering if not specView.isDeleted and specView.isDisplayed]
+        visibleSpectrumViews = [specView for specView in self._ordering
+                                if not specView.isDeleted and specView.isDisplayed]
 
         self._visibleOrdering = visibleSpectrumViews
 
         # set the first visible, or the first in the ordered list
-        self._firstVisible = visibleSpectrumViews[0] if visibleSpectrumViews else self._ordering[0] if self._ordering and not self._ordering[
-            0].isDeleted else None
+        self._firstVisible = visibleSpectrumViews[0] if visibleSpectrumViews else \
+            self._ordering[0] if self._ordering and not self._ordering[0].isDeleted else None
 
     def updateVisibleSpectrumViews(self):
         self._visibleSpectrumViewsChange = True
@@ -2836,15 +2760,27 @@ class Gui1dWidgetAxis(QtWidgets.QOpenGLWidget):
         _visibleSpec = [(specView, self._spectrumSettings[specView]) for specView in self._ordering
                         if not specView.isDeleted and specView.isDisplayed and
                         specView in self._spectrumSettings]
-        _firstVisible = ((self._ordering[0], self._spectrumSettings[self._ordering[0]]),) if self._ordering and not self._ordering[0].isDeleted and self._ordering[0] in self._spectrumSettings else ()
+        _firstVisible = ((self._ordering[0], self._spectrumSettings[self._ordering[0]]),) if self._ordering and not \
+            self._ordering[0].isDeleted and self._ordering[0] in self._spectrumSettings else ()
         self._visibleOrderingDict = _visibleSpec or _firstVisible
 
         # quick fix to take the set of matching letters from the spectrum axisCodes - append a '*' to denote trailing differences
         if self.spectrumDisplay.is1D:
+            dim = self.spectrumDisplay._flipped
+
             # get the x-axis codes for 1d
             _axisCodes = [spec.spectrum.axisCodes[0] for spec, settings in self._visibleOrderingDict]
-            _axisWildCards = (self._buildSingleWildCard(_axisCodes),
-                              self.axisCodes[1] or '*')
+            if dim:
+                _axisWildCards = (
+                    self.axisCodes[1 - dim] or '*',
+                    self._buildSingleWildCard(_axisCodes),
+                    )
+            else:
+                _axisWildCards = (
+                    self._buildSingleWildCard(_axisCodes),
+                    self.axisCodes[1 - dim] or '*',
+                    )
+
         else:
             dim = len(self.spectrumDisplay.axisCodes)
             _axisWildCards = []
@@ -2853,8 +2789,8 @@ class Gui1dWidgetAxis(QtWidgets.QOpenGLWidget):
                 _axisCodes = []
                 for spec, settings in self._visibleOrderingDict:
                     try:
-                        _axisCodes.append(spec.spectrum.axisCodes[settings[GLDefs.SPECTRUM_POINTINDEX][axis]])
-                    except Exception as es:
+                        _axisCodes.append(spec.spectrum.axisCodes[settings.dimensionIndices[axis]])
+                    except Exception:
                         # can skip for now
                         pass
                 _code = self._buildSingleWildCard(_axisCodes)
@@ -2900,7 +2836,7 @@ class Gui1dWidgetAxis(QtWidgets.QOpenGLWidget):
 
     def _setAxisRegion(self, axisIndex, region, rescale=True, update=True):
         if axisIndex == 0:
-            if self.INVERTXAXIS:
+            if self.XDIRECTION < 0:
                 self.axisL = max(region)
                 self.axisR = min(region)
             else:
@@ -2911,7 +2847,7 @@ class Gui1dWidgetAxis(QtWidgets.QOpenGLWidget):
                 self._rescaleXAxis(rescale=rescale, update=update)
 
         elif axisIndex == 1:
-            if self.INVERTYAXIS:
+            if self.YDIRECTION < 0:
                 self.axisB = max(region)
                 self.axisT = min(region)
             else:
@@ -2921,6 +2857,10 @@ class Gui1dWidgetAxis(QtWidgets.QOpenGLWidget):
             if rescale:
                 self._rescaleYAxis(rescale=rescale, update=update)
 
+
+#=========================================================================================
+# GuiNdWidgetAxis
+#=========================================================================================
 
 class GuiNdWidgetAxis(Gui1dWidgetAxis):
     """Testing a widget that only contains a right axis
@@ -2932,8 +2872,8 @@ class GuiNdWidgetAxis(Gui1dWidgetAxis):
     AXIS_OFFSET = 3
     AXIS_INSIDE = False
     YAXISUSEEFORMAT = False
-    INVERTXAXIS = True
-    INVERTYAXIS = True
+    XDIRECTION = -1.0
+    YDIRECTION = -1.0
     AXISLOCKEDBUTTON = True
     AXISLOCKEDBUTTONALLSTRIPS = True
     SPECTRUMXZOOM = 5.0e1
@@ -2944,113 +2884,21 @@ class GuiNdWidgetAxis(Gui1dWidgetAxis):
     AXIS_MOUSEYOFFSET = AXIS_MARGINBOTTOM + (0 if AXIS_INSIDE else AXIS_LINE)
 
     def _buildSpectrumSetting(self, spectrumView, stackCount=0):
-        # if spectrumView.spectrum.headerSize == 0:
-        #     return
+        delta = [self.XDIRECTION, self.YDIRECTION]
+        self._spectrumSettings[spectrumView] = specVals = spectrumView._getVisibleSpectrumViewParams(delta=delta)
 
-        self._spectrumSettings[spectrumView] = {}
-
-        self._spectrumValues = spectrumView.getVisibleState()
-
-        # set defaults for undefined spectra
-        if not self._spectrumValues[0].pointCount:
-            dx = -1.0 if self.INVERTXAXIS else -1.0
-            fxMax, fxMin = 1.0, -1.0
-            fxFoldMax, fxFoldMin = 1.0, -1.0
-            dxAF = fxMax - fxMin
-            xScale = dx * dxAF
-
-            dy = -1.0 if self.INVERTYAXIS else -1.0
-            fyMax, fyMin = 1.0, -1.0
-            fyFoldMax, fyFoldMin = 1.0, -1.0
-            dyAF = fyMax - fyMin
-            yScale = dy * dyAF
-            # xAliasingIndex = (0, 0)
-            # yAliasingIndex = (0, 0)
-            # xFoldingMode = yFoldingMode = None
-
-            self._minXRange = min(self._minXRange, GLDefs.RANGEMINSCALE * dxAF)
-            self._maxXRange = max(self._maxXRange, dxAF)
-            self._minYRange = min(self._minYRange, GLDefs.RANGEMINSCALE * dyAF)
-            self._maxYRange = max(self._maxYRange, dyAF)
-
-        else:
-
-            # get the bounding box of the spectra
-            dx = -1.0 if self.INVERTXAXIS else -1.0  # self.sign(self.axisR - self.axisL)
-            fxMax, fxMin = self._spectrumValues[0].maxSpectrumFrequency, self._spectrumValues[0].minSpectrumFrequency
-            # xAliasingIndex = self._spectrumValues[0].aliasingIndex
-            # xFoldingMode = self._spectrumValues[0].foldingMode
-            fxFoldMax, fxFoldMin = self._spectrumValues[0].maxFoldingFrequency, self._spectrumValues[0].minFoldingFrequency
-
-            # check tolerances
-            if not self._widthsChangedEnough((fxMax, 0.0), (fxMin, 0.0), tol=1e-10):
-                fxMax, fxMin = 1.0, -1.0
-
-            dxAF = fxFoldMax - fxFoldMin  # fxMax - fxMin
-            xScale = dx * dxAF / self._spectrumValues[0].pointCount
-
-            dy = -1.0 if self.INVERTYAXIS else -1.0  # self.sign(self.axisT - self.axisB)
-            fyMax, fyMin = self._spectrumValues[1].maxSpectrumFrequency, self._spectrumValues[1].minSpectrumFrequency
-            # yAliasingIndex = self._spectrumValues[1].aliasingIndex
-            # yFoldingMode = self._spectrumValues[1].foldingMode
-            fyFoldMax, fyFoldMin = self._spectrumValues[1].maxFoldingFrequency, self._spectrumValues[1].minFoldingFrequency
-
-            # check tolerances
-            if not self._widthsChangedEnough((fyMax, 0.0), (fyMin, 0.0), tol=1e-10):
-                fyMax, fyMin = 1.0, -1.0
-
-            dyAF = fyFoldMax - fyFoldMin  # fyMax - fyMin
-            yScale = dy * dyAF / self._spectrumValues[1].pointCount
-
-            # set to nD limits to twice the width of the spectrum and a few data points
-            self._minXRange = min(self._minXRange, GLDefs.RANGEMINSCALE * dxAF / self._spectrumValues[0].pointCount)
-            self._maxXRange = max(self._maxXRange, dxAF)
-            self._minYRange = min(self._minYRange, GLDefs.RANGEMINSCALE * dyAF / self._spectrumValues[1].pointCount)
-            self._maxYRange = max(self._maxYRange, dyAF)
+        self._minXRange = min(self._minXRange,
+                              GLDefs.RANGEMINSCALE * specVals.spectralWidth[0] / specVals.pointCount[0])
+        self._maxXRange = max(self._maxXRange, specVals.spectralWidth[0])
+        self._minYRange = min(self._minYRange,
+                              GLDefs.RANGEMINSCALE * specVals.spectralWidth[1] / specVals.pointCount[1])
+        self._maxYRange = max(self._maxYRange, specVals.spectralWidth[1])
 
         self._rangeXDefined = True
         self._rangeYDefined = True
-
-        # create modelview matrix for the spectrum to be drawn
-        self._spectrumSettings[spectrumView][GLDefs.SPECTRUM_MATRIX] = np.zeros((16,), dtype=np.float32)
-
-        self._spectrumSettings[spectrumView][GLDefs.SPECTRUM_MATRIX][0:16] = [xScale, 0.0, 0.0, 0.0,
-                                                                              0.0, yScale, 0.0, 0.0,
-                                                                              0.0, 0.0, 1.0, 0.0,
-                                                                              fxMax, fyMax, 0.0, 1.0]
-        # setup information for the horizontal/vertical traces
-        self._spectrumSettings[spectrumView][GLDefs.SPECTRUM_XLIMITS] = (fxMin, fxMax)
-        self._spectrumSettings[spectrumView][GLDefs.SPECTRUM_YLIMITS] = (fyMin, fyMax)
-        self._spectrumSettings[spectrumView][GLDefs.SPECTRUM_AF] = (dxAF, dyAF)
-        self._spectrumSettings[spectrumView][GLDefs.SPECTRUM_SCALE] = (xScale, yScale)
-        # self._spectrumSettings[spectrumView][GLDefs.SPECTRUM_SPINNINGRATE] = spectrumView.spectrum.spinningRate
-        # self._spectrumSettings[spectrumView][GLDefs.SPECTRUM_ALIASINGINDEX] = (xAliasingIndex, yAliasingIndex)
-        # self._spectrumSettings[spectrumView][GLDefs.SPECTRUM_FOLDINGMODE] = (xFoldingMode, yFoldingMode)
-        self._spectrumSettings[spectrumView][GLDefs.SPECTRUM_XFOLDLIMITS] = (fxFoldMin, fxFoldMax)
-        self._spectrumSettings[spectrumView][GLDefs.SPECTRUM_YFOLDLIMITS] = (fyFoldMin, fyFoldMax)
-
-        indices = getAxisCodeMatchIndices(self.spectrumDisplay.axisCodes, spectrumView.spectrum.axisCodes)
-        # only need the axes for this spectrum
-        indices = indices[:spectrumView.spectrum.dimensionCount]
-        self._spectrumSettings[spectrumView][GLDefs.SPECTRUM_POINTINDEX] = indices
-        self._spectrumSettings[spectrumView][GLDefs.SPECTRUM_REGIONBOUNDS] = (self._spectrumValues[0].regionBounds, self._spectrumValues[1].regionBounds)
-
-        # if len(self._spectrumValues) > 2:
-        #     # store a list for the extra dimensions - should only be one per spectrumDisplay really
-        #     # needed so that the planeDepth is calculated correctly for visible spectra
-        #     vPP = ()
-        #     for dim in range(2, len(self._spectrumValues)):
-        #         specVal = self._spectrumValues[dim]
-        #         vPP = vPP + (specVal.valuePerPoint,)
-        #
-        #     self._spectrumSettings[spectrumView][GLDefs.SPECTRUM_VALUEPERPOINT] = vPP
-        #
-        # else:
-        #     self._spectrumSettings[spectrumView][GLDefs.SPECTRUM_VALUEPERPOINT] = None
-
-        self._maxX = max(self._maxX, fxMax)
-        self._minX = min(self._minX, fxMin)
-        self._maxY = max(self._maxY, fyMax)
-        self._minY = min(self._minY, fyMin)
+        self._maxX = max(self._maxX, specVals.maxSpectrumFrequency[0])
+        self._minX = min(self._minX, specVals.minSpectrumFrequency[0])
+        self._maxY = max(self._maxY, specVals.maxSpectrumFrequency[1])
+        self._minY = min(self._minY, specVals.minSpectrumFrequency[1])
 
         self._buildAxisCodesWithWildCards()

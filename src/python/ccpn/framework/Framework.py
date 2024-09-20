@@ -13,8 +13,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-07-04 18:51:59 +0100 (Thu, July 04, 2024) $"
-__version__ = "$Revision: 3.2.5 $"
+__dateModified__ = "$dateModified: 2024-09-16 15:51:34 +0100 (Mon, September 16, 2024) $"
+__version__ = "$Revision: 3.2.7 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -2158,7 +2158,7 @@ class Framework(NotifierBase, GuiBase):
         restraintTableModule = RestraintTableModule(mainWindow=mainWindow, selectFirstItem=selectFirstItem)
         mainWindow.moduleArea.addModule(restraintTableModule, position=position, relativeTo=relativeTo)
         if restraintTable:
-            restraintTableModule.selectRestraintTable(restraintTable)
+            restraintTableModule.selectTable(restraintTable)
         return restraintTableModule
 
     @logCommand('application.')

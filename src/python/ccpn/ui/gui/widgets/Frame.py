@@ -58,8 +58,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-08-21 13:51:14 +0100 (Wed, August 21, 2024) $"
+__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
+__dateModified__ = "$dateModified: 2024-08-23 19:21:19 +0100 (Fri, August 23, 2024) $"
 __version__ = "$Revision: 3.2.5 $"
 #=========================================================================================
 # Created
@@ -75,9 +75,9 @@ from ccpn.ui.gui.widgets.Base import Base
 from ccpn.ui.gui.widgets.ScrollArea import ScrollArea
 from ccpn.ui.gui.widgets.ScrollBarVisibilityWatcher import ScrollBarVisibilityWatcher
 from ccpn.ui.gui.widgets.Widget import Widget
-from ccpn.ui.gui.widgets.Font import setWidgetFont, getFont
-from ccpn.ui.gui.guiSettings import CCPNGLWIDGET_HEXFOREGROUND, CCPNGLWIDGET_HEXBACKGROUND, CCPNGLWIDGET_HEXHIGHLIGHT, \
-    getColours, BORDERNOFOCUS_COLOUR
+from ccpn.ui.gui.widgets.Font import getFont
+from ccpn.ui.gui.guiSettings import (CCPNGLWIDGET_HEXFOREGROUND, CCPNGLWIDGET_HEXBACKGROUND,
+                                     CCPNGLWIDGET_HEXHIGHLIGHT, getColours)
 
 
 class Frame(QtWidgets.QFrame, Base):
@@ -120,9 +120,9 @@ class Frame(QtWidgets.QFrame, Base):
             styleSheet += "foreground-color: rgb(%d, %d, %d); " % kwds["fgColor"]
             del (kwds['fgColor'])
         if showBorder:
-            styleSheet += "border: 1px solid %s; " % BORDERNOFOCUS_COLOUR
+            styleSheet += "border-width: 1px"  # solid %s; " % BORDERNOFOCUS_COLOUR
         else:
-            styleSheet += "border: 0px; "
+            styleSheet += "border-width: 0px; "
         if len(styleSheet) > 0:
             #print('>>', styleSheet)
             self.setStyleSheet('QFrame {' + styleSheet + '}')
@@ -220,7 +220,7 @@ class ScrollableFrame(Frame):
                                       )
         self._scrollArea.setWidget(self)
         self._scrollArea.setWidgetResizable(True)
-        self._scrollArea.setStyleSheet('ScrollArea { border: 0px; background: transparent; }')
+        self._scrollArea.setStyleSheet('ScrollArea { border-width: 0px; background: transparent; }')
 
         # configure the scroll area to allow all available space without margins
         self.setContentsMargins(*margins)
@@ -259,6 +259,10 @@ class OpenGLOverlayFrame(Frame):
         self._backgroundColour = backgroundColour
         self.getLayout().setSpacing(0)
         self.setContentsMargins(2, 2, 2, 2)
+        QtWidgets.QApplication.instance()._sigPaletteChanged.connect(self._checkPalette)
+
+    def _checkPalette(self, pal: QtGui.QPalette, *args):
+        self.resetColourTheme()
 
     def paintEvent(self, ev):
         """Paint the region of the frame to the desired background colour, required when overlaying a GL widget
@@ -308,7 +312,8 @@ class OpenGLOverlayFrame(Frame):
                 glF._resizeMasks()
             self._setMask()
 
-    def _setStyle(self, sl, foregroundColour=CCPNGLWIDGET_HEXFOREGROUND, backgroundColour=CCPNGLWIDGET_HEXBACKGROUND):
+    def _setStyle(self, sl, foregroundColour=CCPNGLWIDGET_HEXFOREGROUND,
+                  backgroundColour=CCPNGLWIDGET_HEXBACKGROUND):
 
         # from ccpn.framework.Application import getApplication
         # textFontLarge = getApplication()._fontSettings.textFontLarge
@@ -320,7 +325,7 @@ class OpenGLOverlayFrame(Frame):
                              'margin: 0px 0px 0px 0px;'
                              'color: %s;'
                              'background-color: %s;'
-                             'border: 0 px;'
+                             'border-width: 0px;'
                              'font-family: %s;'
                              'font-size: %dpx;'
                              'qproperty-alignment: AlignLeft;'
@@ -333,7 +338,7 @@ class OpenGLOverlayFrame(Frame):
                              'padding: 0; '
                              'margin: 0px 0px 0px 0px;'
                              'color: %s;'
-                             'border: 0 px;'
+                             'border-width: 0px;'
                              'font-family: %s;'
                              'font-size: %dpx;'
                              'qproperty-alignment: AlignLeft;'
@@ -343,21 +348,20 @@ class OpenGLOverlayFrame(Frame):
 
         sl.setSizePolicy(QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Minimum)
 
-    def _updateColourThemeStyle(self, sl,
-                                foregroundColour=CCPNGLWIDGET_HEXFOREGROUND, backgroundColour=CCPNGLWIDGET_HEXBACKGROUND,
+    @staticmethod
+    def _updateColourThemeStyle(sl,
+                                foregroundColour=CCPNGLWIDGET_HEXFOREGROUND,
+                                backgroundColour=CCPNGLWIDGET_HEXBACKGROUND,
                                 highlightColour=CCPNGLWIDGET_HEXHIGHLIGHT):
         """Update the background colour when changing colour themes, keeping the same foreground highlighting
         """
-        # from ccpn.framework.Application import getApplication
-        # textFontLarge = getApplication()._fontSettings.textFontLarge
         textFontLarge = getFont(size='MEDIUM')
-
         sl.setStyleSheet('QLabel {'
                          'padding: 0; '
                          'margin: 0px 0px 0px 0px;'
                          'color: %s;'
                          'background-color: %s;'
-                         'border: 0 px;'
+                         'border-width: 0px;'
                          'font-family: %s;'
                          'font-size: %dpx;'
                          'qproperty-alignment: AlignLeft;'
@@ -365,8 +369,6 @@ class OpenGLOverlayFrame(Frame):
                                 getColours()[backgroundColour],
                                 textFontLarge.fontName,
                                 textFontLarge.pointSize()))
-
-        sl.update()
 
     def resetColourTheme(self):
         """Reset the colour theme
@@ -376,10 +378,10 @@ class OpenGLOverlayFrame(Frame):
             # resetBackground
             try:
                 self._updateColourThemeStyle(item)
-            except Exception as es:
-
+            except Exception:
                 # just in case I've missed subclassing the above method
-                pass
+                ...
+        self.update()
 
 
 class ScrollOpenGLOverlayFrame(OpenGLOverlayFrame):
@@ -454,7 +456,8 @@ if __name__ == '__main__':
 
             #TODO: find the cause of the empty space between the widgets
             #frame3 = ScrollableFrame(parent=parent, showBorder=True, bgColor=(255, 0, 255), grid=(2,0))
-            frame1 = Frame(parent=widget, setLayout=True, grid=(0, 0), showBorder=False, bgColor=(255, 255, 0), **policyDict)
+            frame1 = Frame(parent=widget, setLayout=True, grid=(0, 0), showBorder=False, bgColor=(255, 255, 0),
+                           **policyDict)
             label1 = Label(parent=frame1, grid=(0, 0), text="FRAME-1", bold=True, textColour='black', textSize='32')
 
             frame2 = Frame(parent=widget, setLayout=True, grid=(1, 0), showBorder=True, bgColor=(255, 0, 0),

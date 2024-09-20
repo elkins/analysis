@@ -279,7 +279,7 @@ def arrangeLabelPositions(spectrumDisplay: GuiSpectrumDisplay, selected: bool = 
          pLabel.stringObject,
          pLabel)
         for plv, ss in strip._CcpnGLWidget._GLPeaks._GLLabels.items() if plv.isDisplayed
-        for pLabel in ss.stringList]
+        for pLabel in ss.stringList if not pLabel.stringObject.isDeleted]
 
     mltLabels = [(_data2Obj.get(
             mLabel.stringObject._wrappedData.findFirstMultipletView(
@@ -287,7 +287,7 @@ def arrangeLabelPositions(spectrumDisplay: GuiSpectrumDisplay, selected: bool = 
                   mLabel.stringObject,
                   mLabel)
         for mlv, ss in strip._CcpnGLWidget._GLMultiplets._GLLabels.items() if mlv.isDisplayed
-        for mLabel in ss.stringList]
+        for mLabel in ss.stringList if not mLabel.stringObject.isDeleted]
 
     posnX = []
     posnY = []
@@ -319,16 +319,24 @@ def arrangeLabelPositions(spectrumDisplay: GuiSpectrumDisplay, selected: bool = 
             getLogger().debug('arrangeLabelPositions: There are no selected peaks/multiplets in the spectrumDisplay')
         return
 
+    # can I use SpectrumCache here?
+    dims = spectrumDisplay.spectrumViews[0].dimensionIndices  # 0-based
     for view, obj, label in labels:
-        dims = spectrumDisplay.spectrumViews[0].dimensionIndices  # 0-based
+        # corePeak = view.peak
+        # peak = corePeak._wrappedData
+
+        # dims = spectrumDisplay.spectrumViews[0].displayOrder  # 1-based for the model
+
+        # # ppmPerPoints = corePeak.spectrum.ppmPerPoints
+        # peakDimX = peak.findFirstPeakDim(dim=dims[0])
+        # peakDimY = peak.findFirstPeakDim(dim=dims[1])
         pos = obj.ppmPositions
-        lWidths = obj.pointLineWidths
-        # there must be some discrepancy here between valuePerPoint and ppmPerPoints
-        #   I think the lineWidths is actually hzLineWidths scaled by valuePerPoint
-        ppms = obj.spectrum.ppmPerPoints
         try:
             if spectrumDisplay.is1D:
-                posX, posY = pos[0], (obj.height or 0.0)
+                if spectrumDisplay._flipped:
+                    posX, posY = (obj.height or 0.0), pos[0]
+                else:
+                    posX, posY = pos[0], (obj.height or 0.0)
             else:
                 posX, posY = pos[dims[0]], pos[dims[1]]
         except Exception:
@@ -411,6 +419,7 @@ def arrangeLabelPositions(spectrumDisplay: GuiSpectrumDisplay, selected: bool = 
             # offset is always orientated +ve to the top-right
             # view.textOffset = (moved[0] - posx, moved[1] - posy)  # pixels
             try:
+                # pixelOffset?
                 view.textOffset = (moved[0] - posx) * np.abs(px), (moved[1] - posy) * np.abs(py)  # ppm
             except Exception as es:
                 print(es)

@@ -4,19 +4,20 @@
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (http://www.ccpn.ac.uk) 2014 - 2021"
-__credits__ = ("Ed Brooksbank, Joanna Fox, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
-               "Timothy J Ragan, Brian O Smith, Gary S Thompson & Geerten W Vuister")
-__licence__ = ("CCPN licence. See http://www.ccpn.ac.uk/v3-software/downloads/license")
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
+               "Timothy J Ragan, Brian O Smith, Daniel Thompson",
+               "Gary S Thompson & Geerten W Vuister")
+__licence__ = ("CCPN licence. See https://ccpn.ac.uk/software/licensing/")
 __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, L.G., & Vuister, G.W.",
                  "CcpNmr AnalysisAssign: a flexible platform for integrated NMR analysis",
-                 "J.Biomol.Nmr (2016), 66, 111-124, http://doi.org/10.1007/s10858-016-0060-y")
+                 "J.Biomol.Nmr (2016), 66, 111-124, https://doi.org/10.1007/s10858-016-0060-y")
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: Geerten Vuister $"
-__dateModified__ = "$dateModified: 2021-12-23 13:15:21 +0000 (Thu, December 23, 2021) $"
-__version__ = "$Revision: 3.0.4 $"
+__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
+__dateModified__ = "$dateModified: 2024-08-07 13:10:49 +0100 (Wed, August 07, 2024) $"
+__version__ = "$Revision: 3.2.5 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -26,9 +27,10 @@ __date__ = "$Date: 2017-04-07 10:28:41 +0000 (Fri, April 07, 2017) $"
 # Start of code
 #=========================================================================================
 
-
+import sys
+import numpy as np
 import collections
-import traceback
+from dataclasses import dataclass, field
 from ccpn.util import Colour
 from PyQt5 import QtCore, QtGui, QtWidgets
 from ccpn.util.Logging import getLogger
@@ -36,12 +38,90 @@ from ccpn.core.lib.Notifiers import Notifier
 from typing import Optional, Tuple
 
 
-SpectrumViewParams = collections.namedtuple('SpectrumViewParams', 'valuePerPoint pointCount minAliasedFrequency maxAliasedFrequency '
-                                                                  'minSpectrumFrequency maxSpectrumFrequency axisReversed '
-                                                                  'spectralWidth aliasingIndex foldingMode regionBounds '
-                                                                  'minFoldingFrequency maxFoldingFrequency isTimeDomain ')
-TraceParameters = collections.namedtuple('TraceParameters', 'inRange pointPositions startPoint, endPoint')
+SpectrumViewParams = collections.namedtuple('SpectrumViewParams',
+                                            'valuePerPoint pointCount minAliasedFrequency maxAliasedFrequency '
+                                            'minSpectrumFrequency maxSpectrumFrequency axisReversed '
+                                            'spectralWidth aliasingIndex foldingMode regionBounds '
+                                            'minFoldingFrequency maxFoldingFrequency isTimeDomain '
+                                            'spectrometerFrequency ppmToPoint')
+TraceParameters = collections.namedtuple('TraceParameters', 'inRange pointPositions startPoint endPoint')
 
+
+@dataclass(slots=True)
+class SpectrumCache():
+    # matrix: np.array = None
+    matrix: QtGui.QMatrix4x4 = None
+    stackedMatrix: np.array = None
+    spinningRate: float = None
+
+    dimensionIndices: list = field(default_factory=list)
+
+    pointCount: list = field(default_factory=list)
+    ppmPerPoint: list = field(default_factory=list)
+    ppmToPoint: list = field(default_factory=list)
+
+    minSpectrumFrequency: list = field(default_factory=list)
+    maxSpectrumFrequency: list = field(default_factory=list)
+    spectralWidth: list = field(default_factory=list)
+    spectrometerFrequency: list = field(default_factory=list)
+
+    minAliasedFrequency: list = field(default_factory=list)
+    maxAliasedFrequency: list = field(default_factory=list)
+    aliasingWidth: list = field(default_factory=list)
+    aliasingIndex: list = field(default_factory=list)
+    axisDirection: list = field(default_factory=list)
+
+    minFoldingFrequency: list = field(default_factory=list)
+    maxFoldingFrequency: list = field(default_factory=list)
+    foldingWidth: list = field(default_factory=list)
+    foldingMode: list = field(default_factory=list)
+
+    regionBounds: list = field(default_factory=list)
+    isTimeDomain: list = field(default_factory=list)
+    axisCode: list = field(default_factory=list)
+    isotopeCode: list = field(default_factory=list)
+
+    scale: list = field(default_factory=list)
+    delta: list = field(default_factory=list)
+    stackedMatrixOffset: list = field(default_factory=list)
+    mvMatrices: list[QtGui.QMatrix4x4] = field(default_factory=list)
+
+
+@dataclass
+class AxisCache():
+    valuePerPoint: tuple = field(default_factory=tuple)
+    pointCount: tuple = field(default_factory=tuple)
+    minAliasedFrequency: tuple = field(default_factory=tuple)
+    maxAliasedFrequency: tuple = field(default_factory=tuple)
+    minSpectrumFrequency: tuple = field(default_factory=tuple)
+    maxSpectrumFrequency: tuple = field(default_factory=tuple)
+    axisDirection: tuple = field(default_factory=tuple)
+    spectralWidth: tuple = field(default_factory=tuple)
+    aliasingIndex: tuple = field(default_factory=tuple)
+    foldingMode: tuple = field(default_factory=tuple)
+    regionBounds: tuple = field(default_factory=tuple)
+    minFoldingFrequency: tuple = field(default_factory=tuple)
+    maxFoldingFrequency: tuple = field(default_factory=tuple)
+    foldingWidth: tuple = field(default_factory=tuple)
+    isTimeDomain: tuple = field(default_factory=tuple)
+    spectrometerFrequency: tuple = field(default_factory=tuple)
+    ppmToPoint: tuple = field(default_factory=tuple)
+    stackedMatrixOffset: list = field(default_factory=list)
+    matrix = None
+    stackedMatrix = None
+
+
+@dataclass
+class TraceCache():
+    inRange: tuple = field(default_factory=tuple)
+    pointPositions: tuple = field(default_factory=tuple)
+    startPoint: tuple = field(default_factory=tuple)
+    endPoint: tuple = field(default_factory=tuple)
+
+
+#=========================================================================================
+# GuiSpectrumView
+#=========================================================================================
 
 class GuiSpectrumView(QtWidgets.QGraphicsObject):
 
@@ -62,6 +142,8 @@ class GuiSpectrumView(QtWidgets.QGraphicsObject):
             self.setVisible(False)
 
         self._showContours = True
+
+        self.cache = None
 
     # To write your own graphics item, you first create a subclass of QGraphicsItem, and
     # then start by implementing its two pure virtual public functions:
@@ -155,6 +237,8 @@ class GuiSpectrumView(QtWidgets.QGraphicsObject):
                                         folding frequencies define the ppm positions of points [0.5] and [pointCount + 0.5]
                                         currently the exact ppm at which the spectrum is folded
             isTimeDomain                True if the axis is a time domain, otherwise False
+            spectrometerFrequency       spectrometer frequency to give correct Hz
+            ppmToPoint                  method to convert ppm to data-source point value
         """
 
         ii = self.dimensionIndices[axisDim]
@@ -175,6 +259,8 @@ class GuiSpectrumView(QtWidgets.QGraphicsObject):
             regionBounds = tuple(minFoldingFrequency + ii * spectralWidth
                                  for ii in range(aliasingIndex[0], aliasingIndex[1] + 2))
             isTimeDomain = (_spectrum.isTimeDomains)[ii]
+            spectrometerFrequency = (_spectrum.spectrometerFrequencies)[ii]
+            ppmToPoint = (_spectrum.ppmToPoints)[ii]
 
             return SpectrumViewParams(valuePerPoint, pointCount,
                                       minAliasedFrequency, maxAliasedFrequency,
@@ -182,7 +268,71 @@ class GuiSpectrumView(QtWidgets.QGraphicsObject):
                                       axisReversed, spectralWidth, aliasingIndex,
                                       foldingMode, regionBounds,
                                       minFoldingFrequency, maxFoldingFrequency,
-                                      isTimeDomain)
+                                      isTimeDomain, spectrometerFrequency, ppmToPoint)
+
+    def _getVisibleSpectrumViewParams(self, dimRange=None, delta=None, stacking=None) -> SpectrumCache:
+        """Get parameters for axisDim'th axis (zero-origin) of spectrum.
+        """
+        # MUST BE SUBCLASSED
+        raise NotImplementedError(f'Code error: function {repr(sys._getframe().f_code.co_name)} not implemented')
+
+    def _refreshCache(self) -> Optional[Tuple]:
+        """Get parameters for axisDim'th axis (zero-origin) of spectrum.
+
+        Returns None or namedTuple of the form:
+
+            valuePerPoint               ppm width spanning a point value
+            pointCount                  number of points in the dimension
+            minAliasingFrequency        minimum aliasing frequency
+            maxAliasingFrequency        maximum aliasing frequency
+                                        aliasing frequencies define the span of the spectrum, beyond the range of the defined points
+                                        for aliasingIndex (0, 0) this will correspond to points [0.5], [pointCount + 0.5]
+            minSpectrumFrequency        minimum spectrum frequency
+            maxSpectrumFrequency        maximum spectrum frequency
+                                        spectrum frequencies defined by the ppm positions of points [1] and [pointCount]
+            axisReversed                True if the point [pointCount] corresponds to the maximum spectrum frequency
+            spectralWidth               maxSpectrumFrequency - minSpectrumFrequency
+            aliasingIndex               a tuple (min, max) defining how many integer multiples the aliasing frequencies span the spectrum
+                                        (0, 0) implies the aliasing range matches the spectral range
+                                        (s, t) implies:
+                                            the minimum limit = minSpectrumFrequency - 's' spectral widths - should always be negative or zero
+                                            the maximum limit = maxSpectrumFrequency + 't' spectral widths - should always be positive or zero
+            foldingMode                 the type of folding: 'circular', 'mirror' or None
+            regionBounds                a tuple of ppm values (min, ..., max) in multiples of the spectral width from the lower aliasingLimit
+                                        to the upper aliasingLimit
+            minFoldingFrequency         minimum folding frequency
+            maxFoldingFrequency         maximum folding frequency
+                                        folding frequencies define the ppm positions of points [0.5] and [pointCount + 0.5]
+                                        currently the exact ppm at which the spectrum is folded
+            isTimeDomain                True if the axis is a time domain, otherwise False
+            spectrometerFrequency       spectrometer frequency to give correct Hz
+            ppmToPoint                  method to convert ppm to data-source point value
+        """
+        minFoldingFrequencies = tuple(min(*val) for val in self.foldingLimits)
+        spectralWidths = self.spectralWidths
+        aliasingIndexes = self.aliasingIndexes
+        regionBounds = tuple(tuple(minFoldingFrequency + ii * spectralWidth
+                                   for ii in range(aliasingIndex[0], aliasingIndex[1] + 2))
+                             for minFoldingFrequency, spectralWidth, aliasingIndex in
+                             zip(minFoldingFrequencies, spectralWidths, aliasingIndexes))
+
+        # NOTE:ED - fill with defaults if the pointCount is not defined
+        #       specialise for 1d depending on the view order
+        #       i.e., fill one axis with defaults, other with correct values
+        #       OR let guiSpectrumView1d sort it?
+
+        return SpectrumViewParams(self.ppmPerPoints, self.pointCounts,
+                                  tuple(val[0] for val in self.aliasingLimits),
+                                  tuple(val[1] for val in self.aliasingLimits),
+                                  tuple(min(*val) for val in self.spectrumLimits),
+                                  tuple(max(*val) for val in self.spectrumLimits),
+                                  self.axesReversed, self.spectralWidths,
+                                  self.aliasingIndexes, self.foldingModes,
+                                  regionBounds,
+                                  tuple(min(*val) for val in self.foldingLimits),
+                                  tuple(max(*val) for val in self.foldingLimits),
+                                  self.isTimeDomains, self.spectrometerFrequencies, self.ppmToPoints,
+                                  )
 
     def getTraceParameters(self, position, dim):
         # dim  = spectrumView index, i.e. 0 for X, 1 for Y
@@ -212,8 +362,10 @@ class GuiSpectrumView(QtWidgets.QGraphicsObject):
         return colour
 
     def refreshData(self):
-
-        raise Exception('Needs to be implemented in subclass')
+        """refresh/rebuild contour data.
+        """
+        # MUST BE SUBCLASSED
+        raise NotImplementedError("Code error: function not implemented")
 
 
 def _spectrumViewHasChanged(data):

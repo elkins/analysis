@@ -3,9 +3,10 @@
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2023"
-__credits__ = ("Ed Brooksbank, Joanna Fox, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
-               "Timothy J Ragan, Brian O Smith, Gary S Thompson & Geerten W Vuister")
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
+               "Timothy J Ragan, Brian O Smith, Daniel Thompson",
+               "Gary S Thompson & Geerten W Vuister")
 __licence__ = ("CCPN licence. See https://ccpn.ac.uk/software/licensing/")
 __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, L.G., & Vuister, G.W.",
                  "CcpNmr AnalysisAssign: a flexible platform for integrated NMR analysis",
@@ -14,8 +15,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2023-05-23 15:26:51 +0100 (Tue, May 23, 2023) $"
-__version__ = "$Revision: 3.1.1 $"
+__dateModified__ = "$dateModified: 2024-09-13 20:32:52 +0100 (Fri, September 13, 2024) $"
+__version__ = "$Revision: 3.2.7 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -27,9 +28,9 @@ __date__ = "$Date: 2017-04-07 10:28:41 +0000 (Fri, April 07, 2017) $"
 
 import json
 import operator
-import os
 import sys
 from collections import OrderedDict
+
 from ccpn.core.Chain import Chain
 from ccpn.core.Residue import Residue
 from ccpn.core.Atom import Atom
@@ -40,7 +41,7 @@ from ccpn.core.NmrAtom import NmrAtom
 from ccpn.core.ChemicalShiftList import ChemicalShiftList
 from ccpn.core.ChemicalShift import ChemicalShift
 from ccpn.core.Sample import Sample
-from ccpn.core.Restraint import Restraint
+from ccpn.core.Restraint import Restraint, RestraintTable
 from ccpn.core.Substance import Substance
 from ccpn.core.Integral import Integral, IntegralList
 from ccpn.core.SpectrumGroup import SpectrumGroup
@@ -89,6 +90,7 @@ _currentClasses = {
     IntegralList     : {},
     MultipletList    : {},
     Restraint        : {},
+    RestraintTable   : {},
     DataTable        : {},
     ViolationTable   : {},
     StructureEnsemble: {},
@@ -474,7 +476,8 @@ class Current:
         for cls in _currentClasses:
             fieldName = f'_{cls._pluralLinkName}'
             ntf = Notifier(self.project, triggers=[Notifier.DELETE], targetName=cls.className,
-                           callback=self._cleanUp, debug=False, fieldName=fieldName)  # fieldName is passed on to the callback function
+                           callback=self._cleanUp, debug=False,
+                           fieldName=fieldName)  # fieldName is passed on to the callback function
             self._notifiers.append(ntf)
 
     def _unregisterNotifiers(self):

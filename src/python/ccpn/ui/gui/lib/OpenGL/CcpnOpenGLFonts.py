@@ -4,9 +4,9 @@ Module Documentation here
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2022"
-__credits__ = ("Ed Brooksbank, Joanna Fox, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
-               "Timothy J Ragan, Brian O Smith, Gary S Thompson & Geerten W Vuister")
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2023"
+__credits__ = ("Ed Brooksbank, Joanna Fox, Morgan Hayward, Victoria A Higman, Luca Mureddu",
+               "Eliza Płoskoń, Timothy J Ragan, Brian O Smith, Gary S Thompson & Geerten W Vuister")
 __licence__ = ("CCPN licence. See https://ccpn.ac.uk/software/licensing/")
 __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, L.G., & Vuister, G.W.",
                  "CcpNmr AnalysisAssign: a flexible platform for integrated NMR analysis",
@@ -15,8 +15,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2022-10-12 15:27:10 +0100 (Wed, October 12, 2022) $"
-__version__ = "$Revision: 3.1.0 $"
+__dateModified__ = "$dateModified: 2023-12-14 14:54:40 +0000 (Thu, December 14, 2023) $"
+__version__ = "$Revision: 3.2.1 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -37,31 +37,11 @@ from ccpn.util.Colour import hexToRgbRatio
 from ccpn.util.AttrDict import AttrDict
 
 
-GlyphXpos = 'Xpos'
-GlyphYpos = 'Ypos'
-GlyphWidth = 'Width'
-GlyphHeight = 'Height'
-GlyphXoffset = 'Xoffset'
-GlyphYoffset = 'Yoffset'
-GlyphOrigW = 'OrigW'
-GlyphOrigH = 'OrigH'
-GlyphKerns = 'Kerns'
-GlyphTX0 = 'tx0'
-GlyphTY0 = 'ty0'
-GlyphTX1 = 'tx1'
-GlyphTY1 = 'ty1'
-GlyphPX0 = 'px0'
-GlyphPY0 = 'py0'
-GlyphPX1 = 'px1'
-GlyphPY1 = 'py1'
-
 FONT_FILE = 0
 FULL_FONT_NAME = 1
 
-GLGlyphTuple = namedtuple('GLGlyphTuple', 'GlyphXpos GlyphYpos GlyphWidth GlyphHeight '
-                                          'GlyphXoffset GlyphYoffset GlyphOrigW GlyphOrigH GlyphKerns '
-                                          'GlyphTX0 GlyphTY0 GlyphTX1 GlyphTY1 '
-                                          'GlyphPX0 GlyphPY0 GlyphPX1 GlyphPY1')
+GLGlyphTuple = namedtuple('GLGlyphTuple', 'xPos yPos width height xOffset yOffset origW origH kerns '
+                                          'TX0 TY0 TX1 TY1 PX0 PY0 PX1 PY1')
 
 
 #=========================================================================================
@@ -76,7 +56,7 @@ class CcpnGLFont():
         self.scale = scale
 
         if scale is None:
-            raise Exception('scale must be defined for font %s ' % fileName)
+            raise ValueError(f'scale must be defined for font {fileName} ')
         with open(fileName, 'r') as op:
             self.fontInfo = op.read().split('\n')
 
@@ -106,7 +86,7 @@ class CcpnGLFont():
 
         _foundFonts = [glyph.fontName for glyph in self.fontGlyph.values()]
         if len(set(_foundFonts)) != 1:
-            raise Exception('font file should only contain a single font type')
+            raise RuntimeError('font file should only contain a single font type')
         self.fontName = _foundFonts[0]
 
         self.activeTexture = GL.GL_TEXTURE0 + activeTexture
@@ -129,20 +109,13 @@ class CcpnGLFont():
                         0,
                         GL.GL_ALPHA, GL.GL_UNSIGNED_BYTE, self._fontArray)
 
-        # # need to map ALPHA-ALPHA and use the alpha channel (.a) in the shader - need to upgrade shader glsl-level for usampler2D
-        # GL.glTexImage2D(GL.GL_TEXTURE_2D, 0, GL.GL_R8UI,
-        #                 self._fontArray.shape[1], self._fontArray.shape[0],
-        #                 0,
-        #                 GL.GL_ALPHA_INTEGER, GL.GL_UNSIGNED_BYTE, self._fontArray)
-
         # nearest is the quickest gl plotting and gives a slightly brighter image
-        # GL.glTexParameteri(GL.GL_TEXTURE_2D, GL.GL_TEXTURE_MAG_FILTER, GL.GL_LINEAR)
-        # GL.glTexParameteri(GL.GL_TEXTURE_2D, GL.GL_TEXTURE_MIN_FILTER, GL.GL_LINEAR)
         GL.glTexParameteri(GL.GL_TEXTURE_2D, GL.GL_TEXTURE_MAG_FILTER, GL.GL_NEAREST)
         GL.glTexParameteri(GL.GL_TEXTURE_2D, GL.GL_TEXTURE_MIN_FILTER, GL.GL_NEAREST)
 
-        # the following 2 lines generate a multitexture mipmap - shouldn't need here
-        # GL.glTexParameteri( GL.GL_TEXTURE_2D, GL.GL_TEXTURE_MIN_FILTER, GL.GL_LINEAR_MIPMAP_LINEAR )
+        # # the following 3 lines generate a multi-texture mipmap - shouldn't need here
+        # GL.glTexParameteri( GL.GL_TEXTURE_2D, GL.GL_TEXTURE_MIN_FILTER, GL.GL_LINEAR_MIPMAP_NEAREST )
+        # GL.glTexParameteri( GL.GL_TEXTURE_2D, GL.GL_TEXTURE_MAG_FILTER, GL.GL_NEAREST )
         # GL.glGenerateMipmap( GL.GL_TEXTURE_2D )
         GL.glDisable(GL.GL_TEXTURE_2D)
 
@@ -175,7 +148,7 @@ class CcpnGLFont():
             if len(lineVals) == 9:
                 chrNum, x, y, tx, ty, px, py, gw, gh = lineVals
 
-                # only keep the simple chars for the minute
+                # only keep the ascii chars
                 if chrNum < 256:
                     w = tx + LEFTBORDER + RIGHTBORDER
                     h = ty + TOPBORDER + BOTTOMBORDER
@@ -193,44 +166,40 @@ class CcpnGLFont():
                                                           px + (w),
                                                           gh - py
                                                           )
-                    if chrNum == 65:
+                    if chrNum == 32:
+                        # store the width of the space character
+                        _glyphs.spaceWidth = gw
+
+                    elif chrNum == 65:
                         # use 'A' for the referencing the tab size
                         _glyphs.width = gw
                         _glyphs.height = gh
                         _glyphs.charWidth = gw
                         _glyphs.charHeight = gh
 
-                    if chrNum == 32:
-                        # store the width of the space character
-                        _glyphs.spaceWidth = gw
-
         # fill the kerning lists
         for row in range(_kerningRow + 1, _nextRow):
             line = self.fontInfo[row]
 
-            lineVals = [int(ll) for ll in line.split()]
+            lineVals = [int(float(ll)) for ll in line.split()]
             chrNum, chrNext, val = lineVals
 
             # set the kerning for valid values
             if (32 < chrNum < 256) and (32 < chrNext < 256):
-                _glyphs.glyphs[chrNum].GlyphKerns[chrNext] = val
+                _glyphs.glyphs[chrNum].kerns[chrNext] = val
 
     @staticmethod
     def get_kerning(fromChar, prevChar, glyphs):
         """Get the kerning required between the characters
         """
-        _glyph = glyphs[ord(fromChar)]
-        if _glyph:
-            return _glyph.GlyphKerns[ord(prevChar)]
-
-        return 0
+        return _glyph.kerns[ord(prevChar)] if (_glyph := glyphs[ord(fromChar)]) else 0
 
     def __str__(self):
         """Information string for the font
         """
         string = super().__str__()
         _fontSizes = [','.join(_glyph.fontSize for _glyph in self.fontGlyph.values())]
-        string = '%s; name = %s; size = %s; file = %s' % (string, self.fontName, _fontSizes, self.fontFile)
+        string = f'{string}; name = {self.fontName}; size = {_fontSizes}; file = {self.fontFile}'
         return string
 
     def closestFont(self, size):
@@ -273,7 +242,7 @@ class GLString(GLVertexArray):
         """
         super().__init__(renderMode=GLRENDERMODE_DRAW, blendMode=blendMode,
                          GLContext=GLContext, drawMode=GL.GL_TRIANGLES,
-                         dimension=2, clearArrays=clearArrays)
+                         dimension=4, clearArrays=clearArrays)
         if text is None:
             text = ''
         self.text = text
@@ -310,11 +279,8 @@ class GLString(GLVertexArray):
 
         # allocate space for all the letters, bad are discarded, spaces/tabs are not stored
         self.indices = np.empty(lenText * 6, dtype=np.uint32)
-        self.vertices = np.empty(lenText * 8, dtype=np.float32)
+        self.vertices = np.zeros(lenText * 16, dtype=np.float32)
         self.texcoords = np.empty(lenText * 8, dtype=np.float32)
-
-        # self.attribs = np.zeros((len(text) * 4, 2), dtype=np.float32)
-        # self.offsets = np.zeros((len(text) * 4, 2), dtype=np.float32)
 
         self.indexOffset = 0
         penX = 0
@@ -323,6 +289,8 @@ class GLString(GLVertexArray):
 
         if self._angle != 0.0:
             cs, sn = math.cos(self._angle), math.sin(self._angle)
+        else:
+            cs, sn = 1.0, 0.0
         # rotate = np.matrix([[cs, sn], [-sn, cs]])
 
         i = 0
@@ -330,7 +298,7 @@ class GLString(GLVertexArray):
             c = ord(charCode)
             glyph = _glyphs[c]
 
-            if not glyph:
+            if not glyph and c not in [9, 10, 32]:
                 # discard characters that are undefined
                 continue
 
@@ -338,21 +306,26 @@ class GLString(GLVertexArray):
 
                 kerning = font._parent.get_kerning(charCode, prev, _glyphs) if (prev and ord(prev) > 32) else 0
 
-                x0 = penX + glyph.GlyphPX0 + kerning
-                y0 = penY + glyph.GlyphPY0
-                x1 = penX + glyph.GlyphPX1 + kerning
-                y1 = penY + glyph.GlyphPY1
-                u0 = glyph.GlyphTX0
-                v0 = glyph.GlyphTY0
-                u1 = glyph.GlyphTX1
-                v1 = glyph.GlyphTY1
+                x0 = penX + glyph.PX0 + kerning
+                y0 = penY + glyph.PY0
+                x1 = penX + glyph.PX1 + kerning
+                y1 = penY + glyph.PY1
+                u0 = glyph.TX0
+                v0 = glyph.TY0
+                u1 = glyph.TX1
+                v1 = glyph.TY1
                 i4 = i * 4
                 i6 = i * 6
                 i8 = i * 8
+                i16 = i * 16
 
                 if self._angle == 0.0:
                     # horizontal text
-                    self.vertices[i8:i8 + 8] = (x0, y0, x0, y1, x1, y1, x1, y0)  # pixel coordinates in string
+                    self.vertices[i16:i16 + 16] = (x0, y0, self._alias, 0.0,
+                                                   x0, y1, self._alias, 0.0,
+                                                   x1, y1, self._alias, 0.0,
+                                                   x1, y0, self._alias, 0.0,
+                                                   )  # pixel coordinates in string
                 else:
                     # apply rotation to the text
                     xbl, ybl = x0 * cs + y0 * sn, -x0 * sn + y0 * cs
@@ -360,7 +333,11 @@ class GLString(GLVertexArray):
                     xtr, ytr = x1 * cs + y1 * sn, -x1 * sn + y1 * cs
                     xbr, ybr = x1 * cs + y0 * sn, -x1 * sn + y0 * cs
 
-                    self.vertices[i8:i8 + 8] = (xbl, ybl, xtl, ytl, xtr, ytr, xbr, ybr)  # pixel coordinates in string
+                    self.vertices[i16:i16 + 16] = (xbl, ybl, self._alias, 0.0,
+                                                   xtl, ytl, self._alias, 0.0,
+                                                   xtr, ytr, self._alias, 0.0,
+                                                   xbr, ybr, self._alias, 0.0,
+                                                   )  # pixel coordinates in string
 
                 self.indices[i6:i6 + 6] = (i4, i4 + 1, i4 + 2, i4, i4 + 2, i4 + 3)
                 self.texcoords[i8:i8 + 8] = (u0, v0, u0, v1, u1, v1, u1, v0)
@@ -369,7 +346,7 @@ class GLString(GLVertexArray):
                 # self.attribs[i * 4:i * 4 + 4] = attribs
                 # self.offsets[i * 4:i * 4 + 4] = offsets
 
-                penX += glyph.GlyphOrigW + kerning
+                penX += glyph.origW + kerning
                 i += 1
 
             elif (c == 32):  # space
@@ -381,10 +358,8 @@ class GLString(GLVertexArray):
                 # for vt in self.vertices:
                 #   vt[1] = vt[1] + font.height
 
-                # occasional strange - RuntimeWarning: invalid value encountered in add
-                # self.vertices[:, 1] += font.height
                 # move all characters up by font height, centred bottom-left
-                self.vertices[1:i * 8:2] += font.height
+                self.vertices[1::4] += font.height
                 self.height += font.height
 
             elif (c == 9):  # tab
@@ -395,16 +370,17 @@ class GLString(GLVertexArray):
             # penY = penY + glyph[GlyphHeight]
             prev = charCode
 
-        if not (0.9999 < self._scale < 1.0001):
-            # apply font scaling for hi-res displays
-            self.vertices /= self._scale
+        if not (0.9999 < self._scale < 1.0001):  # strange - need to remove
+            # apply font scaling for hi-res displays - shader will do this soon
+            self.vertices[::4] /= self._scale
+            self.vertices[1::4] /= self._scale
             self.height /= self._scale
             self.width /= self._scale
 
         # set the offsets for the characters to the desired coordinates
-        self.numVertices = len(self.vertices) // 2
-        self.attribs = np.array((x + ox, y + oy, self._alias) * self.numVertices, dtype=np.float32)
-        self.offsets = np.array((x, y) * self.numVertices, dtype=np.float32)
+        self.numVertices = len(self.vertices) // 4
+        self.attribs = np.array((x + ox, y + oy, 0.0, 0.0) * self.numVertices, dtype=np.float32)
+        self.offsets = np.array((x, y, 0.0, 0.0) * self.numVertices, dtype=np.float32)
         self.stringOffset = None  # (ox, oy)
 
         # set the colour for the whole string
@@ -416,18 +392,16 @@ class GLString(GLVertexArray):
         # total width of text - probably don't need
         # width = penX - glyph.advance[0] / 64.0 + glyph.size[0]
 
-    def drawTextArray(self):
+    def drawTextArrayImmediate(self):
         """Draw text array with textures
         MUST be called inside GL current context, i.e., after GL.makeCurrent or inside initializeGL, paintGL
         """
-        # self._GLContext.globalGL._shaderProgramTex.setTextureID(self.font._parent.activeTextureNum)
-        super().drawTextArray()
+        super().drawTextArrayImmediate()
 
     def drawTextArrayVBO(self, enableClientState=False, disableClientState=False):
         """Draw text array with textures and VBO
         MUST be called inside GL current context, i.e., after GL.makeCurrent or inside initializeGL, paintGL
         """
-        # self._GLContext.globalGL._shaderProgramTex.setTextureID(self.font._parent.activeTextureNum)
         super().drawTextArrayVBO()
 
     def setStringColour(self, col):
@@ -440,5 +414,5 @@ class GLString(GLVertexArray):
         self.colors = np.array(self.colour * self.numVertices, dtype=np.float32)
 
     def setStringOffset(self, attrib):
-        for pp in range(0, self.numVertices):
-            self.attribs[3 * pp:3 * pp + 2] = self.offsets[2 * pp:2 * pp + 2] + attrib
+        for pp in range(0, self.attribs.shape[0], 4):
+            self.attribs[pp:pp + 2] = self.offsets[pp:pp + 2] + attrib

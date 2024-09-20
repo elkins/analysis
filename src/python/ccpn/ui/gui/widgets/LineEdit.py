@@ -4,9 +4,10 @@
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2023"
-__credits__ = ("Ed Brooksbank, Joanna Fox, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
-               "Timothy J Ragan, Brian O Smith, Gary S Thompson & Geerten W Vuister")
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
+               "Timothy J Ragan, Brian O Smith, Daniel Thompson",
+               "Gary S Thompson & Geerten W Vuister")
 __licence__ = ("CCPN licence. See https://ccpn.ac.uk/software/licensing/")
 __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, L.G., & Vuister, G.W.",
                  "CcpNmr AnalysisAssign: a flexible platform for integrated NMR analysis",
@@ -14,9 +15,9 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: Geerten Vuister $"
-__dateModified__ = "$dateModified: 2023-02-02 13:23:42 +0000 (Thu, February 02, 2023) $"
-__version__ = "$Revision: 3.1.1 $"
+__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
+__dateModified__ = "$dateModified: 2024-08-27 16:07:11 +0100 (Tue, August 27, 2024) $"
+__version__ = "$Revision: 3.2.5 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -31,23 +32,24 @@ from PyQt5 import QtGui, QtWidgets, QtCore
 from ccpn.ui.gui.widgets.Base import Base
 from ccpn.ui.gui.widgets.ValidatorBase import ValidatorBase
 
-from ccpn.ui.gui.widgets.Font import setWidgetFont, getFontHeight
+
 # from ccpn.ui.gui.guiSettings import helveticaItalic12
 # from ccpn.framework.Translation import translator
 
 
 TextAlignment = {
-    'c': QtCore.Qt.AlignHCenter,
-    'l': QtCore.Qt.AlignLeft,
-    'r': QtCore.Qt.AlignRight,
+    'c'     : QtCore.Qt.AlignHCenter,
+    'l'     : QtCore.Qt.AlignLeft,
+    'r'     : QtCore.Qt.AlignRight,
     'center': QtCore.Qt.AlignHCenter,
     'centre': QtCore.Qt.AlignHCenter,
-    'left': QtCore.Qt.AlignLeft,
-    'right': QtCore.Qt.AlignRight
+    'left'  : QtCore.Qt.AlignLeft,
+    'right' : QtCore.Qt.AlignRight
     }
 
 
 class LineEdit(QtWidgets.QLineEdit, Base):
+    highlightColour = None
 
     def __init__(self, parent, text='', textAlignment='c', backgroundText=None,
                  textColor=None, editable=True, **kwds):
@@ -68,8 +70,8 @@ class LineEdit(QtWidgets.QLineEdit, Base):
 
         self.setText(text)
 
-        if textColor:
-            self.setStyleSheet('QLabel {color: %s;}' % textColor)
+        # if textColor:
+        #     self.setStyleSheet('QLabel {color: %s;}' % textColor)
 
         self.backgroundText = backgroundText
         if self.backgroundText:
@@ -80,11 +82,36 @@ class LineEdit(QtWidgets.QLineEdit, Base):
         # if 'minimumWidth' in kwds:
         #     self.setMinimumWidth(kwds['minimumWidth'])
 
-        self.setStyleSheet('LineEdit { padding: 3px 3px 3px 3px; }')
-
         if not editable:
             self.setReadOnly(True)
             self.setEnabled(False)
+
+        self._setStyle()
+
+    def _setStyle(self):
+        _style = """QLineEdit {
+                    padding: 3px 3px 3px 3px;
+                    background-color: palette(norole);
+                }
+                QLineEdit:disabled {
+                    color: #808080;
+                    background-color: palette(midlight);
+                }
+                QLineEdit:read-only {
+                    color: #808080;
+                }
+                """
+        self.setStyleSheet(_style)
+        # check for Windows and Linux
+        QtWidgets.QApplication.instance()._sigPaletteChanged.connect(self._revalidate)
+
+    def _revalidate(self, palette):
+        if val := self.validator():
+            if hasattr(val, 'baseColour'):
+                # update the base-colour for change of theme
+                val.baseColour = palette.base().color()
+            # force repaint of the widget
+            val.validate(self.text(), 0)
 
     def get(self):
         return self.text()
@@ -105,7 +132,6 @@ class LineEdit(QtWidgets.QLineEdit, Base):
         Internal. Called for saving/restoring the widget state.
         """
         return self.set(value)
-
 
     # def paintEvent(self, ev):
     #     #p.setBrush(QtGui.QBrush(QtGui.QColor(100, 100, 200)))
@@ -150,6 +176,7 @@ class LineEdit(QtWidgets.QLineEdit, Base):
     #             return QtCore.QSize(self.hint.width(), self.hint.height())
     #         else:
     #             return QtCore.QSize(50, 19)
+
 
 class FloatLineEdit(LineEdit):
 
@@ -197,6 +224,7 @@ class ValidatedLineEdit(LineEdit, ValidatorBase):
 class PasswordEdit(LineEdit):
     """Subclass of LineEdit to handle passwords to be shown as **
     """
+
     def __init__(self, parent, text='', textAlignment='c', backgroundText=None,
                  minimumWidth=100, textColor=None, editable=True, **kwds):
         """
@@ -208,3 +236,42 @@ class PasswordEdit(LineEdit):
 
         # set password mode
         self.setEchoMode(QtWidgets.QLineEdit.Password)
+
+
+def main():
+    from ccpn.ui.gui.widgets.Application import TestApplication
+    from ccpn.ui.gui.widgets.Widget import Widget
+    from ccpn.ui.gui.widgets.Spacer import Spacer
+
+    class Popup(QtWidgets.QMainWindow):
+        def __init__(self, title):
+            super().__init__()
+            self.layout().setContentsMargins(9, 9, 9, 9)
+
+            self.setWindowTitle(title)
+            mainWidget = Widget(self, setLayout=True)
+            self.setCentralWidget(mainWidget)
+            LineEdit(parent=mainWidget, name='Widget-1', grid=(0, 0), text='Enabled - text')
+            LineEdit(parent=mainWidget, name='Widget-2', grid=(1, 0), text='Disabled - text', enabled=False)
+            widget3 = LineEdit(parent=mainWidget, name='Widget-3', grid=(2, 0), text='Read-only - text')
+            widget3.setReadOnly(True)
+            widget4 = LineEdit(parent=mainWidget, name='Widget-4', grid=(3, 0), text='Disabled|read-only - text',
+                               enabled=False)
+            widget4.setReadOnly(True)
+            Spacer(mainWidget, 1, 1,
+                   QtWidgets.QSizePolicy.MinimumExpanding, QtWidgets.QSizePolicy.MinimumExpanding,
+                   grid=(9, 9))
+
+
+    app = TestApplication()
+    # patch for icon sizes in menus, etc.
+    styles = QtWidgets.QStyleFactory()
+    app.setStyle(styles.create('fusion'))
+    popup = Popup(title='Testing enabled/read-only lineEdits')
+    popup.show()
+
+    app.start()
+
+
+if __name__ == '__main__':
+    main()

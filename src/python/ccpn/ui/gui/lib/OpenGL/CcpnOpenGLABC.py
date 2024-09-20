@@ -45,9 +45,10 @@ By Mouse button:
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2023"
-__credits__ = ("Ed Brooksbank, Joanna Fox, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
-               "Timothy J Ragan, Brian O Smith, Gary S Thompson & Geerten W Vuister")
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
+               "Timothy J Ragan, Brian O Smith, Daniel Thompson",
+               "Gary S Thompson & Geerten W Vuister")
 __licence__ = ("CCPN licence. See https://ccpn.ac.uk/software/licensing/")
 __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, L.G., & Vuister, G.W.",
                  "CcpNmr AnalysisAssign: a flexible platform for integrated NMR analysis",
@@ -56,8 +57,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2023-06-28 19:17:55 +0100 (Wed, June 28, 2023) $"
-__version__ = "$Revision: 3.2.0 $"
+__dateModified__ = "$dateModified: 2024-08-07 13:10:49 +0100 (Wed, August 07, 2024) $"
+__version__ = "$Revision: 3.2.5 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -67,7 +68,6 @@ __date__ = "$Date: 2018-12-20 13:28:13 +0000 (Thu, December 20, 2018) $"
 # Start of code
 #=========================================================================================
 
-import sys
 import re
 # from threading import Thread
 # from queue import Queue
@@ -109,8 +109,8 @@ class CcpnGLWidgetABC(QOpenGLWidget):
     AXIS_OFFSET = 3
     AXIS_INSIDE = False
     YAXISUSEEFORMAT = False
-    INVERTXAXIS = True
-    INVERTYAXIS = True
+    XDIRECTION = -1.0
+    YDIRECTION = -1.0
     AXISLOCKEDBUTTON = True
     AXISLOCKEDBUTTONALLSTRIPS = True
     SPECTRUMXZOOM = 1.0e1
@@ -274,16 +274,8 @@ class CcpnGLWidgetABC(QOpenGLWidget):
 
         self._contourList = {}
 
-        self._uPMatrix = np.zeros((16,), dtype=np.float32)
-        self._uMVMatrix = np.zeros((16,), dtype=np.float32)
-        self._uVMatrix = np.zeros((16,), dtype=np.float32)
-        self._dataMatrix = np.zeros((16,), dtype=np.float32)
-        self._aMatrix = np.zeros((16,), dtype=np.float32)
-        self._IMatrix = np.zeros((16,), dtype=np.float32)
-        self._IMatrix[0:16] = [1.0, 0.0, 0.0, 0.0,
-                               0.0, 1.0, 0.0, 0.0,
-                               0.0, 0.0, 1.0, 0.0,
-                               0.0, 0.0, 0.0, 1.0]
+        self._uVMatrix = QtGui.QMatrix4x4()
+        self._aMatrix = QtGui.QMatrix4x4()
 
         self.vInv = None
         self.mouseTransform = None
@@ -390,6 +382,7 @@ class CcpnGLWidgetABC(QOpenGLWidget):
 
         # initialise a common to all OpenGL windows
         self.globalGL = GLGlobalData(parent=self, mainWindow=self.mainWindow)
+        self.globalGL.initialiseShaders(self)
 
         # initialise the arrays for the grid and axes
         self.gridList = []
@@ -471,13 +464,13 @@ class CcpnGLWidgetABC(QOpenGLWidget):
         # This is the correct blend function to ignore stray surface blending functions
         GL.glBlendFuncSeparate(GL.GL_SRC_ALPHA, GL.GL_ONE_MINUS_SRC_ALPHA, GL.GL_ONE, GL.GL_ONE)
 
-        self.setBackgroundColour(self.background)
-        _shader = self.globalGL._shaderProgramTex
-        _shader.makeCurrent()
-        _shader.setBlendEnabled(False)
-        _shader.setAlpha(1.0)
+        self.setBackgroundColour(self.background, makeCurrent=False)
+        shader = self._shaderText
+        shader.bind()
+        shader.setBlendEnabled(False)
+        shader.setAlpha(1.0)
 
-        self.glReady = True
+        self.glReady = True  # could do this in a metaclass?
 
     def paintGL(self):
         w = self.w
@@ -491,65 +484,59 @@ class CcpnGLWidgetABC(QOpenGLWidget):
         # stop notifiers interfering with paint event
         self.project.blankNotification()
 
-        currentShader = self.globalGL._shaderProgram1.makeCurrent()
+        shader = self._shaderPixel.bind()
 
         # start with the grid mapped to (0..1, 0..1) to remove zoom errors here
-        currentShader.setProjectionAxes(self._uPMatrix, 0.0, 1.0, 0.0, 1.0, -1.0, 1.0)
-        currentShader.setPMatrix(self._uPMatrix)
+        shader.setProjection(0.0, 1.0, 0.0, 1.0, -1.0, 1.0)
 
         # draw the grid components
         # self.drawGrid()
 
         # set the scale to the axis limits, needs addressing correctly, possibly same as grid
-        currentShader.setProjectionAxes(self._uPMatrix, self.axisL, self.axisR, self.axisB,
-                                        self.axisT, -1.0, 1.0)
-        currentShader.setPMatrix(self._uPMatrix)
+        shader.setProjection(self.axisL, self.axisR, self.axisB, self.axisT, -1.0, 1.0)
 
         # draw the spectra, need to reset the viewport
         self.viewports.setViewport(self._currentView)
 
         # change to the text shader
-        currentShader = self.globalGL._shaderProgramTex.makeCurrent()
+        shader = self._shaderText.bind()
 
-        currentShader.setProjectionAxes(self._uPMatrix, self.axisL, self.axisR, self.axisB, self.axisT, -1.0, 1.0)
-        currentShader.setPTexMatrix(self._uPMatrix)
+        shader.setProjection(self.axisL, self.axisR, self.axisB, self.axisT, -1.0, 1.0)
 
-        self._axisScale[0:4] = [self.pixelX, self.pixelY, 1.0, 1.0]
-        currentShader.setAxisScale(self._axisScale)
+        self._axisScale = QtGui.QVector4D(self.pixelX, self.pixelY, 1.0, 1.0)
+        shader.setAxisScale(self._axisScale)
 
         self.enableTexture()
-        currentShader = self.globalGL._shaderProgram1.makeCurrent()
-        currentShader.setMVMatrix(self._IMatrix)
+        shader = self._shaderPixel.bind()
+        shader.resetMVMatrix()
 
-        currentShader.setProjectionAxes(self._uPMatrix, 0.0, 1.0, 0.0, 1.0, -1.0, 1.0)
-        currentShader.setPMatrix(self._uPMatrix)
+        shader.setProjection(0.0, 1.0, 0.0, 1.0, -1.0, 1.0)
 
         self.drawSelectionBox()
         self.drawCursors()
 
-        self.globalGL._shaderProgramTex.makeCurrent()
+        self._shaderText.bind()
 
         self._setViewPortFontScale()
         self.drawMouseCoords()
 
         # make the overlay/axis solid
-        self.globalGL._shaderProgramTex.setBlendEnabled(False)
+        self._shaderText.setBlendEnabled(False)
         self.drawOverlayText()
         self.drawAxisLabels()
-        self.globalGL._shaderProgramTex.setBlendEnabled(True)
+        self._shaderText.setBlendEnabled(True)
 
         self.disableTexture()
 
         # use the current viewport matrix to display the last bit of the axes
-        currentShader = self.globalGL._shaderProgram1.makeCurrent()
-        currentShader.setProjectionAxes(self._uVMatrix, 0, w - self.AXIS_MARGINRIGHT, -1, h - self.AXIS_MOUSEYOFFSET,
-                                        -1.0, 1.0)
-
-        self.viewports.setViewport(self._currentView)
+        shader = self._shaderPixel.bind()
+        shader.setProjection(0, w - self.AXIS_MARGINRIGHT, -1, h - self.AXIS_MOUSEYOFFSET,
+                             -1.0, 1.0)
 
         # why are these labelled the other way round?
-        currentShader.setPMatrix(self._uVMatrix)
-        currentShader.setMVMatrix(self._IMatrix)
+        shader.resetMVMatrix()
+
+        self.viewports.setViewport(self._currentView)
 
         # cheat for the moment to draw the axes (if visible)
         if self.highlighted:
@@ -574,24 +561,31 @@ class CcpnGLWidgetABC(QOpenGLWidget):
         # re-enable notifiers
         self.project.unblankNotification()
 
-    def setBackgroundColour(self, col, silent=False):
+    def setBackgroundColour(self, col, silent=False, makeCurrent=False):
         """
         set all background colours in the shaders
         :param col - vec4, 4 element list e.g.: [0.05, 0.05, 0.05, 1.0], very dark gray
         """
-        self.makeCurrent()
-        GL.glClearColor(*col)
-        self.background = col
+        if makeCurrent:
+            self.makeCurrent()
 
-        self.globalGL._shaderProgramTex.makeCurrent()
-        self.globalGL._shaderProgramTex.setBackground(self.background)
-        self.globalGL._shaderProgramAlias.makeCurrent()
-        self.globalGL._shaderProgramAlias.setBackground(self.background)
-        self.globalGL._shaderProgramTexAlias.makeCurrent()
-        self.globalGL._shaderProgramTexAlias.setBackground(self.background)
+        GL.glClearColor(*col)
+        self.background = np.array(col, dtype=np.float32)
+        bg = QtGui.QVector4D(*col)
+        shader = self._shaderText
+        shader.bind()
+        shader.setBackground(bg)
+        shader = self._shaderPixelAlias
+        shader.bind()
+        shader.setBackground(bg)
+        shader = self._shaderTextAlias
+        shader.bind()
+        shader.setBackground(bg)
+
         if not silent:
             self.update()
-        self.doneCurrent()
+        if makeCurrent:
+            self.doneCurrent()
 
     def enableTexture(self):
         GL.glEnable(GL.GL_BLEND)

@@ -4,9 +4,9 @@ Module Documentation here
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2022"
-__credits__ = ("Ed Brooksbank, Joanna Fox, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
-               "Timothy J Ragan, Brian O Smith, Gary S Thompson & Geerten W Vuister")
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__credits__ = ("Ed Brooksbank, Joanna Fox, Morgan Hayward, Victoria A Higman, Luca Mureddu",
+               "Eliza Płoskoń, Timothy J Ragan, Brian O Smith, Gary S Thompson & Geerten W Vuister")
 __licence__ = ("CCPN licence. See https://ccpn.ac.uk/software/licensing/")
 __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, L.G., & Vuister, G.W.",
                  "CcpNmr AnalysisAssign: a flexible platform for integrated NMR analysis",
@@ -15,8 +15,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2022-10-26 15:40:29 +0100 (Wed, October 26, 2022) $"
-__version__ = "$Revision: 3.1.0 $"
+__dateModified__ = "$dateModified: 2024-04-04 15:19:23 +0100 (Thu, April 04, 2024) $"
+__version__ = "$Revision: 3.2.5 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -27,7 +27,8 @@ __date__ = "$Date: 2017-03-30 11:28:58 +0100 (Thu, March 30, 2017) $"
 #=========================================================================================
 
 from functools import partial
-from ccpn.ui.gui.popups.AttributeEditorPopupABC import ComplexAttributeEditorPopupABC, VList, HList
+from ccpn.ui.gui.popups.AttributeEditorPopupABC import ComplexAttributeEditorPopupABC, \
+    VList, HList, Item, Separator
 from ccpn.core.Sample import Sample, DEFAULTAMOUNTUNITS, DEFAULTIONICSTRENGTHUNITS
 from ccpn.ui.gui.widgets.CompoundWidgets import EntryCompoundWidget, ScientificSpinBoxCompoundWidget, \
     SpinBoxCompoundWidget, PulldownListCompoundWidget
@@ -71,42 +72,34 @@ class SamplePropertiesPopup(ComplexAttributeEditorPopupABC):
     klass = Sample  # The class whose properties are edited/displayed
     HWIDTH = 50
     SHORTWIDTH = 140
-    attributes = VList([('Name', EntryCompoundWidget, getattr, setattr, None, None, {'backgroundText': '> Enter name <'}),
-                        ('Comment', EntryCompoundWidget, getattr, setattr, None, None, {'backgroundText': '> Optional <'}),
-                        # ('amountUnit', RadioButtonsCompoundWidget, _get, _set, None, None, {'texts'      : AMOUNT_UNITS,
-                        #                                                                     'selectedInd': 1,
-                        #                                                                     'direction'  : 'h'}),
-                        HList([VList([('Amount', ScientificSpinBoxCompoundWidget, getattr, setattr, None, None, {'minimum': 0}), ],
-                                     hWidth=None,
-                                     group=1,
-                                     ),
-                               VList([('Amount Units', PulldownListCompoundWidget,
-                                       getattr, _setUnits, partial(_getUnits, unitType='amountUnits', unitList=('',) + AMOUNT_UNITS), None,
-                                       {'editable': False}), ],
-                                     hWidth=None,
-                                     group=2,
-                                     ), ],
-                              hWidth=None,
-                              ),
-                        HList([VList([('Ionic Strength', ScientificSpinBoxCompoundWidget, getattr, setattr, None, None, {'minimum': 0}), ],
-                                     hWidth=None,
-                                     group=1,
-                                     ),
-                               VList([('Ionic Strength Units', PulldownListCompoundWidget,
-                                       getattr, _setUnits, partial(_getUnits, unitType='ionicStrengthUnits', unitList=('',) + IONICSTRENGTH_UNITS), None,
-                                       {'editable': False}), ],
-                                     hWidth=None,
-                                     group=2,
-                                     ), ],
-                              hWidth=None,
-                              ),
-                        ('pH', ScientificSpinBoxCompoundWidget, getattr, setattr, None, None, {'minimum': 0, 'max': 14, 'decimals': 2}),
-                        ('Batch Identifier', EntryCompoundWidget, getattr, setattr, None, None, {'backgroundText': ''}),
-                        ('Plate Identifier', EntryCompoundWidget, getattr, setattr, None, None, {'backgroundText': ''}),
-                        ('Row Number', SpinBoxCompoundWidget, getattr, setattr, None, None, {'minimum': 0, 'step': 1}),
-                        ('Column Number', SpinBoxCompoundWidget, getattr, setattr, None, None, {'minimum': 0, 'step': 1}),
-                        ],
+
+    attributes = VList(Item('Name', EntryCompoundWidget, getattr, setattr, None, None, {'backgroundText': '> Enter name <'}),
+                       Item('Comment', EntryCompoundWidget, getattr, setattr, None, None, {'backgroundText': '> Optional <'}),
+                       Separator(),
+                       HList(VList(Item('Amount', ScientificSpinBoxCompoundWidget, getattr, setattr, None, None, {'minimum': 0}),
+                                   Item('Ionic Strength', ScientificSpinBoxCompoundWidget, getattr, setattr, None, None, {'minimum': 0}),
+                                   hWidth=None,
+                                   group=1,
+                                   ),
+                             VList(Item('Amount Units', PulldownListCompoundWidget,
+                                        getattr, _setUnits, partial(_getUnits, unitType='amountUnits', unitList=('',) + AMOUNT_UNITS), None,
+                                        {'editable': False}),
+                                   Item('Ionic Strength Units', PulldownListCompoundWidget,
+                                        getattr, _setUnits, partial(_getUnits, unitType='ionicStrengthUnits', unitList=('',) + IONICSTRENGTH_UNITS), None,
+                                        {'editable': False}),
+                                   hWidth=None,
+                                   group=2,
+                                   ),
+                             hWidth=None,
+                             ),
+                       Separator(),
+                       Item('pH', ScientificSpinBoxCompoundWidget, getattr, setattr, None, None, {'minimum': 0, 'max': 14, 'decimals': 2}),
+                       Item('Batch Identifier', EntryCompoundWidget, getattr, setattr, None, None, {'backgroundText': ''}),
+                       Item('Plate Identifier', EntryCompoundWidget, getattr, setattr, None, None, {'backgroundText': ''}),
+                       Item('Row Number', SpinBoxCompoundWidget, getattr, setattr, None, None, {'minimum': 0, 'step': 1}),
+                       Item('Column Number', SpinBoxCompoundWidget, getattr, setattr, None, None, {'minimum': 0, 'step': 1}),
                        hWidth=None,
+                       group=3,
                        )
 
     FIXEDWIDTH = True

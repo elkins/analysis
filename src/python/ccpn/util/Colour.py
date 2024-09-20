@@ -4,9 +4,10 @@
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2023"
-__credits__ = ("Ed Brooksbank, Joanna Fox, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
-               "Timothy J Ragan, Brian O Smith, Gary S Thompson & Geerten W Vuister")
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
+               "Timothy J Ragan, Brian O Smith, Daniel Thompson",
+               "Gary S Thompson & Geerten W Vuister")
 __licence__ = ("CCPN licence. See https://ccpn.ac.uk/software/licensing/")
 __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, L.G., & Vuister, G.W.",
                  "CcpNmr AnalysisAssign: a flexible platform for integrated NMR analysis",
@@ -15,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2023-06-22 21:02:59 -0400 (Thu, June 22, 2023) $"
-__version__ = "$Revision: 3.1.1 $"
+__dateModified__ = "$dateModified: 2024-09-03 13:20:31 +0100 (Tue, September 03, 2024) $"
+__version__ = "$Revision: 3.2.5 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -33,6 +34,12 @@ from collections import OrderedDict
 from PyQt5 import QtGui, QtCore
 
 
+_AUTO = '<auto>'
+_DEFAULT = 'default'
+_EMPTY = ''
+_HASH = '#'
+
+
 def _ccpnHex(val):
     """Generate hex value with padded leading zeroes
     """
@@ -41,31 +48,31 @@ def _ccpnHex(val):
 
 
 def rgbaToHex(r, g, b, a=255):
-    return '#' + ''.join([_ccpnHex(x)[2:] for x in (r, g, b, a)])
+    return _HASH + ''.join([_ccpnHex(x)[2:] for x in (r, g, b, a)])
 
 
 def rgbToHex(r, g, b):
-    return '#' + ''.join([_ccpnHex(x)[2:] for x in (r, g, b)])
+    return _HASH + ''.join([_ccpnHex(x)[2:] for x in (r, g, b)])
 
 
 def rgbaRatioToHex(r, g, b, a=1.0):
-    return '#' + ''.join([_ccpnHex(x)[2:] for x in (int(255.0 * r),
-                                                    int(255.0 * g),
-                                                    int(255.0 * b),
-                                                    int(255.0 * a))])
+    return _HASH + ''.join([_ccpnHex(x)[2:] for x in (int(255.0 * r),
+                                                      int(255.0 * g),
+                                                      int(255.0 * b),
+                                                      int(255.0 * a))])
 
 
 def rgbRatioToHex(r, g, b):
-    return '#' + ''.join([_ccpnHex(x)[2:] for x in (int(255.0 * r),
-                                                    int(255.0 * g),
-                                                    int(255.0 * b))])
+    return _HASH + ''.join([_ccpnHex(x)[2:] for x in (int(255.0 * r),
+                                                      int(255.0 * g),
+                                                      int(255.0 * b))])
 
 
 def hexToRgb(hx):
     if not hx:
         return
 
-    hx = hx.lstrip('#')
+    hx = hx.lstrip(_HASH)
     lv = len(hx)
     return tuple(int(hx[i:i + lv // 3], 16) for i in range(0, lv, lv // 3))
 
@@ -74,24 +81,42 @@ def hexToRgbRatio(hx):
     if not hx:
         return
 
-    hx = hx.lstrip('#')
+    hx = hx.lstrip(_HASH)
     lv = len(hx)
     return tuple(float(int(hx[i:i + lv // 3], 16)) / 255 for i in range(0, lv, lv // 3))
 
 
-def hexToRgba(hx, transparency=1.0):
+def hexToRgba(hx, alpha: int | str = None) -> tuple | None:
+    """Convert hex string to rgb(a) tuple.
+    hx can be 6|8 hex characters, e.g., #ffffff or #ffffffff.
+    If 8 digits, alpha channel is included as last two hex characters;
+    otherwise, alpha can be seperately specified, as an int or 2-character string.
+    A hash (#) can optionally be placed as prefix to both parameters.
+
+    Returns None if hx not supplied.
+    """
     if hx is None:
         return
 
-    hx = hx.lstrip('#')
-    lv = len(hx)
+    hx = hx.lstrip(_HASH)
+    if (lv := len(hx)) not in {6, 8}:
+        raise ValueError(f'hexToRgba: hx is not the correct length')
+    if lv == 8 and alpha is not None:
+        raise ValueError(f'hexToRgba: alpha is defined twice.')
+    # could use a regex here
+    if isinstance(alpha, str):
+        alpha = alpha.lstrip(_HASH)
+        hx += alpha
+        alpha = None
+        lv += 2
     cols = [int(hx[i:i + lv // 3], 16) for i in range(0, lv, lv // 3)]
-    cols.append(transparency)
+    if alpha is not None:
+        cols.append(alpha)
     return tuple(cols)
 
 
-def hexToRgbaArray(array, transparency=1.0):
-    cc = [hexToRgba(hx, transparency) for hx in array]
+def hexToRgbaArray(array, alpha: int = None):
+    cc = [hexToRgba(hx, alpha) for hx in array]
     return np.array(cc)
 
 
@@ -123,7 +148,7 @@ def gam_sRGB(v):
 
 
 # GRAY VALUE ("brightness")
-def gray(r, g, b, a=1.0):
+def gray(r, g, b):
     return gam_sRGB(
             rY * inv_gam_sRGB(r) +
             gY * inv_gam_sRGB(g) +
@@ -255,7 +280,43 @@ def invertRGBHue(r, g, b):
 def _getRandomColours(numberOfColors):
     import random
 
-    return ["#" + ''.join([random.choice('0123456789ABCDEF') for j in range(6)]) for i in range(numberOfColors)]
+    return ["#" + ''.join([random.choice('0123456789ABCDEF') for _ in range(6)]) for _ in range(numberOfColors)]
+
+
+def hexRange(hexColor1, hexColor2, count=10, offset=0) -> tuple:
+    if hexColor1 is None or hexColor2 is None:
+        return None
+    r1 = int(f'0x{hexColor1[1:3]}', 16)
+    g1 = int(f'0x{hexColor1[3:5]}', 16)
+    b1 = int(f'0x{hexColor1[5:7]}', 16)
+    r2 = int(f'0x{hexColor2[1:3]}', 16)
+    g2 = int(f'0x{hexColor2[3:5]}', 16)
+    b2 = int(f'0x{hexColor2[5:7]}', 16)
+    colour1 = (r1, g1, b1)
+    colour2 = (r2, g2, b2)
+    return tuple(f'#{int(res[0]):02x}{int(res[1]):02x}{int(res[2]):02x}'
+                 for res in [[(col1 + (col2 - col1) * val) for col1, col2 in zip(colour1, colour2)]
+                             for val in np.linspace(0, 1, count)
+                             ])[offset:]
+
+
+def hexRangeAlpha(hexColor1, hexColor2, count=10, offset=0) -> tuple:
+    if hexColor1 is None or hexColor2 is None:
+        return None
+    r1 = int(f'0x{hexColor1[1:3]}', 16)
+    g1 = int(f'0x{hexColor1[3:5]}', 16)
+    b1 = int(f'0x{hexColor1[5:7]}', 16)
+    a1 = int(f'0x{hexColor1[7:9]}', 16)
+    r2 = int(f'0x{hexColor2[1:3]}', 16)
+    g2 = int(f'0x{hexColor2[3:5]}', 16)
+    b2 = int(f'0x{hexColor2[5:7]}', 16)
+    a2 = int(f'0x{hexColor2[7:9]}', 16)
+    colour1 = (r1, g1, b1, a1)
+    colour2 = (r2, g2, b2, a2)
+    return tuple(f'#{int(res[0]):02x}{int(res[1]):02x}{int(res[2]):02x}{int(res[3]):02x}'
+                 for res in [[(col1 + (col2 - col1) * val) for col1, col2 in zip(colour1, colour2)]
+                             for val in np.linspace(0, 1, count)
+                             ])[offset:]
 
 
 ERRORCOLOUR = '#FF0000'
@@ -341,354 +402,162 @@ lightDefaultSpectrumColours = OrderedDict([('#6B8E23', 'olivedrab'),
                                            ('#32CD32', 'limegreen'),
                                            ])
 
+
+def _stepSort(rgbCol: QtGui.QColor, repetitions=6):
+    """Group and sort colours, so they are just a little smoother in the pulldown.
+    """
+    r, g, b, _ = rgbCol.getRgbF()
+    h, s, v, _ = rgbCol.getHsvF()
+    lum = pow(.241 * r + .691 * g + .068 * b, 0.5)
+    h2 = int(h * repetitions)
+    v2 = int(v * repetitions)
+    if h2 % 2 == 1:
+        # reverse every other section
+        v2 = repetitions - v2
+        lum = repetitions - lum
+    return (h2, lum, v2)  # not sure v2 is required
+
+
+# grab and order the grey-scale; transparent must be removed, overwrites black
+_greys = OrderedDict(sorted([(QtGui.QColor(col).name(), col) for col in QtGui.QColor.colorNames()
+                             if (qtc := QtGui.QColor(col)) and
+                             ((-3 < qtc.red() - qtc.green() < 3) and
+                              (-3 < qtc.red() - qtc.blue() < 3) and
+                              (-3 < qtc.blue() - qtc.green() < 3)) and
+                             col != 'transparent'],
+                            key=lambda cc: QtGui.QColor(cc[0]).value()
+                            ))
+# grab all the other colours
+_colours = OrderedDict(sorted([(QtGui.QColor(col).name(), col) for col in QtGui.QColor.colorNames()
+                               if (qtc := QtGui.QColor(col)) and
+                               not ((-3 < qtc.red() - qtc.green() < 3) and
+                                    (-3 < qtc.red() - qtc.blue() < 3) and
+                                    (-3 < qtc.blue() - qtc.green() < 3)) and
+                               col != 'transparent'],
+                              key=lambda cc: _stepSort(QtGui.QColor(cc[0]))
+                              ))
+# grab the brighter colours
+_brightColours = OrderedDict(sorted([(QtGui.QColor(col).name(), col) for col in QtGui.QColor.colorNames()
+                                     if (qtc := QtGui.QColor(col)) and
+                                     not ((-3 < qtc.red() - qtc.green() < 3) and
+                                          (-3 < qtc.red() - qtc.blue() < 3) and
+                                          (-3 < qtc.blue() - qtc.green() < 3)) and
+                                     col != 'transparent' and
+                                     qtc.hsvSaturation() > COLOUR_LIGHT_THRESHOLD],
+                                    key=lambda cc: _stepSort(QtGui.QColor(cc[0]))
+                                    ))
+# add CCPN selective colours
+_CCPNColours = OrderedDict([('#6A3B71', 'CCPNpurple'),
+                            ('#2F705C', 'CCPNgreen'),
+                            ('#BD9D46', 'CCPNyellow'),
+                            ('#0C4F83', 'CCPNblue'),
+                            ])
+
+# all colours defined in the Qt colourspace + new CCPN colours
+allColours = _greys | _colours | _CCPNColours
 # set of colours that have higher saturation + new CCPN colours
-brightColours = OrderedDict([('#000000', 'black'),
-                             ('#696969', 'dimgray'),
-                             ('#696969', 'dimgrey'),
-                             ('#808080', 'gray'),
-                             ('#808080', 'grey'),
-                             ('#A9A9A9', 'darkgray'),
-                             ('#A9A9A9', 'darkgrey'),
-                             ('#C0C0C0', 'silver'),
-                             ('#D3D3D3', 'lightgray'),
-                             ('#D3D3D3', 'lightgrey'),
-                             ('#DCDCDC', 'gainsboro'),
-                             ('#F5F5F5', 'whitesmoke'),
-                             ('#FFFFFF', 'white'),
-                             ('#F08080', 'lightcoral'),
-                             ('#CD5C5C', 'indianred'),
-                             ('#A52A2A', 'brown'),
-                             ('#B22222', 'firebrick'),
-                             ('#800000', 'maroon'),
-                             ('#8B0000', 'darkred'),
-                             ('#FF0000', 'red'),
-                             ('#FA8072', 'salmon'),
-                             ('#FF6347', 'tomato'),
-                             ('#E9967A', 'darksalmon'),
-                             ('#FF7F50', 'coral'),
-                             ('#FF4500', 'orangered'),
-                             ('#FFA07A', 'lightsalmon'),
-                             ('#A0522D', 'sienna'),
-                             ('#D2691E', 'chocolate'),
-                             ('#8B4513', 'saddlebrown'),
-                             ('#F4A460', 'sandybrown'),
-                             ('#CD853F', 'peru'),
-                             ('#FF8C00', 'darkorange'),
-                             ('#DEB887', 'burlywood'),
-                             ('#D2B48C', 'tan'),
-                             ('#FFDEAD', 'navajowhite'),
-                             ('#FFA500', 'orange'),
-                             ('#B8860B', 'darkgoldenrod'),
-                             ('#DAA520', 'goldenrod'),
-                             ('#FFD700', 'gold'),
-                             ('#F0E68C', 'khaki'),
-                             ('#BDB76B', 'darkkhaki'),
-                             ('#808000', 'olive'),
-                             ('#FFFF00', 'yellow'),
-                             ('#6B8E23', 'olivedrab'),
-                             ('#9ACD32', 'yellowgreen'),
-                             ('#556B2F', 'darkolivegreen'),
-                             ('#ADFF2F', 'greenyellow'),
-                             ('#7FFF00', 'chartreuse'),
-                             ('#7CFC00', 'lawngreen'),
-                             ('#98FB98', 'palegreen'),
-                             ('#90EE90', 'lightgreen'),
-                             ('#228B22', 'forestgreen'),
-                             ('#32CD32', 'limegreen'),
-                             ('#006400', 'darkgreen'),
-                             ('#008000', 'green'),
-                             ('#00FF00', 'lime'),
-                             ('#2E8B57', 'seagreen'),
-                             ('#3CB371', 'mediumseagreen'),
-                             ('#00FF7F', 'springgreen'),
-                             ('#00FA9A', 'mediumspringgreen'),
-                             ('#66CDAA', 'mediumaquamarine'),
-                             ('#7FFFD4', 'aquamarine'),
-                             ('#40E0D0', 'turquoise'),
-                             ('#20B2AA', 'lightseagreen'),
-                             ('#48D1CC', 'mediumturquoise'),
-                             ('#2F4F4F', 'darkslategray'),
-                             ('#2F4F4F', 'darkslategrey'),
-                             ('#008080', 'teal'),
-                             ('#008B8B', 'darkcyan'),
-                             ('#00FFFF', 'aqua'),
-                             ('#00FFFF', 'cyan'),
-                             ('#00CED1', 'darkturquoise'),
-                             ('#5F9EA0', 'cadetblue'),
-                             ('#00BFFF', 'deepskyblue'),
-                             ('#87CEEB', 'skyblue'),
-                             ('#87CEFA', 'lightskyblue'),
-                             ('#4682B4', 'steelblue'),
-                             ('#1E90FF', 'dodgerblue'),
-                             ('#6495ED', 'cornflowerblue'),
-                             ('#4169E1', 'royalblue'),
-                             ('#191970', 'midnightblue'),
-                             ('#000080', 'navy'),
-                             ('#00008B', 'darkblue'),
-                             ('#0000CD', 'mediumblue'),
-                             ('#0000FF', 'blue'),
-                             ('#6A5ACD', 'slateblue'),
-                             ('#483D8B', 'darkslateblue'),
-                             ('#7B68EE', 'mediumslateblue'),
-                             ('#9370DB', 'mediumpurple'),
-                             ('#663399', 'rebeccapurple'),
-                             ('#8A2BE2', 'blueviolet'),
-                             ('#4B0082', 'indigo'),
-                             ('#9932CC', 'darkorchid'),
-                             ('#9400D3', 'darkviolet'),
-                             ('#BA55D3', 'mediumorchid'),
-                             ('#EE82EE', 'violet'),
-                             ('#800080', 'purple'),
-                             ('#8B008B', 'darkmagenta'),
-                             ('#FF00FF', 'fuchsia'),
-                             ('#FF00FF', 'magenta'),
-                             ('#DA70D6', 'orchid'),
-                             ('#C71585', 'mediumvioletred'),
-                             ('#FF1493', 'deeppink'),
-                             ('#FF69B4', 'hotpink'),
-                             ('#DB7093', 'palevioletred'),
-                             ('#DC143C', 'crimson'),
-                             ('#6A3B71', 'CCPNpurple'),
-                             ('#2F705C', 'CCPNgreen'),
-                             ('#BD9D46', 'CCPNyellow'),
-                             ('#0C4F83', 'CCPNblue'),
-                             ])
+brightColours = _greys | _brightColours | _CCPNColours
 
-# all colours defined in the matplotlib colourspace + new CCPN colours
-allColours = OrderedDict([('#000000', 'black'),
-                          ('#696969', 'dimgray'),
-                          ('#696969', 'dimgrey'),
-                          ('#808080', 'gray'),
-                          ('#808080', 'grey'),
-                          ('#A9A9A9', 'darkgray'),
-                          ('#A9A9A9', 'darkgrey'),
-                          ('#C0C0C0', 'silver'),
-                          ('#D3D3D3', 'lightgray'),
-                          ('#D3D3D3', 'lightgrey'),
-                          ('#DCDCDC', 'gainsboro'),
-                          ('#F5F5F5', 'whitesmoke'),
-                          ('#FFFFFF', 'white'),
-                          ('#FFFAFA', 'snow'),
-                          ('#BC8F8F', 'rosybrown'),
-                          ('#F08080', 'lightcoral'),
-                          ('#CD5C5C', 'indianred'),
-                          ('#A52A2A', 'brown'),
-                          ('#B22222', 'firebrick'),
-                          ('#800000', 'maroon'),
-                          ('#8B0000', 'darkred'),
-                          ('#FF0000', 'red'),
-                          ('#FFE4E1', 'mistyrose'),
-                          ('#FA8072', 'salmon'),
-                          ('#FF6347', 'tomato'),
-                          ('#E9967A', 'darksalmon'),
-                          ('#FF7F50', 'coral'),
-                          ('#FF4500', 'orangered'),
-                          ('#FFA07A', 'lightsalmon'),
-                          ('#A0522D', 'sienna'),
-                          ('#FFF5EE', 'seashell'),
-                          ('#D2691E', 'chocolate'),
-                          ('#8B4513', 'saddlebrown'),
-                          ('#F4A460', 'sandybrown'),
-                          ('#FFDAB9', 'peachpuff'),
-                          ('#CD853F', 'peru'),
-                          ('#FAF0E6', 'linen'),
-                          ('#FFE4C4', 'bisque'),
-                          ('#FF8C00', 'darkorange'),
-                          ('#DEB887', 'burlywood'),
-                          ('#FAEBD7', 'antiquewhite'),
-                          ('#D2B48C', 'tan'),
-                          ('#FFDEAD', 'navajowhite'),
-                          ('#FFEBCD', 'blanchedalmond'),
-                          ('#FFEFD5', 'papayawhip'),
-                          ('#FFE4B5', 'moccasin'),
-                          ('#FFA500', 'orange'),
-                          ('#F5DEB3', 'wheat'),
-                          ('#FDF5E6', 'oldlace'),
-                          ('#FFFAF0', 'floralwhite'),
-                          ('#B8860B', 'darkgoldenrod'),
-                          ('#DAA520', 'goldenrod'),
-                          ('#FFF8DC', 'cornsilk'),
-                          ('#FFD700', 'gold'),
-                          ('#FFFACD', 'lemonchiffon'),
-                          ('#F0E68C', 'khaki'),
-                          ('#EEE8AA', 'palegoldenrod'),
-                          ('#BDB76B', 'darkkhaki'),
-                          ('#FFFFF0', 'ivory'),
-                          ('#F5F5DC', 'beige'),
-                          ('#FFFFE0', 'lightyellow'),
-                          ('#FAFAD2', 'lightgoldenrodyellow'),
-                          ('#808000', 'olive'),
-                          ('#FFFF00', 'yellow'),
-                          ('#6B8E23', 'olivedrab'),
-                          ('#9ACD32', 'yellowgreen'),
-                          ('#556B2F', 'darkolivegreen'),
-                          ('#ADFF2F', 'greenyellow'),
-                          ('#7FFF00', 'chartreuse'),
-                          ('#7CFC00', 'lawngreen'),
-                          ('#F0FFF0', 'honeydew'),
-                          ('#8FBC8F', 'darkseagreen'),
-                          ('#98FB98', 'palegreen'),
-                          ('#90EE90', 'lightgreen'),
-                          ('#228B22', 'forestgreen'),
-                          ('#32CD32', 'limegreen'),
-                          ('#006400', 'darkgreen'),
-                          ('#008000', 'green'),
-                          ('#00FF00', 'lime'),
-                          ('#2E8B57', 'seagreen'),
-                          ('#3CB371', 'mediumseagreen'),
-                          ('#00FF7F', 'springgreen'),
-                          ('#F5FFFA', 'mintcream'),
-                          ('#00FA9A', 'mediumspringgreen'),
-                          ('#66CDAA', 'mediumaquamarine'),
-                          ('#7FFFD4', 'aquamarine'),
-                          ('#40E0D0', 'turquoise'),
-                          ('#20B2AA', 'lightseagreen'),
-                          ('#48D1CC', 'mediumturquoise'),
-                          ('#F0FFFF', 'azure'),
-                          ('#E0FFFF', 'lightcyan'),
-                          ('#AFEEEE', 'paleturquoise'),
-                          ('#2F4F4F', 'darkslategray'),
-                          ('#2F4F4F', 'darkslategrey'),
-                          ('#008080', 'teal'),
-                          ('#008B8B', 'darkcyan'),
-                          ('#00FFFF', 'aqua'),
-                          ('#00FFFF', 'cyan'),
-                          ('#00CED1', 'darkturquoise'),
-                          ('#5F9EA0', 'cadetblue'),
-                          ('#B0E0E6', 'powderblue'),
-                          ('#ADD8E6', 'lightblue'),
-                          ('#00BFFF', 'deepskyblue'),
-                          ('#87CEEB', 'skyblue'),
-                          ('#87CEFA', 'lightskyblue'),
-                          ('#4682B4', 'steelblue'),
-                          ('#F0F8FF', 'aliceblue'),
-                          ('#1E90FF', 'dodgerblue'),
-                          ('#778899', 'lightslategray'),
-                          ('#778899', 'lightslategrey'),
-                          ('#708090', 'slategray'),
-                          ('#708090', 'slategrey'),
-                          ('#B0C4DE', 'lightsteelblue'),
-                          ('#6495ED', 'cornflowerblue'),
-                          ('#4169E1', 'royalblue'),
-                          ('#F8F8FF', 'ghostwhite'),
-                          ('#E6E6FA', 'lavender'),
-                          ('#191970', 'midnightblue'),
-                          ('#000080', 'navy'),
-                          ('#00008B', 'darkblue'),
-                          ('#0000CD', 'mediumblue'),
-                          ('#0000FF', 'blue'),
-                          ('#6A5ACD', 'slateblue'),
-                          ('#483D8B', 'darkslateblue'),
-                          ('#7B68EE', 'mediumslateblue'),
-                          ('#9370DB', 'mediumpurple'),
-                          ('#663399', 'rebeccapurple'),
-                          ('#8A2BE2', 'blueviolet'),
-                          ('#4B0082', 'indigo'),
-                          ('#9932CC', 'darkorchid'),
-                          ('#9400D3', 'darkviolet'),
-                          ('#BA55D3', 'mediumorchid'),
-                          ('#D8BFD8', 'thistle'),
-                          ('#DDA0DD', 'plum'),
-                          ('#EE82EE', 'violet'),
-                          ('#800080', 'purple'),
-                          ('#8B008B', 'darkmagenta'),
-                          ('#FF00FF', 'fuchsia'),
-                          ('#FF00FF', 'magenta'),
-                          ('#DA70D6', 'orchid'),
-                          ('#C71585', 'mediumvioletred'),
-                          ('#FF1493', 'deeppink'),
-                          ('#FF69B4', 'hotpink'),
-                          ('#FFF0F5', 'lavenderblush'),
-                          ('#DB7093', 'palevioletred'),
-                          ('#DC143C', 'crimson'),
-                          ('#FFC0CB', 'pink'),
-                          ('#FFB6C1', 'lightpink'),
-                          ('#6A3B71', 'CCPNpurple'),
-                          ('#2F705C', 'CCPNgreen'),
-                          ('#BD9D46', 'CCPNyellow'),
-                          ('#0C4F83', 'CCPNblue'),
-                          ])
+# default color-ranges
+colorSchemeTable = OrderedDict([
+    ('redshade', hexRange('#FFC0C0', '#FF0000', 6) + hexRange('#FF0000', '#660000', 6, 1)),
+    ('orangeshade', hexRange('#FFC0C0', '#FF8000', 6) + hexRange('#FF8000', '#663300', 6, 1)),
+    ('yellowshade', hexRange('#FFFF99', '#FFFF00', 6) + hexRange('#FFFF00', '#555500', 6, 1)),
+    ('greenshade', hexRange('#99FF99', '#00C000', 6) + hexRange('#00C000', '#006600', 6, 1)),
+    ('blueshade', hexRange('#C0C0FF', '#0000FF', 6) + hexRange('#0000FF', '#000066', 6, 1)),
+    ('cyanshade', hexRange('#00FFFF', '#004C4C')),
+    ('purpleshade', hexRange('#E6CCFF', '#330059')),
+    ('greyshade', hexRange('#CCCCCC', '#333333')),
 
-# default color schemes
-colorSchemeTable = OrderedDict([('redshade', ('#FFC0C0', '#FF9A9A', '#FF7373', '#FF4D4D', '#FF2626', '#FF0000', '#D90000', '#B30000', '#8C0000', '#660000')),
-                                ('orangeshade', ('#FFE0C0', '#FFC890', '#FFB060', '#FF9830', '#FF8000', '#E17100', '#C26100', '#A35200', '#854200', '#663300')),
-                                ('yellowshade', ('#FFFF99', '#FFFF4C', '#FFFF00', '#E7E700', '#CFCF00', '#B6B600', '#9E9E00', '#868600', '#6D6D00', '#555500')),
-                                ('greenshade', ('#99FF99', '#73F073', '#4CE04C', '#26D026', '#00C000', '#00AE00', '#009C00', '#008A00', '#007800', '#006600')),
-                                ('blueshade', ('#C0C0FF', '#9A9AFF', '#7373FF', '#4D4DFF', '#2626FF', '#0000FF', '#0000D9', '#0000B3', '#00008C', '#000066')),
-                                ('cyanshade', ('#00FFFF', '#00ECEC', '#00D8D8', '#00C4C4', '#00B0B0', '#009C9C', '#008888', '#007474', '#006060', '#004C4C')),
-                                ('purpleshade', ('#E6CCFF', '#D399F0', '#C066E0', '#AC33D0', '#9900C0', '#8500AC', '#700097', '#5C0082', '#47006E', '#330059')),
-                                ('greyshade', ('#CCCCCC', '#BBBBBB', '#AAAAAA', '#999999', '#888888', '#777777', '#666666', '#555555', '#444444', '#333333')),
-                                ('redshade2', ('#660000', '#8C0000', '#B30000', '#D90000', '#FF0000', '#FF2626', '#FF4D4D', '#FF7373', '#FF9A9A', '#FFC0C0')),
-                                ('orangeshade2',
-                                 ('#663300', '#854200', '#A35200', '#C26100', '#E17100', '#FF8000', '#FF9830', '#FFB060', '#FFC890', '#FFE0C0')),
-                                ('yellowshade2',
-                                 ('#555500', '#6D6D00', '#868600', '#9E9E00', '#B6B600', '#CFCF00', '#E7E700', '#FFFF00', '#FFFF4C', '#FFFF99')),
-                                ('greenshade2', ('#006600', '#007800', '#008A00', '#009C00', '#00AE00', '#00C000', '#26D026', '#4CE04C', '#73F073', '#99FF99')),
-                                ('blueshade2', ('#000066', '#00008C', '#0000B3', '#0000D9', '#0000FF', '#2626FF', '#4D4DFF', '#7373FF', '#9A9AFF', '#C0C0FF')),
-                                ('cyanshade2', ('#004C4C', '#006060', '#007474', '#008888', '#009C9C', '#00B0B0', '#00C4C4', '#00D8D8', '#00ECEC', '#00FFFF')),
-                                ('purpleshade2',
-                                 ('#330059', '#47006E', '#5C0082', '#700097', '#8500AC', '#9900C0', '#AC33D0', '#C066E0', '#D399F0', '#E6CCFF')),
-                                ('greyshade2', ('#333333', '#444444', '#555555', '#666666', '#777777', '#888888', '#999999', '#AAAAAA', '#BBBBBB', '#CCCCCC')),
+    ('redshade2', hexRange('#660000', '#FF0000', 6) + hexRange('#FF0000', '#FFC0C0', 6, 1)),
+    ('orangeshade2', hexRange('#663300', '#FF8000', 6) + hexRange('#FF8000', '#FFC0C0', 6, 1)),
+    ('yellowshade2', hexRange('#555500', '#FFFF00', 6) + hexRange('#FFFF00', '#FFFF99', 6, 1)),
+    ('greenshade2', hexRange('#006600', '#00C000', 6) + hexRange('#00C000', '#99FF99', 6, 1)),
+    ('blueshade2', hexRange('#000066', '#0000FF', 6) + hexRange('#0000FF', '#C0C0FF', 6, 1)),
+    ('cyanshade2', hexRange('#004C4C', '#00FFFF')),
+    ('purpleshade2', hexRange('#330059', '#E6CCFF')),
+    ('greyshade2', hexRange('#333333', '#CCCCCC')),
 
-                                ('rainbow', (
-                                    '#FF00FF', '#FF0080', '#FF0000', '#FF8000', '#FFFF00', '#80FF00', '#00FF00', '#00FF80', '#00FFFF', '#0080FF', '#0000FF',
-                                    '#8000FF')),
-                                ('rainbow2',
-                                 ('#8000FF', '#0000FF', '#0080FF', '#00FFFF', '#00FF80', '#00FF00', '#80FF00', '#FFFF00', '#FF8000', '#FF0000', '#FF0080',
-                                  '#FF00FF')),
-                                ('wimbledon', ('#008000', '#1C8E00', '#389C00', '#55AB00', '#71B900', '#8EC700', '#AAD500', '#C7E300', '#E3F100', '#FFFF00')),
-                                ('wimbledon2', ('#FFFF00', '#E3F100', '#C7E300', '#AAD500', '#8EC700', '#71B900', '#55AB00', '#389C00', '#1C8E00', '#008000')),
-                                ('toothpaste', ('#C0C0FF', '#9A9AFF', '#7373FF', '#4D4DFF', '#2626FF', '#0000FF', '#0040FF', '#0080FF', '#00C0FF', '#00FFFF')),
-                                ('toothpaste2', ('#00FFFF', '#00C0FF', '#0080FF', '#0040FF', '#0000FF', '#2626FF', '#4D4DFF', '#7373FF', '#9A9AFF', '#C0C0FF')),
-                                ('cmy',
-                                 ('#00FFFF', '#33CCFF', '#6699FF', '#9966FF', '#CC33FF', '#FF00FF', '#FF33CC', '#FF6699', '#FF9966', '#FFCC33', '#FFFF00')),
-                                ('cmy2',
-                                 ('#FFFF00', '#FFCC33', '#FF9966', '#FF6699', '#FF33CC', '#FF00FF', '#CC33FF', '#9966FF', '#6699FF', '#33CCFF', '#00FFFF')),
-                                ('steel', ('#C0C0C0', '#ABABB9', '#9595B2', '#8080AB', '#6B6BA4', '#55559D', '#404095', '#2A2A8E', '#151587', '#000080')),
-                                ('steel2', ('#000080', '#151587', '#2A2A8E', '#404095', '#55559D', '#6B6BA4', '#8080AB', '#9595B2', '#ABABB9', '#C0C0C0')),
-                                ('rgb',
-                                 ('#FF0000', '#CC1900', '#993300', '#664D00', '#336600', '#008000', '#006633', '#004D66', '#003399', '#0019CC', '#0000FF')),
-                                ('rgb2',
-                                 ('#0000FF', '#0019CC', '#003399', '#004D66', '#006633', '#008000', '#336600', '#664D00', '#993300', '#CC1900', '#FF0000')),
-                                ('tropicana', ('#FFFF00', '#FFE30E', '#FFC71C', '#FFAA2A', '#FF8E39', '#FF7147', '#FF5555', '#FF3863', '#FF1C72', '#FF0080')),
-                                ('tropicana2', ('#FF0080', '#FF1C72', '#FF3863', '#FF5555', '#FF7147', '#FF8E39', '#FFAA2A', '#FFC71C', '#FFE30E', '#FFFF00')),
-                                ('sunset', ('#FFC0C0', '#FF9A9A', '#FF7373', '#FF4D4D', '#FF2626', '#FF0000', '#FF4000', '#FF8000', '#FFC000', '#FFFF00')),
-                                ('sunset2', ('#FFFF00', '#FFC000', '#FF8000', '#FF4000', '#FF0000', '#FF2626', '#FF4D4D', '#FF7373', '#FF9A9A', '#FFC0C0')),
-                                ('magma', ('#000000', '#400000', '#800000', '#C00000', '#FF0000', '#FF3300', '#FF6600', '#FF9900', '#FFCC00', '#FFFF00')),
-                                ('magma2', ('#FFFF00', '#FFCC00', '#FF9900', '#FF6600', '#FF3300', '#FF0000', '#C00000', '#800000', '#400000', '#000000')),
-                                ('holly', ('#80FF80', '#66E666', '#4DCD4D', '#33B333', '#199A19', '#008000', '#FF0000', '#D50000', '#AB0000', '#800000')),
-                                ('holly2', ('#800000', '#AB0000', '#D50000', '#FF0000', '#008000', '#199A19', '#33B333', '#4DCD4D', '#66E666', '#80FF80')),
-                                ('glacier', ('#000000', '#000040', '#000080', '#0000C0', '#0000FF', '#2626FF', '#4D4DFF', '#7373FF', '#9A9AFF', '#C0C0FF')),
-                                ('glacier2', ('#C0C0FF', '#9A9AFF', '#7373FF', '#4D4DFF', '#2626FF', '#0000FF', '#0000C0', '#000080', '#000040', '#000000')),
-                                ('monarchy', ('#C0C0FF', '#6060FF', '#0000FF', '#3300CC', '#660099', '#990066', '#CC0033', '#FF0000', '#C00000', '#800000')),
-                                ('monarchy2', ('#800000', '#C00000', '#FF0000', '#CC0033', '#990066', '#660099', '#3300CC', '#0000FF', '#6060FF', '#C0C0FF')),
-                                ('contrast', ('#FF0000', '#008000', '#0000FF', '#FFFF00', '#FF00FF', '#00FFFF')),
-                                ('contrast2', ('#00FFFF', '#FF00FF', '#FFFF00', '#0000FF', '#008000', '#FF0000')),
-                                ('lightspectrum', (
-                                    '#6B8E23', '#DA70D6', '#8A2BE2', '#808000', '#1E90FF', '#FFA500', '#FF0000', '#4682B4', '#7FFF00', '#9932CC',
-                                    '#A0522D', '#00CED1', '#00FFFF', '#FFFF00', '#FF1493', '#32CD32')),
-                                ('lightspectrum2', (
-                                    '#32CD32', '#FF1493', '#FFFF00', '#00FFFF', '#00CED1', '#A0522D', '#9932CC', '#7FFF00', '#4682B4', '#FF0000', '#FFA500',
-                                    '#1E90FF', '#808000', '#8A2BE2', '#DA70D6', '#6B8E23')),
+    ('rainbow', (hexRange('#ff00ff', '#ff0000', 4) +
+                 hexRange('#ff0000', '#ffff00', 4, 1) +
+                 hexRange('#ffff00', '#00ff00', 4, 1) +
+                 hexRange('#00ff00', '#00ffff', 4, 1) +
+                 hexRange('#00ffff', '#0000ff', 4, 1)
+                 )),
+    ('rainbow2', (hexRange('#0000ff', '#00ffff', 4) +
+                  hexRange('#00ffff', '#00ff00', 4, 1) +
+                  hexRange('#00ff00', '#ffff00', 4, 1) +
+                  hexRange('#ffff00', '#ff0000', 4, 1) +
+                  hexRange('#ff0000', '#ff00ff', 4, 1)
+                  )),
 
-                                ('red-orange', ('#ff2010', '#ff3414', '#ff4818', '#ff5c1c', '#ff7020', '#ff8424', '#ff9828', '#ffac2c', '#ffc030')),
-                                ('orange-yellow', ('#ffc030', '#fcc72c', '#facf28', '#f8d724', '#f6df20', '#f4e71c', '#f2ef18', '#f0f714', '#eeff10')),
-                                ('yellow-green', ('#eeff10', '#d2f812', '#b6f214', '#9aeb16', '#7fe518', '#63df1a', '#47d81c', '#2bd21e', '#10cc20')),
-                                ('green-blue', ('#10cc20', '#12b43b', '#149d57', '#168573', '#186e8f', '#1a56ab', '#1c3fc7', '#1e27e3', '#2010ff')),
-                                ('blue-cyan', ('#2010ff', '#202bff', '#2047ff', '#2063ff', '#207fff', '#209aff', '#20b6ff', '#20d2ff', '#20eeff')),
-                                ('blue-purple', ('#2010ff', '#3912ff', '#5314ff', '#6d16ff', '#8718ff', '#a01aff', '#ba1cff', '#d41eff', '#ee20ff')),
-                                ('orange-red', ('#ffc030', '#ffac2c', '#ff9828', '#ff8424', '#ff7020', '#ff5c1c', '#ff4818', '#ff3414', '#ff2010')),
-                                ('yellow-orange', ('#eeff10', '#f0f714', '#f2ef18', '#f4e71c', '#f6df20', '#f8d724', '#facf28', '#fcc72c', '#ffc030')),
-                                ('green-yellow', ('#10cc20', '#2bd21e', '#47d81c', '#63df1a', '#7fe518', '#9aeb16', '#b6f214', '#d2f812', '#eeff10')),
-                                ('blue-green', ('#2010ff', '#1e27e3', '#1c3fc7', '#1a56ab', '#186e8f', '#168573', '#149d57', '#12b43b', '#10cc20')),
-                                ('cyan-blue', ('#20eeff', '#20d2ff', '#20b6ff', '#209aff', '#207fff', '#2063ff', '#2047ff', '#202bff', '#2010ff')),
-                                ('purple-blue', ('#ee20ff', '#d41eff', '#ba1cff', '#a01aff', '#8718ff', '#6d16ff', '#5314ff', '#3912ff', '#2010ff')),
-                                ('black-white', ('#000000', '#1f1f1f', '#3f3f3f', '#5f5f5f', '#7f7f7f', '#9f9f9f', '#bfbfbf', '#dfdfdf', '#ffffff')),
-                                ('white-black', ('#ffffff', '#dfdfdf', '#bfbfbf', '#9f9f9f', '#7f7f7f', '#5f5f5f', '#3f3f3f', '#1f1f1f', '#000000')),
-                                ('black-gray', ('#000000', '#0f0f0f', '#1f1f1f', '#2f2f2f', '#3f3f3f', '#4f4f4f', '#5f5f5f', '#6f6f6f', '#7f7f7f')),
-                                ('gray-black', ('#7f7f7f', '#6f6f6f', '#5f5f5f', '#4f4f4f', '#3f3f3f', '#2f2f2f', '#1f1f1f', '#0f0f0f', '#000000')),
+    ('wimbledon', hexRange('#008000', '#FFFF00')),
+    ('wimbledon2', hexRange('#FFFF00', '#008000')),
 
-                                ])
+    ('toothpaste', hexRange('#C0C0FF', '#0000FF', 6) + hexRange('#0000FF', '#00FFFF', 6, 1)),
+    ('toothpaste2', hexRange('#00FFFF', '#0000FF', 6) + hexRange('#0000FF', '#C0C0FF', 6, 1)),
+
+    ('cmy', (hexRange('#00FFFF', '#FF00FF', 6) + hexRange('#FF00FF', '#FFFF00', 6, 1))),
+    ('cmy2', (hexRange('#FFFF00', '#FF00FF', 6) + hexRange('#FF00FF', '#00FFFF', 6, 1))),
+
+    ('steel', hexRange('#C0C0C0', '#000080')),
+    ('steel2', hexRange('#000080', '#C0C0C0')),
+
+    ('rgb', (hexRange('#e00000', '#00a000', 6) + hexRange('#00a000', '#0000ff', 6, 1))),
+    ('rgb2', (hexRange('#0000ff', '#00a000', 6) + hexRange('#00a000', '#e00000', 6, 1))),
+
+    ('tropicana', hexRange('#FFFF00', '#FF0080')),
+    ('tropicana2', hexRange('#FF0080', '#FFFF00')),
+
+    ('sunset', (hexRange('#FFC0C0', '#FF0000', 6) + hexRange('#FF0000', '#FFFF00', 6, 1))),
+    ('sunset2', (hexRange('#FFFF00', '#FF0000', 6) + hexRange('#FF0000', '#FFC0C0', 6, 1))),
+
+    ('magma', (hexRange('#000000', '#FF0000', 6) + hexRange('#FF0000', '#FFFF00', 6, 1))),
+    ('magma2', (hexRange('#FFFF00', '#FF0000', 6) + hexRange('#FF0000', '#000000', 6, 1))),
+
+    ('holly', (hexRange('#80FF80', '#008000', 6) + hexRange('#FF0000', '#800000', 4))),
+    ('holly2', (hexRange('#800000', '#FF0000', 4) + hexRange('#008000', '#80FF80', 6))),
+
+    ('glacier', (hexRange('#000000', '#0000FF', 6) + hexRange('#0000FF', '#C0C0FF', 6, 1))),
+    ('glacier2', (hexRange('#C0C0FF', '#0000FF', 6) + hexRange('#0000FF', '#000000', 6, 1))),
+
+    ('monarchy', (hexRange('#C0C0FF', '#0000FF', 3) +
+                  hexRange('#0000FF', '#FF0000', 6, 1) +
+                  hexRange('#FF0000', '#800000', 3, 1)
+                  )),
+    ('monarchy2', (hexRange('#800000', '#FF0000', 3) +
+                   hexRange('#FF0000', '#0000FF', 6, 1) +
+                   hexRange('#0000FF', '#C0C0FF', 3, 1)
+                   )),
+    ('contrast', ('#FF0000', '#008000', '#0000FF', '#FFFF00', '#FF00FF', '#00FFFF')),
+    ('contrast2', ('#00FFFF', '#FF00FF', '#FFFF00', '#0000FF', '#008000', '#FF0000')),
+    ('lightspectrum', (
+        '#6B8E23', '#DA70D6', '#8A2BE2', '#808000', '#1E90FF', '#FFA500', '#FF0000',
+        '#4682B4', '#7FFF00', '#9932CC',
+        '#A0522D', '#00CED1', '#00FFFF', '#FFFF00', '#FF1493', '#32CD32')),
+    ('lightspectrum2', (
+        '#32CD32', '#FF1493', '#FFFF00', '#00FFFF', '#00CED1', '#A0522D', '#9932CC',
+        '#7FFF00', '#4682B4', '#FF0000', '#FFA500',
+        '#1E90FF', '#808000', '#8A2BE2', '#DA70D6', '#6B8E23')),
+
+    ('red-orange', hexRange('#ff2010', '#ffc030')),
+    ('orange-yellow', hexRange('#ffc030', '#eeff10')),
+    ('yellow-green', hexRange('#eeff10', '#10cc20')),
+    ('green-blue', hexRange('#10cc20', '#2010ff')),
+    ('blue-cyan', hexRange('#2010ff', '#20eeff')),
+    ('blue-purple', hexRange('#2010ff', '#ee20ff')),
+    ('orange-red', hexRange('#ffc030', '#ff2010')),
+    ('yellow-orange', hexRange('#eeff10', '#ffc030')),
+    ('green-yellow', hexRange('#10cc20', '#eeff10')),
+    ('blue-green', hexRange('#2010ff', '#10cc20')),
+    ('cyan-blue', hexRange('#20eeff', '#2010ff')),
+    ('purple-blue', hexRange('#ee20ff', '#2010ff')),
+
+    ('black-white', hexRange('#000000', '#ffffff')),
+    ('white-black', hexRange('#ffffff', '#000000')),
+    ('black-gray', hexRange('#000000', '#7f7f7f')),
+    ('gray-black', hexRange('#7f7f7f', '#000000')),
+    ])
 
 allColoursWithSpaces = OrderedDict([(k, colourNameWithSpace(v)) for k, v in allColours.items()])
 colourNameToHexDict = {v: k for k, v in allColours.items()}
@@ -708,7 +577,7 @@ for k, v in spectrumColours.items():
         spectrumLightColours[k] = v
     if gray(*h) < COLOUR_DARK_THRESHOLD:
         spectrumDarkColours[k] = v
-    if gray(*h) > COLOUR_LIGHT_THRESHOLD and gray(*h) < COLOUR_DARK_THRESHOLD:
+    if COLOUR_LIGHT_THRESHOLD < gray(*h) < COLOUR_DARK_THRESHOLD:
         spectrumMediumColours[k] = v
 
 allDarkColours = OrderedDict()
@@ -723,30 +592,61 @@ for k, v in allColours.items():
         allLightColours[k] = v
     if gray(*h) < COLOUR_DARK_THRESHOLD:
         allDarkColours[k] = v
-    if gray(*h) > COLOUR_LIGHT_THRESHOLD and gray(*h) < COLOUR_DARK_THRESHOLD:
+    if COLOUR_LIGHT_THRESHOLD < gray(*h) < COLOUR_DARK_THRESHOLD:
         allMediumColours[k] = v
 
-spectrumHexLightColours = tuple(ky for ky in spectrumLightColours.keys() if ky != '#')
-spectrumHexDarkColours = tuple(ky for ky in spectrumDarkColours.keys() if ky != '#')
-spectrumHexMediumColours = tuple(ky for ky in spectrumMediumColours.keys() if ky != '#')
+spectrumHexLightColours = tuple(ky for ky in spectrumLightColours.keys() if ky != _HASH)
+spectrumHexDarkColours = tuple(ky for ky in spectrumDarkColours.keys() if ky != _HASH)
+spectrumHexMediumColours = tuple(ky for ky in spectrumMediumColours.keys() if ky != _HASH)
 
-spectrumHexDefaultLightColours = tuple(ky for ky in lightDefaultSpectrumColours.keys() if ky != '#')
-spectrumHexDefaultDarkColours = tuple(ky for ky in darkDefaultSpectrumColours.keys() if ky != '#')
+spectrumHexDefaultLightColours = tuple(ky for ky in lightDefaultSpectrumColours.keys() if ky != _HASH)
+spectrumHexDefaultDarkColours = tuple(ky for ky in darkDefaultSpectrumColours.keys() if ky != _HASH)
 
 # override this with spectrumLight/DarkColours when colourScheme is changed
-spectrumHexColours = tuple(ky for ky in spectrumColours.keys() if ky != '#')
-
+spectrumHexColours = tuple(ky for ky in spectrumColours.keys() if ky != _HASH)
 
 # Note that Colour strings are not re-used
+paletteNames = [
+    'windowText',  # 0
+    'button',  # 1
+    'light',  # 2
+    'midlight',  # 3
+    'dark',  # 4
+    'mid',  # 5
+    'text',  # 6
+    'brightText',  # 7
+    'buttonText',  # 8
+    'base',  # 9
+    'window',  # 10
+    'shadow',  # 11
+    'highlight',  # 12
+    'highlightedText',  # 13
+    'link',  # 14
+    'linkVisited',  # 15
+    'alternateBase',  # 16
+    'noRole',  # 17
+    'toolTipBase',  # 18
+    'toolTipText',  # 19
+    'placeholderText',  # 20
+    ]
+
+
+# for colnum, colname in enumerate(colNames):
+#     print(f"  QtGui.QPalette.{colname[0].upper()+colname[1:]:20}:  ["
+#           f"{pal.color(QtGui.QPalette.Active, QtGui.QPalette.ColorRole(colnum)).name()!r},   "
+#           f"{pal.color(QtGui.QPalette.Inactive, QtGui.QPalette.ColorRole(colnum)).name()!r},   "
+#           f"{pal.color(QtGui.QPalette.Disabled, QtGui.QPalette.ColorRole(colnum)).name()!r}"
+#           f"],  # {colnum}")
+#
 
 
 class Colour(str):
     """ A class to make colour manipulation easier and more transparent.
         Assumes that r, g, b values are 8-bit so between 0 and 255 and have optional a.
 
-    >>> c = Colour('magenta')
-    >>> c = Colour('#FF00FF')
-    >>> c = Colour((255, 0, 255))
+        c = Colour('magenta')
+        c = Colour('#FF00FF')
+        c = Colour((255, 0, 255))
     """
 
     def __init__(self, value):
@@ -758,7 +658,7 @@ class Colour(str):
         if isinstance(value, str):
             value = value.lower()
             name = value
-            if value[0] != '#':
+            if value[0] != _HASH:
                 value = colourNameToHexDict[name]
 
             assert len(value) in {7, 9}, 'len(value) = %d, should be 7 or 9' % len(value)
@@ -798,7 +698,7 @@ class Colour(str):
 
     def hex(self):
 
-        return '#' + ''.join([_ccpnHex(x)[2:] for x in (self.r, self.g, self.b)])
+        return _HASH + ''.join([_ccpnHex(x)[2:] for x in (self.r, self.g, self.b)])
 
     def __repr__(self):
 
@@ -834,7 +734,7 @@ def addNewColourString(colourString):
     New colour has the name 'Colour <n>' where n is the next free number
     """
     # '#' is reserved for auto colour so shouldn't ever be added
-    if colourString != '#' and colourString not in spectrumColours:
+    if colourString != _HASH and colourString not in spectrumColours:
         newIndex = str(len(spectrumColours.items()) + 1)
         spectrumColours[colourString] = f'Colour {newIndex}'
 
@@ -842,7 +742,7 @@ def addNewColourString(colourString):
 def autoCorrectHexColour(colour, referenceHexColour='#ffffff', addNewColour=True):
     """Autocorrect colours if too close to the reference value
     """
-    if colour == '#':
+    if colour == _HASH:
         return colour
 
     g = gray(*hexToRgb(colour))
@@ -863,6 +763,7 @@ def autoCorrectHexColour(colour, referenceHexColour='#ffffff', addNewColour=True
 
 def name2Hex(name):
     return colourNameToHexDict.get(name, None)
+
 
 def splitDataByColours(data, colours):
     gradientColours = []
@@ -910,15 +811,15 @@ def selectPullDownColour(pulldown, colourString, allowAuto=False):
     # try:
     #     pulldown.setCurrentText(spectrumColours[colourString])
     # except:
-    #     if allowAuto and '#' in pulldown.texts:
-    #         pulldown.setCurrentText('#')
+    #     if allowAuto and _HASH in pulldown.texts:
+    #         pulldown.setCurrentText(_HASH)
 
     if colourString in spectrumColours:
         pulldown.setCurrentText(spectrumColours[colourString])
     elif colourString in colorSchemeTable:
         pulldown.setCurrentText(colourString)
-    elif allowAuto and '<auto>' in pulldown.texts:
-        pulldown.setCurrentText('<auto>')
+    elif allowAuto and _AUTO in pulldown.texts:
+        pulldown.setCurrentText(_AUTO)
 
 
 # ICON_SIZE = 20
@@ -933,16 +834,16 @@ def fillColourPulldown(pulldown, allowAuto=False, allowNone=False, includeGradie
 
     pulldown.clear()
     if allowAuto:
-        pulldown.addItem(text='<auto>')
+        pulldown.addItem(text=_AUTO)
     if allowNone:
-        pulldown.addItem(text='')
+        pulldown.addItem(text=_EMPTY)
 
     for item in spectrumColours.items():
         # if item[1] not in pulldown.texts:
 
         colName = item[1]  # colourNameWithSpace(item[1])
 
-        if item[0] != '#':
+        if item[0] != _HASH:
             pix = QtGui.QPixmap(QtCore.QSize(ICON_SIZE, ICON_SIZE))
             pix.fill(QtGui.QColor(item[0]))
             pulldown.addItem(icon=QtGui.QIcon(pix), text=colName)
@@ -950,28 +851,95 @@ def fillColourPulldown(pulldown, allowAuto=False, allowNone=False, includeGradie
             pulldown.addItem(text=colName)
 
     if includeGradients:
+        pix = QtGui.QPixmap(QtCore.QSize(ICON_SIZE, ICON_SIZE))
         for colName, colourList in colorSchemeTable.items():
-            pix = QtGui.QPixmap(QtCore.QSize(ICON_SIZE, ICON_SIZE))
-            step = ICON_SIZE
-            stepX = ICON_SIZE
             stepY = len(colourList) - 1
-            jj = 0
             painter = QtGui.QPainter(pix)
-
-            for ii in range(ICON_SIZE):
-                _interp = (stepX - step) / stepX
-                _intCol = interpolateColourHex(colourList[min(jj, stepY)], colourList[min(jj + 1, stepY)],
-                                               _interp)
-
-                painter.setPen(QtGui.QColor(_intCol))
-                painter.drawLine(ii, 0, ii, ICON_SIZE)
-                step -= stepY
-                while step < 0:
-                    step += stepX
-                    jj += 1
-
+            grad = QtGui.QLinearGradient(0, 0, ICON_SIZE, 0)
+            for ii, col in enumerate(colourList):
+                grad.setColorAt(ii / stepY, QtGui.QColor(col))
+            painter.fillRect(pix.rect(), grad)
             painter.end()
             pulldown.addItem(icon=QtGui.QIcon(pix), text=colName)
+
+    pulldown.setCurrentText(currText)
+
+
+def closest_pyqt_color_name(hex_color):
+    """Find the closest PyQt color name to the given hex color.
+    """
+    rgb_color = np.array(hexToRgb(hex_color))
+
+    min_distance = float('inf')
+    closest_name = None
+
+    for name in QtGui.QColor.colorNames():
+        # Get the RGB values of the named color
+        test_color = QtGui.QColor(name)
+        test_rgb = np.array([test_color.red(), test_color.green(), test_color.blue()])
+        # Calculate the Euclidean distance
+        distance = np.sqrt(np.sum((rgb_color - test_rgb)**2))
+        if distance < min_distance:
+            min_distance = distance
+            closest_name = name
+
+    return closest_name
+
+
+def coloursFromHue(count=12):
+    return ['crimson',
+            'tomato',
+            'darkorange',
+            'gold',
+            'yellowgreen',
+            'limegreen',
+            'mediumseagreen',
+            'mediumturquoise',
+            'deepskyblue',
+            'dodgerblue',
+            'royalblue',
+            'mediumorchid',
+            'fuchsia',
+            'deeppink',
+            ]
+
+    # names = []
+    # for cc in range(count):
+    #     # 0.8, 0.45 gives slightly nice colours
+    #     col = QtGui.QColor.fromHslF(cc/count, 1.0, 0.45)  # only the hue is actually used for the minute
+    #     if not (name := closest_pyqt_color_name(col.name())):
+    #         raise ValueError('Colour not found')
+    #     names.append(name)
+    # return names
+
+
+def fillPulldownFromNames(pulldown, colourList, allowAuto=False, allowNone=False, default=None):
+    # fill the pulldown with the list of colours
+    # this has no signals blocked otherwise it doesn't paint, and should be signalBlocked elsewhere
+    currText = pulldown.currentText()
+
+    ICON_SIZE = max(pulldown.font().pointSize(), 18)  # seems to be constrained to the pulldown height
+
+    pulldown.clear()
+    if allowAuto:
+        pulldown.addItem(text=_AUTO)
+    if allowNone:
+        pulldown.addItem(text=_EMPTY)
+
+    for name in colourList:
+        if name == _DEFAULT:
+            if default is not None:
+                pix = QtGui.QPixmap(QtCore.QSize(ICON_SIZE, ICON_SIZE))
+                pix.fill(QtGui.QColor(default))
+                pulldown.addItem(icon=QtGui.QIcon(pix), text=name)
+            else:
+                pulldown.addItem(text=name)
+        elif name != _HASH:
+            pix = QtGui.QPixmap(QtCore.QSize(ICON_SIZE, ICON_SIZE))
+            pix.fill(QtGui.QColor(name))
+            pulldown.addItem(icon=QtGui.QIcon(pix), text=name)
+        elif allowAuto:
+            pulldown.addItem(text=name)
 
     pulldown.setCurrentText(currText)
 
@@ -981,7 +949,7 @@ def _setColourPulldown(pulldown, attrib, allowAuto=False, includeGradients=True,
     """
     spectrumColourKeys = list(spectrumColours.keys())
     fillColourPulldown(pulldown, allowAuto=allowAuto, includeGradients=includeGradients, allowNone=allowNone)
-    c = attrib.upper() if attrib and attrib.startswith('#') else attrib
+    c = attrib.upper() if attrib and attrib.startswith(_HASH) else attrib
     if c in spectrumColourKeys:
         col = spectrumColours[c]
         pulldown.setCurrentText(col)
@@ -993,7 +961,7 @@ def _setColourPulldown(pulldown, attrib, allowAuto=False, includeGradients=True,
     else:
         addNewColourString(c)
         fillColourPulldown(pulldown, allowAuto=allowAuto, includeGradients=includeGradients, allowNone=allowNone)
-        if c != '#' or allowAuto is True:
+        if c != _HASH or allowAuto is True:
             col = spectrumColours[c]
             pulldown.setCurrentText(col)
 
@@ -1007,7 +975,7 @@ def getSpectrumColour(colourName, defaultReturn=None):
 
         if colName in spectrumColours.values():
             col = list(spectrumColours.keys())[list(spectrumColours.values()).index(colName)]
-            return col.upper() if col.startswith('#') else col
+            return col.upper() if col.startswith(_HASH) else col
         elif colName in colorSchemeTable:
             return colName
         else:
@@ -1021,7 +989,7 @@ def getSpectrumColour(colourName, defaultReturn=None):
 def getAutoColourRgbRatio(inColour=None, sourceObject=None, colourAttribute=None, defaultColour=None):
     try:
         listColour = inColour
-        if listColour == '#':
+        if listColour == _HASH:
             listColour = getattr(sourceObject, colourAttribute, defaultColour)
             if listColour in colorSchemeTable:
                 # get the first item from the colour gradient
@@ -1032,6 +1000,7 @@ def getAutoColourRgbRatio(inColour=None, sourceObject=None, colourAttribute=None
     except Exception:
         # return red for any error
         return [1.0, 0.2, 0.1]
+
 
 def findNearestHex(hexCol, colourHexList):
     weights = (0.3, 0.59, 0.11)  # assuming rgb
@@ -1053,110 +1022,6 @@ def findNearestHex(hexCol, colourHexList):
             lastCol = (col, num)
 
     return lastCol[0]
-
-
-if __name__ == '__main__':
-    """Simple routine to plot all the named colors in the matplotlib colorspace
-    """
-    import matplotlib.pyplot as plt
-    from matplotlib import colors as mcolors
-
-
-    colors = dict(mcolors.BASE_COLORS, **mcolors.CSS4_COLORS)
-
-
-    def colourPlot(names, title='ColourPlot'):
-        """make a colour plot of the names
-        """
-        n = len(names)
-        ncols = 4
-        nrows = n // ncols + 1
-
-        fig, ax = plt.subplots(figsize=(16, 9))
-
-        # Get height and width
-        X, Y = fig.get_dpi() * fig.get_size_inches()
-
-        Y0 = Y - fig.get_dpi() * 1.0  # remove an inch from the size
-        h = Y0 // max((nrows + 1), 15)
-        w = X // ncols
-
-        for i, name in enumerate(names):
-            row = i % nrows
-            col = i // nrows
-
-            y = Y0 - (row * h) - h
-
-            xi_line = w * (col + 0.05)
-            xf_line = w * (col + 0.25)
-            xi_text = w * (col + 0.3)
-
-            ax.text(xi_text, y, name, fontsize=(h * 0.5),
-                    horizontalalignment='left',
-                    verticalalignment='center')
-
-            if name in colors:
-                ax.hlines(y + h * 0.1, xi_line, xf_line,
-                          color=colors[name] if name in colors else name,
-                          linewidth=(h * 0.6))
-
-        ax.set_xlim(0, X)
-        ax.set_ylim(0, Y)
-        ax.set_axis_off()
-
-        ax.text(fig.get_dpi() * 0.25, Y - fig.get_dpi() * 0.5,
-                title, fontsize=fig.get_dpi() * 0.25,
-                horizontalalignment='left',
-                verticalalignment='center')
-
-        fig.subplots_adjust(left=0, right=1,
-                            top=1, bottom=0,
-                            hspace=0, wspace=0)
-        plt.show()
-
-
-    # Sort colors by hue, saturation, value and name.
-    by_hsv = sorted((tuple(mcolors.rgb_to_hsv(mcolors.to_rgba(color)[:3])), name)
-                    for name, color in colors.items())
-    sorted_names = [name for hsv, name in by_hsv
-                    if (hsv[0] == 0.0 and hsv[1] == 0.0) or hsv[1] > 0.3]
-
-    # print the colors to generate full colorList
-    for col in sorted_names:
-        if isinstance(colors[col], str):
-            # col = colourNameWithSpace(col)
-
-            print('(' + repr(colors[col]) + ', ' + repr(col) + '),')
-
-    colourPlot(spectrumDarkColours.values(), title='Dark Spectrum Colours')
-    colourPlot(spectrumMediumColours.values(), title='Medium Spectrum Colours')
-    colourPlot(spectrumLightColours.values(), title='Light Spectrum Colours')
-
-    thisPalette = spectrumLightColours
-    colourPlot(thisPalette.values(), title='Light Default Spectrum Colours')
-    opposites = []
-    for col in thisPalette.keys():
-        rgbIn = hexToRgb(col)
-        negRGB = invertRGBHue(*rgbIn)
-        oppCol = rgbToHex(*negRGB)
-
-        oppCol = findNearestHex(oppCol, thisPalette.keys())
-        opposites.append(thisPalette[oppCol])
-
-    colourPlot(opposites, title='Light Inverted Colours')
-
-    thisPalette = spectrumDarkColours
-    colourPlot(thisPalette.values(), title='Dark Default Spectrum Colours')
-    opposites = []
-    for col in thisPalette.keys():
-        rgbIn = hexToRgb(col)
-        negRGB = invertRGBHue(*rgbIn)
-        oppCol = rgbToHex(*negRGB)
-
-        oppCol = findNearestHex(oppCol, thisPalette.keys())
-        opposites.append(thisPalette[oppCol])
-
-    colourPlot(opposites, title='Dark Inverted Colours')
 
 
 def interpolateColourRgba(colour1, colour2, value, alpha=1.0):
@@ -1182,6 +1047,7 @@ def interpolateColourHex(hexColor1, hexColor2, value, alpha=1.0):
 
     result = [(col1 + (col2 - col1) * value) for col1, col2 in zip(colour1, colour2)]
     return '#%02x%02x%02x' % (int(result[0]), int(result[1]), int(result[2]))
+
 
 # ('darkredshade', ('#7f6060', '#7f4d4d', '#7f3939', '#7f2626', '#7f1313', '#7f0000', '#6c0000', '#590000', '#460000', '#330000')),
 # ('darkorangeshade', ('#7f7060', '#7f6448', '#7f5830', '#7f4c18', '#7f4000', '#703800', '#613000', '#512900', '#422100', '#331900')),
@@ -1253,3 +1119,144 @@ def interpolateColourHex(hexColor1, hexColor2, value, alpha=1.0):
 # ('darkspectrum2', (
 #     '#32CD32', '#FF1493', '#FF4500', '#000080', '#00CED1', '#800000', '#8A2BE2', '#008000', '#4682B4', '#FF0000', '#FFA500',
 #     '#1E90FF', '#808000', '#800080', '#DA70D6', '#008080')),
+
+
+#=========================================================================================
+# main - generate colours and colour-plots
+#=========================================================================================
+
+def main():
+    """Simple routine to plot all the named colors in the matplotlib colorspace
+    """
+    import matplotlib.pyplot as plt
+    from matplotlib import colors as mcolors
+
+    colors = dict(mcolors.BASE_COLORS, **mcolors.CSS4_COLORS)
+
+    def colourPlot(names, title='ColourPlot'):
+        """make a colour plot of the names
+        """
+        n = len(names)
+        ncols = 4
+        nrows = n // ncols + 1
+
+        fig, ax = plt.subplots(figsize=(16, 9))
+
+        # Get height and width
+        X, Y = fig.get_dpi() * fig.get_size_inches()
+
+        Y0 = Y - fig.get_dpi() * 1.0  # remove an inch from the size
+        h = Y0 // max((nrows + 1), 15)
+        w = X // ncols
+
+        for i, name in enumerate(names):
+            row = i % nrows
+            col = i // nrows
+
+            y = Y0 - (row * h) - h
+
+            xi_line = w * (col + 0.05)
+            xf_line = w * (col + 0.25)
+            xi_text = w * (col + 0.3)
+
+            ax.text(xi_text, y, name, fontsize=(h * 0.5),
+                    horizontalalignment='left',
+                    verticalalignment='center')
+
+            if name in colors:
+                ax.hlines(y + h * 0.1, xi_line, xf_line,
+                          color=colors[name] if name in colors else name,
+                          linewidth=(h * 0.6))
+
+        ax.set_xlim(0, X)
+        ax.set_ylim(0, Y)
+        ax.set_axis_off()
+
+        ax.text(fig.get_dpi() * 0.25, Y - fig.get_dpi() * 0.5,
+                title, fontsize=fig.get_dpi() * 0.25,
+                horizontalalignment='left',
+                verticalalignment='center')
+
+        fig.subplots_adjust(left=0, right=1,
+                            top=1, bottom=0,
+                            hspace=0, wspace=0)
+        plt.show()
+
+    def rowPlot(names, title='ColourPlot'):
+        """make a colour plot of the names
+        """
+        n = len(names)
+        fig, ax = plt.subplots(figsize=(16, 9))
+        # Get height and width
+        X, Y = fig.get_dpi() * fig.get_size_inches()
+        inch = fig.get_dpi()
+        X0 = X - inch * 2.0
+        Y0 = Y - inch * 2.0  # remove an inch from the size
+        h = Y0 // 5
+        for col, name in enumerate(names):
+            y = Y0 - h
+            xi_line = inch + (col * X0) / n
+            xf_line = inch + ((col + 1) * X0) / n
+            if name in colors:
+                ax.hlines(y + h * 0.1, xi_line, xf_line,
+                          color=colors[name] if name in colors else name,
+                          linewidth=(h * 0.6))
+
+        ax.set_xlim(0, X)
+        ax.set_ylim(0, Y)
+        ax.set_axis_off()
+        ax.text(fig.get_dpi() * 0.25, Y - fig.get_dpi() * 0.5,
+                title, fontsize=fig.get_dpi() * 0.25,
+                horizontalalignment='left',
+                verticalalignment='center')
+        fig.subplots_adjust(left=0, right=1,
+                            top=1, bottom=0,
+                            hspace=0, wspace=0)
+        plt.show()
+
+    # Sort colors by hue, saturation, value and name.
+    by_hsv = sorted((tuple(mcolors.rgb_to_hsv(mcolors.to_rgba(color)[:3])), name)
+                    for name, color in colors.items())
+    sorted_names = [name for hsv, name in by_hsv
+                    if (hsv[0] == 0.0 and hsv[1] == 0.0) or hsv[1] > 0.3]
+
+    # # print the colors to generate full colorList
+    # for col in sorted_names:
+    #     if isinstance(colors[col], str):
+    #         # col = colourNameWithSpace(col)
+    #         print('(' + repr(colors[col]) + ', ' + repr(col) + '),')
+
+    colourPlot(spectrumDarkColours.values(), title='Dark Spectrum Colours')
+    colourPlot(spectrumMediumColours.values(), title='Medium Spectrum Colours')
+    colourPlot(spectrumLightColours.values(), title='Light Spectrum Colours')
+
+    thisPalette = spectrumLightColours
+    colourPlot(thisPalette.values(), title='Light Default Spectrum Colours')
+    opposites = []
+    for col in thisPalette.keys():
+        rgbIn = hexToRgb(col)
+        negRGB = invertRGBHue(*rgbIn)
+        oppCol = rgbToHex(*negRGB)
+
+        oppCol = findNearestHex(oppCol, thisPalette.keys())
+        opposites.append(thisPalette[oppCol])
+
+    colourPlot(opposites, title='Light Inverted Colours')
+
+    thisPalette = spectrumDarkColours
+    colourPlot(thisPalette.values(), title='Dark Default Spectrum Colours')
+    opposites = []
+    for col in thisPalette.keys():
+        rgbIn = hexToRgb(col)
+        negRGB = invertRGBHue(*rgbIn)
+        oppCol = rgbToHex(*negRGB)
+
+        oppCol = findNearestHex(oppCol, thisPalette.keys())
+        opposites.append(thisPalette[oppCol])
+
+    colourPlot(opposites, title='Dark Inverted Colours')
+    rowPlot(brightColours.values(), title='Sorted Bright Colours')
+
+
+if __name__ == '__main__':
+    main()

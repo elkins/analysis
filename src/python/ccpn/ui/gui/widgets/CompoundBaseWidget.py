@@ -32,14 +32,12 @@ from ccpn.ui.gui.widgets.Frame import Frame
 from ccpn.ui.gui.widgets.Base import SignalBlocking
 
 
-NULL = object()
-
-
 class CompoundBaseWidget(Frame, SignalBlocking):
     """
     Base widget for Compound classes; inherits from Frame (and hence Base)
     Implements the addNotifier and deleteNotifiers methods
     """
+
     def __init__(self, parent, layoutDict, orientation, showBorder, **kwds):
         """
         :param parent: parent widget
@@ -112,7 +110,8 @@ class CompoundBaseWidget(Frame, SignalBlocking):
         :param kwds: optional keyword arguments to func
         :return: Notifier instance
         """
-        from ccpn.core.lib.Notifiers import Notifier
+        from ccpn.core.lib.Notifiers import Notifier  # circular imports :|
+
         notifier = Notifier(theObject, triggers, targetName, func, *args, **kwds)
         self.addNotifier(notifier)
         return notifier

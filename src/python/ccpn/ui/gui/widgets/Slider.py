@@ -1,18 +1,19 @@
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (http://www.ccpn.ac.uk) 2014 - 2019"
-__credits__ = ("Ed Brooksbank, Luca Mureddu, Timothy J Ragan & Geerten W Vuister")
-__licence__ = ("CCPN licence. See http://www.ccpn.ac.uk/v3-software/downloads/license")
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__credits__ = ("Ed Brooksbank, Joanna Fox, Morgan Hayward, Victoria A Higman, Luca Mureddu",
+               "Eliza Płoskoń, Timothy J Ragan, Brian O Smith, Gary S Thompson & Geerten W Vuister")
+__licence__ = ("CCPN licence. See https://ccpn.ac.uk/software/licensing/")
 __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, L.G., & Vuister, G.W.",
                  "CcpNmr AnalysisAssign: a flexible platform for integrated NMR analysis",
-                 "J.Biomol.Nmr (2016), 66, 111-124, http://doi.org/10.1007/s10858-016-0060-y")
+                 "J.Biomol.Nmr (2016), 66, 111-124, https://doi.org/10.1007/s10858-016-0060-y")
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: CCPN $"
-__dateModified__ = "$dateModified: 2017-07-07 16:32:56 +0100 (Fri, July 07, 2017) $"
-__version__ = "$Revision: 3.0.0 $"
+__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
+__dateModified__ = "$dateModified: 2024-04-23 22:03:04 +0100 (Tue, April 23, 2024) $"
+__version__ = "$Revision: 3.2.5 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -28,6 +29,9 @@ from ccpn.ui.gui.widgets.Spinbox import Spinbox
 
 
 class Slider(QtWidgets.QSlider, Base):
+
+    highlightColour = None
+
     def __init__(self, parent, startVal=0, endVal=100, value=None,
                  direction='h', step=1, bigStep=None, callback=None,
                  tracking=True, showNumber=True, tickInterval=None,
@@ -87,6 +91,15 @@ class Slider(QtWidgets.QSlider, Base):
 
             else:
                 listener.connect(self.setValue)
+
+    # def paintEvent(self, ev: QtGui.QPaintEvent) -> None:
+    #     if Base._highlightVivid is not None:
+    #         # change the highlight colour in response to theme change
+    #         #   - bit of a hack as QT is doing something weird here
+    #         thisPal = self.palette()
+    #         thisPal.setColor(QtGui.QPalette.Highlight, Base._highlightVivid)
+    #         self.setPalette(thisPal)
+    #     super().paintEvent(ev)
 
     def setRange(self, startVal, endVal):
 
@@ -195,6 +208,6 @@ if __name__ == '__main__':
 
     app = TestApplication()
     popup = BasePopup(title='Test slider')
-    popup.setSize(250, 50)
+    popup.resize(250, 50)
     slider = SliderSpinBox(parent=popup, startVal=0, endVal=100, value=5)
     app.start()

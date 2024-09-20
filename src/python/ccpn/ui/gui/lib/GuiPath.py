@@ -4,9 +4,10 @@ Module Documentation here
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2023"
-__credits__ = ("Ed Brooksbank, Joanna Fox, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
-               "Timothy J Ragan, Brian O Smith, Gary S Thompson & Geerten W Vuister")
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
+               "Timothy J Ragan, Brian O Smith, Daniel Thompson",
+               "Gary S Thompson & Geerten W Vuister")
 __licence__ = ("CCPN licence. See https://ccpn.ac.uk/software/licensing/")
 __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, L.G., & Vuister, G.W.",
                  "CcpNmr AnalysisAssign: a flexible platform for integrated NMR analysis",
@@ -14,9 +15,9 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: Geerten Vuister $"
-__dateModified__ = "$dateModified: 2023-02-02 13:23:41 +0000 (Thu, February 02, 2023) $"
-__version__ = "$Revision: 3.1.1 $"
+__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
+__dateModified__ = "$dateModified: 2024-09-13 15:20:23 +0100 (Fri, September 13, 2024) $"
+__version__ = "$Revision: 3.2.7 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -34,6 +35,7 @@ from ccpn.ui.gui.widgets.LineEdit import LineEdit
 
 from ccpn.ui.gui.guiSettings import COLOUR_BLIND_LIGHTGREEN, COLOUR_BLIND_MEDIUM, COLOUR_BLIND_DARKGREEN, \
     COLOUR_BLIND_RED, COLOUR_BLIND_ORANGE
+
 
 VALIDROWCOLOUR = COLOUR_BLIND_LIGHTGREEN
 ACCEPTROWCOLOUR = COLOUR_BLIND_DARKGREEN
@@ -63,7 +65,7 @@ def _validFile(path) -> bool:
     return result
 
 
-VALIDFILE ='File'
+VALIDFILE = 'File'
 VALIDPATH = 'Path'
 VALIDMODES = (VALIDFILE, VALIDPATH)
 VALIDFUNCS = (_validFile, _validPath)
@@ -77,7 +79,6 @@ class PathValidator(QtGui.QValidator):
         if fileMode not in VALIDMODES:
             raise NotImplemented("Error, fileMode %s not supported, use %s" % (str(fileMode), str(VALIDMODES)))
         self.fileMode = fileMode
-        self.baseColour = self.parent().palette().color(QtGui.QPalette.Base)
         self._func = VALIDFUNCS[VALIDMODES.index(fileMode)]
 
     def validate(self, p_str, p_int):
@@ -86,8 +87,8 @@ class PathValidator(QtGui.QValidator):
 
         palette = self.parent().palette()
 
-        if self._func(p_str):
-            palette.setColor(QtGui.QPalette.Base, self.baseColour)
+        if not p_str or self._func(p_str):
+            palette.setColor(QtGui.QPalette.Base, QtGui.QPalette().base().color())
             state = QtGui.QValidator.Acceptable  # entry is valid
         else:
             palette.setColor(QtGui.QPalette.Base, INVALIDROWCOLOUR)
@@ -98,7 +99,7 @@ class PathValidator(QtGui.QValidator):
 
     def clearValidCheck(self):
         palette = self.parent().palette()
-        palette.setColor(QtGui.QPalette.Base, self.baseColour)
+        palette.setColor(QtGui.QPalette.Base, QtGui.QPalette().base().color())
         self.parent().setPalette(palette)
 
     def resetCheck(self):
@@ -113,6 +114,7 @@ class PathValidator(QtGui.QValidator):
 class PathEdit(LineEdit):
     """LineEdit widget that contains validator for checking filePaths exists
     """
+
     def __init__(self, parent, fileMode=VALIDPATH, **kwds):
         kwds.setdefault('textAlignment', 'l')
         super().__init__(parent=parent, **kwds)

@@ -4,9 +4,9 @@ Module containing functions for defining GLSL shaders.
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2022"
-__credits__ = ("Ed Brooksbank, Joanna Fox, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
-               "Timothy J Ragan, Brian O Smith, Gary S Thompson & Geerten W Vuister")
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__credits__ = ("Ed Brooksbank, Joanna Fox, Morgan Hayward, Victoria A Higman, Luca Mureddu",
+               "Eliza Płoskoń, Timothy J Ragan, Brian O Smith, Gary S Thompson & Geerten W Vuister")
 __licence__ = ("CCPN licence. See https://ccpn.ac.uk/software/licensing/")
 __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, L.G., & Vuister, G.W.",
                  "CcpNmr AnalysisAssign: a flexible platform for integrated NMR analysis",
@@ -15,8 +15,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2022-10-12 15:27:10 +0100 (Wed, October 12, 2022) $"
-__version__ = "$Revision: 3.1.0 $"
+__dateModified__ = "$dateModified: 2024-01-19 13:51:02 +0000 (Fri, January 19, 2024) $"
+__version__ = "$Revision: 3.2.1 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -29,14 +29,17 @@ __date__ = "$Date: 2018-12-20 13:28:13 +0000 (Thu, December 20, 2018) $"
 import sys
 import os
 from PyQt5 import QtGui
-import numpy as np
-from ccpn.util.Logging import getLogger
 from ccpn.ui.gui.lib.OpenGL import GL
+from ccpn.util.Logging import getLogger
+from ccpn.ui.gui.guiSettings import consoleStyle
 
 
-#=========================================================================================
+_DEBUG = False
+
+
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # ShaderProgramABC - Class defining a GL shader program
-#=========================================================================================
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 class ShaderProgramABC(object):
     """
@@ -48,11 +51,11 @@ class ShaderProgramABC(object):
     vertexShader = '''
                     #version 120
                     
-                    varying vec4 _FC;
+                    varying vec4 fragCol;
                     
                     void main()
                     {
-                      _FC = gl_Color;
+                      fragCol = gl_Color;
                     }
                     '''
     fragmentShader is similarly defined
@@ -83,31 +86,43 @@ class ShaderProgramABC(object):
     (On MacOS, anything above 2.1 causes problems - I think solved now)
     """
 
+    name = None
+    CCPNSHADER = False
+
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # shaders
+
     vertexShader = None
+    geometryShader = None
     fragmentShader = None
 
-    # dict containing the attributes that can be accessed in the shader
-    attributes = {}
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # dicts containing the attributes/uniforms that can be accessed in the shader
 
-    CCPNSHADER = False
+    attributes = {}
+    uniforms = {}
 
     def __init__(self):
         """
-        Initialise the shader with a vertex/fragment shader pair, and attributes
+        Initialise the shaderProgram with vertex/geometry/fragment shaders, and attributes/uniforms
         """
 
         # check that the required fields have been set
-        if not (self.vertexShader or self.fragmentShader) or self.attributes == {}:
+        if not (self.vertexShader or self.fragmentShader):
             raise RuntimeError('ShaderProgram is not correctly defined')
 
-        self.uniformLocations = {}
         try:
             self._shader = shader = QtGui.QOpenGLShaderProgram()
-            self.vs_id = shader.addShaderFromSourceCode(QtGui.QOpenGLShader.Vertex, self.vertexShader)
-            self.frag_id = shader.addShaderFromSourceCode(QtGui.QOpenGLShader.Fragment, self.fragmentShader)
+            self.vs_id = shader.addShaderFromSourceCode(QtGui.QOpenGLShader.Vertex,
+                                                        self.vertexShader) if self.vertexShader else None
+            self.geom_id = shader.addShaderFromSourceCode(QtGui.QOpenGLShader.Geometry,
+                                                          self.geometryShader) if self.geometryShader else None
+            self.frag_id = shader.addShaderFromSourceCode(QtGui.QOpenGLShader.Fragment,
+                                                          self.fragmentShader) if self.fragmentShader else None
             shader.link()
-            # shader.bind()
+
             self.program_id = shader.programId()
+
         except Exception as es:
             esType, esValue, esTraceback = sys.exc_info()
             _ver = QtGui.QOpenGLVersionProfile()
@@ -122,10 +137,25 @@ class ShaderProgramABC(object):
                   f"{esTraceback}"
             raise RuntimeError(msg)
 
+        if _DEBUG:
+            getLogger().debug(f'{self.name} - {self.vs_id} {self.geom_id} {self.frag_id} ~~~~~~~~~~~~~~~')
+
+        self.locations = {}
+
         # define attributes to be passed to the shaders
-        for att in self.attributes.keys():
-            self.uniformLocations[att] = shader.uniformLocation(att)
-            self.uniformLocations['_' + att] = np.zeros((self.attributes[att][0],), dtype=self.attributes[att][1])
+        for att in self.attributes:
+            if (val := shader.attributeLocation(att)) == -1:
+                getLogger().debug2(f'--> {self.name:20} attribute {att} is not defined')
+            self.locations[att] = val
+
+        # define uniforms to be passed to the shaders
+        for uni in self.uniforms:
+            if (val := shader.uniformLocation(uni)) == -1:
+                getLogger().debug2(f'--> {self.name:20} uniform {uni} is not defined')
+            self.locations[uni] = val
+
+        if _DEBUG:
+            getLogger().debug('\n'.join(f'   {k:20}  :  {v}' for k, v in self.locations.items()))
 
     @staticmethod
     def _addGLShader(source, shader_type):
@@ -148,15 +178,10 @@ class ShaderProgramABC(object):
                 getLogger().warning(f'source: {source}')
                 os._exit(0)
             return shader_id
+
         except:
             GL.glDeleteShader(shader_id)
             raise
-
-    @property
-    def name(self):
-        """Return the name of the shaderProgramABC instance
-        """
-        return str(self.__name__)
 
     @classmethod
     def _register(cls):
@@ -164,105 +189,41 @@ class ShaderProgramABC(object):
         """
         pass
 
-    def makeCurrent(self):
+    def bind(self):
         """Make self the current shader
         """
+        if _DEBUG:
+            getLogger().debug(f'{consoleStyle.fg.darkyellow}-->  {self.__class__.__name__}.bind   -   {id(self)}'
+                              f'{consoleStyle.reset}')
         self._shader.bind()
         return self
 
     def release(self):
         """Unbind the current shader
         """
+        if _DEBUG:
+            getLogger().debug(f'{consoleStyle.fg.darkyellow}-->  {self.__class__.__name__}.release   -   {id(self)}'
+                              f'{consoleStyle.reset}')
         self._shader.release()
 
-    @staticmethod
-    def setProjectionAxes(attMatrix, left, right, bottom, top, near, far):
-        """Set the contents of the projection matrix
-        """
-        oa = 2.0 / (right - left) if abs(right-left) > 1.0e-7 else 1.0
-        ob = 2.0 / (top - bottom) if abs(top-bottom) > 1.0e-7 else 1.0
-        oc = -2.0 / (far - near) if abs(far-near) > 1.0e-7 else 1.0
-        od = -(far + near) / (far - near) if abs(far-near) > 1.0e-7 else 0.0
-        oe = -(top + bottom) / (top - bottom) if abs(top-bottom) > 1.0e-7 else 0.0
-        og = -(right + left) / (right - left) if abs(right-left) > 1.0e-7 else 0.0
-
-        attMatrix[0:16] = [oa, 0.0, 0.0, 0.0,
-                           0.0, ob, 0.0, 0.0,
-                           0.0, 0.0, oc, 0.0,
-                           og, oe, od, 1.0]
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # Common methods
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
     @staticmethod
-    def setViewportMatrix(viewMatrix, left, right, bottom, top, near, far):
+    def getViewportMatrix(left, right, bottom, top, near, far):
         """Set the contents of the viewport matrix
         """
-        # return the viewport transformation matrix - mapping screen to NDC
-        #   normalised device coordinates
-        #   viewport * NDC_co-ord = world_co-ord
-        oa = (right - left) / 2.0  #if abs(right-left) > 1.0e-7 else 1.0
-        ob = (top - bottom) / 2.0  #if abs(top-bottom) > 1.0e-7 else 1.0
-        oc = (far - near) / 2.0  #if abs(far-near) > 1.0e-7 else 1.0
-        og = (right + left) / 2.0
-        oe = (top + bottom) / 2.0
-        od = (near + far) / 2.0
+        # return the viewport transformation matrix - mapping screen to NDC (normalised device coordinates)
+        #   this is equivalent to - identity-translate-scale
+        viewMat = QtGui.QMatrix4x4()
+        viewMat.viewport(left, bottom, right - left, top - bottom, near, far)
 
-        viewMatrix[0:16] = [oa, 0.0, 0.0, og,
-                            0.0, ob, 0.0, oe,
-                            0.0, 0.0, oc, od,
-                            0.0, 0.0, 0.0, 1.0]
+        return viewMat
 
-    #=========================================================================================
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Methods available - Common attributes sizes
-    #=========================================================================================
-
-    def setGLUniformMatrix4fv(self, uniformLocation=None, count=1, transpose=GL.GL_FALSE, value=None):
-        """Set a 4x4 float32 matrix in the shader
-        """
-        try:
-            self._shader.setUniformValue(self.uniformLocations[uniformLocation],
-                                         QtGui.QMatrix4x4(*value) if transpose else QtGui.QMatrix4x4(*value).transposed())
-        except Exception as es:
-            raise RuntimeError(f'Error setting setGLUniformMatrix4fv: {uniformLocation}   {es}')
-
-    def setGLUniform4fv(self, uniformLocation=None, count=1, value=None):
-        """Set a 4x1 float32 vector in the shader
-        """
-        try:
-            self._shader.setUniformValue(self.uniformLocations[uniformLocation], QtGui.QVector4D(*value))
-
-        except Exception as es:
-            raise RuntimeError(f'Error setting setGLUniform4fv: {uniformLocation}   {es}')
-
-    def setGLUniform4iv(self, uniformLocation=None, count=1, value=None):
-        """Set a 4x1 uint32 vector in the shader
-        """
-        try:
-            self._shader.setUniformValue(self.uniformLocations[uniformLocation], QtGui.QVector4D(*value))
-        except Exception as es:
-            raise RuntimeError(f'Error setting setGLUniform4iv: {uniformLocation}   {es}')
-
-    def setGLUniform2fv(self, uniformLocation=None, count=1, value=None):
-        """Set a 2x1 uint32 vector in the shader
-        """
-        try:
-            self._shader.setUniformValue(self.uniformLocations[uniformLocation], QtGui.QVector2D(*value))
-        except Exception as es:
-            raise RuntimeError(f'Error setting setGLUniform2fv: {uniformLocation}   {es}')
-
-    def setGLUniform1i(self, uniformLocation=None, value=None):
-        """Set a single uint32 attribute in the shader
-        """
-        try:
-            self._shader.setUniformValue(self.uniformLocations[uniformLocation], value)
-        except Exception as es:
-            raise RuntimeError(f'Error setting setGLUniform1i: {uniformLocation}   {es}')
-
-    def setGLUniform1f(self, uniformLocation=None, value=None):
-        """Set a single float32 attribute in the shader
-        """
-        try:
-            self._shader.setUniformValue(self.uniformLocations[uniformLocation], float(value))
-        except Exception as es:
-            raise RuntimeError(f'Error setting setGLUniform1f: {uniformLocation}   {es}')
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
     def uniformLocation(self, name):
         """Function to get location of an OpenGL uniform variable
@@ -279,3 +240,26 @@ class ShaderProgramABC(object):
         :return: int; integer describing location
         """
         return GL.glGetAttribLocation(self.program_id, name)
+
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # Implementation
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+    def define(self, arrayObject):
+        """Define the required vertex-array-objects and vertex-buffer-objects needed to buffer data
+        to the graphics card.
+        """
+        # MUST BE SUBCLASSED
+        raise NotImplementedError(f'Code error: function {repr(sys._getframe().f_code.co_name)} not implemented')
+
+    def push(self, arrayObject):
+        """Push vertex-buffers to graphics card
+        """
+        # MUST BE SUBCLASSED
+        raise NotImplementedError(f'Code error: function {repr(sys._getframe().f_code.co_name)} not implemented')
+
+    def draw(self, arrayObject):
+        """Draw the vertex-buffers in array mode. Arrays are drawn from buffers already bound to graphics card memory.
+        """
+        # MUST BE SUBCLASSED
+        raise NotImplementedError(f'Code error: function {repr(sys._getframe().f_code.co_name)} not implemented')

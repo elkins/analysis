@@ -1134,6 +1134,11 @@ class Spectrum(AbstractWrapperObject):
         return self._getDimensionalAttributes('ppmPerPoint')
 
     @property
+    def ppmToPoints(self) -> List[float]:
+        """Convenience; ppm-to-point for each dimension"""
+        return self._getDimensionalAttributes('ppmToPoint')
+
+    @property
     def _valuePerPoints(self) -> List[Optional[float]]:
         """For backward compatibility; _valuePerPoint for each dimension
         CCPNINTERNAL: used by Peak.pointLineWidths

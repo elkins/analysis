@@ -127,8 +127,14 @@ class FitPlotPanel(GuiPanel):
         self._fitPlotVisible = True
         self._labelsVisible = True
 
-    def initWidgets(self):
+        QtWidgets.QApplication.instance()._sigPaletteChanged.connect(self._checkPalette)
 
+    def _checkPalette(self, pal: QtGui.QPalette, *args):
+        self.backgroundColour = getColours()[CCPNGLWIDGET_HEXBACKGROUND]
+        if self._bindingPlotView:
+            self._bindingPlotView.setBackground(self.backgroundColour)
+
+    def initWidgets(self):
         self.backgroundColour = getColours()[CCPNGLWIDGET_HEXBACKGROUND]
         self._setExtraWidgets()
         self._selectCurrentCONotifier = Notifier(self.current, [Notifier.CURRENT], targetName='collections',
@@ -608,6 +614,19 @@ class _FittingPlot(pg.PlotItem):
         self.buttonsHidden = True
         self.autoBtn.hide()
         self.crossHair = CrossHair(plotWidget=self)
+
+        self._setStyle()
+
+    def _setStyle(self):
+        self._checkPalette()
+        QtWidgets.QApplication.instance()._sigPaletteChanged.connect(self._checkPalette)
+
+    def _checkPalette(self, *args):
+        self.penColour = rgbaRatioToHex(*getColours()[CCPNGLWIDGET_LABELLING])
+        self.backgroundColour = getColours()[CCPNGLWIDGET_HEXBACKGROUND]
+        self.gridPen = pg.functions.mkPen(self.penColour, width=1, style=QtCore.Qt.SolidLine)
+        self.getAxis('bottom').setPen(self.gridPen)
+        self.getAxis('left').setPen(self.gridPen)
 
     def clear(self):
         """

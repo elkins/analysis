@@ -4,18 +4,19 @@ Module Documentation here
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (http://www.ccpn.ac.uk) 2014 - 2020"
-__credits__ = ("Ed Brooksbank, Luca Mureddu, Timothy J Ragan & Geerten W Vuister")
-__licence__ = ("CCPN licence. See http://www.ccpn.ac.uk/v3-software/downloads/license")
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__credits__ = ("Ed Brooksbank, Joanna Fox, Morgan Hayward, Victoria A Higman, Luca Mureddu",
+               "Eliza Płoskoń, Timothy J Ragan, Brian O Smith, Gary S Thompson & Geerten W Vuister")
+__licence__ = ("CCPN licence. See https://ccpn.ac.uk/software/licensing/")
 __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, L.G., & Vuister, G.W.",
                  "CcpNmr AnalysisAssign: a flexible platform for integrated NMR analysis",
-                 "J.Biomol.Nmr (2016), 66, 111-124, http://doi.org/10.1007/s10858-016-0060-y")
+                 "J.Biomol.Nmr (2016), 66, 111-124, https://doi.org/10.1007/s10858-016-0060-y")
 #=========================================================================================
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2020-11-03 12:10:02 +0000 (Tue, November 03, 2020) $"
-__version__ = "$Revision: 3.0.1 $"
+__dateModified__ = "$dateModified: 2024-04-04 15:19:25 +0100 (Thu, April 04, 2024) $"
+__version__ = "$Revision: 3.2.5 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -33,35 +34,45 @@ from ccpn.ui.gui.widgets.DoubleSpinbox import ScientificDoubleSpinBox, DoubleSpi
 from ccpn.ui.gui.widgets.Spacer import Spacer
 
 
-OffsetX = 'X Offset: '
-OffsetY = 'Y Offset: '
+OffsetLabel = '{} Offset: '
 
 
 class Offset1DWidget(Frame):
     def __init__(self, parent=None, mainWindow=None, strip1D=None, **kwds):
         super().__init__(parent, setLayout=True, **kwds)
 
-        if mainWindow is None:  # This allows opening the popup for graphical tests
-            self.mainWindow = None
-            self.project = None
-        else:
+        if mainWindow:
             self.mainWindow = mainWindow
             self.project = self.mainWindow.project
             self.application = self.mainWindow.application
             self.current = self.application.current
+        else:
+            # allow opening the popup for testing
+            self.mainWindow = self.project = self.application = self.current = None
 
         self.offset = None
         self.strip1D = strip1D
 
-        ii = 0
-        self.labelOffset = Label(self, OffsetX, grid=(0, ii))
-        ii += 1
-        self.boxXOffset = DoubleSpinbox(self, step=0.001, grid=(0, ii), min=-10000, max=10000, decimals=3)
+        self._setWidgets()
 
-        ii += 1
-        self.labelOffset = Label(self, OffsetY, grid=(0, ii))
-        ii += 1
-        self.boxYOffset = ScientificDoubleSpinBox(self, step=0.1, grid=(0, ii), min=-1e100, max=1e100)
+    def _setWidgets(self):
+        """Set up the widget.
+        """
+        flip = self.strip1D.spectrumDisplay._flipped
+
+        ii = 0
+        self.boxOffsets = []
+        for axis in range(2):
+            ii += 1
+            lbl = OffsetLabel.format(self.strip1D.axisCodes[axis])
+            Label(self, lbl, grid=(0, ii))
+            ii += 1
+            if axis == flip:
+                self.boxOffsets.append(box := DoubleSpinbox(self, step=0.001, grid=(0, ii), min=-10000, max=10000, decimals=3))
+                box.setFixedWidth(100)
+            else:
+                self.boxOffsets.append(box := ScientificDoubleSpinBox(self, step=0.1, grid=(0, ii), min=-1e100, max=1e100))
+                box.setFixedWidth(150)
 
         ii += 1
         Spacer(self, 2, 2,
@@ -69,32 +80,39 @@ class Offset1DWidget(Frame):
                grid=(0, ii), gridSpan=(1, 1))
         self.setSizePolicy(QtWidgets.QSizePolicy.Ignored, QtWidgets.QSizePolicy.Minimum)
 
-        self.boxXOffset.setFixedWidth(100)
-        self.boxYOffset.setFixedWidth(150)
-
         if self.strip1D is not None:
-            self.boxXOffset.setValue(self.strip1D.offsetValue[0])
-            self.boxYOffset.setValue(self.strip1D.offsetValue[1])
+            for axis, bx in enumerate(self.boxOffsets):
+                bx.setValue(self.strip1D.offsetValue[axis])
 
-        self.boxXOffset.valueChanged.connect(self._applyOffset)
-        self.boxYOffset.valueChanged.connect(self._applyOffset)
+        for bx in self.boxOffsets:
+            bx.valueChanged.connect(self._applyOffset)
 
     def _applyOffset(self):
         if self.strip1D is not None:
-            self.strip1D._stack1DSpectra(offSet=(self.boxXOffset.value(), self.boxYOffset.value()))
+            self.strip1D._stack1DSpectra(offSet=[bx.value() for bx in self.boxOffsets])
 
     def value(self):
-        return (self.boxXOffset.value(), self.boxYOffset.value())
+        return tuple(bx.value() for bx in self.boxOffsets)
 
     def setValue(self, value):
-        self.boxXOffset.set(value[0])
-        self.boxYOffset.set(value[1])
+        for bx, val in zip(self.boxOffsets, value):
+            bx.set(val)
 
+    def setInitialIntensity(self, value):
+        """Set the initial value from the intensity.
+        """
+        if self.strip1D.spectrumDisplay._flipped:
+            self.setValue((value, 0.0))
+        else:
+            self.setValue((0.0, value))
 
-if __name__ == '__main__':
+#=========================================================================================
+# main
+#=========================================================================================
+
+def main():
     from ccpn.ui.gui.widgets.Application import TestApplication
     from ccpn.ui.gui.popups.Dialog import CcpnDialog
-
 
     app = TestApplication()
     popup = CcpnDialog()
@@ -104,3 +122,7 @@ if __name__ == '__main__':
     popup.raise_()
 
     app.start()
+
+
+if __name__ == '__main__':
+    main()

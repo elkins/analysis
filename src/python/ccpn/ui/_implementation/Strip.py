@@ -628,6 +628,10 @@ def _copyStrip(self: SpectrumDisplay, strip: Strip, newIndex=None) -> Strip:
 # del _copyStrip
 
 
+#=========================================================================================
+# DisplayedSpectrum
+#=========================================================================================
+
 class DisplayedSpectrum(object):
     """GWV; a class to hold SpectrumView and strip objects
     Used to map any data/axis/parameter actions in a SpectrumView dependent fashion
@@ -854,17 +858,22 @@ class DisplayedSpectrum(object):
         sliceTuples = [result[mapping[idx]] for idx in self.spectrumView.spectrum.dimensionIndices]
         return sliceTuples
 
-    def checkForRegionsOutsideLimits(self, regions) -> tuple:
+    @staticmethod
+    def checkForRegionsOutsideLimits(regions, strip, spectrumView) -> tuple:
         """check if regions are fully outside the aliasing limits of spectrum.
         :return a tuple of booleans in display order
         """
         result = []
-        for region, limits in zip(regions, self.spectrumView.aliasingLimits):
+        minL = strip._CcpnGLWidget._spectrumSettings[spectrumView].minAliasedFrequency
+        maxL = strip._CcpnGLWidget._spectrumSettings[spectrumView].maxAliasedFrequency
+
+        # for region, limits in zip(regions, self.spectrumView.aliasingLimits):
+        for region, minLimit, maxLimit in zip(regions, minL, maxL):
             # to not be dependent on order of low,high values in region or limits:
             minVal = min(region)
             maxVal = max(region)
-            minLimit = min(limits)
-            maxLimit = max(limits)
+            # minLimit = min(limits)
+            # maxLimit = max(limits)
             if maxVal < minLimit or minVal > maxLimit:
                 result.append(True)
             else:

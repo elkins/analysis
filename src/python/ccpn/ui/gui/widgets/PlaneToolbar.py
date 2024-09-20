@@ -3,16 +3,13 @@ This module defines a specific Toolbar class for the strip display
 The NmrResidueLabel allows drag and drop of the ids displayed in them
 
 """
-
-import contextlib
-
-
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2023"
-__credits__ = ("Ed Brooksbank, Joanna Fox, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
-               "Timothy J Ragan, Brian O Smith, Gary S Thompson & Geerten W Vuister")
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
+               "Timothy J Ragan, Brian O Smith, Daniel Thompson",
+               "Gary S Thompson & Geerten W Vuister")
 __licence__ = ("CCPN licence. See https://ccpn.ac.uk/software/licensing/")
 __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, L.G., & Vuister, G.W.",
                  "CcpNmr AnalysisAssign: a flexible platform for integrated NMR analysis",
@@ -21,8 +18,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2023-06-28 19:17:56 +0100 (Wed, June 28, 2023) $"
-__version__ = "$Revision: 3.2.0 $"
+__dateModified__ = "$dateModified: 2024-08-23 19:21:21 +0100 (Fri, August 23, 2024) $"
+__version__ = "$Revision: 3.2.5 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -32,6 +29,7 @@ __date__ = "$Date: 2017-04-07 10:28:41 +0000 (Fri, April 07, 2017) $"
 # Start of code
 #=========================================================================================
 
+import contextlib
 from functools import partial
 from PyQt5.QtCore import pyqtSlot
 # import json
@@ -42,7 +40,7 @@ from ccpn.ui.gui.widgets.Spinbox import Spinbox
 # from ccpn.ui.gui.widgets.ToolBar import ToolBar
 # from ccpn.ui.gui.widgets.Widget import Widget
 from ccpn.ui.gui.widgets.Frame import Frame, OpenGLOverlayFrame
-from ccpn.ui.gui.guiSettings import CCPNGLWIDGET_HEXHIGHLIGHT, CCPNGLWIDGET_HEXFOREGROUND, ZPlaneNavigationModes
+from ccpn.ui.gui.guiSettings import HIGHLIGHT, HEXFOREGROUND, ZPlaneNavigationModes
 # from ccpn.ui.gui.guiSettings import textFont, textFontLarge
 from ccpn.ui.gui.widgets.Font import getFontHeight
 from ccpn.ui.gui.widgets.DropBase import DropBase
@@ -643,9 +641,9 @@ class PlaneAxisWidget(_OpenGLFrameABC):
     def _setLabelBorder(self, value):
         for label in (self._axisLabel, self._axisPpmPosition, self._axisPlaneCount):
             if value:
-                self._setStyle(label, foregroundColour=CCPNGLWIDGET_HEXHIGHLIGHT)
+                self._setStyle(label, foregroundColour=HIGHLIGHT)
             else:
-                self._setStyle(label, foregroundColour=CCPNGLWIDGET_HEXFOREGROUND)
+                self._setStyle(label, foregroundColour=HEXFOREGROUND)
             label.highlighted = value
 
     def _hideAxisSelector(self):
@@ -1010,7 +1008,7 @@ STRIPFALSE = 0
 STRIPSTOREINDEX = [STRIPTEXT, STRIPOBJECT, STRIPCONNECT, STRIPVISIBLE, STRIPENABLED]
 STRIPHEADERVISIBLE = 'stripHeaderVisible'
 STRIPHANDLE = 'stripHandle'
-DEFAULTCOLOUR = CCPNGLWIDGET_HEXFOREGROUND
+DEFAULTCOLOUR = HEXFOREGROUND
 
 
 class StripHeaderWidget(_OpenGLFrameABC):

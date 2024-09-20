@@ -15,9 +15,9 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: Daniel Thompson $"
-__dateModified__ = "$dateModified: 2024-06-17 10:47:35 +0100 (Mon, June 17, 2024) $"
-__version__ = "$Revision: 3.2.3 $"
+__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
+__dateModified__ = "$dateModified: 2024-08-23 19:23:56 +0100 (Fri, August 23, 2024) $"
+__version__ = "$Revision: 3.2.5 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -77,7 +77,6 @@ from ccpn.ui.gui.popups.ViolationTablePopup import ViolationTablePopup
 from ccpn.ui.gui.popups.CollectionEditorPopup import CollectionEditorPopup
 from ccpn.core.lib.ContextManagers import notificationEchoBlocking, \
     undoBlockWithoutSideBar, undoStackBlocking
-from ccpn.ui.gui.guiSettings import getColours
 from ccpn.util.OrderedSet import OrderedSet
 from ccpn.util.Logging import getLogger
 from ccpn.framework.Application import getProject
@@ -88,6 +87,7 @@ _NEW_COLLECTION = 'New Collection'
 _ADD_TO_COLLECTION = 'Add to Collection'
 _REMOVE_FROM_COLLECTION = 'Remove from Collection'
 _ITEMS_COLLECTION = 'Items'
+_CLASH_COLOUR = QtGui.QColor('darkgoldenrod')
 
 
 class CreateNewObjectABC():
@@ -723,11 +723,6 @@ class OpenItemABC:
                 self._metrics.corner_radius = 1
                 self._metrics.pointer_height = 0
 
-                # set the background/fontSize for the tooltips
-                self.setStyleSheet('QToolTip {{ background-color: {TOOLTIP_BACKGROUND}; '
-                                   'color: {TOOLTIP_FOREGROUND}; '
-                                   'font-size: {_size}pt ; }}'.format(_size=self.font().pointSize(), **getColours()))
-
                 # add the widgets
                 _frame = Frame(self, setLayout=True, margins=(10, 10, 10, 10))
                 title = 'New Collection/Add to Existing'
@@ -765,9 +760,9 @@ class OpenItemABC:
             def _filterCollections(self, selectedObjs):
                 if not (project := getProject()):
                     return
-                color = QtGui.QColor('darkorange')
                 combo = self._pulldownWidget
-                for ind in range(len(self._pulldownWidget.texts)):
+                # accounts for any separators
+                for ind in range(self._pulldownWidget.count()):
                     itm = combo.model().item(ind)
                     if collection := project.getByPid('CO:' + itm.text()):
                         colSet, selSet = set(collection.items), set(selectedObjs)
@@ -775,7 +770,8 @@ class OpenItemABC:
                         itm.setEnabled(bool(diff))
                         if diff and diff != selSet:
                             # flag that some of the selection may already be in this collection
-                            itm.setForeground(color)
+                            itm.setData(_CLASH_COLOUR, QtCore.Qt.ForegroundRole)
+                combo.repaint()
 
             def _resetPulldown(self):
                 # release the block on the pulldown

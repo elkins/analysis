@@ -15,8 +15,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-05-17 13:15:08 +0100 (Fri, May 17, 2024) $"
-__version__ = "$Revision: 3.2.4 $"
+__dateModified__ = "$dateModified: 2024-05-17 13:37:45 +0100 (Fri, May 17, 2024) $"
+__version__ = "$Revision: 3.2.5 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -3180,8 +3180,9 @@ class ImportNefPopup(CcpnDialogMainWidget):
         self.setCancelButton(callback=self.reject, tipText='Cancel import')
         self.setDefaultButton(CcpnDialogMainWidget.CANCELBUTTON)
 
+    def _postInit(self):
         # initialise the buttons and dialog size
-        self._postInit()
+        super()._postInit()
 
         self._okButton = self.getButton(self.OKBUTTON)
         self._cancelButton = self.getButton(self.CANCELBUTTON)

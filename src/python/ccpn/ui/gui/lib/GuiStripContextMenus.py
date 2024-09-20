@@ -20,8 +20,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-06-26 14:29:04 +0100 (Wed, June 26, 2024) $"
-__version__ = "$Revision: 3.2.4 $"
+__dateModified__ = "$dateModified: 2024-08-29 11:21:26 +0100 (Thu, August 29, 2024) $"
+__version__ = "$Revision: 3.2.5 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -967,12 +967,17 @@ def _get1dDefaultMenu(guiStrip1d) -> Menu:
 
         _navigateToCursorPosMenuItem(guiStrip1d),
         _copyAxesMenuItem(guiStrip1d),
+        _flipAxesMenuItem(guiStrip1d),
         _separator(),
 
         _showEstimateNoisePopup(guiStrip1d),
         _showNoise(guiStrip1d),
-        _showPeakPickingThresholds(guiStrip1d),  #FIXME broken
+        _showPeakPickingThresholds(guiStrip1d),
         _makeStripPlot(guiStrip1d),
+        _separator(),
+
+        _arrangePeakLabelsItem(),
+        _resetLabelsItem(),
         _separator(),
 
         _selectedPeaksMenuItem(guiStrip1d),
@@ -1006,6 +1011,15 @@ def _get1dDefaultMenu(guiStrip1d) -> Menu:
     items = [itm for itm in items if itm is not None]
     # attach to the _copyAxesMenu submenu
     _addMenuItems(guiStrip1d, guiStrip1d._copyAxesMenu, items, overwrite=True)
+
+    # _flipAxesMenu submenu - add to Strip._flipAxesMenu
+    items = [
+        _newStripPlotItem(guiStrip1d),
+        _newStripPlotXYItem(guiStrip1d),
+        ]
+    items = [itm for itm in items if itm is not None]
+    # attach to the _flipAxesMenu submenu
+    _addMenuItems(guiStrip1d, guiStrip1d._flipAxesMenu, items, overwrite=True)
 
     # _selectedPeaksMenu submenu - add to Strip._selectedPeaksMenu
     items = _getNdPeakMenuItems(menuId='Main')
@@ -1155,6 +1169,10 @@ def _getNdDefaultMenu(guiStripNd) -> Menu:
 
         _showEstimateNoisePopup(guiStripNd),
         _makeStripPlot(guiStripNd),
+        _separator(),
+
+        _arrangePeakLabelsItem(),
+        _resetLabelsItem(),
         _separator(),
 
         _selectedPeaksMenuItem(guiStripNd),

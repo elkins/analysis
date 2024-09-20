@@ -16,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-08-30 12:57:01 +0100 (Fri, August 30, 2024) $"
-__version__ = "$Revision: 3.2.5 $"
+__dateModified__ = "$dateModified: 2024-09-16 15:51:34 +0100 (Mon, September 16, 2024) $"
+__version__ = "$Revision: 3.2.7 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -44,10 +44,12 @@ from ccpn.core.lib.Notifiers import Notifier
 from ccpn.ui.gui.lib._CoreMITableFrame import _CoreMITableWidgetABC
 from ccpn.ui.gui.lib._CoreTableFrame import _CoreTableFrameABC
 import ccpn.ui.gui.modules.PyMolUtil as pyMolUtil
-from ccpn.ui.gui.modules.lib.RestraintAITableCommon import _RestraintOptions, UNITS, \
-    HeaderIndex, HeaderMatch, HeaderObject, HeaderRestraint, HeaderAtoms, HeaderViolation, HeaderTarget, \
-    HeaderLowerLimit, HeaderUpperLimit, HeaderMin, HeaderMax, HeaderMean, HeaderStd, \
-    HeaderCount1, HeaderCount2, _OLDHEADERS, _VIOLATIONRESULT, ALL, PymolScriptName
+from ccpn.ui.gui.modules.lib.RestraintAITableCommon import (
+    _RestraintOptions, UNITS, HeaderIndex, HeaderMatch, HeaderObject, HeaderRestraint,
+    HeaderAtoms, HeaderViolation, HeaderTarget, HeaderLowerLimit, HeaderUpperLimit,
+    HeaderMin, HeaderMax, HeaderMean, HeaderStd,
+    HeaderCount1, HeaderCount2, _OLDHEADERS, _VIOLATIONRESULT, ALL, PymolScriptName,
+    _RestraintAITableFilter)
 from ccpn.ui.gui.widgets.Button import Button
 from ccpn.ui.gui.widgets.ButtonList import ButtonList
 from ccpn.ui.gui.widgets.Column import ColumnClass, Column
@@ -62,7 +64,6 @@ from ccpn.util.Common import flattenLists
 from ccpn.util.Logging import getLogger
 from ccpn.util.Path import joinPath
 from ccpn.util.OrderedSet import OrderedSet
-
 from ccpn.ui.gui.widgets.table._MITableModel import _MITableModel
 from ccpn.ui.gui.widgets.table._MITableDelegates import _ExpandVerticalCellDelegate
 
@@ -157,7 +158,9 @@ def _checkRestraintFloat(offset, value, row, col):
     """Display the contents of the cell if the restraint-pid is valid - float
     Assumes multi-index
     """
-    # if row[col - offset] not in [None, '', '-']:
+    # row is a pandas-series, with the column-headers as the index
+    # row.index[col][0] is the name of restraint in the top row of the table-header
+    #   e.g. ('run1_xplor', 'Mean') or ('run2_xplor', 'Mean')
     if row[(row.index[col][0], HeaderRestraint)] not in [None, '', '-']:
         try:
             return f'{value:.3f}' if (1e-6 < value < 1e6) or value == 0.0 else f'{value:.3e}'
@@ -171,7 +174,6 @@ def _checkRestraintInt(offset, value, row, col):
     """Display the contents of the cell if the restraint-pid is valid - int
     Assumes multi-index
     """
-    # if row[col - offset]:
     if row[(row.index[col][0], HeaderRestraint)] not in [None, '', '-']:
         return int(value)
 
@@ -278,6 +280,9 @@ class _NewRestraintTableWidget(_CoreMITableWidgetABC):
         for col in self.SPANCOLUMNS:
             # add delegates to show expand/collapse icon
             self.setItemDelegateForColumn(col, delegate)
+
+        # requires a special filter based in the table displayRole
+        self.searchMenu.setFilterKlass(_RestraintAITableFilter)
 
     #=========================================================================================
     # Properties
@@ -432,8 +437,6 @@ class _NewRestraintTableWidget(_CoreMITableWidgetABC):
     # Table context menu
     #=========================================================================================
 
-    # currently in _PeakTableOptions
-
     def addTableMenuOptions(self, menu):
         self.restraintMenu = _RestraintOptions(self, True)
         self._tableMenuOptions.append(self.restraintMenu)
@@ -532,17 +535,13 @@ class _NewRestraintTableWidget(_CoreMITableWidgetABC):
                     for ri in rc.restraintItems]
 
         rss = self.resources
-
         # get the target peakLists
         # pks = (self._table and self._table.peaks) or []  # ._sourcePeaks
-
         # pks = self.project.peaks
-
         # resLists = self._restraintTables  # all restraint-tables to be displayed
 
         # column-headers
         cSetLists = [cSet for cSet in rss.comparisonSets if not cSet.isEmpty]
-
         INDEXCOL = ('Row', 'Row')
         PEAKSERIALCOL = (HeaderMatch, HeaderMatch)
         OBJCOL = ('_object', '_object')
@@ -559,8 +558,9 @@ class _NewRestraintTableWidget(_CoreMITableWidgetABC):
 
         if cSetLists:
             # make references for quicker access later
-            allResLists = list(
-                    OrderedSet(rList for cSet in cSetLists for rList in cSet.getTreeTables(depth=1, selected=True)))
+            allResLists = list(OrderedSet(rList
+                                          for cSet in cSetLists
+                                          for rList in cSet.getTreeTables(depth=1, selected=True)))
             contribs = {res: _getContributions(res) for rList in allResLists for res in rList.restraints}
 
             # make a dict of peak.restraints as this is reverse generated by the api every call to peak.restraints
@@ -573,7 +573,6 @@ class _NewRestraintTableWidget(_CoreMITableWidgetABC):
                         pkRestraints.setdefault(pk.pid, set()).add(res)
 
             pks = sorted(pks)
-
             resLists = {cSet: cSet.getTreeTables(depth=1, selected=True)
                         for cSet in cSetLists}
             # get the maximum number of restraintItems from each restraint list
@@ -586,10 +585,8 @@ class _NewRestraintTableWidget(_CoreMITableWidgetABC):
 
             allPkSerials = pd.DataFrame([pk.pid for pk, count in zip(pks, maxCount) for _ in range(count)],
                                         columns=[PEAKSERIALCOL, ])
-
             index = pd.DataFrame(list(range(1, len(allPkSerials) + 1)),
                                  columns=[INDEXCOL, ])
-
             allPks = pd.DataFrame([(pk.pid, pk) for pk, count in zip(pks, maxCount) for _ in range(count)],
                                   columns=[PEAKSERIALCOL, OBJCOL])
 
@@ -598,12 +595,11 @@ class _NewRestraintTableWidget(_CoreMITableWidgetABC):
             dfs = {}
             dfsAll = {}
             for lCount, cSet in enumerate(cSetLists):
-                cSetName = cSet.comparisonSetName
                 resLists = cSet.getTreeTables(depth=1, selected=True)
-
                 if not resLists:
                     continue
 
+                cSetName = cSet.comparisonSetName
                 ll = [(None, None)] * sum(maxCount)
                 head = 0
                 for pk, cc, maxcc in zip(pks, counts[lCount], maxCount):
@@ -618,10 +614,6 @@ class _NewRestraintTableWidget(_CoreMITableWidgetABC):
                             for _atom in contribs[res]]
                     if _res:
                         ll[head:head + len(_res)] = _res
-
-                    # if len(_res) > maxcc:
-                    #     print('-->  exceeds maxcc error :|')
-
                     head += maxcc
 
                 COLS = [(cSetName, f'{HeaderRestraint}'),
@@ -630,15 +622,13 @@ class _NewRestraintTableWidget(_CoreMITableWidgetABC):
                         (cSetName, f'{HeaderLowerLimit}'),
                         (cSetName, f'{HeaderUpperLimit}'),
                         ]
-
+                _ll = pd.DataFrame(ll)
+                _ll.columns = COLS[:len(_ll.columns)]  # may not contain headerTarget, etc.
                 # put the serial and atoms into another table to be concatenated to the right, lCount = index in resLists
-                dd = pd.concat([allPkSerials,
-                                # pd.DataFrame(ll, columns=[f'{HeaderRestraint}_{lCount + 1}',
-                                #                           f'Atoms_{lCount + 1}'])], axis=1)
-                                pd.DataFrame(ll, columns=COLS)], axis=1)
+                dd = pd.concat([allPkSerials, _ll], axis=1)
                 dfsAll[cSetName] = dd.dropna(how='all', axis=1)
                 # just keeping the pid/Atoms
-                dfs[cSetName] = dd.drop(columns=COLS[2:])
+                dfs[cSetName] = dd.drop(columns=COLS[2:], errors='ignore')  # ignore missing columns
 
             # # get the dataSets that contain data with a matching 'result' name - should be violations
             # violationResults = {resList: viols.data.copy() if viols is not None else None
@@ -654,11 +644,9 @@ class _NewRestraintTableWidget(_CoreMITableWidgetABC):
                                 }
 
             if sum(len(viols) for viols in violationResults.values()):
-
                 # merge all the tables for each restraintTable
                 _out = [index, allPks]
                 zeroCols = []
-
                 # rename the columns to match the order in visible list
                 for ii, (cSetName, resViols) in enumerate(violationResults.items()):
                     for resViol in resViols:
@@ -672,7 +660,6 @@ class _NewRestraintTableWidget(_CoreMITableWidgetABC):
 
                 for ii, cSet in enumerate(cSetLists):
                     cSetName = cSet.comparisonSetName
-
                     # if not cSet.getTreeTables(depth=1, selected=True):
                     #     continue
 
@@ -682,11 +669,8 @@ class _NewRestraintTableWidget(_CoreMITableWidgetABC):
                     HEADERVIOLATION = (cSetName, HeaderViolation)
 
                     if violationResults.get(cSetName):
-
                         extraDefaultHiddenColumns.append(HEADERVIOLATION)
-
                         _left = dfs[cSetName]
-
                         try:
                             _vResults = []
                             for vTable in violationResults[cSetName]:
@@ -783,8 +767,9 @@ class _NewRestraintTableWidget(_CoreMITableWidgetABC):
                 # no results - just show the table
                 for ii, cSet in enumerate(cSetLists):
                     cSetName = cSet.comparisonSetName
-
-                    if not cSet.getTreeTables(depth=1, selected=True):
+                    if (not cSet.getTreeTables(depth=1, selected=True) or
+                            cSetName not in dfsAll or
+                            PEAKSERIALCOL not in dfsAll[cSetName].columns):
                         continue
 
                     HEADERSCOL = (cSetName, f'{HeaderRestraint}')
@@ -869,6 +854,7 @@ class _NewRestraintTableWidget(_CoreMITableWidgetABC):
         # update the visible columns
         self.headerColumnMenu.saveColumns([col for col in self._df.columns
                                            if isinstance(col, tuple) and col[1] in self.defaultHiddenSubgroup])
+        self.headerColumnMenu.refreshHiddenColumns()
         self.searchMenu.refreshFilter()
 
     # NOTE:ED - not done yet

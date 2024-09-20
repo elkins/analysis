@@ -27,6 +27,7 @@ __date__ = "$Date: 2017-04-18 15:19:30 +0100 (Tue, April 18, 2017) $"
 from PyQt5 import QtGui, QtWidgets, QtCore
 import contextlib
 from functools import partial
+
 from ccpn.ui.gui.widgets.Base import Base
 from ccpn.ui.gui.widgets.Button import Button
 from ccpn.ui.gui.widgets.ButtonList import ButtonList
@@ -48,7 +49,6 @@ from ccpn.ui.gui.widgets.CompoundView import CompoundView
 from ccpn.ui.gui.widgets.TextEditor import TextEditor
 from ccpn.ui.gui.widgets.Spacer import Spacer
 from ccpn.ui.gui.widgets.FileDialog import LineEditButtonDialog
-from ccpn.ui.gui.widgets.Font import getFontHeight
 from ccpn.util.Colour import spectrumColours, fillColourPulldown
 
 
@@ -95,9 +95,6 @@ class ListCompoundWidget(CompoundBaseWidget):
             bottom=[(2, 0), (0, 0), (1, 0)],
             horizontal=[(0, 0), (0, 1), (0, 2)],
             )
-
-    LIST_BORDER_WIDTH = 1
-    LIST_BORDER_COLOR = '#a9a9a9'
 
     def __init__(self, parent=None, showBorder=False, orientation='left',
                  minimumWidths=None, maximumWidths=None, fixedWidths=None,
@@ -146,10 +143,6 @@ class ListCompoundWidget(CompoundBaseWidget):
             for dft in defaults:
                 self.addPulldownItem(dft)
         self._addWidget(self.listWidget)
-
-        styleSheet = '.ListWidget {border: %ipx solid %s; border-radius: 3px}'
-        styleSheet %= (self.LIST_BORDER_WIDTH, self.LIST_BORDER_COLOR)
-        self.listWidget.setStyleSheet(styleSheet)
 
         if minimumWidths is not None:
             self.setMinimumWidths(minimumWidths)
@@ -459,10 +452,18 @@ class EntryCompoundWidget(CompoundBaseWidget):
     """
     layoutDict = dict(
             # grid positions for label and Entry for the different orientations
-            left=[(0, 0), (0, 1)],
-            right=[(0, 1), (0, 0)],
-            top=[(0, 0), (1, 0)],
-            bottom=[(1, 0), (0, 0)],
+            left=[(0, 0), (0, 1), (0, 2)],
+            right=[(0, 1), (0, 0), (0, 2)],
+            top=[(0, 0), (1, 0), (2, 0)],
+            bottom=[(1, 0), (0, 0), (2, 0)],
+            )
+    _layoutStretchDict = dict(
+            # list of (stretchType, row, col, stretchValue) for the different orientations
+            # makes the pulldownList stretch to stop flickering
+            left=[('col', None, 0, 0), ('col', None, 1, 1), ('col', None, 2, 100)],
+            right=[('col', None, 0, 0), ('col', None, 1, 1), ('col', None, 2, 100)],
+            top=[('row', 0, None, 0), ('row', 1, None, 1), ('row', 2, None, 100)],
+            bottom=[('row', 0, None, 0), ('row', 1, None, 1), ('row', 2, None, 100)],
             )
 
     def __init__(self, parent=None, mainWindow=None,
@@ -487,9 +488,8 @@ class EntryCompoundWidget(CompoundBaseWidget):
 
         CompoundBaseWidget.__init__(self, parent=parent, layoutDict=self.layoutDict, orientation=orientation,
                                     showBorder=showBorder, **kwds)
-
         compoundKwds = compoundKwds or {}
-        spacer = compoundKwds.get('addSpacer')
+        spacer = compoundKwds.get('addSpacer', False)
 
         self.label = Label(parent=self, text=labelText, vAlign='center')
         self._addWidget(self.label)
@@ -515,8 +515,23 @@ class EntryCompoundWidget(CompoundBaseWidget):
         #     self.Entry.setSizeAdjustPolicy(sizeAdjustPolicy)
 
         if spacer:
-            Spacer(self, getFontHeight() + 8, 5,
-                            QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed, grid=(0, 2))
+            _spacer = Spacer(self, 5, 5,
+                             QtWidgets.QSizePolicy.Expanding if orientation in ['left',
+                                                                                'right'] else QtWidgets.QSizePolicy.Fixed,
+                             QtWidgets.QSizePolicy.Expanding if orientation in ['top',
+                                                                                'bottom'] else QtWidgets.QSizePolicy.Fixed,
+                             grid=(0, 0))
+            # self._addWidget(_spacer)
+
+        _layout = self.getLayout()
+        # set the stretches for the rows/columns
+        _stretchs = self._layoutStretchDict.get(orientation)
+        sp = len(_stretchs) if spacer else -1
+        for _stretch, row, col, value in _stretchs[:sp]:
+            if _stretch == 'col':
+                _layout.setColumnStretch(col, value)
+            else:
+                _layout.setRowStretch(row, value)
 
     def getText(self):
         """Convenience: Return text of Entry"""
@@ -742,18 +757,18 @@ class PulldownListCompoundWidget(CompoundBaseWidget):
 
     layoutDict = dict(
             # grid positions for label and pulldown for the different orientations
-            left=[(0, 0), (0, 1)],
-            right=[(0, 1), (0, 0)],
-            top=[(0, 0), (1, 0)],
-            bottom=[(1, 0), (0, 0)],
+            left=[(0, 0), (0, 1), (0, 2)],
+            right=[(0, 1), (0, 0), (0, 2)],
+            top=[(0, 0), (1, 0), (2, 0)],
+            bottom=[(1, 0), (0, 0), (2, 0)],
             )
     _layoutStretchDict = dict(
             # list of (stretchType, row, col, stretchValue) for the different orientations
             # makes the pulldownList stretch to stop flickering
-            left=[(0, None, 0, 0), (0, None, 1, 1)],
-            right=[(0, None, 0, 1), (0, None, 1, 0)],
-            top=[(1, 0, None, 0), (1, 1, None, 1)],
-            bottom=[(1, 0, None, 1), (1, 1, None, 0)],
+            left=[('col', None, 0, 0), ('col', None, 1, 1), ('col', None, 2, 100)],
+            right=[('col', None, 0, 0), ('col', None, 1, 1), ('col', None, 2, 100)],
+            top=[('row', 0, None, 0), ('row', 1, None, 1), ('row', 2, None, 100)],
+            bottom=[('row', 0, None, 0), ('row', 1, None, 1), ('row', 2, None, 100)],
             )
 
     def __init__(self, parent=None, mainWindow=None,
@@ -779,6 +794,8 @@ class PulldownListCompoundWidget(CompoundBaseWidget):
 
         CompoundBaseWidget.__init__(self, parent=parent, layoutDict=self.layoutDict, orientation=orientation,
                                     showBorder=showBorder, **kwds)
+        compoundKwds = compoundKwds or {}
+        spacer = compoundKwds.get('addSpacer', False)
 
         self.label = Label(parent=self, vAlign='center')  #this attribute needs to be set.
         self._addWidget(self.label)
@@ -824,14 +841,21 @@ class PulldownListCompoundWidget(CompoundBaseWidget):
         if sizeAdjustPolicy is not None:
             self.pulldownList.setSizeAdjustPolicy(sizeAdjustPolicy)
 
-        # strange that the widgets seem to be behaving differently
+        if spacer:
+            _spacer = Spacer(self, 5, 5,
+                             QtWidgets.QSizePolicy.Expanding if orientation in ['left',
+                                                                                'right'] else QtWidgets.QSizePolicy.Fixed,
+                             QtWidgets.QSizePolicy.Expanding if orientation in ['top',
+                                                                                'bottom'] else QtWidgets.QSizePolicy.Fixed,
+                             grid=(0, 0))
+            # self._addWidget(_spacer)
+
         _layout = self.getLayout()
-        # _layout.setSizeConstraint(QtWidgets.QLayout.SetFixedSize)
-        # _layout.setAlignment(QtCore.Qt.AlignLeft | QtCore.Qt.AlignTop)
         # set the stretches for the rows/columns
         _stretchs = self._layoutStretchDict.get(orientation)
-        for _stretch, row, col, value in _stretchs:
-            if _stretch == 0:
+        sp = len(_stretchs) if spacer else -1
+        for _stretch, row, col, value in _stretchs[:sp]:
+            if _stretch == 'col':
                 _layout.setColumnStretch(col, value)
             else:
                 _layout.setRowStretch(row, value)
@@ -932,10 +956,18 @@ class CheckBoxCompoundWidget(CompoundBaseWidget):
     """
     layoutDict = dict(
             # grid positions for label and checkBox for the different orientations
-            left=[(0, 0), (0, 1)],
-            right=[(0, 1), (0, 0)],
-            top=[(0, 0), (1, 0)],
-            bottom=[(1, 0), (0, 0)],
+            left=[(0, 0), (0, 1), (0, 2)],
+            right=[(0, 1), (0, 0), (0, 2)],
+            top=[(0, 0), (1, 0), (2, 0)],
+            bottom=[(1, 0), (0, 0), (2, 0)],
+            )
+    _layoutStretchDict = dict(
+            # list of (stretchType, row, col, stretchValue) for the different orientations
+            # makes the pulldownList stretch to stop flickering
+            left=[('col', None, 0, 0), ('col', None, 1, 1), ('col', None, 2, 100)],
+            right=[('col', None, 0, 0), ('col', None, 1, 1), ('col', None, 2, 100)],
+            top=[('row', 0, None, 0), ('row', 1, None, 1), ('row', 2, None, 100)],
+            bottom=[('row', 0, None, 0), ('row', 1, None, 1), ('row', 2, None, 100)],
             )
 
     def __init__(self, parent=None, mainWindow=None,
@@ -960,6 +992,8 @@ class CheckBoxCompoundWidget(CompoundBaseWidget):
 
         CompoundBaseWidget.__init__(self, parent=parent, layoutDict=self.layoutDict, orientation=orientation,
                                     showBorder=showBorder, **kwds)
+        compoundKwds = compoundKwds or {}
+        spacer = compoundKwds.get('addSpacer', False)
 
         self.label = Label(parent=self, text=labelText, vAlign='center')
         self._addWidget(self.label)
@@ -985,6 +1019,24 @@ class CheckBoxCompoundWidget(CompoundBaseWidget):
 
         if fixedWidths is not None:
             self.setFixedWidths(fixedWidths)
+
+        if spacer:
+            _spacer = Spacer(self, 5, 5,
+                             QtWidgets.QSizePolicy.Expanding if orientation in ['left',
+                                                                                'right'] else QtWidgets.QSizePolicy.Fixed,
+                             QtWidgets.QSizePolicy.Expanding if orientation in ['top',
+                                                                                'bottom'] else QtWidgets.QSizePolicy.Fixed,
+                             grid=(0, 0))
+
+        _layout = self.getLayout()
+        # set the stretches for the rows/columns
+        _stretchs = self._layoutStretchDict.get(orientation)
+        sp = len(_stretchs) if spacer else -1
+        for _stretch, row, col, value in _stretchs[:sp]:
+            if _stretch == 'col':
+                _layout.setColumnStretch(col, value)
+            else:
+                _layout.setRowStretch(row, value)
 
     def isChecked(self):
         """Convenience: Return whether checkBox is checked"""
@@ -1287,8 +1339,8 @@ class ButtonListCompoundWidget(CompoundBaseWidget):
                  showBorder=False, orientation='left',
                  minimumWidths=None, maximumWidths=None, fixedWidths=None,
                  labelText='', texts='',
-                 callbacks=None, icons=None, 
-                 tipTexts=None, direction='h', 
+                 callbacks=None, icons=None,
+                 tipTexts=None, direction='h',
                  buttonAlignment='left',
                  buttonMinimumWidth=None,
                  compoundKwds=None,
@@ -1452,11 +1504,19 @@ class SpinBoxCompoundWidget(CompoundBaseWidget):
 
     """
     layoutDict = dict(
-            # grid positions for label and checkBox for the different orientations
-            left=[(0, 0), (0, 1)],
-            right=[(0, 1), (0, 0)],
-            top=[(0, 0), (1, 0)],
-            bottom=[(1, 0), (0, 0)],
+            # grid positions for label and spinBox for the different orientations
+            left=[(0, 0), (0, 1), (0, 2)],
+            right=[(0, 1), (0, 0), (0, 2)],
+            top=[(0, 0), (1, 0), (2, 0)],
+            bottom=[(1, 0), (0, 0), (2, 0)],
+            )
+    _layoutStretchDict = dict(
+            # list of (stretchType, row, col, stretchValue) for the different orientations
+            # makes the pulldownList stretch to stop flickering
+            left=[('col', None, 0, 0), ('col', None, 1, 1), ('col', None, 2, 100)],
+            right=[('col', None, 0, 0), ('col', None, 1, 1), ('col', None, 2, 100)],
+            top=[('row', 0, None, 0), ('row', 1, None, 1), ('row', 2, None, 100)],
+            bottom=[('row', 0, None, 0), ('row', 1, None, 1), ('row', 2, None, 100)],
             )
 
     def __init__(self, parent=None, mainWindow=None,
@@ -1483,6 +1543,8 @@ class SpinBoxCompoundWidget(CompoundBaseWidget):
 
         CompoundBaseWidget.__init__(self, parent=parent, layoutDict=self.layoutDict, orientation=orientation,
                                     showBorder=showBorder, **kwds)
+        compoundKwds = compoundKwds or {}
+        spacer = compoundKwds.get('addSpacer', False)
 
         self.label = Label(parent=self, text=labelText, vAlign='center')
         self._addWidget(self.label)
@@ -1510,6 +1572,25 @@ class SpinBoxCompoundWidget(CompoundBaseWidget):
 
         if fixedWidths is not None:
             self.setFixedWidths(fixedWidths)
+
+        if spacer:
+            _spacer = Spacer(self, 5, 5,
+                             QtWidgets.QSizePolicy.Expanding if orientation in ['left',
+                                                                                'right'] else QtWidgets.QSizePolicy.Fixed,
+                             QtWidgets.QSizePolicy.Expanding if orientation in ['top',
+                                                                                'bottom'] else QtWidgets.QSizePolicy.Fixed,
+                             grid=(0, 0))
+            # self._addWidget(_spacer)
+
+        _layout = self.getLayout()
+        # set the stretches for the rows/columns
+        _stretchs = self._layoutStretchDict.get(orientation)
+        sp = len(_stretchs) if spacer else -1
+        for _stretch, row, col, value in _stretchs[:sp]:
+            if _stretch == 'col':
+                _layout.setColumnStretch(col, value)
+            else:
+                _layout.setRowStretch(row, value)
 
     def getValue(self) -> float:
         """get the value from the SpinBox"""
@@ -1665,10 +1746,18 @@ class ScientificSpinBoxCompoundWidget(CompoundBaseWidget):
     """
     layoutDict = dict(
             # grid positions for label and checkBox for the different orientations
-            left=[(0, 0), (0, 1)],
-            right=[(0, 1), (0, 0)],
-            top=[(0, 0), (1, 0)],
-            bottom=[(1, 0), (0, 0)],
+            left=[(0, 0), (0, 1), (0, 2)],
+            right=[(0, 1), (0, 0), (0, 2)],
+            top=[(0, 0), (1, 0), (2, 0)],
+            bottom=[(1, 0), (0, 0), (2, 0)],
+            )
+    _layoutStretchDict = dict(
+            # list of (stretchType, row, col, stretchValue) for the different orientations
+            # makes the pulldownList stretch to stop flickering
+            left=[('col', None, 0, 0), ('col', None, 1, 1), ('col', None, 2, 100)],
+            right=[('col', None, 0, 0), ('col', None, 1, 1), ('col', None, 2, 100)],
+            top=[('row', 0, None, 0), ('row', 1, None, 1), ('row', 2, None, 100)],
+            bottom=[('row', 0, None, 0), ('row', 1, None, 1), ('row', 2, None, 100)],
             )
 
     def __init__(self, parent=None, mainWindow=None,
@@ -1696,6 +1785,8 @@ class ScientificSpinBoxCompoundWidget(CompoundBaseWidget):
 
         CompoundBaseWidget.__init__(self, parent=parent, layoutDict=self.layoutDict, orientation=orientation,
                                     showBorder=showBorder, **kwds)
+        compoundKwds = compoundKwds or {}
+        spacer = compoundKwds.get('addSpacer', False)
 
         self.label = Label(parent=self, text=labelText, vAlign='center')
         self._addWidget(self.label)
@@ -1722,6 +1813,25 @@ class ScientificSpinBoxCompoundWidget(CompoundBaseWidget):
 
         if fixedWidths is not None:
             self.setFixedWidths(fixedWidths)
+
+        if spacer:
+            _spacer = Spacer(self, 5, 5,
+                             QtWidgets.QSizePolicy.Expanding if orientation in ['left',
+                                                                                'right'] else QtWidgets.QSizePolicy.Fixed,
+                             QtWidgets.QSizePolicy.Expanding if orientation in ['top',
+                                                                                'bottom'] else QtWidgets.QSizePolicy.Fixed,
+                             grid=(0, 0))
+            # self._addWidget(_spacer)
+
+        _layout = self.getLayout()
+        # set the stretches for the rows/columns
+        _stretchs = self._layoutStretchDict.get(orientation)
+        sp = len(_stretchs) if spacer else -1
+        for _stretch, row, col, value in _stretchs[:sp]:
+            if _stretch == 'col':
+                _layout.setColumnStretch(col, value)
+            else:
+                _layout.setRowStretch(row, value)
 
     def getValue(self) -> float:
         """get the value from the scientificSpinBox"""
@@ -1919,11 +2029,19 @@ class RadioButtonsCompoundWidget(CompoundBaseWidget):
 
     """
     layoutDict = dict(
-            # grid positions for label and checkBox for the different orientations
-            left=[(0, 0), (0, 1)],
-            right=[(0, 1), (0, 0)],
-            top=[(0, 0), (1, 0)],
-            bottom=[(1, 0), (0, 0)],
+            # grid positions for label and radio-button-box for the different orientations
+            left=[(0, 0), (0, 1), (0, 2)],
+            right=[(0, 1), (0, 0), (0, 2)],
+            top=[(0, 0), (1, 0), (2, 0)],
+            bottom=[(1, 0), (0, 0), (2, 0)],
+            )
+    _layoutStretchDict = dict(
+            # list of (stretchType, row, col, stretchValue) for the different orientations
+            # makes the pulldownList stretch to stop flickering
+            left=[('col', None, 0, 0), ('col', None, 1, 1), ('col', None, 2, 100)],
+            right=[('col', None, 0, 0), ('col', None, 1, 1), ('col', None, 2, 100)],
+            top=[('row', 0, None, 0), ('row', 1, None, 1), ('row', 2, None, 100)],
+            bottom=[('row', 0, None, 0), ('row', 1, None, 1), ('row', 2, None, 100)],
             )
 
     def __init__(self, parent=None, mainWindow=None,
@@ -1951,6 +2069,8 @@ class RadioButtonsCompoundWidget(CompoundBaseWidget):
 
         CompoundBaseWidget.__init__(self, parent=parent, layoutDict=self.layoutDict, orientation=orientation,
                                     showBorder=showBorder, **kwds)
+        compoundKwds = compoundKwds or {}
+        spacer = compoundKwds.get('addSpacer', False)
 
         self.label = Label(parent=self, text=labelText, vAlign='center')
         self._addWidget(self.label)
@@ -1974,6 +2094,25 @@ class RadioButtonsCompoundWidget(CompoundBaseWidget):
 
         if selectedText is not None:
             self.setByText(selectedText, silent=True)
+
+        if spacer:
+            _spacer = Spacer(self, 5, 5,
+                             QtWidgets.QSizePolicy.Expanding if orientation in ['left',
+                                                                                'right'] else QtWidgets.QSizePolicy.Fixed,
+                             QtWidgets.QSizePolicy.Expanding if orientation in ['top',
+                                                                                'bottom'] else QtWidgets.QSizePolicy.Fixed,
+                             grid=(0, 0))
+            # self._addWidget(_spacer)
+
+        _layout = self.getLayout()
+        # set the stretches for the rows/columns
+        _stretchs = self._layoutStretchDict.get(orientation)
+        sp = len(_stretchs) if spacer else -1
+        for _stretch, row, col, value in _stretchs[:sp]:
+            if _stretch == 'col':
+                _layout.setColumnStretch(col, value)
+            else:
+                _layout.setRowStretch(row, value)
 
     # def get(self):
     #     """Convenience: get the radioButtons text
@@ -2047,11 +2186,26 @@ class CompoundViewCompoundWidget(CompoundBaseWidget):
 
     """
     layoutDict = dict(
-            # grid positions for label and checkBox for the different orientations
-            left=[(0, 0), (0, 1)],
-            right=[(0, 1), (0, 0)],
-            top=[(0, 0), (1, 0)],
-            bottom=[(1, 0), (0, 0)],
+            # grid positions for label and compoundView for the different orientations
+            left=[(0, 0), (0, 1), (0, 1), (0, 3)],
+            right=[(0, 1), (0, 0), (0, 1), (0, 3)],
+            top=[(0, 0), (1, 0), (1, 0), (3, 0)],
+            bottom=[(1, 0), (0, 0), (1, 0), (3, 0)],
+            )
+    _layoutStretchDict = dict(
+            # list of (stretchType, row, col, stretchValue) for the different orientations
+            # makes the pulldownList stretch to stop flickering
+            left=[('col', None, 0, 0), ('col', None, 1, 1), ('col', None, 2, 100)],
+            right=[('col', None, 0, 0), ('col', None, 1, 1), ('col', None, 2, 100)],
+            top=[('row', 0, None, 0), ('row', 1, None, 1), ('row', 2, None, 100)],
+            bottom=[('row', 0, None, 0), ('row', 1, None, 1), ('row', 2, None, 100)],
+            )
+    spanningDict = dict(
+            # grid-spans for label and compoundView for the different orientations
+            left=[(1, 1), (2, 2), (1, 1), (1, 1)],
+            right=[(2, 2), (1, 1), (1, 1), (1, 1)],
+            top=[(1, 1), (2, 2), (1, 1), (1, 1)],
+            bottom=[(2, 2), (1, 1), (1, 1), (1, 1)],
             )
 
     def __init__(self, parent=None, mainWindow=None,
@@ -2072,6 +2226,8 @@ class CompoundViewCompoundWidget(CompoundBaseWidget):
         """
         CompoundBaseWidget.__init__(self, parent=parent, layoutDict=self.layoutDict, orientation=orientation,
                                     showBorder=showBorder, **kwds)
+        compoundKwds = compoundKwds or {}
+        spacer = compoundKwds.get('addSpacer', False)
 
         self.label = Label(parent=self, text=labelText, vAlign='center')
         self._addWidget(self.label)
@@ -2082,7 +2238,7 @@ class CompoundViewCompoundWidget(CompoundBaseWidget):
                     }
         viewKwds.update(compoundKwds or {})
         self.compoundView = CompoundView(parent=self, **viewKwds)
-        self.compoundView.resize(200, 250)
+        # self.compoundView.resize(200, 250)
         self._initSize = None
 
         self._addWidget(self.compoundView)
@@ -2097,23 +2253,50 @@ class CompoundViewCompoundWidget(CompoundBaseWidget):
         if fixedWidths is not None:
             self.setFixedWidths(fixedWidths)
 
-    def minimumSizeHint(self) -> QtCore.QSize:
-        return QtCore.QSize(200, 250)
+        if spacer:
+            _spacer = Spacer(self, 5, 5,
+                             QtWidgets.QSizePolicy.Expanding if orientation in ['left',
+                                                                                'right'] else QtWidgets.QSizePolicy.Fixed,
+                             QtWidgets.QSizePolicy.Expanding if orientation in ['top',
+                                                                                'bottom'] else QtWidgets.QSizePolicy.Fixed,
+                             grid=(0, 0))
+            self._addWidget(_spacer)
 
-    def resizeEvent(self, a0: QtGui.QResizeEvent) -> None:
-        super().resizeEvent(a0)
-        if self._initSize is None:
-            view = self.compoundView
-            view.updateAll()
-            view.scene.setSceneRect(view.scene.itemsBoundingRect())
-            view.resetView()
-            view.zoomLevel = 1.0
-            self._initSize = True
+        _layout = self.getLayout()
+        # set the stretches for the rows/columns
+        _stretchs = self._layoutStretchDict.get(orientation)
+        sp = len(_stretchs) if spacer else -1
+        for _stretch, row, col, value in _stretchs[:sp]:
+            if _stretch == 'col':
+                _layout.setColumnStretch(col, value)
+            else:
+                _layout.setRowStretch(row, value)
 
+        # self.compoundView.setMaximumSize(3000, 3000)
+        # self.compoundView.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
+
+    # def minimumSizeHint(self) -> QtCore.QSize:
+    #     return QtCore.QSize(200, 200)
+
+    # def resizeEvent(self, a0: QtGui.QResizeEvent) -> None:
+    #     super().resizeEvent(a0)
+    #     if self._initSize is None:
+    #         view = self.compoundView
+    #         view.updateAll()
+    #         # view.scene().setSceneRect(view.scene().itemsBoundingRect())
+    #         view.resetView()
+    #         view.zoomLevel = 1.0
+    #         self._initSize = True
+
+
+#=========================================================================================
+# main
+#=========================================================================================
 
 def main():
+    # required import
+    import ccpn.core
     from ccpn.ui.gui.widgets.Application import TestApplication
-    from ccpn.ui.gui.widgets.BasePopup import BasePopup
     from ccpn.ui.gui.popups.Dialog import CcpnDialog
 
     app = TestApplication()
@@ -2186,9 +2369,11 @@ def main():
     entry = EntryCompoundWidget(parent=popup, labelText="Entry widget", default='test', callback=callback1,
                                 grid=(row, 0))
 
-    popup.show()
-    popup.raise_()
-    app.start()
+    row += 1
+    cView = CompoundViewCompoundWidget(parent=popup, grid=(row, 0), gridSpan=(1, 2),
+                                       smiles='CNC(=O)c1nccc2cccn12')
+
+    popup.exec_()
 
 
 if __name__ == '__main__':

@@ -4,25 +4,24 @@ Module Documentation here
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (http://www.ccpn.ac.uk) 2014 - 2020"
-__credits__ = ("Ed Brooksbank, Luca Mureddu, Timothy J Ragan & Geerten W Vuister")
-__licence__ = ("CCPN licence. See http://www.ccpn.ac.uk/v3-software/downloads/license")
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__credits__ = ("Ed Brooksbank, Joanna Fox, Morgan Hayward, Victoria A Higman, Luca Mureddu",
+               "Eliza Płoskoń, Timothy J Ragan, Brian O Smith, Gary S Thompson & Geerten W Vuister")
+__licence__ = ("CCPN licence. See https://ccpn.ac.uk/software/licensing/")
 __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, L.G., & Vuister, G.W.",
                  "CcpNmr AnalysisAssign: a flexible platform for integrated NMR analysis",
-                 "J.Biomol.Nmr (2016), 66, 111-124, http://doi.org/10.1007/s10858-016-0060-y")
+                 "J.Biomol.Nmr (2016), 66, 111-124, https://doi.org/10.1007/s10858-016-0060-y")
 #=========================================================================================
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2020-12-15 16:10:53 +0000 (Tue, December 15, 2020) $"
-__version__ = "$Revision: 3.0.1 $"
+__dateModified__ = "$dateModified: 2024-01-19 14:47:20 +0000 (Fri, January 19, 2024) $"
+__version__ = "$Revision: 3.2.1 $"
 #=========================================================================================
 # Created
 #=========================================================================================
 __author__ = "$Author: Ed Brooksbank $"
 __date__ = "$Date: 2018-12-20 13:28:13 +0000 (Thu, December 20, 2018) $"
-
-
 #=========================================================================================
 # Start of code
 #=========================================================================================
@@ -125,7 +124,7 @@ pass
 #
 # don't need the above bit
 # if self._testSpectrum.renderMode == GLRENDERMODE_DRAW:
-#   GL.glUseProgram(self.globalGL._shaderProgram2.program_id)
+#   GL.glUseProgram(self._shaderProgram2.program_id)
 #
 #   # must be called after glUseProgram
 #   # GL.glUniformMatrix4fv(self.uPMatrix, 1, GL.GL_FALSE, self._uPMatrix)
@@ -151,8 +150,8 @@ pass
 #                            0.0, 0.0, 1.0, 0.0,
 #                            0.0, 0.0, 0.0, 1.0]
 #
-#   self.globalGL._shaderProgram2.setPMatrix(self._uPMatrix)
-#   self.globalGL._shaderProgram2.setMVMatrix(self._uMVMatrix)
+#   self._shaderProgram2.setPMatrix(self._uPMatrix)
+#   self._shaderProgram2.setMVMatrix(self._uMVMatrix)
 #
 #   self.set2DProjectionFlat()
 #   self._testSpectrum.drawIndexArray()
@@ -220,18 +219,18 @@ pass
 #     #version 120
 #
 #     uniform mat4 mvTexMatrix;
-#     uniform mat4 pTexMatrix;
+#     uniform mat4 pMatrix;
 #     uniform vec4 axisScale;
 #     uniform vec4 viewport;
 #     varying vec4 FC;
 #     varying vec4 FO;
-#     varying vec2 _texCoord;
+#     varying vec2 texCoord;
 #     attribute vec2 offset;
 #
 #     void main()
 #     {
 #       // viewport is scaled to axis
-#     //      vec4 pos = pTexMatrix * (gl_Vertex * axisScale + vec4(offset, 0.0, 0.0));
+#     //      vec4 pos = pMatrix * (gl_Vertex * axisScale + vec4(offset, 0.0, 0.0));
 #                                // character_pos        // world_coord
 #
 #       // centre on the nearest pixel in NDC - shouldn't be needed but textures not correct yet
@@ -239,11 +238,11 @@ pass
 #                                //pos.y,        //floor(0.5 + viewport.y*pos.y) / viewport.y,
 #                                //pos.zw );
 #
-#       gl_Position = pTexMatrix * ((gl_Vertex * axisScale) + vec4(offset, 0.0, 0.0));
+#       gl_Position = pMatrix * ((gl_Vertex * axisScale) + vec4(offset, 0.0, 0.0));
 #
-#     //      gl_Position = (pTexMatrix * vec4(offset, 0.0, 0.0)) + ((pTexMatrix * gl_Vertex) * axisScale);
+#     //      gl_Position = (pMatrix * vec4(offset, 0.0, 0.0)) + ((pMatrix * gl_Vertex) * axisScale);
 #
-#       _texCoord = gl_MultiTexCoord0.st;
+#       texCoord = gl_MultiTexCoord0.st;
 #       FC = gl_Color;
 #     }
 #     """
@@ -257,11 +256,11 @@ pass
 #     uniform vec4 background;
 #     uniform int  blendEnabled;
 #     varying vec4 FO;
-#     varying vec2 _texCoord;
+#     varying vec2 texCoord;
 #
 #     void main()
 #     {
-#       texFilter = texture2D(texture, _texCoord);
+#       texFilter = texture2D(texture, texCoord);
 #       // colour for blending enabled
 #       if (blendEnabled != 0)
 #         // multiply the character fade by the color fade to give the actual transparency
@@ -286,11 +285,11 @@ pass
 #     uniform vec4 background;
 #     uniform uint blendEnabled;
 #     varying vec4 FO;
-#     varying vec4 _texCoord;
+#     varying vec4 texCoord;
 #
 #     void main()
 #     {
-#       texFilter = texture2D(texture, _texCoord.xy);
+#       texFilter = texture2D(texture, texCoord.xy);
 #       gl_FragColor = vec4((FC.xyz * texFilter.w) + (1 - texFilter.w) * background.xyz, 1.0);
 #     }
 #     """

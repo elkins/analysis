@@ -8,9 +8,10 @@ widget.getLayout().addWidget(row, col, [rowspan, [colspan])
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2023"
-__credits__ = ("Ed Brooksbank, Joanna Fox, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
-               "Timothy J Ragan, Brian O Smith, Gary S Thompson & Geerten W Vuister")
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
+               "Timothy J Ragan, Brian O Smith, Daniel Thompson",
+               "Gary S Thompson & Geerten W Vuister")
 __licence__ = ("CCPN licence. See https://ccpn.ac.uk/software/licensing/")
 __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, L.G., & Vuister, G.W.",
                  "CcpNmr AnalysisAssign: a flexible platform for integrated NMR analysis",
@@ -18,9 +19,9 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2023-06-30 14:03:32 +0100 (Fri, June 30, 2023) $"
-__version__ = "$Revision: 3.2.0 $"
+__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
+__dateModified__ = "$dateModified: 2024-09-06 11:32:59 +0100 (Fri, September 06, 2024) $"
+__version__ = "$Revision: 3.2.6 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -33,7 +34,7 @@ __date__ = "$Date: 2017-04-07 10:28:41 +0000 (Fri, April 07, 2017) $"
 from dataclasses import dataclass
 from functools import partial
 from contextlib import contextmanager
-from PyQt5 import QtWidgets, QtCore
+from PyQt5 import QtWidgets, QtCore, QtGui
 from pyqtgraph.dockarea import Dock
 from ccpn.ui.gui.widgets.DropBase import DropBase
 from ccpn.util.Logging import getLogger
@@ -68,6 +69,7 @@ POLICY_DICT = {
     'preferred'       : QtWidgets.QSizePolicy.Preferred,
     'expanding'       : QtWidgets.QSizePolicy.Expanding,
     'minimumExpanding': QtWidgets.QSizePolicy.MinimumExpanding,
+    'minimumexpanding': QtWidgets.QSizePolicy.MinimumExpanding,
     'ignored'         : QtWidgets.QSizePolicy.Ignored,
     }
 
@@ -86,6 +88,10 @@ class _WidgetState:
     widgetUpdatesEnabled = None
     signalBlockers = None
 
+
+#=========================================================================================
+# SignalBlocking
+#=========================================================================================
 
 class SignalBlocking():
     """
@@ -229,7 +235,16 @@ class SignalBlocking():
                 widget.setMinimumSize(hint)
 
 
+#=========================================================================================
+# Base
+#=========================================================================================
+
 class Base(DropBase, SignalBlocking):
+
+    _highlight = None
+    _highlightMid = None
+    _transparent = None
+    _basePalette = None
 
     # Base._init(**kwds) should be called from every widget
     # We don't use __init__ as it messes up the super() methods resolution and the
@@ -314,12 +329,12 @@ class Base(DropBase, SignalBlocking):
             if bgColor:
                 self.setAutoFillBackground(True)
                 #rgb = QtGui.QColor(bgColor).getRgb()[:3]
-                self.setStyleSheet("background-color: rgb(%d, %d, %d);" % bgColor)
+                # self.setStyleSheet("background-color: rgb(%d, %d, %d);" % bgColor)
 
             if fgColor:
                 self.setAutoFillBackground(True)
                 #rgb = QtGui.QColor(fgColor).getRgb()[:3]
-                self.setStyleSheet("foreground-color: rgb(%d, %d, %d);" % fgColor)
+                # self.setStyleSheet("foreground-color: rgb(%d, %d, %d);" % fgColor)
 
             if setLayout:
                 self.setGridLayout(margins=margins, spacing=spacing)
@@ -504,3 +519,12 @@ class Base(DropBase, SignalBlocking):
         else:
             self.setDisabled(True)
             # self.setStyleSheet("background:#E8E8E8")  # some light gr
+
+    @classmethod
+    def setHighlightPalette(cls, palette: QtGui.QPalette):
+        """Set the highlight colours for border overlays based on the palette.
+        """
+        highlight = palette.highlight().color()
+        # store the colours in the baseclass
+        cls._highlight = highlight
+        cls._basePalette = palette

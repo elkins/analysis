@@ -5,8 +5,9 @@ Module Documentation here
 # Licence, Reference and Credits
 #=========================================================================================
 __copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
-__credits__ = ("Ed Brooksbank, Joanna Fox, Morgan Hayward, Victoria A Higman, Luca Mureddu",
-               "Eliza Płoskoń, Timothy J Ragan, Brian O Smith, Gary S Thompson & Geerten W Vuister")
+__credits__ = ("Ed Brooksbank, Morgan Hayward, Morgan Hayward, Victoria A Higman, Luca Mureddu",
+               "Eliza Płoskoń, Timothy J Ragan, Brian O Smith, Daniel Thompson",
+               "Gary S Thompson & Geerten W Vuister")
 __licence__ = ("CCPN licence. See https://ccpn.ac.uk/software/licensing/")
 __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, L.G., & Vuister, G.W.",
                  "CcpNmr AnalysisAssign: a flexible platform for integrated NMR analysis",
@@ -93,7 +94,8 @@ class FileDialogABC(QtWidgets.QFileDialog):
     """
     Class to implement open/save dialogs
     """
-    _initialPaths = {}
+    _initialPaths = {}  # for saving last opened directory
+    _lastPreferencePaths = {}  # for checking if prefs have changed
     _fileMode = 'anyFile'
     _text = None
     _updatePathOnReject = True
@@ -159,8 +161,16 @@ class FileDialogABC(QtWidgets.QFileDialog):
             # set the current working path if this is the first time the dialog has been opened
             if self._clsID not in self._initialPaths:
                 self._initialPaths[self._clsID] = _path
+                self._lastPreferencePaths[self._clsID] = _path
+
             directory = self._initialPaths[self._clsID]
             self._setDirectory = False
+
+            if self._lastPreferencePaths[self._clsID] != _path:
+                self._initialPaths[self._clsID] = _path
+                self._lastPreferencePaths[self._clsID] = _path
+                directory = self._initialPaths[self._clsID]
+
         else:
             directory = directory
             # not sure why I put this flag in
@@ -449,7 +459,7 @@ class PreferencesFileDialog(FileDialogABC):
 
 
 class SpectrumFileDialog(FileDialogABC):
-    _initialPath = USERDATAPATH
+    # _initialPath = USERDATAPATH
     _text = '{} Spectra'
     _fileMode = 'existingFiles'
     _multiSelect = True

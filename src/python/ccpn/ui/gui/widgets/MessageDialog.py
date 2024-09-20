@@ -16,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-06-06 21:20:49 +0100 (Thu, June 06, 2024) $"
-__version__ = "$Revision: 3.2.4 $"
+__dateModified__ = "$dateModified: 2024-08-23 19:21:20 +0100 (Fri, August 23, 2024) $"
+__version__ = "$Revision: 3.2.5 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -215,9 +215,9 @@ class MessageDialog(QtWidgets.QMessageBox):
         innerLayout = QtWidgets.QHBoxLayout()
         _frame.setLayout(innerLayout)
         # set the background/fontSize for the tooltips, fraction slower but don't need to import the colour-names
-        _frame.setStyleSheet('QToolTip {{ background-color: {TOOLTIP_BACKGROUND}; '
-                             'color: {TOOLTIP_FOREGROUND}; '
-                             'font-size: {_size}pt ; }}'.format(_size=_frame.font().pointSize(), **getColours()))
+        # _frame.setStyleSheet('QToolTip {{ background-color: {TOOLTIP_BACKGROUND}; '
+        #                      'color: {TOOLTIP_FOREGROUND}; '
+        #                      'font-size: {_size}pt ; }}'.format(_size=_frame.font().pointSize(), **getColours()))
 
         _msg = 'This popup can be enabled again from preferences->appearance'
         self._dontShowCheckBox = CheckBox(_frame, text=_DONTSHOWMESSAGE)
@@ -234,6 +234,29 @@ class MessageDialog(QtWidgets.QMessageBox):
 
         _spacer = QtWidgets.QSpacerItem(0, max(1, hs), QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed)
         layout.addItem(_spacer, layout.rowCount(), 0, 1, layout.columnCount())
+
+        self._setStyle()
+
+    def _setStyle(self):
+        _style = """QPushButton {
+                    padding: 2px 5px 2px 5px;
+                }
+                QPushButton:focus {
+                    padding: 0px;
+                    border-color: palette(highlight);
+                    border-style: solid;
+                    border-width: 1px;
+                    border-radius: 2px;
+                }
+                QPushButton:disabled {
+                    color: palette(dark);
+                    background-color: palette(midlight);
+                }
+                """
+        self.setStyleSheet(_style)
+        # check the other buttons in the dialog
+        for button in self.buttons():
+            button.setStyleSheet(_style)
 
     def event(self, event):
         """

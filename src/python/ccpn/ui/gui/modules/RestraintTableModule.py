@@ -4,9 +4,10 @@ Module Documentation here
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2023"
-__credits__ = ("Ed Brooksbank, Joanna Fox, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
-               "Timothy J Ragan, Brian O Smith, Gary S Thompson & Geerten W Vuister")
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
+               "Timothy J Ragan, Brian O Smith, Daniel Thompson",
+               "Gary S Thompson & Geerten W Vuister")
 __licence__ = ("CCPN licence. See https://ccpn.ac.uk/software/licensing/")
 __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, L.G., & Vuister, G.W.",
                  "CcpNmr AnalysisAssign: a flexible platform for integrated NMR analysis",
@@ -15,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2023-02-17 15:39:18 +0000 (Fri, February 17, 2023) $"
-__version__ = "$Revision: 3.1.1 $"
+__dateModified__ = "$dateModified: 2024-09-13 20:32:53 +0100 (Fri, September 13, 2024) $"
+__version__ = "$Revision: 3.2.7 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -26,52 +27,61 @@ __date__ = "$Date: 2017-04-07 10:28:41 +0000 (Fri, April 07, 2017) $"
 # Start of code
 #=========================================================================================
 
-from PyQt5 import QtWidgets
+from collections import OrderedDict
 
 from ccpn.core.lib.Notifiers import Notifier
 from ccpn.core.RestraintTable import RestraintTable
 from ccpn.core.Restraint import Restraint
-from ccpn.core.lib.CallBack import CallBack
-from ccpn.ui.gui.modules.CcpnModule import CcpnModule
-from ccpn.ui.gui.widgets.Spacer import Spacer
-from ccpn.ui.gui.widgets.GuiTable import GuiTable
+from ccpn.ui.gui.modules.CcpnModule import CcpnTableModule
 from ccpn.ui.gui.widgets.Column import ColumnClass
 from ccpn.ui.gui.widgets.PulldownListsForObjects import RestraintTablePulldown
-from ccpn.ui.gui.widgets.SettingsWidgets import StripPlot
+from ccpn.ui.gui.widgets.SettingsWidgets import SpectrumDisplaySelectionWidget
 from ccpn.ui.gui.widgets.Icon import Icon
 from ccpn.ui.gui.widgets.Button import Button
 from ccpn.ui.gui.widgets import MessageDialog
+from ccpn.ui.gui.widgets.SettingsWidgets import ModuleSettingsWidget
+from ccpn.ui.gui.widgets.table._TableAdditions import TableMenuABC
+
 import ccpn.ui.gui.modules.PyMolUtil as pyMolUtil
-from ccpn.ui.gui.lib.alignWidgets import alignWidgets
+from ccpn.ui.gui.lib._CoreTableFrame import _CoreTableWidgetABC, _CoreTableFrameABC
+
+from ccpn.util.Common import makeIterableList
 from ccpn.util.Path import fetchDir, joinPath
 from ccpn.util.Logging import getLogger
 
 
 logger = getLogger()
 ALL = '<all>'
+LINKTOPULLDOWNCLASS = 'linkToPulldownClass'
 PymolScriptName = 'Restraint_Pymol_Template.py'
+_DISPLAYS = 'Displays'
+_MARKPOSITIONS = 'markPositions'
+_AUTOCLEARMARKS = 'autoClearMarks'
 
 
-class RestraintTableModule(CcpnModule):
+#=========================================================================================
+# CORRECT TABLE
+#=========================================================================================
+
+class RestraintTableModule(CcpnTableModule):
+    """Class implements the module by wrapping a restaintTable instance.
     """
-    This class implements the module by wrapping a restaintsTable instance
-    """
+    className = 'RestraintTableModule'
     includeSettingsWidget = True
     maxSettingsState = 2  # states are defined as: 0: invisible, 1: both visible, 2: only settings visible
     settingsPosition = 'left'
 
-    includePeakLists = False
+    includeRestraintTables = False
     includeNmrChains = False
     includeSpectrumTable = False
 
-    className = 'RestraintTableModule'
+    activePulldownClass = RestraintTable
     _allowRename = True
 
     # we are subclassing this Module, hence some more arguments to the init
     def __init__(self, mainWindow=None, name=f'{RestraintTable.className}',
                  restraintTable=None, selectFirstItem=True):
-        """
-        Initialise the Module widgets
+        """Initialise the Module widgets.
         """
         super().__init__(mainWindow=mainWindow, name=name)
 
@@ -84,347 +94,372 @@ class RestraintTableModule(CcpnModule):
             self.scriptsPath = self.application.scriptsPath
             self.pymolScriptsPath = fetchDir(self.scriptsPath, 'pymol')
         else:
-            self.application = None
-            self.project = None
-            self.current = None
+            self.application = self.project = self.current = None
 
-        # settings
-        self._RTwidget = StripPlot(parent=self.settingsWidget, mainWindow=self.mainWindow,
-                                   includePeakLists=self.includePeakLists,
-                                   includeNmrChains=self.includeNmrChains,
-                                   includeSpectrumTable=self.includeSpectrumTable,
-                                   includeSequentialStrips=False,
-                                   grid=(0, 0))
-        alignWidgets(self._RTwidget)
+        # set the widgets and callbacks
+        self._setWidgets(self.settingsWidget, self.mainWidget, restraintTable, selectFirstItem)
+        self._setCallbacks()
 
-        # main window
-        self.restraintTable = GuiRestraintTable(parent=self.mainWidget,
-                                                mainWindow=self.mainWindow,
-                                                moduleParent=self,
-                                                setLayout=True,
-                                                grid=(0, 0))
-
-        if restraintTable is not None:
-            self.selectRestraintTable(restraintTable)
-        elif selectFirstItem:
-            self.restraintTable.rtWidget.selectFirstItem()
-
-        # install the event filter to handle maximising from floated dock
-        self.installMaximiseEventHandler(self._maximise, self._closeModule)
-
-    def _maximise(self):
+    def _setWidgets(self, settingsWidget, mainWidget, restraintTable, selectFirstItem):
+        """Set up the widgets for the module
         """
-        Maximise the attached table
-        """
-        self.restraintTable._maximise()
+        # add the settings widgets defined from the following orderedDict
+        # need to make this more accessible
+        settingsDict = OrderedDict(((_DISPLAYS, {'label'   : '',
+                                                 'tipText' : '',
+                                                 'callBack': None,  #self.restraintTablePulldown,
+                                                 'enabled' : True,
+                                                 '_init'   : None,
+                                                 'type'    : SpectrumDisplaySelectionWidget,
+                                                 'kwds'    : {'texts'      : [],
+                                                              'displayText': [],
+                                                              'defaults'   : [],
+                                                              'objectName' : 'SpectrumDisplaysSelection'},
+                                                 #objectName is used to save to layout
+                                                 }),
+                                    (_MARKPOSITIONS, {'label'   : 'Mark positions',
+                                                      'tipText' : 'Mark positions in all strips.',
+                                                      'callBack': None,
+                                                      'enabled' : True,
+                                                      'checked' : True,
+                                                      '_init'   : None,
+                                                      }),
+                                    (_AUTOCLEARMARKS, {'label'   : 'Auto clear marks',
+                                                       'tipText' : 'Auto clear all previous marks',
+                                                       'callBack': None,
+                                                       'enabled' : True,
+                                                       'checked' : True,
+                                                       '_init'   : None,
+                                                       }),
+                                    ))
+        if self.activePulldownClass:
+            settingsDict.update(
+                    OrderedDict(
+                            ((LINKTOPULLDOWNCLASS, {'label'   : f'Link to current {self.activePulldownClass.className}',
+                                                    'tipText' : f'Set/update current {self.activePulldownClass.className} when selecting from pulldown',
+                                                    'callBack': None,
+                                                    'enabled' : True,
+                                                    'checked' : False,
+                                                    '_init'   : None,
+                                                    }),
+                             )))
+        settings = self._settings = ModuleSettingsWidget(parent=settingsWidget, mainWindow=self.mainWindow,
+                                                         settingsDict=settingsDict,
+                                                         grid=(0, 0))
 
-    def selectRestraintTable(self, restraintTable=None):
+        # add the frame containing the pulldown and table
+        self._mainFrame = _RestraintTableFrame(parent=mainWidget,
+                                               mainWindow=self.mainWindow,
+                                               moduleParent=self,
+                                               restraintTable=restraintTable, selectFirstItem=selectFirstItem,
+                                               grid=(0, 0))
+
+        # get the widgets from the settings
+        self._displaysWidget = settings.getWidget(_DISPLAYS)
+        self._markPositions = settings.getWidget(_MARKPOSITIONS)
+        self._autoClearMarks = settings.getWidget(_AUTOCLEARMARKS)
+
+    @property
+    def tableFrame(self):
+        """Return the table-frame.
         """
-        Manually select a restraintTable from the pullDown
+        return self._mainFrame
+
+    @property
+    def _tableWidget(self):
+        """Return the table widget in the table-frame.
         """
-        self.restraintTable._selectRestraintTable(restraintTable)
+        return self._mainFrame._tableWidget
+
+    def _setCallbacks(self):
+        """Set the active callbacks for the module.
+        """
+        if self.activePulldownClass:
+            self._setCurrentPulldown = Notifier(self.current,
+                                                [Notifier.CURRENT],
+                                                targetName=self.activePulldownClass._pluralLinkName,
+                                                callback=self._mainFrame._selectCurrentPulldownClass)
+
+            # set the active callback from the pulldown
+            self._mainFrame.setActivePulldownClass(coreClass=self.activePulldownClass,
+                                                   checkBox=self._settings.checkBoxes[LINKTOPULLDOWNCLASS]['widget'])
+
+        # set the dropped callback through mainWidget
+        self.mainWidget._dropEventCallback = self._mainFrame._processDroppedItems
+
+    def selectTable(self, table):
+        """Select the object in the table.
+        """
+        self._mainFrame.selectTable(table)
+
+    def selectPeaks(self, peaks):
+        """Select the peaks in the table.
+        """
+        pids = self.project.getPidsByObjects(peaks)
+        self._mainFrame.guiTable.selectRowsByValues(pids, 'Pid')
 
     def _closeModule(self):
+        """CCPN-INTERNAL: used to close the module.
         """
-        CCPN-INTERNAL: used to close the module
-        """
-        if self._RTwidget:
-            self._RTwidget._cleanupWidget()
-        if self.restraintTable:
-            self.restraintTable._close()
+        if self.activePulldownClass:
+            if self._setCurrentPulldown:
+                self._setCurrentPulldown.unRegister()
+            if self._settings:
+                self._settings._cleanupWidget()
+        if self.tableFrame:
+            self.tableFrame._cleanupWidget()
+
         super()._closeModule()
 
+    def _getLastSeenWidgetsState(self):
+        """Internal. Used to restore last closed module in the same program instance.
+        """
+        widgetsState = self.widgetsState
+        try:
+            # Don't restore the pulldown selection from last seen.
+            pulldownSaveName = self.tableFrame._modulePulldown.pulldownList.objectName()
+            widgetsState.pop(f'__{pulldownSaveName}', None)
+        except Exception as err:
+            getLogger().debug2(f'Could not remove the pulldown state from PeakTable module. {err}')
+        return widgetsState
 
-class GuiRestraintTable(GuiTable):
+
+#=========================================================================================
+# Restraint table menu
+#=========================================================================================
+
+
+class _RestraintTableOptions(TableMenuABC):
+    """Class to handle restraint-table options from a right-mouse menu.
+    Not required at this time.
     """
-    Class to present a RestraintTable pulldown list, wrapped in a Widget
+
+    def addMenuOptions(self, menu):
+        """Add options to the right-mouse menu
+        """
+        ...
+
+    def setMenuOptions(self, menu):
+        """Update options in the right-mouse menu
+        """
+        ...
+
+    #=========================================================================================
+    # Properties
+    #=========================================================================================
+
+    ...
+
+    #=========================================================================================
+    # Class methods
+    #=========================================================================================
+
+    ...
+
+    #=========================================================================================
+    # Implementation
+    #=========================================================================================
+
+    ...
+
+
+#=========================================================================================
+# _NewRestraintTableWidget
+#=========================================================================================
+
+class _NewRestraintTableWidget(_CoreTableWidgetABC):
+    """Class to present a restraintTable Table
     """
-    className = 'RestraintTable'
+    className = '_NewRestraintTableWidget'
     attributeName = 'restraintTables'
 
-    OBJECT = 'object'
-    TABLE = 'table'
+    defaultHidden = ['Pid']
+    _internalColumns = ['isDeleted', '_object']
 
-    def __init__(self, parent=None, mainWindow=None, moduleParent=None, restraintTable=None, **kwds):
+    # define self._columns here
+    columnHeaders = {'#'           : '#',
+                     'Pid'         : 'Pid',
+                     '_object'     : '_object',
+                     'Atoms'       : 'Atoms',
+                     'Target Value': 'Target Value',
+                     'Upper Limit' : 'Upper Limit',
+                     'Lower Limit' : 'Lower Limit',
+                     'Error'       : 'Error',
+                     'Peaks'       : 'Peaks',
+                     'Comment'     : 'Comment',
+                     }
+
+    tipTexts = ('Restraint Id',
+                'Pid of the Restraint',
+                'Object',
+                'Atoms defining the restraint',
+                'Target value for the restraint',
+                'Upper limit for the restraint',
+                'Lower limit for the restraint',
+                'Error on the restraint',
+                'Number of peaks used to derive the restraint',
+                'Optional user comment'
+                )
+
+    # define the notifiers that are required for the specific table-type
+    tableClass = RestraintTable
+    rowClass = Restraint
+    cellClass = None
+    tableName = tableClass.className
+    rowName = rowClass.className
+    cellClassNames = None
+    selectCurrent = True
+    callBackClass = Restraint
+    search = False
+
+    # set the queue handling parameters
+    _maximumQueueLength = 25
+
+    #=========================================================================================
+    # Properties
+    #=========================================================================================
+
+    @property
+    def _sourceObjects(self):
+        """Get/set the list of source objects
         """
-        Initialise the widgets for the module.
+        return (self._table and self._table.restraints) or []
+
+    @_sourceObjects.setter
+    def _sourceObjects(self, value):
+        # shouldn't need this
+        self._table.restraints = value
+
+    @property
+    def _sourceCurrent(self):
+        """Get/set the associated list of current objects
         """
-        # Derive application, project, and current from mainWindow
-        self.mainWindow = mainWindow
-        if mainWindow:
-            self.application = mainWindow.application
-            self.project = mainWindow.application.project
-            self.current = mainWindow.application.current
+        return self.current.restraints
+
+    @_sourceCurrent.setter
+    def _sourceCurrent(self, value):
+        if value:
+            self.current.restraints = value
         else:
-            self.application = None
-            self.project = None
-            self.current = None
+            self.current.clearRestraints()
 
-        # Initialise the scroll widget and common settings
-        self._initTableCommonWidgets(parent, **kwds)
+    #=========================================================================================
+    # Widget callbacks
+    #=========================================================================================
 
-        # GuiRestraintTable.project = self.project  # why? ancient...
-
-        kwds['setLayout'] = True  ## Assure we have a layout with the widget
-        self.restraintTable = None
-
-        # create the column objects
-        self.RLcolumns = ColumnClass([('#', '_key', 'Restraint Id', None, None),
-                                      ('Pid', lambda restraint: restraint.pid, 'Pid of integral', None, None),
-                                      ('_object', lambda restraint: restraint, 'Object', None, None),
-                                      ('Atoms', lambda restraint: GuiRestraintTable._getContributions(restraint),
-                                       'Atoms involved in the restraint', None, None),
-                                      ('Target Value', 'targetValue', 'Target value for the restraint', None, None),
-                                      ('Upper Limit', 'upperLimit', 'Upper limit for the restraint', None, None),
-                                      ('Lower Limit', 'lowerLimit', 'Lower limit or the restraint', None, None),
-                                      ('Error', 'error', 'Error on the restraint', None, None),
-                                      ('Peaks', lambda restraint: '%3d ' % GuiRestraintTable._getRestraintPeakCount(restraint),
-                                       'Number of peaks used to derive this restraint', None, None),
-                                      # ('Peak count', lambda chemicalShift: '%3d ' % self._getShiftPeakCount(chemicalShift), None, None)
-                                      ('Comment', lambda restraint: GuiRestraintTable._getCommentText(restraint), 'Notes',
-                                       lambda restraint, value: GuiRestraintTable._setComment(restraint, value), None)
-                                      ])  # [Column(colName, func, tipText=tipText, setEditValue=editValue, format=columnFormat)
-
-        row = 0
-        self.spacer = Spacer(self._widget, 5, 5,
-                             QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed,
-                             grid=(row, 0), gridSpan=(1, 1))
-
-        row += 1
-        gridHPos = 0
-        self.rtWidget = RestraintTablePulldown(parent=self._widget,
-                                               mainWindow=self.mainWindow, default=None,
-                                               grid=(row, gridHPos), minimumWidths=(0, 100),
-                                               showSelectName=True,
-                                               sizeAdjustPolicy=QtWidgets.QComboBox.AdjustToContents,
-                                               callback=self._selectionPulldownCallback)
-        gridHPos += 1
-        self.showOnViewerButton = Button(self._widget, tipText='Show on Molecular Viewer',
-                                         icon=Icon('icons/showStructure'),
-                                         callback=self._showOnMolecularViewer,
-                                         grid=(row, gridHPos), hAlign='l')
-        row += 1
-        gridHPos += 1
-        self.spacer = Spacer(self._widget, 5, 5,
-                             QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Fixed,
-                             grid=(row, gridHPos), gridSpan=(1, 2))
-        self._widget.getLayout().setColumnStretch(gridHPos, 2)
-
-        # initialise the currently attached dataFrame
-        self._hiddenColumns = ['Pid']
-        self.dataFrameObject = None
-
-        # initialise the table
-        super().__init__(parent=parent,
-                         mainWindow=self.mainWindow,
-                         dataFrameObject=None,
-                         setLayout=True,
-                         autoResize=True,
-                         selectionCallback=self._selectionCallback,
-                         multiSelect=True,
-                         actionCallback=self._actionCallback,
-                         grid=(3, 0), gridSpan=(1, 6))
-        self.moduleParent = moduleParent
-
-        ## populate the table if there are restraintTables in the project
-        if restraintTable is not None:
-            self._selectRestraintTable(restraintTable)
-
-        self.setTableNotifiers(tableClass=GuiRestraintTable,
-                               rowClass=Restraint,
-                               cellClassNames=None,
-                               tableName='restraintTable', rowName='restraint',
-                               changeFunc=self.displayTableForRestraint,
-                               className=self.attributeName,
-                               updateFunc=self._update,
-                               tableSelection='restraintTable',
-                               pullDownWidget=self.RLcolumns,
-                               callBackClass=Restraint,
-                               selectCurrentCallBack=self._selectOnTableCurrentRestraintNotifierCallback,
-                               moduleParent=moduleParent)
-
-        # Initialise the notifier for processing dropped items
-        self._postInitTableCommonWidgets()
-
-    def _getPullDownSelection(self):
-        return self.rtWidget.getText()
-
-    def _selectPullDown(self, value):
-        self.rtWidget.select(value)
-
-    def _processDroppedItems(self, data):
+    def actionCallback(self, selection, lastItem):
+        """Notifier DoubleClick action on item in table
         """
-        CallBack for Drop events
-        """
-        pids = data.get('pids', [])
-        self._handleDroppedItems(pids, RestraintTable, self.rtWidget)
-
-    def addWidgetToTop(self, widget, col=2, colSpan=1):
-        """
-        Convenience to add a widget to the top of the table; col >= 2
-        """
-        if col < 2:
-            raise RuntimeError('Col has to be >= 2')
-        self._widget.getLayout().addWidget(widget, 0, col, 1, colSpan)
-
-    def _selectRestraintTable(self, restraintTable=None):
-        """
-        Manually select a restraintTable from the pullDown
-        """
-        if restraintTable is None:
-            # logger.debug('select: No RestraintTable selected')
-            # raise ValueError('select: No RestraintTable selected')
-            self.rtWidget.selectFirstItem()
-        else:
-            if not isinstance(restraintTable, RestraintTable):
-                getLogger().warning(f'select: Object {restraintTable} is not of type RestraintTable')
-                return
-            else:
-                for widgetObj in self.rtWidget.textList:
-                    if restraintTable.pid == widgetObj:
-                        self.restraintTable = restraintTable
-                        self.rtWidget.select(self.restraintTable.pid)
-
-    def displayTableForRestraint(self, restraintTable):
-        """
-        Display the table for all Restraints"
-        """
-        self.rtWidget.select(restraintTable.pid)
-        self._update(restraintTable)
-
-    def _close(self):
-        """Clean-up notifiers on closing
-        """
-        if self.rtWidget:
-            self.rtWidget.unRegister()
-        super(GuiRestraintTable, self)._close()
-
-    def _selectOnTableCurrentRestraintNotifierCallback(self, data):
-        """
-        callback from a notifier to select the current Restraints
-        :param data:
-        """
-        currentRestraints = data['value']
-        self._selectOnTableCurrentRestraints(currentRestraints)
-
-    def _selectOnTableCurrentRestraints(self, currentRestraints):
-        """
-        highlight  current Restraints on the opened table
-        """
-        self.highlightObjects(currentRestraints)
-
-    def _showOnMolecularViewer(self):
-
-        restraintTable = self.rtWidget.getSelectedObject()
-        restraints = self.getSelectedObjects() or []
-
-        if restraintTable is not None:
-            pymolScriptPath = joinPath(self.moduleParent.pymolScriptsPath, PymolScriptName)
-            pdbPath = restraintTable.structureData.moleculeFilePath
-            if pdbPath is None:
-                MessageDialog.showWarning('No Molecule File found', 'Add a molecule file path to the StructureData from SideBar.')
-                return
-            pymolScriptPath = pyMolUtil._restraintsSelection2PyMolFile(pymolScriptPath, pdbPath, restraints)
-            pyMolUtil.runPymolWithScript(self.application, pymolScriptPath)
-
-        if not restraintTable:
-            MessageDialog.showWarning('Nothing to show', 'Select a RestraintTable first')
-
-    def _updateCallback(self, data):
-        """
-        Notifier callback for updating the table
-        """
-        thisRestraintTable = getattr(data[Notifier.THEOBJECT], self.attributeName)  # get the restraintTable
-        if self.restraintTable in thisRestraintTable:
-            self.displayTableForRestraint(self.restraintTable)
-        else:
-            self.clear()
-
-    def _maximise(self):
-        """
-        Redraw the table on a maximise event
-        """
-        if self.restraintTable:
-            self.displayTableForRestraint(self.restraintTable)
-        else:
-            self.clear()
-
-    def _update(self, restraintTable):
-        """
-        Update the table
-        """
-        self.populateTable(rowObjects=restraintTable.restraints,
-                           columnDefs=self.RLcolumns
-                           )
-        self._highLightObjs(self.current.restraints)
-
-    def _selectionCallback(self, data, *args):
-        """
-        Notifier Callback for selecting a row in the table
-        """
-        restraints = self.getSelectedObjects()
-        self.current.restraints = restraints or []
-        RestraintTableModule.currentCallback = {'object': self.restraintTable, 'table': self}
-
-    def _actionCallback(self, data, *args):
-        """
-        Notifier DoubleClick action on item in table
-        """
-        objs = data[CallBack.OBJECT]
-        if not objs:
-            return
-        restraint = objs[0] if isinstance(objs, (tuple, list)) else objs
-
-        from ccpn.ui.gui.widgets.MessageDialog import showWarning
         from ccpn.core.lib.ContextManagers import undoBlockWithoutSideBar
         from ccpn.ui.gui.lib.StripLib import _getCurrentZoomRatio, navigateToPositionInStrip
 
-        if restraint and restraint.peaks:
-            self.current.peaks = restraint.peaks
-            pk = restraint.peaks[0]
-            displays = self.moduleParent._RTwidget.displaysWidget.getDisplays()
-            autoClear = self.moduleParent._RTwidget.autoClearMarksWidget.isChecked()
-            markPositions = self.moduleParent._RTwidget.markPositionsWidget.isChecked()
+        try:
+            if not (objs := list(lastItem[self._OBJECT])):
+                return
+        except Exception as es:
+            getLogger().debug2(f'{self.__class__.__name__}.actionCallback: No selection\n{es}')
+            return
+        restraint = objs[0] if isinstance(objs, (tuple, list)) else objs
 
-            with undoBlockWithoutSideBar():
-                # optionally clear the marks
-                if autoClear:
-                    self.mainWindow.clearMarks()
+        self.current.peaks = restraint.peaks
+        pk = restraint.peaks[0]
+        displays = self.moduleParent._displaysWidget.getDisplays()
+        autoClear = self.moduleParent._autoClearMarks.isChecked()
+        markPositions = self.moduleParent._markPositions.isChecked()
 
-                # navigate the displays
-                for display in displays:
-                    if display and len(display.strips) > 0 and display.strips[0].spectrumViews:
-                        widths = None
-                        if pk.peakList.spectrum.dimensionCount <= 2:
-                            widths = _getCurrentZoomRatio(display.strips[0].viewRange())
-                        navigateToPositionInStrip(strip=display.strips[0],
-                                                  positions=pk.position,
-                                                  axisCodes=pk.axisCodes,
-                                                  widths=widths)
-                        if markPositions:
-                            display.strips[0]._markSelectedPeaks()
+        with undoBlockWithoutSideBar():
+            # optionally clear the marks
+            if autoClear:
+                self.mainWindow.clearMarks()
+            # navigate the displays
+            for display in displays:
+                if display and len(display.strips) > 0 and display.strips[0].spectrumViews:
+                    widths = None
+                    if pk.spectrum.dimensionCount <= 2:
+                        widths = _getCurrentZoomRatio(display.strips[0].viewRange())
+                    navigateToPositionInStrip(strip=display.strips[0],
+                                              positions=pk.position,
+                                              axisCodes=pk.axisCodes,
+                                              widths=widths)
+                    if markPositions:
+                        display.strips[0]._markSelectedPeaks()
 
-    def _selectionPulldownCallback(self, item):
-        """
-        Notifier Callback for selecting restraint from the pull down menu
-        """
-        self.restraintTable = self.project.getByPid(item)
-        logger.debug('>selectionPulldownCallback>', item, type(item), self.restraintTable)
-        if self.restraintTable is not None:
-            # self.thisDataSet = self._getAttachedDataSet(item)
-            self.displayTableForRestraint(self.restraintTable)
-        else:
-            self.clearTable()
+    #=========================================================================================
+    # Create table and row methods
+    #=========================================================================================
 
-    def navigateToRestraintInDisplay(restraint, display, stripIndex=0, widths=None,
-                                     showSequentialStructures=False, markPositions=True):
+    def getCellToRows(self, cellItem, attribute=None):
+        """Get the list of objects which cellItem maps to for this table
+        To be subclassed as required
         """
-        Notifier Callback for selecting Object from item in the table
+        # this is a step towards making guiTableABC and subclass for each table
+        # return makeIterableList(getattr(cellItem, attribute, [])), Notifier.CHANGE
+
+        return makeIterableList(cellItem._oldAssignedRestraints) if cellItem.isDeleted \
+            else makeIterableList(cellItem.assignedRestraints), \
+            Notifier.CHANGE
+
+    def _updateTableCallback(self, data):
+        """Respond to table notifier.
         """
-        logger.debug('display=%r, nmrResidue=%r, showSequentialResidues=%s, markPositions=%s' %
-                     (display.id, restraint.id, showSequentialStructures, markPositions)
-                     )
-        return None
+        obj = data[Notifier.OBJECT]
+        if obj != self._table:
+            # discard the wrong object
+            return
+
+        self._update()
+
+    #=========================================================================================
+    # Table context menu
+    #=========================================================================================
+
+    # currently in _RestraintTableOptions
+
+    ...
+
+    #=========================================================================================
+    # Table functions
+    #=========================================================================================
+
+    def _getTableColumns(self, restraintTable=None):
+        """Add default columns plus the ones according to restraintTable.spectrum dimension
+        format of column = ( Header Name, value, tipText, editOption)
+        editOption allows the user to modify the value content by doubleclick
+        """
+        # create the column objects
+        columnDefs = [('#', '_key', 'Restraint Id', None, None),
+                      ('Pid', lambda restraint: restraint.pid, 'Pid of integral', None, None),
+                      ('_object', lambda restraint: restraint, 'Object', None, None),
+                      ('Atoms', lambda restraint: self._getContributions(restraint),
+                       'Atoms involved in the restraint', None, None),
+                      ('Target Value', 'targetValue', 'Target value for the restraint', None, None),
+                      ('Upper Limit', 'upperLimit', 'Upper limit for the restraint', None, None),
+                      ('Lower Limit', 'lowerLimit', 'Lower limit or the restraint', None, None),
+                      ('Error', 'error', 'Error on the restraint', None, None),
+                      ('Peaks', lambda restraint: '%3d ' % self._getRestraintPeakCount(restraint),
+                       'Number of peaks used to derive this restraint', None, None),
+                      ('Comment', lambda restraint: self._getCommentText(restraint), 'Notes',
+                       lambda restraint, value: self._setComment(restraint, value), None)
+                      ]  # [Column(colName, func, tipText=tipText, setEditValue=editValue, format=columnFormat)
+        colDefs = ColumnClass(columnDefs)
+
+        return colDefs
+
+    #=========================================================================================
+    # Updates
+    #=========================================================================================
+
+    ...
+
+    #=========================================================================================
+    # Widgets callbacks
+    #=========================================================================================
+
+    ...
+
+    #=========================================================================================
+    # object properties
+    #=========================================================================================
 
     @staticmethod
     def _getContributions(restraint):
@@ -432,7 +467,7 @@ class GuiRestraintTable(GuiTable):
         CCPN-INTERNAL:  Get the first pair of atoms Ids from the first restraintContribution of a restraint.
         Empty str if not atoms.
         """
-        atomPair = GuiRestraintTable.getFirstRestraintAtomsPair(restraint)
+        atomPair = _NewRestraintTableWidget.getFirstRestraintAtomsPair(restraint)
         if atomPair and None not in atomPair:
             return ' - '.join([a.id for a in atomPair])
         else:
@@ -452,13 +487,102 @@ class GuiRestraintTable(GuiTable):
     @staticmethod
     def _getRestraintPeakCount(restraint):
         """
-        CCPN-INTERNAL: Return number of peaks assigned to NmrAtom in Experiments and PeakLists
+        CCPN-INTERNAL: Return number of peaks assigned to NmrAtom in Experiments and RestraintTables
         using ChemicalShiftList
         """
         return len(peaks) if (peaks := restraint.peaks) else 0
 
-    def _callback(self):
+
+#=========================================================================================
+# RestraintTableFrame
+#=========================================================================================
+
+class _RestraintTableFrame(_CoreTableFrameABC):
+    """Frame containing the pulldown, the table-widget
+    and any extra buttons in the frame header.
+    """
+    _TableKlass = _NewRestraintTableWidget
+    _PulldownKlass = RestraintTablePulldown
+
+    def __init__(self, parent, mainWindow=None, moduleParent=None,
+                 restraintTable=None, selectFirstItem=False, **kwds):
+        super().__init__(parent, mainWindow=mainWindow, moduleParent=moduleParent,
+                         obj=restraintTable, selectFirstItem=selectFirstItem, **kwds)
+
+        # create widget for the pyMol viewer
+        self.showOnViewerButton = Button(parent=self, tipText='Show on Molecular Viewer',
+                                         icon=Icon('icons/showStructure'),
+                                         callback=self._showOnMolecularViewer,
+                                         hAlign='l')
+        self.addWidgetToTop(self.showOnViewerButton, 2)
+
+    #=========================================================================================
+    # Properties
+    #=========================================================================================
+
+    @property
+    def _tableCurrent(self):
+        """Return the list of source objects, e.g., _table.restraints/_table.nmrResidues
         """
-        CCPN-INTERNAL: Notifier callback inactive
+        return self.current.restraintTable
+
+    @_tableCurrent.setter
+    def _tableCurrent(self, value):
+        self.current.restraintTable = value
+
+    #=========================================================================================
+    # Widgets callbacks
+    #=========================================================================================
+
+    def _showOnMolecularViewer(self):
+        """Show the molecule on the attached viewer.
         """
-        pass
+        restraintTable = self._modulePulldown.getSelectedObject()
+        restraints = self._tableWidget.getSelectedObjects() or []
+
+        print(restraints)
+
+        if restraintTable is not None:
+            pymolScriptPath = joinPath(self.moduleParent.pymolScriptsPath, PymolScriptName)
+            pdbPath = restraintTable.structureData.moleculeFilePath
+            if pdbPath is None:
+                MessageDialog.showWarning('No Molecule File found',
+                                          'Add a molecule file path to the StructureData from SideBar.')
+                return
+            pymolScriptPath = pyMolUtil._restraintsSelection2PyMolFile(pymolScriptPath, pdbPath, restraints)
+            pyMolUtil.runPymolWithScript(self.application, pymolScriptPath)
+
+        if not restraintTable:
+            MessageDialog.showWarning('Nothing to show', 'Select a RestraintTable first')
+
+
+#=========================================================================================
+# main
+#=========================================================================================
+
+def main():
+    """Show the RestraintTable module
+    """
+    from ccpn.ui.gui.widgets.Application import newTestApplication
+    from ccpn.framework.Application import getApplication
+
+    # create a new test application
+    app = newTestApplication(interface='Gui')
+    application = getApplication()
+    mainWindow = application.ui.mainWindow
+
+    # add a module
+    _module = RestraintTableModule(mainWindow=mainWindow)
+    mainWindow.moduleArea.addModule(_module)
+
+    # show the mainWindow
+    app.start()
+
+
+if __name__ == '__main__':
+    """Call the test function
+    
+    This will remove the recent opened files and the reset your preferences!
+    
+    """
+    main()

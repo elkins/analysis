@@ -15,8 +15,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-05-31 18:51:38 +0100 (Fri, May 31, 2024) $"
-__version__ = "$Revision: 3.2.2.1 $"
+__dateModified__ = "$dateModified: 2024-08-23 19:21:20 +0100 (Fri, August 23, 2024) $"
+__version__ = "$Revision: 3.2.5 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -27,12 +27,9 @@ __date__ = "$Date: 2017-04-07 10:28:41 +0000 (Fri, April 07, 2017) $"
 #=========================================================================================
 
 from PyQt5 import QtGui, QtWidgets, QtCore
-
 from ccpn.ui.gui.widgets.Action import Action
 from ccpn.ui.gui.widgets.Base import Base
-# from ccpn.ui.gui.guiSettings import menuFont
 from ccpn.framework.Translation import translator
-from ccpn.ui.gui.widgets.Font import setWidgetFont
 
 
 SHOWMODULESMENU = 'Show/hide Modules'
@@ -53,6 +50,7 @@ class Menu(QtWidgets.QMenu, Base):
         super().__init__(parent)
         Base._init(self, isFloatWidget=isFloatWidget, **kwds)
 
+        self.setWindowFlags(self.windowFlags() | QtCore.Qt.FramelessWindowHint)
         title = translator.translate(title)
         self.setTitle(title)
         self.isFloatWidget = isFloatWidget

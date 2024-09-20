@@ -1,9 +1,10 @@
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2023"
-__credits__ = ("Ed Brooksbank, Joanna Fox, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
-               "Timothy J Ragan, Brian O Smith, Gary S Thompson & Geerten W Vuister")
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
+               "Timothy J Ragan, Brian O Smith, Daniel Thompson",
+               "Gary S Thompson & Geerten W Vuister")
 __licence__ = ("CCPN licence. See https://ccpn.ac.uk/software/licensing/")
 __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, L.G., & Vuister, G.W.",
                  "CcpNmr AnalysisAssign: a flexible platform for integrated NMR analysis",
@@ -11,9 +12,9 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2023-10-18 16:07:32 +0100 (Wed, October 18, 2023) $"
-__version__ = "$Revision: 3.2.0 $"
+__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
+__dateModified__ = "$dateModified: 2024-08-23 19:21:56 +0100 (Fri, August 23, 2024) $"
+__version__ = "$Revision: 3.2.5 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -24,7 +25,7 @@ __date__ = "$Date: 2022-05-20 12:59:02 +0100 (Fri, May 20, 2022) $"
 #=========================================================================================
 
 import pyqtgraph as pg
-from PyQt5 import QtCore
+from PyQt5 import QtCore, QtWidgets, QtGui
 from ccpn.util.Logging import getLogger
 from ccpn.core.lib.Notifiers import Notifier
 import ccpn.framework.lib.experimentAnalysis.SeriesAnalysisVariables as sv
@@ -82,6 +83,13 @@ class MainPlotPanel(GuiPanel):
 
         self.guiModule.mainTableChanged.connect(partial(self._mainTableChanged, False))
         self.guiModule.mainTableSortingChanged.connect(partial(self._mainTableChanged, False))
+        self._setStyle()
+
+    def _setStyle(self):
+        QtWidgets.QApplication.instance()._sigPaletteChanged.connect(self._checkPalette)
+
+    def _checkPalette(self, pal: QtGui.QPalette, *args):
+        self._setColours()
 
     def _setColours(self):
         self.penColour = rgbaRatioToHex(*getColours()[CCPNGLWIDGET_LABELLING])
@@ -92,9 +100,13 @@ class MainPlotPanel(GuiPanel):
         self.scatterPen = pg.functions.mkPen(self.penColour, width=0.5, style=QtCore.Qt.SolidLine)
         self.selectedPointPen = pg.functions.mkPen(rgbaRatioToHex(*getColours()[CCPNGLWIDGET_HIGHLIGHT]), width=4)
         self.selectedLabelPen = pg.functions.mkBrush(rgbaRatioToHex(*getColours()[CCPNGLWIDGET_HIGHLIGHT]), width=4)
+        if self.mainPlotWidget:
+            self.mainPlotWidget.setBackgroundColour(self.backgroundColour)
+            self.mainPlotWidget.plotItem.getAxis('bottom').setPen(self.gridPen)
+            self.mainPlotWidget.plotItem.getAxis('left').setPen(self.gridPen)
 
     def initWidgets(self):
-        ## this colour def could go in an higher position as they are same for all possible plots
+        ## this colour def could go in a higher position as they are same for all possible plots
         self._setColours()
         self.mainPlotWidget = MainPlotWidget(self,
                                              application=self.application,

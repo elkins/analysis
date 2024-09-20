@@ -17,7 +17,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-07-25 18:59:48 +0100 (Thu, July 25, 2024) $"
+__dateModified__ = "$dateModified: 2024-08-07 13:10:49 +0100 (Wed, August 07, 2024) $"
 __version__ = "$Revision: 3.2.5 $"
 #=========================================================================================
 # Created
@@ -35,11 +35,11 @@ import numpy as np
 import math
 # import glob
 import contextlib
-# from itertools import zip_longest
+from itertools import product
 from dataclasses import dataclass
 from collections import OrderedDict
 from collections.abc import Iterable
-# from PyQt5 import QtGui
+from PyQt5 import QtGui
 # from PyQt5.QtCore import QStandardPaths
 # from PyQt5.QtGui import QFontDatabase
 # from PyQt5.QtWidgets import QApplication
@@ -61,9 +61,7 @@ from reportlab.pdfbase.ttfonts import TTFont
 
 from ccpn.ui.gui.widgets.Font import getSystemFonts
 from ccpn.ui.gui.lib.OpenGL.CcpnOpenGLViewports import viewportDimensions
-from ccpn.ui.gui.lib.OpenGL.CcpnOpenGLDefs import SPECTRUM_STACKEDMATRIX, SPECTRUM_MATRIX, \
-    GLLINE_STYLES_ARRAY, SPECTRUM_XLIMITS, SPECTRUM_AF, SPECTRUM_ALIASINGINDEX, SPECTRUM_FOLDINGMODE, \
-    SPECTRUM_YLIMITS, SPECTRUM_SCALE, SPECTRUM_STACKEDMATRIXOFFSET
+from ccpn.ui.gui.lib.OpenGL.CcpnOpenGLDefs import GLLINE_STYLES_ARRAY, getAliasSetting
 
 from ccpn.ui.gui.lib.OpenGL import GL
 from ccpn.ui.gui.lib.OpenGL.CcpnOpenGLDefs import GLGRIDLINES, GLAXISLABELS, GLAXISMARKS, \
@@ -84,7 +82,6 @@ from ccpn.ui.gui.lib.OpenGL.CcpnOpenGLDefs import GLGRIDLINES, GLAXISLABELS, GLA
     GLPRINTFONT, GLUSEPRINTFONT, GLSCALINGAXIS
 # from ccpn.ui.gui.lib.OpenGL.CcpnOpenGLDefs import GLFILENAME, GLWIDGET, GLAXISLINES, GLAXISMARKSINSIDE, \
 #     GLFULLLIST, GLEXTENDEDLIST, GLALIASENABLED, GLALIASLABELSENABLED
-from ccpn.ui.gui.lib.OpenGL.CcpnOpenGLGlobal import getAliasSetting
 from ccpn.ui.gui.popups.ExportStripToFile import PAGEPORTRAIT, DEFAULT_FONT, PAGESIZEA6, PAGESIZEA5, \
     PAGESIZEA4, PAGESIZEA3, PAGESIZEA2, PAGESIZEA1, PAGESIZEA0, PAGESIZELETTER, PAGESIZES
 # from ccpn.ui.gui.popups.ExportStripToFile import EXPORTPDF, EXPORTSVG, EXPORTTYPES, \
@@ -395,7 +392,7 @@ class GLExporter():
         """Build the main sections of the pdf file from a drawing object
         and add the drawing object to a reportlab document
         """
-        dpi = 72  # drawing object and documents are hard-coded to this
+        # NOTE:ED - dpi = 72  # drawing object and documents are hard-coded to this
 
         # keep aspect ratio of the original screen
         self.margin = 2.0 * cm
@@ -792,6 +789,9 @@ class GLExporter():
 
         # get the list of required spectra
         self._ordering = self.strip.getSpectrumViews()
+        self._phasingOn = self.strip._isPhasingOn
+        self._is1D = self._parent.spectrumDisplay.is1D
+        self._stackingMode = self._parent._stackingMode
 
         # print the grid objects
         if self.params[GLGRIDLINES]: self._addGridLines()
@@ -802,24 +802,31 @@ class GLExporter():
 
             # check parameters to decide what to print
 
-            if not self._parent.spectrumDisplay.is1D or \
-                    not self._parent.spectrumDisplay.phasingFrame.isVisible() or \
-                    self.params[GLSHOWSPECTRAONPHASE]:
+            # if not self._parent.spectrumDisplay.is1D or \
+            #         not self._parent.spectrumDisplay.phasingFrame.isVisible() or \
+            #         self.params[GLSHOWSPECTRAONPHASE]:
+            if (not self._is1D or
+                    not self._phasingOn or
+                    self.params[GLSHOWSPECTRAONPHASE]):
 
                 if self.params[GLSPECTRUMCONTOURS]: self._addSpectrumContours()
                 if self.params[GLSPECTRUMBORDERS]: self._addSpectrumBoundaries()
 
-            if not self._parent._stackingMode:
-                if self.params[GLINTEGRALSYMBOLS]: self._addIntegralAreas()
-                if self.params[GLINTEGRALSYMBOLS]: self._addIntegralLines()
+            if not self._stackingMode:
+                if not (self._is1D and self._phasingOn):
+                    if self.params[GLINTEGRALSYMBOLS]:
+                        self._addIntegralAreas()
+                        self._addIntegralLines()
                 if self.params[GLPEAKARROWS]: self._addPeakArrows()
                 if self.params[GLMULTIPLETARROWS]: self._addMultipletArrows()
                 if self.params[GLPEAKSYMBOLS]: self._addPeakSymbols()
                 if self.params[GLMULTIPLETSYMBOLS]: self._addMultipletSymbols()
                 if self.params[GLMARKLINES]: self._addMarkLines()
-                if self.params[GLREGIONS]: self._addRegions()
+                if not (self._is1D and self._phasingOn):
+                    if self.params[GLREGIONS]: self._addRegions()
                 if self.params[GLPEAKLABELS]: self._addPeakLabels()
-                if self.params[GLINTEGRALLABELS]: self._addIntegralLabels()
+                if not (self._is1D and self._phasingOn):
+                    if self.params[GLINTEGRALLABELS]: self._addIntegralLabels()
                 if self.params[GLMULTIPLETLABELS]: self._addMultipletLabels()
                 if self.params[GLMARKLABELS]: self._addMarkLabels()
             else:
@@ -900,7 +907,8 @@ class GLExporter():
                                                 PLOTHEIGHT: self.displayScale * self.mainView.height},
                                        name='grid',
                                        ratioLine=True,
-                                       lineWidth=0.5 * self.baseThickness)
+                                       lineWidth=0.5 * self.baseThickness,
+                                       vStep=2)
             self._appendGroup(drawing=self._mainPlot, colourGroups=colourGroups, name='grid')
 
     def _addDiagonalSideBands(self):
@@ -917,7 +925,8 @@ class GLExporter():
                                                 PLOTHEIGHT: self.displayScale * self.mainView.height},
                                        name='diagonal',
                                        ratioLine=True,
-                                       lineWidth=0.5 * self.baseThickness)
+                                       lineWidth=0.5 * self.baseThickness,
+                                       vStep=2)
             self._appendGroup(drawing=self._mainPlot, colourGroups=colourGroups, name='diagonal')
 
     def _addDiagonalLine(self):
@@ -934,7 +943,8 @@ class GLExporter():
                                                 PLOTHEIGHT: self.displayScale * self.mainView.height},
                                        name='diagonal',
                                        ratioLine=True,
-                                       lineWidth=0.5 * self.baseThickness)
+                                       lineWidth=0.5 * self.baseThickness,
+                                       vStep=2)
             self._appendGroup(drawing=self._mainPlot, colourGroups=colourGroups, name='diagonal')
 
     def _addCursors(self):
@@ -954,7 +964,8 @@ class GLExporter():
                                                 PLOTHEIGHT: self.displayScale * self.mainView.height},
                                        name='cursors',
                                        ratioLine=True,
-                                       lineWidth=0.5 * self.baseThickness)
+                                       lineWidth=0.5 * self.baseThickness,
+                                       vStep=2)
             self._appendGroup(drawing=self._mainPlot, colourGroups=colourGroups, name='cursors')
 
     def _addCursorText(self):
@@ -1034,14 +1045,13 @@ class GLExporter():
             alias = None
 
 
-        _data = _editValues()
-
+        data = _editValues()
         # set the display parameters
-        _data.x = _x = self.displayScale * self.mainView.left
-        _data.y = _y = self.displayScale * self.mainView.bottom
-        _data.width = _width = self.displayScale * self.mainView.width
-        _data.height = _height = self.displayScale * self.mainView.height
-        _data.index = 0
+        data.x = _x = self.displayScale * self.mainView.left
+        data.y = _y = self.displayScale * self.mainView.bottom
+        data.width = _width = self.displayScale * self.mainView.width
+        data.height = _height = self.displayScale * self.mainView.height
+        data.index = 0
 
         for spectrumView in self._ordering:
 
@@ -1051,109 +1061,104 @@ class GLExporter():
             if spectrumView.spectrum.pid in self.params[GLSELECTEDPIDS]:
 
                 # get the contour list
-                _data.GLObject = self._parent._contourList[spectrumView] \
+                data.GLObject = self._parent._contourList[spectrumView] \
                     if spectrumView in self._parent._contourList else None
 
                 if spectrumView in self._parent._spectrumSettings.keys():
 
                     # get the spectrum settings for the spectrumView
-                    _data.specSettings = specSettings = self._parent._spectrumSettings[spectrumView]
-                    _data.spectrumView = spectrumView
-                    _data.spectrum = spectrumView.spectrum
-                    _data.dimensionCount = spectrumView.spectrum.dimensionCount
+                    data.specSettings = specSettings = self._parent._spectrumSettings[spectrumView]
+                    data.spectrumView = spectrumView
+                    data.spectrum = spectrumView.spectrum
+                    data.dimensionCount = spectrumView.spectrum.dimensionCount
 
                     if spectrumView.spectrum.dimensionCount > 1:
                         # draw nD spectra
+                        fxMax, fyMax = specSettings.maxSpectrumFrequency
+                        dxAF, dyAF = specSettings.spectralWidth
+                        xScale, yScale = specSettings.scale
+                        alias = specSettings.aliasingIndex
+                        folding = specSettings.foldingMode
 
-                        # self.globalGL._shaderProgram1.setGLUniformMatrix4fv('mvMatrix',
-                        #                                            1, GL.GL_FALSE,
-                        #                                            self._spectrumSettings[spectrumView][SPECTRUM_MATRIX])
+                        for ii, jj in product(range(alias[0][0], alias[0][1] + 1),
+                                              range(alias[1][0], alias[1][1] + 1)):
+                            foldX = foldY = 1.0
+                            foldXOffset = foldYOffset = 0
+                            if folding[0] == 'mirror':
+                                foldX = pow(-1, ii)
+                                foldXOffset = -dxAF if foldX < 0 else 0
+                            if folding[1] == 'mirror':
+                                foldY = pow(-1, jj)
+                                foldYOffset = -dyAF if foldY < 0 else 0
 
-                        _, fxMax = specSettings[SPECTRUM_XLIMITS]
-                        _, fyMax = specSettings[SPECTRUM_YLIMITS]
-                        dxAF, dyAF = specSettings[SPECTRUM_AF]
-                        xScale, yScale = specSettings[SPECTRUM_SCALE]
-                        alias = specSettings[SPECTRUM_ALIASINGINDEX]
-                        folding = specSettings[SPECTRUM_FOLDINGMODE]
+                            # build the spectrum transformation matrix
+                            mm = QtGui.QMatrix4x4()
+                            mm.translate(fxMax + (ii * dxAF) + foldXOffset,
+                                         fyMax + (jj * dyAF) + foldYOffset)
+                            mm.scale(xScale * foldX, yScale * foldY)
+                            data.matrix = mm
+                            data.matrixSymbols = mm
+                            data.alias = getAliasSetting(ii, jj)
 
-                        for ii in range(alias[0][0], alias[0][1] + 1, 1):
-                            for jj in range(alias[1][0], alias[1][1] + 1, 1):
+                            yield data  # pass object
 
-                                foldX = foldY = 1.0
-                                foldXOffset = foldYOffset = 0
-                                if folding[0] == 'mirror':
-                                    foldX = pow(-1, ii)
-                                    foldXOffset = -dxAF if foldX < 0 else 0
-
-                                if folding[1] == 'mirror':
-                                    foldY = pow(-1, jj)
-                                    foldYOffset = -dyAF if foldY < 0 else 0
-
-                                # build the spectrum transformation matrix
-                                specMatrix = np.array([xScale * foldX, 0.0, 0.0, 0.0,
-                                                       0.0, yScale * foldY, 0.0, 0.0,
-                                                       0.0, 0.0, 1.0, 0.0,
-                                                       fxMax + (ii * dxAF) + foldXOffset,
-                                                       fyMax + (jj * dyAF) + foldYOffset, 0.0, 1.0],
-                                                      dtype=np.float32)
-                                _data.matrix = np.transpose(specMatrix.reshape((4, 4)))
-                                _data.matrixSymbols = np.transpose(specMatrix.reshape((4, 4)))
-                                _data.alias = getAliasSetting(ii, jj)
-                                # get the transformation matrix from the spectrumView
-                                # mat = np.transpose(self._parent._spectrumSettings[spectrumView][SPECTRUM_MATRIX].reshape((4, 4)))
-
-                                # # clip all colours first - not sure if needed now, but was causing overflow error in the past
-                                # _colors = np.clip(thisSpec.colors, 0.0, 0.9999)
-
-                                yield _data  # pass object
-
-                                _data.index += 1
+                            data.index += 1
 
                     else:
                         # draw 1D spectra
+                        fxMax, fyMax = specSettings.maxSpectrumFrequency
+                        dxAF, dyAF = specSettings.spectralWidth
+                        xScale, yScale = specSettings.scale
+                        alias = specSettings.aliasingIndex
+                        folding = specSettings.foldingMode
+                        stackX, stackY = specSettings.stackedMatrixOffset
+                        dimX, _ = specSettings.dimensionIndices
 
-                        # assume that the vertexArray is a GL_LINE_STRIP
-                        _, fxMax = specSettings[SPECTRUM_XLIMITS]
-                        dxAF, _ = specSettings[SPECTRUM_AF]
-                        xScale, _ = specSettings[SPECTRUM_SCALE]
-                        alias = specSettings[SPECTRUM_ALIASINGINDEX]
-                        folding = specSettings[SPECTRUM_FOLDINGMODE]
-                        stackX, stackY = specSettings[SPECTRUM_STACKEDMATRIXOFFSET]
-
-                        for ii in range(alias[0][0], alias[0][1] + 1, 1):
-
+                        for ii, jj in product(range(alias[0][0], alias[0][1] + 1),
+                                              range(alias[1][0], alias[1][1] + 1)):
                             foldX = 1.0
                             foldXOffsetSym = foldXOffset = 0
                             if folding[0] == 'mirror':
                                 foldX = pow(-1, ii)
                                 foldXOffset = (2 * fxMax - dxAF) if foldX < 0 else 0
                                 foldXOffsetSym = -dxAF if foldX < 0 else 0
+                            foldY = 1.0
+                            foldYOffsetSym = foldYOffset = 0
+                            if folding[1] == 'mirror':
+                                foldY = pow(-1, jj)
+                                foldYOffset = (2 * fyMax - dyAF) if foldY < 0 else 0
+                                foldYOffsetSym = -dyAF if foldY < 0 else 0
 
+                            # build the spectrum transformation matrix
+                            mm = QtGui.QMatrix4x4()
                             if self._parent._stackingMode:
-                                _matrix = np.array(specSettings[SPECTRUM_STACKEDMATRIX])
+                                mm.translate(stackX, stackY)
+                            mmSym = QtGui.QMatrix4x4()
+                            if self._parent._stackingMode:
+                                mmSym.translate(stackX, stackY)
+
+                            if dimX:  # quick way to check if 1D is flipped
+                                # build the 1D spectrum transformation matrices
+                                mm.translate(0, (jj * dyAF) + foldYOffset)
+                                mm.scale(1.0, foldY, 1.0)
+                                mmSym.translate(0, fyMax + (jj * dyAF) + foldYOffsetSym)
+                                mmSym.scale(1.0, yScale * foldY, 1.0)
                             else:
-                                _matrix = np.array(self._parent._IMatrix)
+                                mm.translate((ii * dxAF) + foldXOffset, 0)
+                                mm.scale(foldX, 1.0, 1.0)
+                                mmSym.translate(fxMax + (ii * dxAF) + foldXOffsetSym, 0)
+                                mmSym.scale(xScale * foldX, 1.0, 1.0)
 
-                            # build the spectrum transformation matrices
-                            _matrixSym = np.array([xScale * foldX, 0.0, 0.0, 0.0,
-                                                   0.0, 1.0, 0.0, 0.0,
-                                                   0.0, 0.0, 1.0, 0.0,
-                                                   fxMax + (ii * dxAF) + foldXOffsetSym + stackX, stackY, 0.0, 1.0],
-                                                  dtype=np.float32)
+                            data.matrix = mm
+                            data.matrixSymbols = mmSym
+                            data.alias = getAliasSetting(ii, jj)
 
-                            # take the stacking matrix and insert the correct x-scaling to map the pointPositions to the screen
-                            _matrix[0] = foldX
-                            _matrix[12] += (ii * dxAF) + foldXOffset  # add to the stacked offset
-                            _data.matrix = np.transpose(_matrix.reshape((4, 4)))
-                            _data.matrixSymbols = np.transpose(_matrixSym.reshape((4, 4)))
-                            _data.alias = getAliasSetting(ii, 0)
+                            yield data  # pass object back to the calling method
 
-                            yield _data  # pass object back to the calling method
+                            data.index += 1
 
-                            _data.index += 1
-
-        if _data.colourGroups:
-            self._appendGroup(drawing=self._mainPlot, colourGroups=_data.colourGroups, name=groupName)
+        if data.colourGroups:
+            self._appendGroup(drawing=self._mainPlot, colourGroups=data.colourGroups, name=groupName)
 
     @staticmethod
     def addLine(colourPath, line):
@@ -1175,10 +1180,13 @@ class GLExporter():
                     ppInd0 = int(data.GLObject.indices[ppInd])
                     ppInd1 = int(data.GLObject.indices[ppInd + 1])
 
-                    vectStart = [data.GLObject.vertices[ppInd0 * 2], data.GLObject.vertices[ppInd0 * 2 + 1], 0.0, 1.0]
-                    vectStart = data.matrix.dot(vectStart)
-                    vectEnd = [data.GLObject.vertices[ppInd1 * 2], data.GLObject.vertices[ppInd1 * 2 + 1], 0.0, 1.0]
-                    vectEnd = data.matrix.dot(vectEnd)
+                    vectStart = QtGui.QVector4D(data.GLObject.vertices[ppInd0 * 2],
+                                                data.GLObject.vertices[ppInd0 * 2 + 1], 0.0, 1.0)
+                    vectStart = data.matrix * vectStart
+                    vectEnd = QtGui.QVector4D(data.GLObject.vertices[ppInd1 * 2],
+                                              data.GLObject.vertices[ppInd1 * 2 + 1], 0.0, 1.0)
+                    vectEnd = data.matrix * vectEnd
+
                     newLine = [vectStart[0], vectStart[1], vectEnd[0], vectEnd[1]]
 
                     colour = colors.Color(*data.GLObject.colors[ppInd0 * 4:ppInd0 * 4 + 3],
@@ -1219,7 +1227,8 @@ class GLExporter():
                                             PLOTWIDTH : self.displayScale * self.mainView.width,
                                             PLOTHEIGHT: self.displayScale * self.mainView.height},
                                    name='boundary',
-                                   lineWidth=0.5 * self.baseThickness)
+                                   lineWidth=0.5 * self.baseThickness,
+                                   vStep=2)
         self._appendGroup(drawing=self._mainPlot, colourGroups=colourGroups, name='boundaries')
 
     def _addPeakSymbols(self):
@@ -1250,7 +1259,8 @@ class GLExporter():
                                            fillMode=None,
                                            splitGroups=False,
                                            lineWidth=0.5 * self.baseThickness * self.symbolThickness,
-                                           alias=data.alias)
+                                           alias=data.alias,
+                                           vStep=4)
 
     def _addPeakArrows(self):
         """
@@ -1280,7 +1290,8 @@ class GLExporter():
                                            fillMode=None,
                                            splitGroups=False,
                                            lineWidth=0.5 * self.baseThickness,
-                                           alias=data.alias)
+                                           alias=data.alias,
+                                           vStep=4)
 
     def _addMultipletSymbols(self):
         """
@@ -1309,7 +1320,8 @@ class GLExporter():
                                            fillMode=None,
                                            splitGroups=False,
                                            lineWidth=0.5 * self.baseThickness * self.symbolThickness,
-                                           alias=data.alias)
+                                           alias=data.alias,
+                                           vStep=4)
 
     def _addMultipletArrows(self):
         """
@@ -1339,7 +1351,8 @@ class GLExporter():
                                            fillMode=None,
                                            splitGroups=False,
                                            lineWidth=0.5 * self.baseThickness,
-                                           alias=data.alias)
+                                           alias=data.alias,
+                                           vStep=4)
 
     def _addMarkLines(self):
         """
@@ -1353,7 +1366,8 @@ class GLExporter():
                                             PLOTWIDTH : self.displayScale * self.mainView.width,
                                             PLOTHEIGHT: self.displayScale * self.mainView.height},
                                    name='marks',
-                                   lineWidth=0.5 * self.baseThickness)
+                                   lineWidth=0.5 * self.baseThickness,
+                                   vStep=2)
         self._appendGroup(drawing=self._mainPlot, colourGroups=colourGroups, name='marks')
 
     def _addIntegralLines(self):
@@ -1371,7 +1385,8 @@ class GLExporter():
                                        name='IntegralListsFill',
                                        fillMode=GL.GL_FILL,
                                        splitGroups=True,
-                                       lineWidth=0.5 * self.baseThickness)
+                                       lineWidth=0.5 * self.baseThickness,
+                                       vStep=2)
         self._appendGroup(drawing=self._mainPlot, colourGroups=colourGroups, name='integralLists')
 
     def _addIntegralAreas(self):
@@ -1396,6 +1411,7 @@ class GLExporter():
 
             for integralListView in validIntegralListViews:  # spectrumView.integralListViews:
                 mat = None
+                integralSymbols = self._parent._GLIntegrals._GLSymbols[integralListView]
                 if spectrumView.spectrum.dimensionCount > 1:
                     if spectrumView in self._parent._spectrumSettings.keys():
                         # draw
@@ -1403,24 +1419,53 @@ class GLExporter():
 
                 elif spectrumView in self._parent._contourList.keys():
                     # assume that the vertexArray is a GL_LINE_STRIP
-                    mat = np.transpose(self._parent._spectrumSettings[spectrumView][SPECTRUM_STACKEDMATRIX].reshape(
-                            (4, 4))) if self._parent._stackingMode else None
+                    if spectrumView in self._parent._contourList.keys():
+                        if self._parent._stackingMode:
+                            mat = QtGui.QMatrix4x4(self._parent._spectrumSettings[spectrumView].stackedMatrix)
+                        else:
+                            mat = None
+
+                self._appendIndexLineGroup(indArray=integralSymbols,
+                                           colourGroups=colourGroups,
+                                           plotDim={PLOTLEFT  : self.displayScale * self.mainView.left,
+                                                    PLOTBOTTOM: self.displayScale * self.mainView.bottom,
+                                                    PLOTWIDTH : self.displayScale * self.mainView.width,
+                                                    PLOTHEIGHT: self.displayScale * self.mainView.height},
+                                           name=f'integralSymbols{integralListView.pid}Fill',
+                                           lineWidth=0.5 * self.baseThickness,
+                                           fillMode=GL.GL_FILL,
+                                           vStep=2)
+                self._appendGroup(drawing=self._mainPlot, colourGroups=colourGroups,
+                                  name=f'fillRegions{integralListView.pid}')
+                self._appendIndexLineGroup(indArray=integralSymbols,
+                                           colourGroups=colourGroups,
+                                           plotDim={PLOTLEFT  : self.displayScale * self.mainView.left,
+                                                    PLOTBOTTOM: self.displayScale * self.mainView.bottom,
+                                                    PLOTWIDTH : self.displayScale * self.mainView.width,
+                                                    PLOTHEIGHT: self.displayScale * self.mainView.height},
+                                           name=f'integralSymbols{integralListView.pid}Line',
+                                           lineWidth=0.5 * self.baseThickness,
+                                           fillMode=GL.GL_LINE,
+                                           vStep=2)
+                self._appendGroup(drawing=self._mainPlot, colourGroups=colourGroups,
+                                  name=f'lineRegions{integralListView.pid}')
 
                 # draw the integralAreas if they exist
-                for integralArea in self._parent._GLIntegrals._GLSymbols[integralListView]._regions:
+                for integralArea in integralSymbols._regions:
                     if hasattr(integralArea, '_integralArea'):
-
                         thisSpec = integralArea._integralArea
                         for vv in range(0, len(thisSpec.vertices) - 4, 2):
 
                             if mat is not None:
+                                vectStart = QtGui.QVector4D(thisSpec.vertices[vv], thisSpec.vertices[vv + 1], 0.0, 1.0)
+                                vectStart = mat * vectStart
+                                vectMid = QtGui.QVector4D(thisSpec.vertices[vv + 2], thisSpec.vertices[vv + 3], 0.0,
+                                                          1.0)
+                                vectMid = mat * vectMid
+                                vectEnd = QtGui.QVector4D(thisSpec.vertices[vv + 4], thisSpec.vertices[vv + 5], 0.0,
+                                                          1.0)
+                                vectEnd = mat * vectEnd
 
-                                vectStart = [thisSpec.vertices[vv], thisSpec.vertices[vv + 1], 0.0, 1.0]
-                                vectStart = mat.dot(vectStart)
-                                vectMid = [thisSpec.vertices[vv + 2], thisSpec.vertices[vv + 3], 0.0, 1.0]
-                                vectMid = mat.dot(vectMid)
-                                vectEnd = [thisSpec.vertices[vv + 4], thisSpec.vertices[vv + 5], 0.0, 1.0]
-                                vectEnd = mat.dot(vectEnd)
                                 newLine = [vectStart[0], vectStart[1],
                                            vectMid[0], vectMid[1],
                                            vectEnd[0], vectEnd[1]]
@@ -1435,9 +1480,11 @@ class GLExporter():
                             if newLine := self.lineVisible(self._parent, newLine, x=_x, y=_y, width=_width,
                                                            height=_height):
                                 if colourPath not in colourGroups:
-                                    colourGroups[colourPath] = {PDFLINES : [], PDFFILLCOLOR: colour,
-                                                                PDFSTROKE: None, PDFSTROKECOLOR: None}
-                                # colourGroups[colourPath][PDFLINES].append(newLine)
+                                    colourGroups[colourPath] = {PDFLINES      : [], PDFFILLCOLOR: colour,
+                                                                # PDFSTROKE: None,
+                                                                PDFSTROKEWIDTH: 0.5,
+                                                                PDFSTROKECOLOR: colour,
+                                                                }
                                 self.addLine(colourGroups[colourPath][PDFLINES], newLine)
 
         self._appendGroup(drawing=self._mainPlot, colourGroups=colourGroups, name='integralListsAreaFill')
@@ -1454,7 +1501,8 @@ class GLExporter():
                                             PLOTWIDTH : self.displayScale * self.mainView.width,
                                             PLOTHEIGHT: self.displayScale * self.mainView.height},
                                    name='regions',
-                                   lineWidth=0.5 * self.baseThickness)
+                                   lineWidth=0.5 * self.baseThickness,
+                                   vStep=2)
         self._appendGroup(drawing=self._mainPlot, colourGroups=colourGroups, name='regions')
 
     def _addPeakLabels(self):
@@ -1491,8 +1539,10 @@ class GLExporter():
                                  f'{colour.red}{colour.green}{colour.blue}{colour.alpha}'
 
                     if data.matrixSymbols is not None:
-                        newLine = [drawString.attribs[0], drawString.attribs[1], 0.0, 1.0]
-                        newLine = data.matrixSymbols.dot(newLine)[:2]
+                        newLine = QtGui.QVector4D(drawString.attribs[0], drawString.attribs[1], 0.0, 1.0)
+                        newLine = data.matrixSymbols * newLine
+                        newLine = [newLine.x(), newLine.y()]
+
                     else:
                         newLine = [drawString.attribs[0], drawString.attribs[1]]
 
@@ -1606,8 +1656,10 @@ class GLExporter():
                                  f'{colour.red}{colour.green}{colour.blue}{colour.alpha}'
 
                     if data.matrixSymbols is not None:
-                        newLine = [drawString.attribs[0], drawString.attribs[1], 0.0, 1.0]
-                        newLine = data.matrixSymbols.dot(newLine)[:2]
+                        newLine = QtGui.QVector4D(drawString.attribs[0], drawString.attribs[1], 0.0, 1.0)
+                        newLine = data.matrixSymbols * newLine
+                        newLine = [newLine.x(), newLine.y()]
+
                     else:
                         newLine = [drawString.attribs[0], drawString.attribs[1]]
 
@@ -1697,24 +1749,37 @@ class GLExporter():
             self._mainPlot.add(colourGroup)
 
     def _addSingleTrace(self, traceName, trace, spectrumView, colourGroups):
-        if spectrumView and not spectrumView.isDeleted and spectrumView.isDisplayed:
-            # drawVertexColor
+        # if spectrumView and not spectrumView.isDeleted and spectrumView.isDisplayed:
+        #     # drawVertexColor
+        #
+        #     if self._parent._stackingMode:
+        #         mat = QtGui.QMatrix4x4(self._parent._spectrumSettings[spectrumView].stackedMatrix)
+        #     else:
+        #         mat = None
+        #
+        #     self._appendVertexLineGroup(indArray=trace,
+        #                                 colourGroups=colourGroups,
+        #                                 plotDim={PLOTLEFT  : self.displayScale * self.mainView.left,
+        #                                          PLOTBOTTOM: self.displayScale * self.mainView.bottom,
+        #                                          PLOTWIDTH : self.displayScale * self.mainView.width,
+        #                                          PLOTHEIGHT: self.displayScale * self.mainView.height},
+        #                                 name=f'{traceName}{spectrumView.pid}',
+        #                                 includeLastVertex=not self._parent.is1D,
+        #                                 mat=mat,
+        #                                 lineWidth=2.5 * self.baseThickness * self.contourThickness)
 
-            if self._parent._stackingMode:
-                mat = np.transpose(self._parent._spectrumSettings[spectrumView][SPECTRUM_STACKEDMATRIX].reshape((4, 4)))
-            else:
-                mat = None
-
-            self._appendVertexLineGroup(indArray=trace,
-                                        colourGroups=colourGroups,
-                                        plotDim={PLOTLEFT  : self.displayScale * self.mainView.left,
-                                                 PLOTBOTTOM: self.displayScale * self.mainView.bottom,
-                                                 PLOTWIDTH : self.displayScale * self.mainView.width,
-                                                 PLOTHEIGHT: self.displayScale * self.mainView.height},
-                                        name=f'{traceName}{spectrumView.pid}',
-                                        includeLastVertex=not self._parent.is1D,
-                                        mat=mat,
-                                        lineWidth=0.5 * self.baseThickness * self.contourThickness)
+        for data in self._addSpectrumViewManager(f'traceContours{traceName}'):
+            if data.alias == 0 and spectrumView == data.spectrumView:
+                self._appendVertexLineGroup(indArray=trace,
+                                            colourGroups=colourGroups,
+                                            plotDim={PLOTLEFT  : data.x,
+                                                     PLOTBOTTOM: data.y,
+                                                     PLOTWIDTH : data.width,
+                                                     PLOTHEIGHT: data.height},
+                                            name=f'{traceName}{data.spectrumView.pid}',
+                                            includeLastVertex=not self._parent.is1D,
+                                            mat=data.matrix,
+                                            lineWidth=0.5 * self.baseThickness * self.contourThickness)
 
     def _addTraces(self):
         """
@@ -1875,9 +1940,10 @@ class GLExporter():
                                                name='gridAxes',
                                                setColour=self.foregroundColour,
                                                ratioLine=True,
-                                               lineWidth=0.5 * self.baseThickness)
+                                               lineWidth=0.5 * self.baseThickness,
+                                               vStep=2)
 
-            # # add the right axis border line if needed
+            # # add the right axis border-line if needed
             # if self.params[GLPLOTBORDER] or (self.rAxis and self.params[GLAXISLINES]):
             #     from ccpn.ui.gui.lib.OpenGL.CcpnOpenGLArrays import GLVertexArray
             #
@@ -1916,7 +1982,8 @@ class GLExporter():
                                                name='gridAxes',
                                                setColour=self.foregroundColour,
                                                ratioLine=True,
-                                               lineWidth=0.5 * self.baseThickness)
+                                               lineWidth=0.5 * self.baseThickness,
+                                               vStep=2)
 
             # # add the bottom axis border line if needed
             # if self.params[GLPLOTBORDER] or (self.bAxis and self.params[GLAXISLINES]):
@@ -2082,14 +2149,14 @@ class GLExporter():
         for colourGroup in colourGroups.values():
             self._mainPlot.add(colourGroup)
 
-    def report(self, w, h, plot):
+    @staticmethod
+    def report(w, h, plot):
         """
         Return the current report for the GL widget.
         This is the vector image for the current strip containing the GL widget,
         it is a reportlab Flowable type object that can be added to reportlab documents.
         :return reportlab.platypus.Flowable:
         """
-        scale = self.displayScale
         return Clipped_Flowable(width=w, height=h,
                                 mainPlot=plot,  #self._mainPlot,
                                 mainDim={PLOTLEFT  : 0,  #scale*view.left,
@@ -2284,11 +2351,10 @@ class GLExporter():
         for vv in range(0, len(indArray.vertices) - 2, 2):
 
             if mat is not None:
-
-                vectStart = [indArray.vertices[vv], indArray.vertices[vv + 1], 0.0, 1.0]
-                vectStart = mat.dot(vectStart)
-                vectEnd = [indArray.vertices[vv + 2], indArray.vertices[vv + 3], 0.0, 1.0]
-                vectEnd = mat.dot(vectEnd)
+                vectStart = QtGui.QVector4D(indArray.vertices[vv], indArray.vertices[vv + 1], 0.0, 1.0)
+                vectStart = mat * vectStart
+                vectEnd = QtGui.QVector4D(indArray.vertices[vv + 2], indArray.vertices[vv + 3], 0.0, 1.0)
+                vectEnd = mat * vectEnd
                 newLine = [vectStart[0], vectStart[1], vectEnd[0], vectEnd[1]]
             else:
                 newLine = list(indArray.vertices[vv:vv + 4])
@@ -2319,7 +2385,7 @@ class GLExporter():
 
     def _appendIndexLineGroup(self, indArray, colourGroups, plotDim, name, mat=None,
                               fillMode=None, splitGroups=False,
-                              setColour=None, lineWidth=0.5, ratioLine=False, alias=None):
+                              setColour=None, lineWidth=0.5, ratioLine=False, alias=None, vStep=4):
         if indArray.drawMode == GL.GL_TRIANGLES:
             indexLen = 3
         elif indArray.drawMode == GL.GL_QUADS:
@@ -2342,20 +2408,21 @@ class GLExporter():
             newLine = []
             for vv in ii0:
                 if mat is not None:
-                    _vec = [indArray.vertices[vv * 2], indArray.vertices[vv * 2 + 1], 0.0, 1.0]
-                    _vec = mat.dot(_vec)
+                    _vec = QtGui.QVector4D(indArray.vertices[vv * vStep], indArray.vertices[vv * vStep + 1], 0.0, 1.0)
+                    _vec = mat * _vec
+
                     if ratioLine:
-                        newLine.extend(self._scaleRatioToWindow(_vec[:2]))
+                        newLine.extend(self._scaleRatioToWindow([_vec.x(), _vec.y()]))
                     else:
-                        newLine.extend(_vec[:2])
+                        newLine.extend([_vec.x(), _vec.y()])
 
                 elif ratioLine:
                     # convert ratio to axis coordinates
                     # newLine.extend([self._scaleRatioToWindow(indArray.vertices[vv * 2], (self._axisR - self._axisL), self._axisL),
                     #                 self._scaleRatioToWindow(indArray.vertices[vv * 2 + 1], (self._axisT - self._axisB), self._axisB)])
-                    newLine.extend(self._scaleRatioToWindow(indArray.vertices[vv * 2:vv * 2 + 2]))
+                    newLine.extend(self._scaleRatioToWindow(indArray.vertices[vv * vStep:vv * vStep + vStep]))
                 else:
-                    newLine.extend([indArray.vertices[vv * 2], indArray.vertices[vv * 2 + 1]])
+                    newLine.extend([indArray.vertices[vv * vStep], indArray.vertices[vv * vStep + 1]])
 
             _alias = 1.0
             if alias is not None and \
@@ -2379,12 +2446,14 @@ class GLExporter():
                     cc[PDFSTROKEWIDTH] = lineWidth
                     cc[PDFSTROKECOLOR] = colour
                     cc[PDFSTROKELINECAP] = 1
+                    cc[PDFFILL] = None
+                    cc[PDFFILLCOLOR] = None  # need to disable fill
                 else:
                     # assume that it is GL.GL_FILL
                     cc[PDFLINES] = []
                     cc[PDFFILLCOLOR] = colour
                     cc[PDFSTROKE] = None
-                    cc[PDFSTROKECOLOR] = None
+                    cc[PDFSTROKECOLOR] = None  # need to disable outline
 
             if newLine := self.lineVisible(self._parent, newLine, x=_x, y=_y, width=_width, height=_height):
                 # colourGroups[colourPath][PDFLINES].append(newLine)
@@ -2397,15 +2466,16 @@ class GLExporter():
         if setColour is not None:
             return self._colourID(name, setColour)
 
-    def _appendIndexLineGroupFill(self, indArray=None, listView=None, colourGroups=None, plotDim=None, name=None,
-                                  mat=None,
-                                  fillMode=None, splitGroups=False, lineWidth=0.5):
+    def _appendIndexLineGroupFill(self, indArray=None, listView=None, colourGroups=None,
+                                  plotDim=None, name=None, mat=None,
+                                  fillMode=None, splitGroups=False, lineWidth=0.5, vStep=4):
         for spectrumView in self._ordering:
             if spectrumView.isDeleted:
                 continue
-            specSettings = self._parent._spectrumSettings[spectrumView]
+            # specSettings = self._parent._spectrumSettings[spectrumView]
+
             # get the transformation matrix from the spectrumView
-            mat = np.transpose(self._parent._spectrumSettings[spectrumView][SPECTRUM_MATRIX].reshape((4, 4)))
+            mat = QtGui.QMatrix4x4(self._parent._spectrumSettings[spectrumView].matrix)
 
             attribList = getattr(spectrumView, f'{listView}Views')
             validListViews = [pp for pp in attribList
@@ -2424,7 +2494,8 @@ class GLExporter():
                                                mat=mat,
                                                fillMode=fillMode,
                                                splitGroups=splitGroups,
-                                               lineWidth=lineWidth)
+                                               lineWidth=lineWidth,
+                                               vStep=vStep)
 
     @staticmethod
     def _appendGroup(drawing: Drawing = None, colourGroups: dict = None, name: str = None):
@@ -2479,7 +2550,7 @@ class GLExporter():
             lineList[1] = y + height * (lineList[1] - axisB) / (axisT - axisB)
             return True
 
-    def lineVisible(self, _parent, lineList, x=0.0, y=0.0, width=0.0, height=0.0, checkIntegral=False):
+    def lineVisible(self, _parent, lineList, x=0.0, y=0.0, width=0.0, height=0.0):
         """return the list of visible lines
         """
         # make into a list of tuples
@@ -2503,7 +2574,7 @@ class GLExporter():
         """
         axisL, axisR, axisT, axisB = self._axisL, self._axisR, self._axisT, self._axisB
 
-        if self._parent.INVERTXAXIS != self._parent.INVERTYAXIS:
+        if self._parent.XDIRECTION != self._parent.YDIRECTION:
             clipPolygon = [[axisL, axisB],
                            [axisL, axisT],
                            [axisR, axisT],
@@ -2558,7 +2629,7 @@ class GLExporter():
         """
         axisL, axisR, axisT, axisB = self._axisL, self._axisR, self._axisT, self._axisB
 
-        if self._parent.INVERTXAXIS != self._parent.INVERTYAXIS:
+        if self._parent.XDIRECTION != self._parent.YDIRECTION:
             clipPolygon = [[axisL, axisB],
                            [axisL, axisT],
                            [axisR, axisT],

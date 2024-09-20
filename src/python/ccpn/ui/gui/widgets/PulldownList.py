@@ -17,8 +17,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-05-31 18:51:38 +0100 (Fri, May 31, 2024) $"
-__version__ = "$Revision: 3.2.2.1 $"
+__dateModified__ = "$dateModified: 2024-09-05 11:44:15 +0100 (Thu, September 05, 2024) $"
+__version__ = "$Revision: 3.2.5 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -34,7 +34,6 @@ from PyQt5 import QtCore, QtGui, QtWidgets
 from ccpn.ui.gui.widgets.Base import Base
 from ccpn.ui.gui.widgets.Icon import Icon
 from ccpn.ui.gui.widgets.Font import setWidgetFont, getFontHeight
-from ccpn.ui.gui.guiSettings import getColours, DIVIDER
 from ccpn.util.Logging import getLogger
 
 
@@ -65,6 +64,10 @@ class _ListView(QtWidgets.QListView):
             self._lastKeyTime = time.perf_counter()
         super().keyReleaseEvent(event)
 
+    def enterEvent(self, a0: QtCore.QEvent) -> None:
+        # grab the focus when the mouse moves over again, otherwise can sometimes remain gray
+        self.setFocus()
+
 
 #=========================================================================================
 # PulldownList
@@ -76,6 +79,9 @@ class PulldownList(QtWidgets.QComboBox, Base):
     pulldownTextReady = QtCore.pyqtSignal(str)
 
     _list = None
+    _userActivated = False
+    highlightColour = None
+    highlightColourSelect = None
 
     def __init__(self, parent, texts=None, objects=None,
                  icons=None, callback=None,
@@ -122,6 +128,7 @@ class PulldownList(QtWidgets.QComboBox, Base):
 
         # replace with a simple listView - fixes stylesheet hassle; default QComboBox listview can't be changed
         self._list = _ListView(pulldown=self)
+        # self.setLineEdit(LineEdit(self, textAlignment='c', backgroundText='<Enter text>'))
         self.setView(self._list)
         setWidgetFont(self._list, )
         # add a scrollBar for long lists
@@ -138,38 +145,46 @@ class PulldownList(QtWidgets.QComboBox, Base):
         self.clickToShowCallback = clickToShowCallback
         if self.clickToShowCallback:
             self.popupAboutToBeShown.connect(self.clickToShowCallback)
-
-        self.setStyleSheet('PulldownList { padding: 3px 3px 3px 3px; combobox-popup: 0; }'
-                           'PulldownList:focus { border: 1px solid %(BORDER_FOCUS)s; }' % getColours())
-        # this (or similar) can now be added to the stylesheet if needed
-        # 'QListView::item { padding: 12px; }')
-
         self.setMaxVisibleItems(maxVisibleItems)
         self._editedText = None
 
+        # index-change signals
+        self.activated.connect(self._callbackSetUserFlag)
         self.currentIndexChanged.connect(self._callback)
 
         if editable:
             self.currentIndexChanged.connect(self._textReady)
             self.lineEdit().editingFinished.connect(self._textReady)
-        # doesn't work :|
-        #     if alignment is not None:
-        #         self.lineEdit().setAlignment(alignment)
-        # elif alignment is not None:
-        #     self.setEditable(True)
-        #     self.lineEdit().setAlignment(alignment)
-        #     self.lineEdit().setReadOnly(True)
-        #     # self.lineEdit().setStyleSheet('padding: 0px;')
-
         if toolTips:
             self.setToolTips(toolTips)
 
         self._list.setItemDelegate(ComboBoxDividerDelegate())
         self.installEventFilter(self)
-
         # possibly for later if gray 'Select' preferred
         # self.currentIndexChanged.connect(self._highlightCurrentText)
         # self.currentTextChanged.connect(self._highlightCurrentText)
+        self._setStyle()
+
+    def _setStyle(self):
+        # weird behaviour here - the padding needs to be large on the right :|
+        # otherwise there is an overlap with the pulldown down-arrow
+        _style = """
+                QComboBox {
+                    padding: 3px 8px 3px 3px;
+                    combobox-popup: 0;
+                }
+                QComboBox:disabled {
+                    color: palette(dark);
+                    background-color: palette(midlight);
+                }
+                QComboBox:!editable {
+                    color: palette(windowtext);
+                }
+                QListView::item:disabled {
+                    color: palette(dark);
+                }
+                """
+        self.setStyleSheet(_style)
 
     def setEditable(self, editable: bool) -> None:
         super(PulldownList, self).setEditable(editable)
@@ -178,7 +193,7 @@ class PulldownList(QtWidgets.QComboBox, Base):
                 self.lineEdit().setPlaceholderText(str(self.backgroundText))
             self.lineEdit().textEdited.connect(self._emitPulldownTextEdited)
             #GST this cures a bug where the text background overwrites the popup button...
-            self.lineEdit().setStyleSheet('background: transparent')
+            # self.lineEdit().setStyleSheet('background: transparent')
             # set the font for the placeHolderText (not set by Base)
             setWidgetFont(self.lineEdit(), )
 
@@ -216,12 +231,18 @@ class PulldownList(QtWidgets.QComboBox, Base):
 
     def currentIndex(self) -> int:
         ind = super().currentIndex()
-
         # remove number of preceding separators
         filt = list(filter(None, (self.model().index(rr, 0).data(QtCore.Qt.AccessibleDescriptionRole)
                                   for rr in range(ind))))
-
         return ind - len(filt)
+
+    def numSeparators(self, index: int = None) -> int:
+        if not (0 <= index < self.count()):
+            index = self.count()
+        # remove number of preceding separators
+        filt = list(filter(None, (self.model().index(rr, 0).data(QtCore.Qt.AccessibleDescriptionRole)
+                                  for rr in range(index))))
+        return len(filt)
 
     def currentObject(self):
 
@@ -254,23 +275,26 @@ class PulldownList(QtWidgets.QComboBox, Base):
         return super(PulldownList, self).eventFilter(source, event)
 
     def paintEvent(self, e: QtGui.QPaintEvent) -> None:
-        """Set the colour of the selected pulldown-text
+        """Set the colour of the selected pulldown-text.
         """
-        try:
-            if (model := self.model()):
-                palette = self.palette()
-                if (item := model.item(self.currentIndex())) is not None and item.text():
-                    # use the palette to change the colour of the selection text - may not match for other themes
-                    palette.setColor(QtGui.QPalette.Active, QtGui.QPalette.Text, item.foreground().color())
-                else:
-                    palette.setColor(QtGui.QPalette.Active, QtGui.QPalette.Text, QtGui.QColor('black'))
-
-                self.setPalette(palette)
-        except Exception:
-            pass
-
-        finally:
-            super(PulldownList, self).paintEvent(e)
+        col = QtWidgets.QApplication.instance().palette().text().color()
+        if ((model := self.model()) and
+                (item := model.item(super().currentIndex())) is not None and
+                item.text() and
+                (newCol := item.data(QtCore.Qt.ForegroundRole)) is not None):
+            # get the new colour from the selected model-index
+            col = newCol
+        if self.isEditable():
+            pal = self.lineEdit().palette()
+            pal.setColor(QtGui.QPalette.Active, QtGui.QPalette.Text,
+                         QtGui.QColor(col))
+            self.lineEdit().setPalette(pal)
+        else:
+            pal = self.palette()
+            pal.setColor(QtGui.QPalette.Active, QtGui.QPalette.Text,
+                         QtGui.QColor(col))
+            self.setPalette(pal)
+        super(PulldownList, self).paintEvent(e)
 
     def set(self, item):
 
@@ -397,6 +421,12 @@ class PulldownList(QtWidgets.QComboBox, Base):
         self.texts.append(text)
         self.objects.append(item)
 
+    def clearObjects(self):
+        """Clear thelist of objects.
+        """
+        self.objects = []
+        self.texts = []
+
     def insertText(self, index, text):
         """Insert a text-item into the pulldown
         """
@@ -452,6 +482,11 @@ class PulldownList(QtWidgets.QComboBox, Base):
                 if item := self.model().item(self.getItemIndex(text)):
                     item.setToolTip(toolTip)
 
+    def _callbackSetUserFlag(self):
+        """Set a flag if the callback has been called by a user-interaction.
+        """
+        self._userActivated = True
+
     def _callback(self, *args):
         """
         index is an argument of the args. Don't use it. There is a bug when a separator is inserted between items, so that index is out of range to the objects/texts.
@@ -473,6 +508,8 @@ class PulldownList(QtWidgets.QComboBox, Base):
                 self.callback(self.objects[index])
             elif self.texts:
                 self.callback(self.texts[index])
+
+        self._userActivated = False
 
     def setMaxVisibleItems(self, maxItems: int = 16):
         """Set the maximum height of the combobox when opened
@@ -535,7 +572,7 @@ class PulldownList(QtWidgets.QComboBox, Base):
 #=========================================================================================
 
 class ComboBoxDividerDelegate(QtWidgets.QStyledItemDelegate):
-    """ComboBox with a visible divider
+    """ComboBox with a visible divider.
     """
 
     _DIVIDERCOLOR = None
@@ -544,28 +581,45 @@ class ComboBoxDividerDelegate(QtWidgets.QStyledItemDelegate):
     def __init__(self, *args, **kwds):
         super().__init__(*args, *kwds)
         # set the parameters for the divider
-        self._BORDER = getFontHeight() // 4
+        self._BORDER = (getFontHeight() or 16) // 4
 
     def paint(self, painter, option, index) -> None:
+        painter.save()
+        if index.data(QtCore.Qt.AccessibleDescriptionRole) is not None:
+            # draw a dividing line across the pulldown list
+            col = self._DIVIDERCOLOR or option.palette.color(QtGui.QPalette.Dark)
+            painter.setPen(QtGui.QPen(col, 2))
+            painter.drawLine(option.rect.left() + self._BORDER, option.rect.center().y(),
+                             option.rect.right() - self._BORDER, option.rect.center().y())
+        else:
+            super().paint(painter, option, index)
+        painter.restore()
+
         # if (not (index.flags() & QtCore.Qt.ItemIsEnabled) or
         #         index.data(QtCore.Qt.AccessibleDescriptionRole) is not None):
-        painter.save()
-        try:
-            if index.data(QtCore.Qt.AccessibleDescriptionRole) is not None:
-                # draw a dividing line across the pulldown list
-                col = self._DIVIDERCOLOR or option.palette.color(QtGui.QPalette.Mid)
-                painter.setPen(QtGui.QPen(col, 2))
-                painter.drawLine(option.rect.left() + self._BORDER, option.rect.center().y(),
-                                 option.rect.right() - self._BORDER, option.rect.center().y())
-            else:
-                super().paint(painter, option, index)
-        finally:
-            painter.restore()
+
+        # # add text to separator
+        # painter.save()
+        # if index.data(QtCore.Qt.AccessibleDescriptionRole) is not None:
+        #     # draw a dividing line across the pulldown list
+        #     col = self._DIVIDERCOLOR or option.palette.color(QtGui.QPalette.Mid)
+        #     painter.setPen(QtGui.QPen(col, 2))
+        #     painter.drawText(option.rect, QtCore.Qt.AlignCenter, 'HELP!')
+        #     font_metrics = QtGui.QFontMetrics(painter.font())
+        #     textRect = font_metrics.boundingRect('HELP!')
+        #     painter.drawLine(option.rect.left() + self._BORDER, option.rect.center().y(),
+        #                      option.rect.center().x() - textRect.width() // 2 - self._BORDER, option.rect.center().y())
+        #     painter.drawLine(option.rect.center().x() + textRect.width() // 2 + self._BORDER, option.rect.center().y(),
+        #                      option.rect.right() - self._BORDER, option.rect.center().y())
+        # else:
+        #     super().paint(painter, option, index)
+        # painter.restore()
 
 
 #=========================================================================================
 # Testing
 #=========================================================================================
+
 
 def main():
     """A few small tests

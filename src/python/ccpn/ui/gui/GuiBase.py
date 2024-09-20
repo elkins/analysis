@@ -16,9 +16,9 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-06-27 10:56:18 +0100 (Thu, June 27, 2024) $"
-__version__ = "$Revision: 3.2.2.1 $"
+__modifiedBy__ = "$modifiedBy: Daniel Thompson $"
+__dateModified__ = "$dateModified: 2024-09-05 15:46:55 +0100 (Thu, September 05, 2024) $"
+__version__ = "$Revision: 3.2.5 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -71,7 +71,10 @@ class GuiBase(object):
         # For now, initialised by calls in Gui.__init_ as we need programme
         # arguments and preferences to have been initialised
         self._styleSheet = None
-        self._colourScheme = None
+        # self._colourScheme = None
+        self._themeStyle = None
+        self._themeColour = None
+        self._themeSDStyle = None
         self._fontSettings = None
         self._menuSpec = None
 
@@ -357,28 +360,35 @@ class GuiBase(object):
     def _setColourSchemeAndStyleSheet(self):
         """Set the colourScheme and stylesheet as determined by arguments --dark, --light or preferences
         """
+        from ccpn.ui.gui.guiSettings import Theme
+
+        prefsApp = self.preferences.appearance
+        prefsGen = self.preferences.general
+
         if self.args.darkColourScheme:
-            colourScheme = 'dark'
+            th = Theme.DARK
         elif self.args.lightColourScheme:
-            colourScheme = 'light'
+            th = Theme.LIGHT
         else:
-            colourScheme = self.preferences.general.colourScheme
+            th = Theme.getByDataValue((cs := prefsApp.themeStyle) and cs.lower())
+        if th is None:
+            raise RuntimeError('invalid theme')
 
-        if colourScheme is None:
-            raise RuntimeError('invalid colourScheme')
-        self._colourScheme = colourScheme
+        thName = str(th.dataValue).capitalize()
+        self._themeStyle = th
+        self._themeColour = prefsApp.themeColour
 
-        _qssPath = widgetsPath / ('%sStyleSheet.qss' % colourScheme.capitalize())
+        _qssPath = widgetsPath / ('%sStyleSheet.qss' % thName)  # assume capitalised
         with _qssPath.open(mode='r') as fp:
             styleSheet = fp.read()
-
         if platform.system() == 'Linux':
-            _qssPath = widgetsPath / ('%sAdditionsLinux.qss' % colourScheme.capitalize())
+            _qssPath = widgetsPath / ('%sAdditionsLinux.qss' % thName)
             with _qssPath.open(mode='r') as fp:
                 additions = fp.read()
             styleSheet += additions
-
-        self._styleSheet = styleSheet
+        self._styleSheet = None  #styleSheet - disabled for the minute
+        if sd := Theme.getByDataValue((cs := prefsGen.colourScheme) and cs.lower()):
+            self._themeSDStyle = sd
 
     #-----------------------------------------------------------------------------------------
     # callback methods
@@ -413,14 +423,54 @@ class GuiBase(object):
         """
         from ccpn.framework.lib.DataLoaders.NefDataLoader import NefDataLoader
 
-        self.ui.loadData(formatFilter=(NefDataLoader.dataFormat,))
+        # self.ui.loadData(formatFilter=(NefDataLoader.dataFormat,))
+        self._loadDataIgnoreExtension(NefDataLoader)
 
     def _loadNMRStarFileCallback(self):
         """menu callback; use ui.loadData to do the lifting
         """
         from ccpn.framework.lib.DataLoaders.StarDataLoader import StarDataLoader
 
-        self.ui.loadData(formatFilter=(StarDataLoader.dataFormat,))
+        # self.ui.loadData(formatFilter=(StarDataLoader.dataFormat,))
+        self._loadDataIgnoreExtension(StarDataLoader)
+
+    def _loadDataIgnoreExtension(self, dataLoader=None) -> list:
+        """Load the data defined by dataLoader, provides file dialog.
+
+        :param dataLoader: Data Loader used to import data
+        :return: a list of loaded objects
+        """
+        from ccpn.ui.gui.widgets import FileDialog
+        if not dataLoader:
+            getLogger().debug('Load failed no DataLoader provided')
+            return
+
+        dialog = FileDialog.DataFileDialog(parent=self.mainWindow, acceptMode='load')
+        dialog._show()
+        if (path := dialog.selectedFile()) is None:
+            return []
+        paths = [path]
+
+        dataLoaders = []
+        for path in paths:
+            _path = aPath(path)
+            if not _path.exists():
+                txt = f'"{path}" does not exist'
+                getLogger().warning(txt)
+                MessageDialog.showError('Load Data', txt, parent=self)
+                continue
+            # loads data using the provided dataLoader
+            dataLoaders.append(dataLoader(path))
+
+        # unmodified from GUI line 830
+        objs = self.ui.application._loadData(dataLoaders)
+        if len(objs) == 0:
+            _pp = ','.join(f'"{p}"' for p in paths)
+            txt = f'No objects were loaded from {_pp}'
+            getLogger().warning(txt)
+            MessageDialog.showError('Load Data', txt, parent=self.mainWindow)
+
+        return objs
 
     def _saveCallback(self):
         """The project save callback"""

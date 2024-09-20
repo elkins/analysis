@@ -4,9 +4,10 @@ Module Documentation here
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2023"
-__credits__ = ("Ed Brooksbank, Joanna Fox, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
-               "Timothy J Ragan, Brian O Smith, Gary S Thompson & Geerten W Vuister")
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
+               "Timothy J Ragan, Brian O Smith, Daniel Thompson",
+               "Gary S Thompson & Geerten W Vuister")
 __licence__ = ("CCPN licence. See https://ccpn.ac.uk/software/licensing/")
 __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, L.G., & Vuister, G.W.",
                  "CcpNmr AnalysisAssign: a flexible platform for integrated NMR analysis",
@@ -15,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2023-03-09 10:14:19 +0000 (Thu, March 09, 2023) $"
-__version__ = "$Revision: 3.1.1 $"
+__dateModified__ = "$dateModified: 2024-09-03 13:20:31 +0100 (Tue, September 03, 2024) $"
+__version__ = "$Revision: 3.2.5 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -28,7 +29,7 @@ __date__ = "$Date: 2023-02-17 10:41:16 +0100 (Fri, February 17, 2023) $"
 
 from PyQt5 import QtCore, QtGui, QtWidgets
 from dataclasses import dataclass, field
-from typing import List
+
 
 ORIENTATIONS = {'h'                 : QtCore.Qt.Horizontal,
                 'horizontal'        : QtCore.Qt.Horizontal,
@@ -60,6 +61,14 @@ EDITABLE = QtCore.Qt.ItemIsEditable
 CHECKED = QtCore.Qt.Checked
 UNCHECKED = QtCore.Qt.Unchecked
 PARTIALLY_CHECKED = QtCore.Qt.PartiallyChecked
+
+# indexing for faster accessing of cached table-data
+BACKGROUND_INDEX = 0
+FOREGROUND_INDEX = 1
+BORDER_INDEX = 2
+FONT_INDEX = 3
+DISPLAY_INDEX = 4
+USER_INDEX = 5
 
 # define roles to return cell-values
 DTYPE_ROLE = QtCore.Qt.UserRole + 1000
@@ -93,5 +102,5 @@ class _TableSelection():
     """Small Class to pass row/column information from the main-table to the headers
     """
     orientation: int = None
-    rows: List[int] = field(default_factory=list)
-    columns: List[int] = field(default_factory=list)
+    rows: list[int] = field(default_factory=list)
+    columns: list[int] = field(default_factory=list)

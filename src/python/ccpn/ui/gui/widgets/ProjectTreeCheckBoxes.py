@@ -2,8 +2,9 @@
 # Licence, Reference and Credits
 #=========================================================================================
 __copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
-__credits__ = ("Ed Brooksbank, Joanna Fox, Morgan Hayward, Victoria A Higman, Luca Mureddu",
-               "Eliza Płoskoń, Timothy J Ragan, Brian O Smith, Gary S Thompson & Geerten W Vuister")
+__credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
+               "Timothy J Ragan, Brian O Smith, Daniel Thompson",
+               "Gary S Thompson & Geerten W Vuister")
 __licence__ = ("CCPN licence. See https://ccpn.ac.uk/software/licensing/")
 __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, L.G., & Vuister, G.W.",
                  "CcpNmr AnalysisAssign: a flexible platform for integrated NMR analysis",
@@ -12,8 +13,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-03-20 19:06:27 +0000 (Wed, March 20, 2024) $"
-__version__ = "$Revision: 3.2.2.1 $"
+__dateModified__ = "$dateModified: 2024-09-04 18:51:19 +0100 (Wed, September 04, 2024) $"
+__version__ = "$Revision: 3.2.5 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -147,7 +148,7 @@ class ProjectTreeCheckBoxes(QtWidgets.QTreeWidget, Base):
 
         self._actionCallbacks = {}
 
-        self._setFocusColour()
+        self._setStyle()
         self._backgroundColour = self.invisibleRootItem().background(0)
         self._foregroundColour = self.invisibleRootItem().foreground(0)
 
@@ -249,21 +250,20 @@ class ProjectTreeCheckBoxes(QtWidgets.QTreeWidget, Base):
                     if self._enableCheckBoxes:
                         item.setCheckState(0, QtCore.Qt.Checked)
 
-    def _setFocusColour(self, focusColour=None, noFocusColour=None):
+    def _setStyle(self):
         """Set the focus/noFocus colours for the widget
         """
-        focusColour = getColours()[BORDERFOCUS]
-        noFocusColour = getColours()[BORDERNOFOCUS]
-        styleSheet = "QTreeWidget { " \
-                     "border: 1px solid;" \
-                     "border-radius: 1px;" \
-                     "border-color: %s;" \
-                     "} " \
-                     "QTreeWidget:focus { " \
-                     "border: 1px solid %s; " \
-                     "border-radius: 1px; " \
-                     "}" % (noFocusColour, focusColour)
-        self.setStyleSheet(styleSheet)
+        _style = """QTreeWidget {
+                        border: 1px solid palette(mid);
+                        border-radius: 2px;
+                    }
+                    QTreeWidget:focus {
+                        border: 1px solid palette(highlight);
+                        border-radius: 2px;
+                    }
+                    """
+        # set stylesheet - this seems to miss the first paint event
+        self.setStyleSheet(_style)
 
     def getObjects(self, includeRoot=False):
         """Get all objects from the tree

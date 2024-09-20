@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Spectrum Calibration</title>
+    <link rel="stylesheet" href="CcpnVideoTutorials.css">
+</head>
+<body>
+<div class="header"><a href="https://www.ccpn.ac.uk/"><img src="CCPN.png" alt="CCPN Logo" height="50"></a><a
+        href="index.html" class="button">Video<br> Tutorials<br> & Manual</a><a href="https://forums.ccpn.ac.uk"><img
+        src="CCPNForumLogo.png" alt="CCPN Logo" height="50" style="padding-left: 15px"></a></div>
+<br>
+<div class="headerBar">Spectrum Calibration</div>
+<div class="tutorial">
+
+    <div class="videoContainer">
+        <div class="videoWrapper">
+            <iframe src="https://www.youtube.com/embed/Hov1-FxYzb8" frameborder="0"
+                    allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture"
+                    allowfullscreen></iframe>
+        </div>
+    </div>
+
+    <h2>Spectrum Calibration</h2>
+    <p>There are several ways in which you can change your Spectrum calibration (or referencing). Which method you want to use will depend both on the circumstances of why you need to change the Spectrum referencing and on your own personal preferences.<p>
+
+    <h3>Changing Referencing parameters manually</h3>
+    <p>Go to <span class="action">Spectrum Properties</span> (<span class="action">double-click</span> on your Spectrum in the sidebar) and then the <span class="action">Dimensions</span> tab. Change the <span class="action">Referencing (ppm)</span> values by as much as required to shift the spectrum to where you want it to be. This may be a useful method if your spectrum referencing needs to be corrected by a particular ppm value.</p>
+    <p>Alternatively, change the <span class="action">Referencing (points)</span> values. This might be a helpful way to re-reference your spectrum, if you know that there is a particular point offset due to the way in which the spectrum was recorded or processed.</p>
+
+    <h3>Calibrate Spectra from Peaks</h3>
+    <p>If you have two peaks in two Spectra which you know should be in the same position, then you can select them both and <span class="action">right-click</span> on one of them and select <span class="action">Calibrate Spectra from Peaks …</span>. You’ll get a pop-up in which you can select at the top which Peak/Spectrum should remain fixed (by default this is the one from which you selected the <span class="action">Calibrate Spectra from Peaks …</span> command). Lower down you can select in which dimensions you want to move the other Spectrum so that the Peaks overlap. The original and new Peak positions and the difference (Delta) are provided for information.</p>
+
+    <h3>Calibrate Spectra interactively</h3>
+    <p><span class="action">Right-click</span> on a SpectrumDisplay and select <span class="action">Calibrate Spectra</span>. The SpectrumDisplay will go into Calibration mode. You will see two thick blue lines (one horizontal and one vertical) on the SpectrumDisplay and a new panel below. With the mouse you can move the two lines revealing two thick dashed blue lines. Place the solid lines on a current position and the dashed lines on the new position where you want that current position to move to (you can also check the positions using the values in the panel below). Alternatively, type the <span class="action">Original Position</span>, <span class="action">New Position</span> or <span class="action">Delta</span> into the boxes in the panel below and the lines in the Spectrum Display will update accordingly. Once you are ready to apply the calibration settings, click on <span class="action">Apply</span> for each dimension you want to re-calibrate. Note that the calibration is applied to <b>all</b> Spectra currently shown in the SpectrumDisplay - you may want to toggle some off before applying the calibration. Finally, click <span class="action">Close</span> to exit the Spectrum Calibration panel.</p>
+</div>
+</body>
+</html>

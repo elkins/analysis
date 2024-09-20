@@ -16,9 +16,9 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-06-20 16:42:22 +0100 (Thu, June 20, 2024) $"
-__version__ = "$Revision: 3.2.3 $"
+__modifiedBy__ = "$modifiedBy: Daniel Thompson $"
+__dateModified__ = "$dateModified: 2024-09-05 15:47:46 +0100 (Thu, September 05, 2024) $"
+__version__ = "$Revision: 3.2.5 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -40,30 +40,12 @@ from pyqtgraph.dockarea.Dock import DockLabel, Dock
 from pyqtgraph.dockarea.DockArea import DockArea
 from ccpn.ui.gui.widgets.Base import Base
 from ccpn.ui.gui.widgets.DropBase import DropBase
-from ccpn.ui.gui.widgets.CheckBox import CheckBox
-from ccpn.ui.gui.widgets.ColourDialog import ColourDialog
-from ccpn.ui.gui.widgets.DoubleSpinbox import DoubleSpinbox, ScientificDoubleSpinBox
 from ccpn.ui.gui.widgets.LineEdit import LineEdit
-from ccpn.ui.gui.widgets.PulldownList import PulldownList
-from ccpn.ui.gui.widgets.RadioButton import RadioButton
-from ccpn.ui.gui.widgets.RadioButtons import RadioButtons
-from ccpn.ui.gui.widgets.Slider import Slider
-from ccpn.ui.gui.widgets.Spinbox import Spinbox
-from ccpn.ui.gui.widgets.TextEditor import TextEditor
-from ccpn.ui.gui.widgets.FileDialog import LineEditButtonDialog
-from ccpn.ui.gui.widgets.GLLinearRegionsPlot import GLTargetButtonSpinBoxes
 from ccpn.ui.gui.widgets.Splitter import Splitter
 from ccpn.ui.gui.widgets.ButtonList import ButtonList
 from ccpn.ui.gui.widgets.Icon import Icon
 from ccpn.ui.gui.widgets.SideBar import SideBar, SideBarSearchListView
 from ccpn.ui.gui.widgets.Frame import Frame, ScrollableFrame
-from ccpn.ui.gui.widgets.CompoundWidgets import (PulldownListCompoundWidget, CheckBoxCompoundWidget,
-                                                 DoubleSpinBoxCompoundWidget, SelectorWidget, InputPulldown,
-                                                 ColourSelectionWidget, LineEditPopup, ListCompoundWidget,
-                                                 EntryCompoundWidget, TextEditorCompoundWidget,
-                                                 RadioButtonsCompoundWidget, ScientificSpinBoxCompoundWidget,
-                                                 SpinBoxCompoundWidget, EntryPathCompoundWidget)
-from ccpn.ui.gui.widgets.PulldownListsForObjects import NmrChainPulldown
 from ccpn.ui.gui.widgets.Font import setWidgetFont, getWidgetFontHeight, getFont, DEFAULTFONT
 from ccpn.ui.gui.widgets.MessageDialog import showWarning
 from ccpn.ui.gui.guiSettings import (getColours, BORDERNOFOCUS, CCPNMODULELABEL_BACKGROUND, CCPNMODULELABEL_FOREGROUND,
@@ -77,57 +59,6 @@ from ccpn.util.Path import aPath
 from ccpn.util import Logging
 from ccpn.util.Logging import getLogger
 
-
-CommonWidgetsEdits = {
-    CheckBox.__name__                       : (CheckBox.get, CheckBox.setChecked, None),
-    ColourDialog.__name__                   : (ColourDialog.getColor, ColourDialog.setColour, None),
-    DoubleSpinbox.__name__                  : (DoubleSpinbox.value, DoubleSpinbox.setValue, None),
-    ScientificDoubleSpinBox.__name__        : (ScientificDoubleSpinBox.value, ScientificDoubleSpinBox.setValue, None),
-
-    LineEdit.__name__                       : (LineEdit.get, LineEdit.setText, None),
-    LineEditButtonDialog.__name__           : (LineEditButtonDialog.get, LineEditButtonDialog.setText, None),
-    PulldownList.__name__                   : (PulldownList.currentText, PulldownList.set, None),
-    RadioButtons.__name__                   : (RadioButtons.get, RadioButtons.set, None),
-    RadioButton.__name__                    : (RadioButton.isChecked, RadioButton.setChecked, None),
-
-    Slider.__name__                         : (Slider.get, Slider.setValue, None),
-    Spinbox.__name__                        : (Spinbox.value, Spinbox.set, None),
-    TextEditor.__name__                     : (TextEditor.get, TextEditor.setText, None),
-    GLTargetButtonSpinBoxes.__name__        : (GLTargetButtonSpinBoxes.get, GLTargetButtonSpinBoxes.setValues, None),
-
-    PulldownListCompoundWidget.__name__     : (PulldownListCompoundWidget.getText, PulldownListCompoundWidget.select,
-                                               ('pulldownList.activated', 'pulldownList.pulldownTextEdited')),
-
-    ListCompoundWidget.__name__             : (ListCompoundWidget.getTexts, ListCompoundWidget.setTexts, None),
-    CheckBoxCompoundWidget.__name__         : (CheckBoxCompoundWidget.get, CheckBoxCompoundWidget.set, None),
-    DoubleSpinBoxCompoundWidget.__name__    : (
-        DoubleSpinBoxCompoundWidget.getValue, DoubleSpinBoxCompoundWidget.setValue,
-        ('doubleSpinBox.valueChanged')),
-    ScientificSpinBoxCompoundWidget.__name__: (
-        ScientificSpinBoxCompoundWidget.getValue, ScientificSpinBoxCompoundWidget.setValue,
-        ('scientificSpinBox.valueChanged')),
-    SpinBoxCompoundWidget.__name__          : (SpinBoxCompoundWidget.getValue, SpinBoxCompoundWidget.setValue,
-                                               ('spinBox.valueChanged')),
-
-    SelectorWidget.__name__                 : (SelectorWidget.getText, SelectorWidget.select, None),
-    InputPulldown.__name__                  : (InputPulldown.currentText, InputPulldown.set, None),
-    ColourSelectionWidget.__name__          : (
-        ColourSelectionWidget.currentText, ColourSelectionWidget.setColour, None),
-    LineEditPopup.__name__                  : (LineEditPopup.get, LineEditPopup.set, None),
-
-    EntryCompoundWidget.__name__            : (
-        EntryCompoundWidget.getText, EntryCompoundWidget.setText, 'entry.textEdited'),
-    TextEditorCompoundWidget.__name__       : (
-        TextEditorCompoundWidget.getText, TextEditorCompoundWidget.setText, 'textEditor.textChanged'),
-    NmrChainPulldown.__name__               : (
-        NmrChainPulldown.getText, NmrChainPulldown.select, 'pulldownList.activated'),
-    RadioButtonsCompoundWidget.__name__     : (RadioButtonsCompoundWidget.getIndex, RadioButtonsCompoundWidget.setIndex,
-                                               'radioButtons.buttonGroup.buttonClicked'),
-    EntryPathCompoundWidget.__name__        : (
-        EntryPathCompoundWidget.getText, EntryPathCompoundWidget.setText, 'entry.lineEdit.textChanged'),
-    # ADD TABLES
-    # ADD Others
-    }
 
 settingsWidgetPositions = {
     'top'   : {'settings': (0, 0), 'widget': (1, 0)},
@@ -220,7 +151,7 @@ class CcpnModule(Dock, DropBase, NotifierBase):
 
         self.hStyle = """
                   Dock > QWidget {
-                      border: 1px solid #a9a9a9;
+                      border: 1px solid palette(mid);
                       border-radius: 2px;
                       border-top-left-radius: 0px;
                       border-top-right-radius: 0px;
@@ -228,7 +159,7 @@ class CcpnModule(Dock, DropBase, NotifierBase):
                   }"""
         self.vStyle = """
                   Dock > QWidget {
-                      border: 1px solid #000;
+                      border: 1px solid palette(mid);
                       border-radius: 0px;
                       border-top-left-radius: 0px;
                       border-bottom-left-radius: 0px;
@@ -297,12 +228,16 @@ class CcpnModule(Dock, DropBase, NotifierBase):
             self._settingsScrollArea = self.settingsWidget._scrollArea
 
             # set the new borders for the settings scroll area - border not needed at the top
-            self._settingsScrollArea.setStyleSheet('ScrollArea { border-left: 1px solid %s;'
-                                                   'border-right: 1px solid %s;'
-                                                   'border-bottom: 1px solid %s;'
-                                                   'background: transparent; }' % (
-                                                       BORDERNOFOCUS_COLOUR, BORDERNOFOCUS_COLOUR,
-                                                       BORDERNOFOCUS_COLOUR))
+            # self._settingsScrollArea.setStyleSheet('ScrollArea { border-left: 1px solid %s;'
+            #                                        'border-right: 1px solid %s;'
+            #                                        'border-bottom: 1px solid %s;'
+            #                                        'background: transparent; }' % (
+            #                                            BORDERNOFOCUS_COLOUR, BORDERNOFOCUS_COLOUR,
+            #                                            BORDERNOFOCUS_COLOUR))
+            self._settingsScrollArea.setStyleSheet('ScrollArea { border-left: 1px solid palette(mid);'
+                                                   'border-right: 1px solid palette(mid);'
+                                                   'border-bottom: 1px solid palette(mid);'
+                                                   'background: transparent; }')
             self.settingsWidget.insertCornerWidget()
 
             if self.settingsPosition in settingsWidgetPositions:
@@ -366,19 +301,11 @@ class CcpnModule(Dock, DropBase, NotifierBase):
         # stop the blue overlay popping up when dragging over a spectrum (no central region)
         self.allowedAreas = ['top', 'left', 'right', 'bottom']
 
-        self._updateStyle()
         self.update()  # make sure that the widgetArea starts the correct size
-
         # set the constraints so the module contracts to the correct size
         self.mainWidget.getLayout().setSizeConstraint(QtWidgets.QLayout.SetMinimumSize)
         self.setMinimumSize(6 * self.label.labelSize, 5 * self.label.labelSize)
         self.setSizePolicy(QtWidgets.QSizePolicy.Ignored, QtWidgets.QSizePolicy.Ignored)
-
-        # set the background/fontSize for the tooltips
-        _font = getFont(name=DEFAULTFONT)
-        self.setStyleSheet('QToolTip {{ background-color: {TOOLTIP_BACKGROUND}; '
-                           'color: {TOOLTIP_FOREGROUND}; '
-                           'font-size: {_size}pt ; }}'.format(_size=_font.pointSize(), **getColours()))
 
     #=========================================================================================
     # CCPN Properties
@@ -891,23 +818,6 @@ class CcpnModule(Dock, DropBase, NotifierBase):
                 event.ignore()
                 return
 
-    def _updateStyle(self):
-        """
-        Copied from the parent class to allow for modification in StyleSheet
-        However, that appears not to work (fully);
-
-        GWV: many calls to the updateStyle are triggered during initialization
-             probably from paint event
-        """
-
-        # Padding appears not to work; overridden somewhere else?
-        colours = getColours()
-
-        tempStyle = """CcpnModule {
-                      border: 0px;
-                   }"""
-        self.setStyleSheet(tempStyle)
-
     def findWindow(self):
         current = self
         while current.parent() is not None:
@@ -1102,6 +1012,11 @@ class CcpnModuleLabel(DockLabel):
         # flag to disable dragMoveEvent during a doubleClick
         self._inDoubleClick = False
 
+        QtWidgets.QApplication.instance()._sigPaletteChanged.connect(self._checkPalette)
+
+    def _checkPalette(self, pal: QtGui.QPalette, *args):
+        self.updateStyle()
+
     @property
     def labelName(self):
         return self.module.id
@@ -1154,7 +1069,6 @@ class CcpnModuleLabel(DockLabel):
         self.setDim(hightlighted)
 
     def updateStyle(self):
-
         # get the colours from the colourScheme
         if self.dim:
             fg = getColours()[CCPNMODULELABEL_FOREGROUND]
@@ -1501,6 +1415,11 @@ class DropAreaSelectedOverlay(QtWidgets.QWidget):
         self.dropArea = None
         self.hide()
         self.setAttribute(QtCore.Qt.WA_TransparentForMouseEvents)
+        self.setAutoFillBackground(False)
+        # colour from DockAreaOverlay so looks consistent
+        self._highlightBrush = QtGui.QBrush(QtGui.QColor(100, 100, 255, 50))
+        self._highlightPen = QtGui.QPen(QtGui.QColor(50, 50, 150), 3)
+
 
     def setDropArea(self, area):
         """Set the widget coverage, either hidden, or a rectangle covering the module
@@ -1528,13 +1447,11 @@ class DropAreaSelectedOverlay(QtWidgets.QWidget):
         """
         if self.dropArea is None:
             return
-
         # create a transparent rectangle and painter over the widget
         p = QtGui.QPainter(self)
         rgn = self.rect()
-
-        p.setBrush(QtGui.QBrush(QtGui.QColor(100, 100, 255, 50)))
-        p.setPen(QtGui.QPen(QtGui.QColor(50, 50, 150), 3))
+        p.setBrush(self._highlightBrush)
+        p.setPen(self._highlightPen)
         p.drawRect(rgn)
         p.end()
 
@@ -1555,7 +1472,6 @@ class BorderOverlay(QtWidgets.QWidget):
         self.setAttribute(QtCore.Qt.WA_TransparentForMouseEvents)
         c1 = self._borderColour = borderColour or QtGui.QColor(getColours()[BORDERNOFOCUS])
         c2 = self._backgroundColour = parent.palette().color(parent.backgroundRole())
-
         self._blendColour = QtGui.QColor((c1.red() + c2.red()) // 2,
                                          (c1.green() + c2.green()) // 2,
                                          (c1.blue() + c2.blue()) // 2,
@@ -1574,24 +1490,19 @@ class BorderOverlay(QtWidgets.QWidget):
         """
         # clear the bottom corners, and draw a rounded rectangle to cover the edges
         p = QtGui.QPainter(self)
+        p.translate(0.5, 0.5)  # move to pixel-centre
+        p.setRenderHint(QtGui.QPainter.Antialiasing, True)
         rgn = self.rect().adjusted(0, 0, -1, -1)
         w = rgn.width()
         h = rgn.height()
-
         # clear and smooth the bottom corners
-        p.setPen(QtGui.QPen(self._backgroundColour, 1))
+        pal = self.palette()
+        p.setPen(QtGui.QPen(pal.window(), 3))  # background
         p.drawPoints(QtCore.QPoint(0, h),
                      QtCore.QPoint(w, h),
                      )
-        p.setPen(QtGui.QPen(self._blendColour, 1))
-        p.drawPoints(QtCore.QPoint(0, h - 1),
-                     QtCore.QPoint(1, h),
-                     QtCore.QPoint(w, h - 1),
-                     QtCore.QPoint(w - 1, h)
-                     )
-
         # draw the new rectangle around the module
-        p.setPen(QtGui.QPen(self._borderColour, 1))
+        p.setPen(QtGui.QPen(pal.mid(), 1))  # border
         p.drawRoundedRect(rgn, 2, 2)
         p.end()
 
@@ -1601,6 +1512,9 @@ class BorderOverlay(QtWidgets.QWidget):
 #=========================================================================================
 
 class CcpnTableModule(CcpnModule):
+    """Module to be used for Table GUI's.
+    Implemented to allow hiddenColumn saving.
+    """
     def __init__(self, mainWindow, name, *args, **kwds):
         super().__init__(mainWindow=mainWindow, name=name, *args, **kwds)
 

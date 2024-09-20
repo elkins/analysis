@@ -16,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-06-21 19:48:44 +0100 (Fri, June 21, 2024) $"
-__version__ = "$Revision: 3.2.4 $"
+__dateModified__ = "$dateModified: 2024-09-13 20:32:53 +0100 (Fri, September 13, 2024) $"
+__version__ = "$Revision: 3.2.7 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -28,7 +28,7 @@ __date__ = "$Date: 2022-09-08 17:13:11 +0100 (Thu, September 08, 2022) $"
 #=========================================================================================
 
 import pandas as pd
-from PyQt5 import QtWidgets, QtCore
+from PyQt5 import QtWidgets, QtCore, QtGui
 from collections import defaultdict
 from functools import partial
 from time import time_ns
@@ -110,7 +110,7 @@ class _ProjectTableABC(TableABC, Base):
 
     _rowHeightScale = 1.0
 
-    def __init__(self, parent, df=None,
+    def __init__(self, parent, *, df=None,
                  multiSelect=True, selectRows=True,
                  showHorizontalHeader=True, showVerticalHeader=True,
                  borderWidth=2, cellPadding=2, focusBorderWidth=1, gridColour=None,
@@ -183,6 +183,8 @@ class _ProjectTableABC(TableABC, Base):
             self.application = mainWindow.application
             self.project = mainWindow.application.project
             self.current = mainWindow.application.current
+            # excellent - this can work here :)
+            # self.application.ui.qtApp.paletteChanged.connect(self._printPalette)
 
         self.moduleParent = moduleParent
         self._table = None
@@ -218,6 +220,37 @@ class _ProjectTableABC(TableABC, Base):
             # set the delegate for editing
             delegate = _TableDelegate(self, objectColumn=self.OBJECTCOLUMN)
             self.setItemDelegate(delegate)
+
+    @staticmethod
+    def _printPalette(pal: QtGui.QPalette):
+        # print the colours from the updated palette - only 'highlight' seems to be effective
+        # QT modifies this to give different selection shades depending on the widget
+        print('Palette ~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
+        colNames = ['windowText',  # 0
+                    'button',  # 1
+                    'light',  # 2
+                    'midlight',  # 3
+                    'dark',  # 4
+                    'mid',  # 5
+                    'text',  # 6
+                    'brightText',  # 7
+                    'buttonText',  # 8
+                    'base',  # 9
+                    'window',  # 10
+                    'shadow',  # 11
+                    'highlight',  # 12
+                    'highlightedText',  # 13
+                    'link',  # 14
+                    'linkVisited',  # 15
+                    'alternateBase',  # 16
+                    'noRole',  # 17
+                    'toolTipBase',  # 18
+                    'toolTipText',  # 19
+                    'placeholderText',  # 20
+                    ]
+        for colnum, colname in enumerate(colNames):
+            color = pal.color(QtGui.QPalette.Active, QtGui.QPalette.ColorRole(colnum)).name()
+            print(f"  Role: {colname:20}  {color}")
 
     def setModel(self, model: QtCore.QAbstractItemModel) -> None:
         """Set the model for the view

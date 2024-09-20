@@ -1392,7 +1392,6 @@ class PopoverButton(QToolButton):
         # self.setArrowType(Qt.DownArrow)
         self.setStyleSheet('''
                         border-style: solid;
-                        border-color: grey;
                         border-width: 1px;
                         border-radius: 3px;
                         ''')

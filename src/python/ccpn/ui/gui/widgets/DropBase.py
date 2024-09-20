@@ -9,9 +9,10 @@ GWV April-2017: Drived from an earlier version of DropBase
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2023"
-__credits__ = ("Ed Brooksbank, Joanna Fox, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
-               "Timothy J Ragan, Brian O Smith, Gary S Thompson & Geerten W Vuister")
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
+               "Timothy J Ragan, Brian O Smith, Daniel Thompson",
+               "Gary S Thompson & Geerten W Vuister")
 __licence__ = ("CCPN licence. See https://ccpn.ac.uk/software/licensing/")
 __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, L.G., & Vuister, G.W.",
                  "CcpNmr AnalysisAssign: a flexible platform for integrated NMR analysis",
@@ -20,8 +21,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2023-04-14 16:30:18 +0100 (Fri, April 14, 2023) $"
-__version__ = "$Revision: 3.1.1 $"
+__dateModified__ = "$dateModified: 2024-09-11 13:07:27 +0100 (Wed, September 11, 2024) $"
+__version__ = "$Revision: 3.2.7 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -219,19 +220,17 @@ class DropBase:
 
             if dataDict is not None and len(dataDict) > 1:
                 event.accept()
-
                 # follow parents to find first valid callback, until top-level reached
                 widg = self
                 while widg:
                     if (hasattr(widg, '_dropEventCallback') and widg._dropEventCallback is not None):
-                        widg._dropEventCallback(dataDict)
-                        event.accept()
-                        break
+                        if not widg._dropEventCallback(dataDict):
+                            # dropEvent is not automatically propagating up the qt-widget tree :|
+                            event.accept()
+                            break
                     widg = widg.parent()
-
                 else:
                     event.ignore()
-
         else:
             getLogger().debug('Widget not droppable')
 

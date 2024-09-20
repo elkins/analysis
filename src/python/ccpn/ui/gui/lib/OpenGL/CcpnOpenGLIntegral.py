@@ -4,9 +4,10 @@ Module Documentation here
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2023"
-__credits__ = ("Ed Brooksbank, Joanna Fox, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
-               "Timothy J Ragan, Brian O Smith, Gary S Thompson & Geerten W Vuister")
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
+               "Timothy J Ragan, Brian O Smith, Daniel Thompson",
+               "Gary S Thompson & Geerten W Vuister")
 __licence__ = ("CCPN licence. See https://ccpn.ac.uk/software/licensing/")
 __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, L.G., & Vuister, G.W.",
                  "CcpNmr AnalysisAssign: a flexible platform for integrated NMR analysis",
@@ -15,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2023-06-01 19:39:57 +0100 (Thu, June 01, 2023) $"
-__version__ = "$Revision: 3.1.1 $"
+__dateModified__ = "$dateModified: 2024-08-07 13:10:49 +0100 (Wed, August 07, 2024) $"
+__version__ = "$Revision: 3.2.5 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -134,6 +135,10 @@ class GLintegralListMethods():
         return obj.getIntegralView(integralListView)
 
 
+#=========================================================================================
+# GLintegralNdLabelling
+#=========================================================================================
+
 class GLintegralNdLabelling(GL1dLabelling, GLintegralListMethods, GLLabelling):  #, GLpeakNdLabelling):
     """Class to handle symbol and symbol labelling for Nd displays
     """
@@ -146,7 +151,7 @@ class GLintegralNdLabelling(GL1dLabelling, GLintegralListMethods, GLLabelling): 
     def _updateHighlightedSymbols(self, spectrumView, integralListView):
         drawList = self._GLSymbols[integralListView]
         drawList._rebuild()
-        drawList.updateTextArrayVBOColour()
+        drawList.pushTextArrayVBOColour()
 
     def _updateHighlightedLabels(self, spectrumView, objListView):
         if objListView not in self._GLLabels:
@@ -158,9 +163,11 @@ class GLintegralNdLabelling(GL1dLabelling, GLintegralListMethods, GLLabelling): 
         # pls = peakListView.peakList
         pls = self.objectList(objListView)
 
-        listCol = getAutoColourRgbRatio(objListView.textColour or GLDefs.DEFAULTCOLOUR, pls.spectrum, self.autoColour,
+        listCol = getAutoColourRgbRatio(objListView.textColour or GLDefs.DEFAULTCOLOUR,
+                                        pls.spectrum, self.autoColour,
                                         getColours()[CCPNGLWIDGET_FOREGROUND])
-        meritCol = getAutoColourRgbRatio(objListView.meritColour or GLDefs.DEFAULTCOLOUR, pls.spectrum, self.autoColour,
+        meritCol = getAutoColourRgbRatio(objListView.meritColour or GLDefs.DEFAULTCOLOUR,
+                                         pls.spectrum, self.autoColour,
                                          getColours()[CCPNGLWIDGET_FOREGROUND])
         meritEnabled = objListView.meritEnabled
         meritThreshold = objListView.meritThreshold
@@ -180,7 +187,7 @@ class GLintegralNdLabelling(GL1dLabelling, GLintegralListMethods, GLLabelling): 
                         cols = listCol
                     drawStr.setStringColour((*cols, GLDefs.INPLANEFADE))
 
-                drawStr.updateTextArrayVBOColour()
+                drawStr.pushTextArrayVBOColour()
 
     def drawSymbols(self, spectrumSettings, shader=None, stackingMode=True):
         if self.strip.isDeleted:
@@ -190,7 +197,7 @@ class GLintegralNdLabelling(GL1dLabelling, GLintegralListMethods, GLLabelling): 
         self.buildSymbols()
 
         # why is this not initialising?
-        self._GLParent.globalGL._shaderProgram1.setMVMatrix(self._GLParent._IMatrix)
+        shader.setMVMatrixToIdentity()
 
         for integralListView, specView in self._visibleListViews:
             if not integralListView.isDeleted and integralListView in self._GLSymbols.keys():
@@ -201,14 +208,12 @@ class GLintegralNdLabelling(GL1dLabelling, GLintegralListMethods, GLLabelling): 
                         if self._GLParent._stackingMode:
                             # use the stacking matrix to offset the 1D spectra
                             #   - not sure that they are actually drawn in stacking mode
-                            self._GLParent.globalGL._shaderProgram1.setMVMatrix(self._GLParent._spectrumSettings[
-                                                                                    specView][
-                                                                                    GLDefs.SPECTRUM_STACKEDMATRIX])
+                            shader.setMVMatrix(self._GLParent._spectrumSettings[specView].stackedMatrix)
 
                         # draw the actual integral areas
                         integralArea._integralArea.drawVertexColorVBO()
 
-        self._GLParent.globalGL._shaderProgram1.setMVMatrix(self._GLParent._IMatrix)
+        shader.setMVMatrixToIdentity()
 
     def drawSymbolRegions(self, spectrumSettings):
         if self.strip.isDeleted:
@@ -222,7 +227,7 @@ class GLintegralNdLabelling(GL1dLabelling, GLintegralListMethods, GLLabelling): 
                 # draw the boxes around the highlighted integral areas - multisampling not required here
                 self._GLSymbols[integralListView].drawIndexVBO()
 
-        self._GLParent.globalGL._shaderProgram1.setMVMatrix(self._GLParent._IMatrix)
+        self._GLParent._shaderPixel.setMVMatrixToIdentity()
 
     def _rescaleLabels(self, spectrumView=None, objListView=None, drawList=None):
         """Rescale all labels to the new dimensions of the screen
@@ -231,25 +236,30 @@ class GLintegralNdLabelling(GL1dLabelling, GLintegralListMethods, GLLabelling): 
             vertices = drawStr.numVertices
 
             if vertices:
+                # axisIndex is set when creating the labels, based on _flipped
                 if drawStr.axisIndex == 0:
                     _font = drawStr.font
 
+                    # top-left of region, bound to top of screen
                     offsets = [drawStr.axisPosition + (3.0 * self._GLParent.pixelX),
                                self._GLParent.axisT - (2 * _font.charHeight * self._GLParent.pixelY),
-                               0.0]
+                               0.0, 0.0]
+
                 else:
+                    # bottom-left of region, bound to left of screen - should be top-left of region?
                     offsets = [self._GLParent.axisL + (3.0 * self._GLParent.pixelX),
                                drawStr.axisPosition + (3.0 * self._GLParent.pixelY),
-                               0.0]
+                               0.0, 0.0]
 
                 drawStr.attribs[:] = offsets * vertices
 
-                drawStr.updateTextArrayVBOAttribs()
+                drawStr.pushTextArrayVBOAttribs()
 
     def _buildSymbols(self, spectrumView, integralListView):
 
         if integralListView not in self._GLSymbols:
-            self._GLSymbols[integralListView] = GLIntegralRegion(project=self.strip.project, GLContext=self._GLParent,
+            self._GLSymbols[integralListView] = GLIntegralRegion(project=self.strip.project,
+                                                                 GLContext=self._GLParent,
                                                                  spectrumView=spectrumView,
                                                                  integralListView=integralListView)
 
@@ -262,9 +272,11 @@ class GLintegralNdLabelling(GL1dLabelling, GLintegralListMethods, GLLabelling): 
             drawList._clearRegions()
 
             ils = integralListView.integralList
-            listCol = getAutoColourRgbRatio(integralListView.symbolColour or GLDefs.DEFAULTCOLOUR, ils.spectrum, self.autoColour,
+            listCol = getAutoColourRgbRatio(integralListView.symbolColour or GLDefs.DEFAULTCOLOUR,
+                                            ils.spectrum, self.autoColour,
                                             getColours()[CCPNGLWIDGET_FOREGROUND])
-            meritCol = getAutoColourRgbRatio(integralListView.meritColour or GLDefs.DEFAULTCOLOUR, ils.spectrum, self.autoColour,
+            meritCol = getAutoColourRgbRatio(integralListView.meritColour or GLDefs.DEFAULTCOLOUR,
+                                             ils.spectrum, self.autoColour,
                                              getColours()[CCPNGLWIDGET_FOREGROUND])
             meritEnabled = integralListView.meritEnabled
             meritThreshold = integralListView.meritThreshold
@@ -341,8 +353,8 @@ class GLintegralNdLabelling(GL1dLabelling, GLintegralListMethods, GLLabelling): 
     def _appendLabel(self, spectrumView, objListView, stringList, obj):
         """Append a new label to the end of the list
         """
-        spectrum = spectrumView.spectrum
-        spectrumFrequency = spectrum.spectrometerFrequencies
+        # spectrum = spectrumView.spectrum
+        # spectrumFrequency = spectrum.spectrometerFrequencies
 
         # pls = peakListView.peakList
         pls = self.objectList(objListView)
@@ -355,6 +367,7 @@ class GLintegralNdLabelling(GL1dLabelling, GLintegralListMethods, GLLabelling): 
         p0 = [0.0] * 2  # len(self.axisOrder)
         lims = obj.limits[0] if obj.limits else (0.0, 0.0)
 
+        dims = self._spectrumSettings[spectrumView].dimensionIndices
         for ps, psCode in enumerate(self._GLParent.axisOrder[0:2]):
             for pp, ppCode in enumerate(obj.axisCodes):
 
@@ -363,7 +376,7 @@ class GLintegralNdLabelling(GL1dLabelling, GLintegralListMethods, GLLabelling): 
 
                         # need to put the position in here
 
-                        if self._GLParent.INVERTXAXIS:
+                        if self._GLParent.XDIRECTION < 0:
                             p0[ps] = pos = max(lims)  # obj.position[pp]
                         else:
                             p0[ps] = pos = min(lims)  # obj.position[pp]
@@ -372,7 +385,7 @@ class GLintegralNdLabelling(GL1dLabelling, GLintegralListMethods, GLLabelling): 
 
                 elif self._GLParent._preferences.matchAxisCode == 1:  # match full code
                     if ppCode == psCode:
-                        if self._GLParent.INVERTXAXIS:
+                        if self._GLParent.XDIRECTION < 0:
                             p0[ps] = pos = max(lims)  # obj.position[pp]
                         else:
                             p0[ps] = pos = min(lims)  # obj.position[pp]
@@ -386,9 +399,11 @@ class GLintegralNdLabelling(GL1dLabelling, GLintegralListMethods, GLLabelling): 
             cols = self._GLParent.highlightColour[:3]
         else:
 
-            listCol = getAutoColourRgbRatio(objListView.textColour or GLDefs.DEFAULTCOLOUR, pls.spectrum, self.autoColour,
+            listCol = getAutoColourRgbRatio(objListView.textColour or GLDefs.DEFAULTCOLOUR,
+                                            pls.spectrum, self.autoColour,
                                             getColours()[CCPNGLWIDGET_FOREGROUND])
-            meritCol = getAutoColourRgbRatio(objListView.meritColour or GLDefs.DEFAULTCOLOUR, pls.spectrum, self.autoColour,
+            meritCol = getAutoColourRgbRatio(objListView.meritColour or GLDefs.DEFAULTCOLOUR,
+                                             pls.spectrum, self.autoColour,
                                              getColours()[CCPNGLWIDGET_FOREGROUND])
             meritEnabled = objListView.meritEnabled
             meritThreshold = objListView.meritThreshold
@@ -400,8 +415,13 @@ class GLintegralNdLabelling(GL1dLabelling, GLintegralListMethods, GLLabelling): 
         text = self.getLabelling(obj, self._GLParent)
 
         smallFont = self._GLParent.getSmallFont()
-        textX = pos or 0.0 + (3.0 * self._GLParent.pixelX)
-        textY = self._GLParent.axisT - (2 * smallFont.charHeight * self._GLParent.pixelY)
+        if dims[0]:
+            # 1D is flipped
+            textX = self._GLParent.axisL + 3.0 * self._GLParent.pixelX
+            textY = pos or 0.0
+        else:
+            textX = pos or 0.0 + (3.0 * self._GLParent.pixelX)
+            textY = self._GLParent.axisT - (2 * smallFont.charHeight * self._GLParent.pixelY)
 
         newString = GLString(text=text,
                              font=smallFont,
@@ -414,7 +434,7 @@ class GLintegralNdLabelling(GL1dLabelling, GLintegralListMethods, GLLabelling): 
                              GLContext=self._GLParent,
                              obj=obj)
         # this is in the attribs
-        newString.axisIndex = 0
+        newString.axisIndex = dims[0]  # still hacking for the minute
         newString.axisPosition = pos or 0.0
 
         stringList.append(newString)
@@ -428,6 +448,10 @@ class GLintegralNdLabelling(GL1dLabelling, GLintegralListMethods, GLLabelling): 
         """
         return True, False, 0, 1.0
 
+
+#=========================================================================================
+# GLintegral1dLabelling
+#=========================================================================================
 
 class GLintegral1dLabelling(GLintegralNdLabelling):
     """Class to handle symbol and symbol labelling for 1d displays

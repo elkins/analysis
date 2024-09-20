@@ -4,9 +4,10 @@ Module Documentation here
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2023"
-__credits__ = ("Ed Brooksbank, Joanna Fox, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
-               "Timothy J Ragan, Brian O Smith, Gary S Thompson & Geerten W Vuister")
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
+               "Timothy J Ragan, Brian O Smith, Daniel Thompson",
+               "Gary S Thompson & Geerten W Vuister")
 __licence__ = ("CCPN licence. See https://ccpn.ac.uk/software/licensing/")
 __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, L.G., & Vuister, G.W.",
                  "CcpNmr AnalysisAssign: a flexible platform for integrated NMR analysis",
@@ -15,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2023-06-01 19:39:57 +0100 (Thu, June 01, 2023) $"
-__version__ = "$Revision: 3.1.1 $"
+__dateModified__ = "$dateModified: 2024-07-30 18:35:26 +0100 (Tue, July 30, 2024) $"
+__version__ = "$Revision: 3.2.5 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -45,6 +46,8 @@ SPECTRUM_FOLDINGMODE = 'foldingMode'
 SPECTRUM_REGIONBOUNDS = 'regionBounds'
 SPECTRUM_XFOLDLIMITS = 'xFoldLimits'
 SPECTRUM_YFOLDLIMITS = 'yFoldLimits'
+SPECTRUM_SPECFREQ = 'specFreq'
+SPECTRUM_PPMTOPOINT = 'ppmToPoint'
 
 MAINVIEW = 'mainView'
 MAINVIEWFULLWIDTH = 'mainViewFullWidth'
@@ -80,7 +83,7 @@ GLREGIONTYPE = 'region'
 
 AXISLIMITS = [-1.0e12, 1.0e12]
 INVERTED_AXISLIMITS = [1.0e12, -1.0e12]
-RANGELIMITS = [1.0e12, 0.0]
+RANGELIMITS = [10, 1.0e12]
 RANGEMINSCALE = 1.0
 
 LENPID = 12
@@ -330,3 +333,19 @@ class CursorFrameCounterModes(DataEnum):
     CURSOR_DEFAULT = 0, 'Default'
     CURSOR_DRAWLAST = 1, 'DrawLast'
     CURSOR_DRAWNEXT = 2, 'DrawNext'
+
+
+#=========================================================================================
+# Functions
+#=========================================================================================
+
+def getAliasSetting(aliasX, aliasY):
+    """Return the alias setting for alias value (aliasX, aliasY) for insertion into shader
+    """
+    if not isinstance(aliasX, int):
+        raise TypeError('aliasX must be an int')
+    if not isinstance(aliasY, int):
+        raise TypeError('aliasY must be an int')
+
+    # arbitrary value to pack into a single float
+    return (256 * aliasX) + aliasY

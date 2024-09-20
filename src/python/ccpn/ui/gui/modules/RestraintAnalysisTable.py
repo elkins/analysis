@@ -16,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-08-30 12:57:01 +0100 (Fri, August 30, 2024) $"
-__version__ = "$Revision: 3.2.5 $"
+__dateModified__ = "$dateModified: 2024-09-11 14:44:29 +0100 (Wed, September 11, 2024) $"
+__version__ = "$Revision: 3.2.7 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -75,6 +75,20 @@ CHECKABLE = QtCore.Qt.ItemIsUserCheckable
 CHECKED = QtCore.Qt.Checked
 UNCHECKED = QtCore.Qt.Unchecked
 
+_HINT = """New comparison-set
+Drop items into each box:
+    single collection, containing at least one restraintTable, or
+    single structureData, or
+    many restraintTables.
+Drop items into gearbox area;
+    these can be a combination of:
+        structureData,
+        collections,
+        restraintTables.
+Items not compatible with a single comparison-set
+will be separated into comparison-sets
+"""
+
 
 #=========================================================================================
 # _ComparisonTree
@@ -99,23 +113,16 @@ class _ComparisonTree(ProjectTreeCheckBoxes):
         # allow drops of items
         self.setAcceptDrops(True)
         self.setDropEventCallback(self._processDroppedItems)
-        self.setSizeAdjustPolicy(QtWidgets.QTreeWidget.AdjustIgnored)
-
+        self.setSizeAdjustPolicy(self.AdjustToContents)
+        self.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.MinimumExpanding)
         if self not in self.resources.comparisonSets:
             self.resources.comparisonSets.append(self)
-
-        self.setMinimumWidth(100)
         self.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
         self.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
         self.setHorizontalScrollMode(QtWidgets.QAbstractItemView.ScrollPerPixel)
         self.setVerticalScrollMode(QtWidgets.QAbstractItemView.ScrollPerPixel)
-
-        # self.viewport().setSizePolicy(QtWidgets.QSizePolicy.Maximum, QtWidgets.QSizePolicy.Ignored)
-
-        # self.header().setCascadingSectionResizes(True)
-        # for col in range(self.columnCount()):
-        #     self.header().setSectionResizeMode(col, QtWidgets.QHeaderView.ResizeToContents)
-        # self.header().setStretchLastSection(False)
+        self.setSelectionMode(self.NoSelection)
+        self.setToolTip(_HINT)
 
         self.checkStateChanged.connect(self._checked)
 
@@ -140,14 +147,12 @@ class _ComparisonTree(ProjectTreeCheckBoxes):
                         child = item.child(cc)
                         item._lastState[id(child)] = child.isDisabled()
                         child.setDisabled(True)
-
                 else:
                     for cc in range(item.childCount()):
                         child = item.child(cc)
                         child.setDisabled(item._lastState[id(child)])
 
         elif (parent := item.parent()) and item.depth == 2:
-
             with self.blockWidgetSignals(self):
                 # uncheck the other items
                 for cc in range(parent.childCount()):
@@ -168,7 +173,7 @@ class _ComparisonTree(ProjectTreeCheckBoxes):
         if not data:
             return
 
-        rss = self.resources
+        # rss = self.resources
         pids = data.get('pids', [])
 
         objs = [self.project.getByPid(pid) for pid in pids]
@@ -178,24 +183,25 @@ class _ComparisonTree(ProjectTreeCheckBoxes):
 
         if len(sData) == 1:
             if len(objs) > 1:
-                MessageDialog.showWarning('Restraint Analysis Inspector', 'Please only drop one structureData')
-                return
-
+                # MessageDialog.showWarning('Restraint Analysis Inspector', 'Please only drop one structureData')
+                return True
             self._processStructureData(sData[0])
-
-        if len(collections) == 1:
-            if len(objs) > 1:
-                MessageDialog.showWarning('Restraint Analysis Inspector', 'Please only drop one collection')
-                return
-
-            self._processCollection(collections[0])
-
+            return
         if len(rTables):
             if len(objs) != len(rTables):
-                MessageDialog.showWarning('Restraint Analysis Inspector', 'Please only drop restraintTables')
-                return
-
+                # MessageDialog.showWarning('Restraint Analysis Inspector', 'Please only drop restraintTables')
+                return True
             self._processRestraintTables(rTables)
+            return
+        if len(collections) == 1:
+            if len(objs) > 1:
+                # MessageDialog.showWarning('Restraint Analysis Inspector', 'Please only drop one collection')
+                return True
+            # - this needs addressing in more detail
+            return self._processCollection(collections[0])
+
+        # return processing to the parent, signal to continue up dropEvent widget-tree
+        return True
 
     def _addRestraintsToComparisonSet(self, rTables):
 
@@ -206,7 +212,6 @@ class _ComparisonTree(ProjectTreeCheckBoxes):
         for rTable in rTables:
 
             sData = rTable.structureData
-
             item = _StoredTreeWidgetItem(top, depth=1)
             item.setText(0, rTable.id)
             item.setData(1, 0, rTable)
@@ -242,19 +247,8 @@ class _ComparisonTree(ProjectTreeCheckBoxes):
         self.expandAll()
         self.setItemsExpandable(False)
 
-        # for col in range(self.columnCount()):
-        #     self.header().setSectionResizeMode(col, QtWidgets.QHeaderView.ResizeToContents)
-        #     self.resizeColumnToContents(col)
-        #
-        # self.updateGeometry()
-        # temporarily force a fixed width
-        # self.setFixedWidth(max(self.sizeHintForColumn(col) + 24 for col in range(self.columnCount())))
-
         self.resources.guiFrame.setRefreshButtonEnabled(True)
         self.resources.guiModule.addNewComparisonSet()
-
-        # QtCore.QTimer.singleShot(0, self.resources.guiModule.addNewComparisonSet)
-        # QtCore.QTimer.singleShot(0, self._releaseColumn)
         QtCore.QTimer.singleShot(0, self.resources.guiFrame._updatePulldown)
 
     def _releaseColumn(self):
@@ -272,7 +266,6 @@ class _ComparisonTree(ProjectTreeCheckBoxes):
         for item in self.findItems('', QtCore.Qt.MatchContains | QtCore.Qt.MatchRecursive):
             if selected is None or bool(item.checkState(0)) == selected:
                 obj = item.data(1, 0)
-
                 # return items in the tree that have a pid
                 if hasattr(obj, 'pid') and item.depth == depth and \
                         (not self.projectItem or item != self.projectItem or includeRoot):
@@ -301,7 +294,6 @@ class _ComparisonTree(ProjectTreeCheckBoxes):
         existing = [cs.comparisonSetName for cs in self.resources.comparisonSets]
         while name in existing:
             name = Common.incrementName(name)
-
         self.clear()
 
         # set the name from the structureData
@@ -321,7 +313,6 @@ class _ComparisonTree(ProjectTreeCheckBoxes):
         existing = [cs.comparisonSetName for cs in self.resources.comparisonSets]
         while name in existing:
             name = Common.incrementName(name)
-
         self.clear()
 
         # set the name from the structureData
@@ -331,6 +322,9 @@ class _ComparisonTree(ProjectTreeCheckBoxes):
         top.setFlags(top.flags() & ~CHECKABLE)
 
         rTables = [obj for obj in collection.items if isinstance(obj, RestraintTable)]
+        if not rTables:
+            # if no restraint-tables then let the parent decide
+            return True
 
         self._addRestraintsToComparisonSet(rTables)
 
@@ -347,7 +341,6 @@ class _ComparisonTree(ProjectTreeCheckBoxes):
         if self.isEmpty:
             # set the name from the first restraint-table
             top = self.comparisonItem = _StoredTreeWidgetItem(self.invisibleRootItem(), depth=0)
-
             top.setText(0, name)
             top.setData(1, 0, firstTable)
             top.setFlags(top.flags() & ~CHECKABLE)
@@ -373,7 +366,6 @@ class _ComparisonTree(ProjectTreeCheckBoxes):
         """Build a menu for renaming tree items
         """
         contextMenu = Menu('', self, isFloatWidget=True)
-
         contextMenu.addItem('Remove Comparison Set', callback=self._removeComparisonSet, enabled=True)
         # contextMenu.addItem('Duplicate Comparison Set', callback=self._duplicateComparisonSet, enabled=False)
         contextMenu.addSeparator()
@@ -381,15 +373,13 @@ class _ComparisonTree(ProjectTreeCheckBoxes):
         return contextMenu
 
     def _removeComparisonSet(self):
-        """Remove the selected comparisno-set from the list
+        """Remove the selected comparison-set from the list
         """
         rss = self.resources
-
         rss.comparisonSets.remove(self)
         rss.guiFrame.setRefreshButtonEnabled(True)
         self.setVisible(False)
         self.deleteLater()
-
         rss.guiModule.addNewComparisonSet()
 
     def _duplicateComparisonSet(self):
@@ -405,44 +395,35 @@ class _ComparisonTree(ProjectTreeCheckBoxes):
             p = QtGui.QPainter(self.viewport())
             pen = QtGui.QPen(QtGui.QColor('grey'))
             p.setPen(pen)
-
             rgn = self.rect().adjusted(8, 8, 0, 0)
             rgn = QtCore.QRect(rgn.left(), rgn.top(), rgn.width(), rgn.height())
-
             align = QtCore.Qt.AlignTop | QtCore.Qt.AlignLeft
-            label = 'New comparisonSet\n' \
-                    'Drop items:\n' \
-                    '    collection\n' \
-                    '    structureData\n' \
-                    '    restraintTables'
-
-            self.hint = p.drawText(rgn, int(align), label)
+            self.hint = p.drawText(rgn, int(align), _HINT)
             p.end()
+
+    def minimumSizeHint(self):
+        size = super().minimumSizeHint()
+
+        # Get the frame width using the current style of the widget
+        frame_width = self.style().pixelMetric(QtWidgets.QStyle.PM_DefaultFrameWidth)
+        # Initialize the total height with the height of the header and double the frame width
+        height = self.header().height() + (2 * frame_width)
+
+        # Iterate over all items in the QTreeWidget
+        iterator = QtWidgets.QTreeWidgetItemIterator(self)
+        while iterator.value():
+            # Add the visual height of each item to the total height
+            item = iterator.value()
+            height += self.visualItemRect(item).height()
+            # Move to the next item
+            iterator += 1
+
+        # Set the fixed height of the tree widget
+        return QtCore.QSize(size.width(), max(height, 32))
 
     def _updateNotify(self, trigger, obj):
         """Refill the comparison-set on notifier
         """
-        # toDelete = []
-        # for child in self.findItems('*', QtCore.Qt.MatchWrap | QtCore.Qt.MatchWildcard | QtCore.Qt.MatchRecursive):
-        #     if coreObj := child.data(1, 0):
-        #         if trigger == Notifier.DELETE and coreObj == obj:
-        #             child.setDisabled(True)
-        #             toDelete.append(child)
-        #
-        #         else:
-        #             child.setText(0, coreObj.id)
-        #
-        # for itm in toDelete:
-        #     try:
-        #         if itm.parent():
-        #             itm.parent().removeChild(itm)
-        #         else:
-        #             self.invisibleRootItem().removeChild(itm)
-        #     except Exception as es:
-        #         print(es)
-
-        # NOTE:ED - probably only need the _cleanup
-
         QtCore.QTimer.singleShot(0, partial(self._cleanup, trigger, obj))
 
     def _cleanup(self, trigger, obj):
@@ -454,7 +435,6 @@ class _ComparisonTree(ProjectTreeCheckBoxes):
                 if coreObj.isDeleted or (trigger == Notifier.DELETE and coreObj == obj):
                     child.setDisabled(True)
                     toDelete.append(child)
-
                 else:
                     # rename event - need to keep the extension
                     if ext := re.search(r'_\d+$', child.text(0)):
@@ -516,17 +496,14 @@ class RestraintAnalysisTableModule(CcpnTableModule):
             app = self.application = mainWindow.application
             self.project = app.project
             self.current = app.current
-
             self.scriptsPath = app.scriptsPath
             self.pymolScriptsPath = fetchDir(self.scriptsPath, 'pymol')
-
         else:
             self.application = self.project = self.current = None
 
         # a data-store for information that all widgets in module may access
         self.resources = _ModuleHandler()
         self.resources.guiModule = self
-        # self.resources.comparisonSets = []
 
         # set the widgets and callbacks
         self._setWidgets(self.settingsWidget, self.mainWidget, peakList, selectFirstItem)
@@ -619,7 +596,7 @@ class RestraintAnalysisTableModule(CcpnTableModule):
                                                        'enabled'        : True,
                                                        'type'           : ScrollableFrame,
                                                        'useInsideSpacer': True,
-                                                       'kwds'           : {'gridSpan' : (1, 3),
+                                                       'kwds'           : {'gridSpan' : (1, 2),
                                                                            'setLayout': True},
                                                        }),
                                     (_CLEARBUTTON, {'label'   : '',
@@ -723,23 +700,10 @@ class RestraintAnalysisTableModule(CcpnTableModule):
 
         # create a widget to hold the comparison-sets
         fr = self.comparisonFrame = settings.getWidget(_COMPARISONSETS)
-        fr.insertCornerWidget()
         sa = self._scrollAreaWidget = fr._scrollArea
-        sa.setScrollBarPolicies(('asNeeded', 'never'))
-
-        # add a splitter - MUST use addWidget to add to correctly add to gridLayout
-        cs = self._comparisonSplitter = Splitter(fr, setLayout=True, horizontal=True, collapsible=False)
-        fr.getLayout().addWidget(cs, 0, 0)
-        cs.setMinimumHeight(24)
-        fr.setMinimumHeight(24)
-
-        self._nextComparisonColumn = 0
+        sa.setScrollBarPolicies(('never', 'asNeeded'))
         # create the first empty tree
         self.addNewComparisonSet()
-
-        # add spacer to the settings-widget so that the right-hand-side stays aligned
-        self._splitterSpacer = Spacer(fr, 5, 5, QtWidgets.QSizePolicy.MinimumExpanding, QtWidgets.QSizePolicy.Fixed,
-                                      grid=(0, 1))
 
         # force the comparison-set widget to take up the most vertical space
         layout = self._settings.getLayout()
@@ -789,7 +753,6 @@ class RestraintAnalysisTableModule(CcpnTableModule):
                                                 [Notifier.CURRENT],
                                                 targetName=self.activePulldownClass._pluralLinkName,
                                                 callback=self.tableFrame._selectCurrentPulldownClass)
-
             # set the active callback from the pulldown
             self._mainFrame.setActivePulldownClass(coreClass=self.activePulldownClass,
                                                    checkBox=self._settings.checkBoxes[LINKTOPULLDOWNCLASS]['widget'])
@@ -798,14 +761,7 @@ class RestraintAnalysisTableModule(CcpnTableModule):
         self.mainWidget._dropEventCallback = self._processDroppedItems
 
         self.settingsWidget.setAcceptDrops(True)
-        # self.settingsWidget._dropEventCallback = self._processDroppedItems
-
-        # dicts for the filters on the lists and modulePulldown - referenced by peakLists in the collection
-        # rss._restraintTableFilter = {}
-        # rss._outputTableFilter = {}
-        # rss._modulePulldownFilter = []  # may not need this one?
-        # self._thisPeakList = None
-
+        self.settingsWidget.setDropEventCallback(self._processDroppedItems)
         rss._resTableWidget.setPreSelect(self._applyRestraintTableFilter)
         rss._outTableWidget.setPreSelect(self._applyViolationTableFilter)
 
@@ -846,7 +802,6 @@ class RestraintAnalysisTableModule(CcpnTableModule):
             # Don't restore the pulldown selection from last seen.
             pulldownSaveName = self.tableFrame._modulePulldown.pulldownList.objectName()
             widgetsState.pop(f'__{pulldownSaveName}', None)
-
         except Exception as err:
             getLogger().debug2(f'Could not remove the pulldown state from RestraintAnalysisInspector module. {err}')
         return widgetsState
@@ -860,10 +815,8 @@ class RestraintAnalysisTableModule(CcpnTableModule):
         Manually select a peakList from the pullDown
         """
         rss = self.resources
-
         with rss._modulePulldown.blockWidgetSignals(blockUpdates=False):
             self._selectPeakList(peakList)
-
         self._updateSettings(rss._meanLowerLimitSpinBox.getValue(), rss._autoExpandCheckBox.get())
 
         # give the widgets time to refresh
@@ -871,10 +824,8 @@ class RestraintAnalysisTableModule(CcpnTableModule):
 
     def restoreWidgetsState(self, **widgetsState):
         rss = self.resources
-
         super().restoreWidgetsState(**widgetsState)
         getLogger().debug(f'RestraintTableModule {self} - restoreWidgetsState')
-
         # need to set the values from the restored state
         self._updateSettings(rss._meanLowerLimitSpinBox.getValue(),
                              rss._autoExpandCheckBox.get())
@@ -883,7 +834,6 @@ class RestraintAnalysisTableModule(CcpnTableModule):
         """Update the selected restraintTables
         """
         rss = self.resources
-
         restraintTables = rss._resTableWidget.getTexts()
         if ALL in restraintTables:
             restraintTables = self.project.restraintTables
@@ -900,7 +850,6 @@ class RestraintAnalysisTableModule(CcpnTableModule):
         """Update the selected outputTables
         """
         rss = self.resources
-
         outputTables = rss._outTableWidget.getTexts()
         if ALL in outputTables:
             outputTables = [vt for vt in self.project.violationTables if vt.getMetadata(_VIOLATIONRESULT)]
@@ -916,7 +865,6 @@ class RestraintAnalysisTableModule(CcpnTableModule):
         """Update the selected restraintTables/outputTables
         """
         rss = self.resources
-
         restraintTables = rss._resTableWidget.getTexts()
         if ALL in restraintTables:
             restraintTables = self.project.restraintTables
@@ -937,12 +885,9 @@ class RestraintAnalysisTableModule(CcpnTableModule):
         self.updateRestraintViolationTables(restraintTables, outputTables)
 
     def _updateAutoExpand(self, expand):
-        # index = self._expandSelector.getIndex()
-        # self.tableFrame.updateAutoExpand(expand)
         self.resources._autoExpand = expand
 
     def _updateMeanLowerLimit(self, value):
-        # self.tableFrame.updateMeanLowerLimit(value)
         self.resources._meanLowerLimit = value
         self._tableWidget._updateTable()
 
@@ -968,7 +913,6 @@ class RestraintAnalysisTableModule(CcpnTableModule):
         """Register notifiers for the module
         """
         rss = self.resources
-
         if rss._collectionPulldown:
             rss._collectionPulldown.unRegister()
         if self._collectionNotifier:
@@ -1011,7 +955,6 @@ class RestraintAnalysisTableModule(CcpnTableModule):
 
     def _updateSettings(self, meanLowerLimit, expand):
         rss = self.resources
-
         rss._meanLowerLimit = meanLowerLimit
         rss._autoExpand = expand
 
@@ -1025,13 +968,11 @@ class RestraintAnalysisTableModule(CcpnTableModule):
         """Handle manual collection pulldown selection
         """
         rss = self.resources
-
         if value == SELECT and rss._collectionPulldown.getIndex() == 0:
             # clear options - 'select' chosen from the pulldown
             self._resetPulldowns()
             self._clearFilters()
             self._updateSettings(rss._meanLowerLimitSpinBox.getValue(), rss._autoExpandCheckBox.get())
-
             # give the widgets time to refresh
             QtCore.QTimer.singleShot(0, self._tableWidget._updateTable)
             return
@@ -1088,7 +1029,6 @@ class RestraintAnalysisTableModule(CcpnTableModule):
                 self._applyPeakListFilter()
             else:
                 rss._thisPeakList = None
-
                 with self.tableFrame.blockWidgetSignals(blockUpdates=False):
                     rss._modulePulldown.setIndex(0)
 
@@ -1104,7 +1044,6 @@ class RestraintAnalysisTableModule(CcpnTableModule):
             self._clearFilters()
             self._updateCollectionButton(False)
             self._updateSettings(rss._meanLowerLimitSpinBox.getValue(), rss._autoExpandCheckBox.get())
-
             # give the widgets time to refresh
             QtCore.QTimer.singleShot(0, self._tableWidget._updateTable)
 
@@ -1115,7 +1054,6 @@ class RestraintAnalysisTableModule(CcpnTableModule):
             return
 
         rss = self.resources
-
         getLogger().debug(f'>>> peaklist has changed to  {pid}')
         if (pkList := self.project.getByPid(pid)):
             if pkList in rss._modulePulldownFilter:
@@ -1127,7 +1065,6 @@ class RestraintAnalysisTableModule(CcpnTableModule):
                         rss._resTableWidget.setTexts([obj.pid for obj in validRTL])
                     else:
                         rss._resTableWidget.clearList()
-
                 # set up the texts in the validation-tables listWidget
                 with rss._outTableWidget.blockWidgetSignals():
                     if validVTL := rss._outputTableFilter.get(pkList):
@@ -1148,7 +1085,6 @@ class RestraintAnalysisTableModule(CcpnTableModule):
 
     def _resetPulldowns(self):
         rss = self.resources
-
         rss._thisPeakList = None
         with rss._modulePulldown.blockWidgetSignals():
             rss._modulePulldown.setIndex(0)
@@ -1160,7 +1096,6 @@ class RestraintAnalysisTableModule(CcpnTableModule):
 
     def _clearFilters(self):
         rss = self.resources
-
         # clear the pulldown filters
         rss._restraintTableFilter = {}
         rss._outputTableFilter = {}
@@ -1173,7 +1108,15 @@ class RestraintAnalysisTableModule(CcpnTableModule):
         self._collectionPulldownCallback(value)
 
     def _clearComparisons(self):
-        ...
+        """Remove all comparison-sets.
+        """
+        rss = self.resources
+        for st in rss.comparisonSets:
+            st.setVisible(False)
+            st.deleteLater()
+        rss.comparisonSets.clear()
+        rss.guiFrame.setRefreshButtonEnabled(True)
+        rss.guiModule.addNewComparisonSet()
 
     @property
     def collectionSelected(self) -> bool:
@@ -1186,14 +1129,11 @@ class RestraintAnalysisTableModule(CcpnTableModule):
         """
         rss = self.resources
         table = rss._resTableWidget
-
         combo = table.pulldownList
         filt = rss._restraintTableFilter.get(rss._thisPeakList) or []
         objs = self.project.restraintTables
-
         filtAll = reduce(add, rss._restraintTableFilter.values(), [])
         filtOther = list(OrderedSet(filtAll) - set(filt))
-
         ll = [SelectToAdd] + table.standardListItems
         if self.collectionSelected:
             objs = filt + filtOther + list(OrderedSet(objs) - set(filtAll))
@@ -1203,101 +1143,75 @@ class RestraintAnalysisTableModule(CcpnTableModule):
             self._setPulldownColours(combo, [obj.pid for obj in filt], QtGui.QColor('green'))
         if filtOther:
             self._setPulldownColours(combo, [obj.pid for obj in filtOther], QtGui.QColor('blue'))
-        self._setPulldownTextColour(combo)
 
     def _applyViolationTableFilter(self, *args):
         """Filter the violation-table pulldown when about to show
         """
         rss = self.resources
         table = rss._outTableWidget
-
         combo = table.pulldownList
         filt = rss._outputTableFilter.get(rss._thisPeakList) or []
         objs = [vt for vt in self.project.violationTables if vt.getMetadata(_VIOLATIONRESULT)]
-
         filtAll = reduce(add, rss._outputTableFilter.values(), [])
         filtOther = list(OrderedSet(filtAll) - set(filt))
-
         ll = [SelectToAdd] + table.standardListItems
         if self.collectionSelected:
             objs = filt + list(OrderedSet(objs) - set(filt))
 
         table.modifyTexts(ll + [obj.pid for obj in objs])
         if filt:
-            self._setPulldownColours(combo, [obj.pid for obj in filt], QtGui.QColor('green'))
+            self._setPulldownColours(combo, [obj.pid for obj in filt], QtGui.QColor('seagreen'))
         if filtOther:
-            self._setPulldownColours(combo, [obj.pid for obj in filtOther], QtGui.QColor('blue'))
-        self._setPulldownTextColour(combo)
+            self._setPulldownColours(combo, [obj.pid for obj in filtOther], QtGui.QColor('dodgerblue'))
 
     def _applyPeakListFilter(self):
         """Filter the peakList pulldown when about to show
         """
         rss = self.resources
-
         combo = rss._modulePulldown.pulldownList
-
         filt = [rss._thisPeakList] if rss._thisPeakList else []
         filtAll = rss._modulePulldownFilter
         filtOther = list(OrderedSet(filtAll) - set(filt))
-
         self._resetPulldownColours(combo)
         if filt:
-            self._setPulldownColours(combo, [obj.pid for obj in filt], QtGui.QColor('green'))
+            self._setPulldownColours(combo, [obj.pid for obj in filt], QtGui.QColor('seagreen'))
         if filtOther:
-            self._setPulldownColours(combo, [obj.pid for obj in filtOther], QtGui.QColor('blue'))
-        self._setPulldownTextColour(combo)
+            self._setPulldownColours(combo, [obj.pid for obj in filtOther], QtGui.QColor('dodgerblue'))
 
-    def _setPulldownColours(self, combo, pids, color=None):
+    @staticmethod
+    def _setPulldownColours(combo, pids, color=None):
         """Colour the pulldown items if they belong to the supplied list
         """
-        color = color or QtGui.QColor('blue')
-
+        color = color or QtGui.QColor('dodgerblue')
         model = combo.model()
         _inds = [ii for ii, val in enumerate(combo.texts) if val in pids]
         for ind in range(len(combo.texts)):
             itm = model.item(ind)
             if ind in _inds:
-                itm.setForeground(color)
-            # itm.setForeground(color if ind in _inds else DEFAULT_COLOR)
-        self._setPulldownTextColour(combo)
+                itm.setData(color, QtCore.Qt.ForegroundRole)
+        # update the pulldown to match the selected item
+        combo.update()
 
-    def _resetPulldownColours(self, combo, color=None):
+    @staticmethod
+    def _resetPulldownColours(combo):
         """Colour the pulldown items if they belong to the supplied list
         """
-        color = color or DEFAULT_COLOR
-
         model = combo.model()
         for ind in range(len(combo.texts)):
             itm = model.item(ind)
-            itm.setForeground(color)
-        self._setPulldownTextColour(combo)
-
-    @staticmethod
-    def _setPulldownTextColour(combo):
-        """Set the colour of the selected pulldown-text
-        """
-        if (model := combo.model()):
-            palette = combo.palette()
-            if (item := model.item(combo.currentIndex())) is not None and item.text():
-                # use the palette to change the colour of the selection text - may not match for other themes
-                palette.setColor(QtGui.QPalette.Active, QtGui.QPalette.Text, item.foreground().color())
-            else:
-                palette.setColor(QtGui.QPalette.Active, QtGui.QPalette.Text, QtGui.QColor('black'))
-
-            combo.setPalette(palette)
+            itm.setData(None, QtCore.Qt.ForegroundRole)
+        # update the pulldown to match the selected item
+        combo.update()
 
     def _selectPeakList(self, peakList=None):
         """Manually select a PeakList from the pullDown
         """
         rss = self.resources
-
         if peakList is None:
             rss._modulePulldown.selectFirstItem()
-
         else:
             if not isinstance(peakList, PeakList):
                 raise TypeError('select: Object is not of type PeakList')
-
             for widgetObj in rss._modulePulldown.textList:
                 if peakList.pid == widgetObj:
                     self._tableWidget._selectedPeakList = peakList
@@ -1311,15 +1225,12 @@ class RestraintAnalysisTableModule(CcpnTableModule):
         """Handle notifier for changed, deleted collection
         """
         rss = self.resources
-
         trigger = data[Notifier.TRIGGER]
         obj = data[Notifier.OBJECT]
-
         if obj and obj.pid == rss._collectionPulldown.getText() and trigger == Notifier.CHANGE:
             getLogger().info(f'Collection {obj.pid} in {self} needs refreshing')
             self._resetPulldowns()
             self._clearFilters()
-
             self._updateCollectionButton(True)
             self._updateSettings(rss._meanLowerLimitSpinBox.getValue(), rss._autoExpandCheckBox.get())
             self._tableWidget._updateTable()
@@ -1328,17 +1239,14 @@ class RestraintAnalysisTableModule(CcpnTableModule):
         """Handle notifier for changed, deleted collection
         """
         rss = self.resources
-
         trigger = data[Notifier.TRIGGER]
         obj = data[Notifier.OBJECT]
-
         cSets = [cSet.comparisonSet for cSet in rss.comparisonSets]
         rTables = [rTable for cSet in rss.comparisonSets for rTable in cSet.getTreeTables(depth=1, selected=None)]
         vTables = [vTable for cSet in rss.comparisonSets for vTable in cSet.getTreeTables(depth=2, selected=None)]
 
         if obj in (cSets + rTables + vTables):
             getLogger().debug(f'notifier {obj}')
-
             for cSet in rss.comparisonSets:
                 cSet._updateNotify(trigger, obj)
             self.tableFrame._updatePulldown()
@@ -1355,49 +1263,31 @@ class RestraintAnalysisTableModule(CcpnTableModule):
     def _processDroppedItems(self, data):
         """CallBack for Drop events
         """
-        rss = self.resources
-
-        # if self._tableWidget and data:
         pids = data.get('pids', [])
-
         objs = [self.project.getByPid(pid) for pid in pids]
-        selectableObjects = [obj for obj in objs if isinstance(obj, Collection)]
-        rTables = [obj for obj in objs if isinstance(obj, RestraintTable)]
-        vTables = [obj for obj in objs if isinstance(obj, ViolationTable)]
-        if (sData := [obj for obj in objs if isinstance(obj, StructureData)]):
-            for sd in sData:
-                rTables.extend(sd.restraintTables)
-                vTables.extend(sd.violationTables)
-            rTables = list(OrderedSet(rTables))
-            vTables = list(OrderedSet(vTables))
+        selectableObjects = [obj for obj in objs if isinstance(obj, Collection | StructureData | RestraintTable)]
 
-        if len(selectableObjects) > 1:
-            MessageDialog.showWarning('Restraint Analysis Inspector', 'Please only drop one collection')
-            return
-
-        if selectableObjects:
-            # select the collection from the pulldown - manually update table
-            with rss._collectionPulldown.blockWidgetSignals(blockUpdates=False):
-                rss._collectionPulldown.select(selectableObjects[0].pid)
-
-            # give the widgets time to refresh
-            QtCore.QTimer.singleShot(0, partial(self._collectionPulldownCallback, selectableObjects[0].pid))
-
-        elif (rTables or vTables):
-
-            if rTables:
-                ll = rss._resTableWidget.getTexts()
-                newRTables = OrderedSet(ll) | {rt.pid for rt in rTables}
-                rss._resTableWidget.modifyListWidgetTexts(list(newRTables))
-            if vTables:
-                ll = rss._outTableWidget.getTexts()
-                newVTables = OrderedSet(ll) | {vt.pid for vt in vTables if vt.getMetadata(_VIOLATIONRESULT)}
-                rss._outTableWidget.modifyListWidgetTexts(list(newVTables))
-
-            self._updateSettings(rss._meanLowerLimitSpinBox.getValue(), rss._autoExpandCheckBox.get())
-            self._updateRestraintViolationTables()
-
-            self._tableWidget._updateTable()
+        for grp in selectableObjects:
+            if isinstance(grp, Collection):
+                for itm in grp.items:
+                    # get the last set
+                    if not (compSet := self.resources.comparisonSets[-1]):
+                        continue
+                    # process item into the comparison-set tree, a bit of a hack
+                    if isinstance(itm, StructureData):
+                        compSet._processStructureData(itm)
+                    elif isinstance(itm, RestraintTable):
+                        compSet._processRestraintTables([itm])
+            elif isinstance(grp, StructureData):
+                # get the last set
+                if not (compSet := self.resources.comparisonSets[-1]):
+                    continue
+                compSet._processStructureData(grp)
+            elif isinstance(grp, RestraintTable):
+                # get the last set
+                if not (compSet := self.resources.comparisonSets[-1]):
+                    continue
+                compSet._processRestraintTables([grp])
 
     def _handleDroppedItems(self, pids, objType, pulldown):
         """handle dropping pids onto the table
@@ -1411,13 +1301,11 @@ class RestraintAnalysisTableModule(CcpnTableModule):
         from ccpn.ui.gui.widgets.MessageDialog import showYesNo
 
         objs = [self.project.getByPid(pid) for pid in pids]
-
         selectableObjects = [obj for obj in objs if isinstance(obj, objType)]
         others = [obj for obj in objs if not isinstance(obj, objType)]
         if selectableObjects:
             _openItemObject(self.mainWindow, selectableObjects[1:])
             pulldown.select(selectableObjects[0].pid)
-
         elif othersClassNames := list({obj.className for obj in others if hasattr(obj, 'className')}):
             title, msg = (
                 'Dropped wrong item.', f"Do you want to open the {''.join(othersClassNames)} in a new module?") if len(
@@ -1430,14 +1318,11 @@ class RestraintAnalysisTableModule(CcpnTableModule):
         """Add a new comparison-set to the list
         """
         rss = self.resources
-
         newState = not any(cs.isEmpty for cs in rss.comparisonSets)
         if newState:
-            widg = self._comparisonSplitter
-            _ComparisonTree(widg,
-                            grid=(0, self._nextComparisonColumn),
+            fr = self.comparisonFrame
+            _ComparisonTree(fr, grid=(fr.getLayout().rowCount(), 0),
                             enableMouseMenu=True, resources=rss)
-            self._nextComparisonColumn += 1
 
 
 #=========================================================================================

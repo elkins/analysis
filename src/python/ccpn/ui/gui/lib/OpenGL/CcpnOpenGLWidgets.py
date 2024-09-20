@@ -53,6 +53,10 @@ REGION_COLOURS = {
     }
 
 
+#=========================================================================================
+# GLRegion
+#=========================================================================================
+
 class GLRegion(QtWidgets.QWidget):
     valuesChanged = pyqtSignal(list)
     editingFinished = pyqtSignal(dict)
@@ -81,13 +85,9 @@ class GLRegion(QtWidgets.QWidget):
         self._lineWidth = lineWidth
         self.regionType = regionType
         self.pid = obj.pid if hasattr(obj, 'pid') else None
-
         # create a notifier for updating
         self.GLSignals = GLNotifier(parent=None)
         self._valuesChangedEnabled = True
-
-    # def _mouseDrag(self, values):
-    #     self.valuesChanged.emit(list(values))
 
     def setVisible(self, value):
         self.visible = value
@@ -257,10 +257,19 @@ class GLRegion(QtWidgets.QWidget):
                 if thisRegion:
                     intArea.numVertices = len(thisRegion[1]) * 2
                     intArea.vertices = np.empty(intArea.numVertices * 2, dtype=np.float32)
-                    intArea.vertices[::4] = thisRegion[1]
-                    intArea.vertices[2::4] = thisRegion[1]
-                    intArea.vertices[1::4] = thisRegion[0]
-                    intArea.vertices[3::4] = thisRegion[2]
+
+                    if not self._parent.spectrumDisplay._flipped:
+                        # 1D region in normal orientation
+                        intArea.vertices[::4] = thisRegion[1]
+                        intArea.vertices[2::4] = thisRegion[1]
+                        intArea.vertices[1::4] = thisRegion[0]
+                        intArea.vertices[3::4] = thisRegion[2]
+                    else:
+                        # 1D region flipped
+                        intArea.vertices[::4] = thisRegion[0]
+                        intArea.vertices[2::4] = thisRegion[2]
+                        intArea.vertices[1::4] = thisRegion[1]
+                        intArea.vertices[3::4] = thisRegion[1]
 
                     if self._object and self._object in self._glList._parent.current.integrals:
                         solidColour = list(self._glList._parent.highlightColour)
@@ -270,6 +279,10 @@ class GLRegion(QtWidgets.QWidget):
                     intArea.colors = np.array(solidColour * intArea.numVertices, dtype=np.float32)
                     intArea.defineVertexColorVBO()
 
+
+#=========================================================================================
+# GLInfiniteLine
+#=========================================================================================
 
 class GLInfiniteLine(GLRegion):
     valuesChanged = pyqtSignal(float)
@@ -313,6 +326,10 @@ class GLInfiniteLine(GLRegion):
         self._valuesChangedEnabled = oldValue
 
 
+#=========================================================================================
+# GLExternalRegion
+#=========================================================================================
+
 class GLExternalRegion(GLVertexArray):
     def __init__(self, project=None, GLContext=None, spectrumView=None, integralListView=None):
         super().__init__(renderMode=GLRENDERMODE_REBUILD, blendMode=True,
@@ -324,12 +341,12 @@ class GLExternalRegion(GLVertexArray):
         self.integralListView = integralListView
         self.GLContext = GLContext
 
-    def drawIndexArray(self):
+    def drawIndexImmediate(self):
         # draw twice to highlight the outline
         self.fillMode = GL.GL_LINE
-        super().drawIndexArray()
+        super().drawIndexImmediate()
         self.fillMode = GL.GL_FILL
-        super().drawIndexArray()
+        super().drawIndexImmediate()
 
     def defineIndexVBO(self):
         super().defineIndexVBO()
@@ -345,8 +362,16 @@ class GLExternalRegion(GLVertexArray):
         self._regions = []
 
     def addIntegral(self, integral, integralListView, colour='blue', brush=None):
+        """Add an integral region to the spectrumDisplay.
+        """
         lims = integral.limits[0] if integral.limits else (0.0, 0.0)
-        return self._addRegion(values=lims, orientation='v', movable=True,
+
+        if self._parent.spectrumDisplay.is1D and self._parent.spectrumDisplay._flipped:
+            ornt = 'h'
+        else:
+            ornt = 'v'
+
+        return self._addRegion(values=lims, orientation=ornt, movable=True,
                                obj=integral, objectView=integralListView, colour=colour, brush=brush)
 
     def _removeRegion(self, region):
@@ -412,7 +437,7 @@ class GLExternalRegion(GLVertexArray):
                 if axisCode == psCode:
                     axisIndex = ps
 
-        # TODO:ED check axis units - assume 'ppm' for the minute
+        # assume 'ppm' axis units
         if axisIndex == 0:
             # vertical ruler
             pos0 = x0 = values[0]
@@ -501,12 +526,12 @@ class GLExternalRegion(GLVertexArray):
         for reg in self._regions:
             try:
                 axisIndex = int(self.attribs[pp])
-            except Exception as es:
+            except Exception:
                 axisIndex = 0
 
             try:
                 values = reg._object.limits[0]
-            except Exception as es:
+            except Exception:
                 values = reg.values
 
             axis0 = values[0]
@@ -551,7 +576,7 @@ class GLExternalRegion(GLVertexArray):
                     if reg.axisCode == psCode:
                         axisIndex = ps
 
-            # TODO:ED check axis units - assume 'ppm' for the minute
+            # assume 'ppm' axis units
             if axisIndex == 0:
                 # vertical ruler
                 pos0 = x0 = reg.values[0]
@@ -590,6 +615,10 @@ class GLExternalRegion(GLVertexArray):
             self.numVertices += 4
 
 
+#=========================================================================================
+# GLIntegralRegion
+#=========================================================================================
+
 class GLIntegralRegion(GLExternalRegion):
     def __init__(self, project=None, GLContext=None, spectrumView=None, integralListView=None):
         super().__init__(project=project, GLContext=GLContext,
@@ -603,6 +632,7 @@ class GLIntegralRegion(GLExternalRegion):
         if colour in REGION_COLOURS.keys() and not brush:
             brush = REGION_COLOURS[colour]
 
+        # reconstructed region is already flipped here for 1D :|
         if orientation == 'h':
             axisCode = self._parent._axisCodes[1]
         elif orientation == 'v':
@@ -655,7 +685,7 @@ class GLIntegralRegion(GLExternalRegion):
                 if axisCode == psCode:
                     axisIndex = ps
 
-        # TODO:ED check axis units - assume 'ppm' for the minute
+        # assume 'ppm' axis units
         if axisIndex == 0:
             # vertical ruler
             pos0 = x0 = values[0]
@@ -732,12 +762,12 @@ class GLIntegralRegion(GLExternalRegion):
 
             try:
                 axisIndex = int(self.attribs[pp])
-            except Exception as es:
+            except Exception:
                 axisIndex = 0
 
             try:
                 values = reg._object.limits[0]
-            except Exception as es:
+            except Exception:
                 values = reg.values
 
             axis0 = values[0]
@@ -784,8 +814,8 @@ class GLIntegralRegion(GLExternalRegion):
                         axisIndex = ps
 
             lims = reg._object.limits[0] if reg._object.limits else (0.0, 0.0)
-            # TODO:ED check axis units - assume 'ppm' for the minute
-            if axisIndex == 0:
+            # assume 'ppm' axis units
+            if axisIndex == 0:  # self._parent.spectrumDisplay._flipped:
                 # vertical ruler
                 pos0 = x0 = lims[0]  # reg.values[0]
                 pos1 = x1 = lims[1]  # reg.values[1]
@@ -793,7 +823,7 @@ class GLIntegralRegion(GLExternalRegion):
                 y0 = axisT + pixelY
                 y1 = axisB - pixelY
             else:
-                # horizontal ruler
+                # horizontal ruler - 1D flipped
                 pos0 = y0 = lims[0]  # reg.values[0]
                 pos1 = y1 = lims[1]  # reg.values[1]
                 reg._values = (pos0, pos1)  # not nice, but feed back in to current _values
@@ -833,7 +863,7 @@ class GLIntegralRegion(GLExternalRegion):
                 reg.visible = False
                 reg._pp = None
 
-            if checkBuild == False:
+            if not checkBuild:
                 reg._rebuildIntegral()
             else:
                 if hasattr(reg, '_integralArea') and reg._integralArea.renderMode == GLRENDERMODE_REBUILD:

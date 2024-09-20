@@ -4,9 +4,10 @@ This module implements the Button class
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2023"
-__credits__ = ("Ed Brooksbank, Joanna Fox, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
-               "Timothy J Ragan, Brian O Smith, Gary S Thompson & Geerten W Vuister")
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
+               "Timothy J Ragan, Brian O Smith, Daniel Thompson",
+               "Gary S Thompson & Geerten W Vuister")
 __licence__ = ("CCPN licence. See https://ccpn.ac.uk/software/licensing/")
 __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, L.G., & Vuister, G.W.",
                  "CcpNmr AnalysisAssign: a flexible platform for integrated NMR analysis",
@@ -15,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2023-11-10 18:05:05 +0000 (Fri, November 10, 2023) $"
-__version__ = "$Revision: 3.2.1 $"
+__dateModified__ = "$dateModified: 2024-08-23 19:21:18 +0100 (Fri, August 23, 2024) $"
+__version__ = "$Revision: 3.2.5 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -41,7 +42,8 @@ UNCHECKED = QtCore.Qt.Unchecked
 
 class Button(QtWidgets.QPushButton, Base):
 
-    def __init__(self, parent=None, text='', callback=None, icon=None, toggle=None, enabled=True, enableFocusBorder=True, **kwds):
+    def __init__(self, parent=None, text='', callback=None, icon=None, toggle=None, enabled=True,
+                 enableFocusBorder=True, **kwds):
 
         #text = translator.translate(text): not needed as it calls setText which does the work
 
@@ -51,35 +53,53 @@ class Button(QtWidgets.QPushButton, Base):
         self.setText(text)
         self._enableFocusBorder = enableFocusBorder
 
+        # polish/unpolish required if these fields change outside __init__
+        self.setProperty('iconField', bool(icon))
+        self.setProperty('focusBorderField', bool(enableFocusBorder))
+        self.setProperty('toggleField', bool(toggle))
         if icon:  # filename or pixmap
             self.setIcon(Icon(icon))
             # this causes the button to reset its stylesheet
             fontHeight = (getFontHeight() or 12) + 4
             self.setIconSize(QtCore.QSize(fontHeight, fontHeight))
-            # slightly narrower padding for nicer fit of the icon
-            if enableFocusBorder:
-                self.setStyleSheet('Button { padding: 0px 1px 0px 1px; }'
-                                   'Button:focus { padding: 0px 0px 0px 0px; border: 1px solid %(BORDER_FOCUS)s; }' % getColours())
-            else:
-                self.setStyleSheet('Button { padding: 0px 1px 0px 1px; }')
-        else:
-            if enableFocusBorder:
-                self.setStyleSheet('Button { padding: 2px 3px 2px 3px; }'
-                                   'Button:focus { padding: 0px 0px 0px 0px; border: 1px solid %(BORDER_FOCUS)s; }' % getColours())
-            else:
-                self.setStyleSheet('Button { padding: 2px 3px 2px 3px; }')
 
         self.toggle = toggle
         if toggle is not None:
             self.setCheckable(True)
             self.setSelected(toggle)
-            self.setStyleSheet('Button::checked {background-color: blue }')
 
         self._callback = None
         self.setCallback(callback)
 
         # set the initial enabled state of the button
         self.setEnabled(enabled)
+        self._setStyle()
+
+    def _setStyle(self):
+        self._checkPalette(self.palette())
+        self.style().unpolish(self)
+        self.style().polish(self)
+
+    def _checkPalette(self, *args):
+        _style = """QPushButton[iconField=true] { padding: 1px 3px 1px 3px; }
+                    QPushButton { padding: 3px; }
+                    QPushButton:focus[focusBorderField=true] {
+                        padding: 0px;
+                        border-color: palette(highlight);
+                        border-style: solid;
+                        border-width: 1px;
+                        border-radius: 2px;
+                    }
+                    QPushButton:focus {
+                        padding: 0px;
+                    }
+                    QPushButton:disabled {
+                        color: palette(dark);
+                        background-color: palette(midlight);
+                    }
+                    QPushButton:checked[toggleField=true] { background-color: palette(highlight) }
+                """
+        self.setStyleSheet(_style)
 
     def keyReleaseEvent(self, event: QtGui.QKeyEvent):
         if event.key() in [QtCore.Qt.Key_Space]:

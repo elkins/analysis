@@ -16,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-07-01 14:34:55 +0100 (Mon, July 01, 2024) $"
-__version__ = "$Revision: 3.2.4 $"
+__dateModified__ = "$dateModified: 2024-09-16 10:12:12 +0100 (Mon, September 16, 2024) $"
+__version__ = "$Revision: 3.2.7 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -28,14 +28,13 @@ __date__ = "$Date: 2017-04-07 10:28:41 +0000 (Fri, April 07, 2017) $"
 #=========================================================================================
 
 import contextlib
-from PyQt5 import QtGui
+from PyQt5 import QtGui, QtCore
 from ccpn.ui.gui.widgets.CheckBox import CheckBox
 from ccpn.ui.gui.widgets.Label import Label
 from ccpn.ui.gui.widgets.PulldownList import PulldownList
 from ccpn.ui.gui.widgets.HLine import HLine
 from ccpn.ui.gui.popups.Dialog import CcpnDialogMainWidget
 from ccpn.ui.gui.guiSettings import getColours, DIVIDER
-from ccpn.core.lib.ContextManagers import notificationEchoBlocking
 from ccpn.core.lib.AssignmentLib import _fetchNewPeakAssignments
 from ccpn.util.OrderedSet import OrderedSet
 
@@ -48,8 +47,8 @@ class SetupNmrResiduesPopup(CcpnDialogMainWidget):
     _NMRCHAIN = '_nmrChain'
     _ASSIGNMENT = '_assignment'
     _CURRENTSTRIP = '_currentStrip'
-    _BADCOLOR = QtGui.QColor('darkgrey')
-    _STRIPCOLOR = QtGui.QColor('blue')
+    _BADCOLOR = QtGui.QColor('grey')
+    _STRIPCOLOR = QtGui.QColor('dodgerblue')
     _DIVIDERCOLOR = QtGui.QColor('grey')
 
     storeStateOnReject = True  # store the state if the dialog is cancelled
@@ -84,8 +83,10 @@ class SetupNmrResiduesPopup(CcpnDialogMainWidget):
         self.setCancelButton(callback=self.reject, text=self.BUTTON_CANCEL, tipText='Cancel and close')
         self.setDefaultButton(CcpnDialogMainWidget.OKBUTTON)
 
+    def _postInit(self):
         # initialise the buttons and dialog size
-        self._postInit()
+        super()._postInit()
+
         self._applyButton = self.getButton(self.OKBUTTON)
         self._applyButton.setEnabled(True)
         self._cancelButton = self.getButton(self.CANCELBUTTON)
@@ -100,7 +101,6 @@ class SetupNmrResiduesPopup(CcpnDialogMainWidget):
         # self.setCloseButton(callback=self.reject, text=self._buttonCancel, tipText='Close Dialog')
         # self.setDefaultButton(CcpnDialogMainWidget.CLOSEBUTTON)
         #
-        # self._postInit()
         # self._applyButton = self.getButton(self.APPLYBUTTON)
         # self._applyButton.setEnabled(True)
         # self._cancelButton = self.getButton(self.CLOSEBUTTON)
@@ -122,8 +122,8 @@ class SetupNmrResiduesPopup(CcpnDialogMainWidget):
         self.assignmentCheckBox = CheckBox(self.mainWidget, text="Keep existing assignments", checked=True, grid=(1, 0),
                                            gridSpan=(1, 3))
         self.assignmentCheckBox.setToolTip(
-            'Keep the existing assignments attached to the peaks when assigning new nmrAtoms,\n'
-            'or delete the assignments for each peak first.')
+                'Keep the existing assignments attached to the peaks when assigning new nmrAtoms,\n'
+                'or delete the assignments for each peak first.')
 
         HLine(self.mainWidget, grid=(2, 0), gridSpan=(1, 4), colour=getColours()[DIVIDER], height=20)
         self.useCurrentStrip = CheckBox(self.mainWidget, text="Select peakList from current strip",
@@ -152,12 +152,17 @@ class SetupNmrResiduesPopup(CcpnDialogMainWidget):
             # highlight peak-lists that are bad or empty
             combo = self.peakListPulldown
             model = combo.model()
-            for txt in combo.texts:
-                if (item := model.item(combo.getItemIndex(txt))) is not None:
+            for ind in range(combo.count()):
+                if (item := model.item(ind)) is not None:
+                    txt = item.text()
                     if (pkList := self.project.getByPid(txt)) is None or not pkList.peaks:
-                        item.setForeground(self._BADCOLOR)
+                        item.setData(self._BADCOLOR, QtCore.Qt.ForegroundRole)
                     elif txt in visiblePkLists:
-                        item.setForeground(self._STRIPCOLOR)
+                        item.setData(self._STRIPCOLOR, QtCore.Qt.ForegroundRole)
+                    else:
+                        # clears the colour and reverts to palette.Text
+                        item.setData(None, QtCore.Qt.ForegroundRole)
+            combo.repaint()
 
     def _setupNmrResidues(self):
         peakList = self.project.getByPid(self.peakListPulldown.currentText())

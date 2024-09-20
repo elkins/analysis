@@ -8,9 +8,10 @@ Requirements:
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2023"
-__credits__ = ("Ed Brooksbank, Joanna Fox, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
-               "Timothy J Ragan, Brian O Smith, Gary S Thompson & Geerten W Vuister")
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
+               "Timothy J Ragan, Brian O Smith, Daniel Thompson",
+               "Gary S Thompson & Geerten W Vuister")
 __licence__ = ("CCPN licence. See https://ccpn.ac.uk/software/licensing/")
 __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, L.G., & Vuister, G.W.",
                  "CcpNmr AnalysisAssign: a flexible platform for integrated NMR analysis",
@@ -18,9 +19,9 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2023-08-02 16:59:25 +0100 (Wed, August 02, 2023) $"
-__version__ = "$Revision: 3.2.0 $"
+__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
+__dateModified__ = "$dateModified: 2024-08-23 19:23:55 +0100 (Fri, August 23, 2024) $"
+__version__ = "$Revision: 3.2.5 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -537,25 +538,6 @@ class _PulldownDelegate(PulldownDelegate):
         text = qitem.data()
         if self.textHighlightedCallback is not None:
             self.textHighlightedCallback(text)
-
-    def paintEvent(self, e: QtGui.QPaintEvent) -> None:
-        """Set the colour of the selected pulldown-text
-        """
-        try:
-            if (model := self.model()):
-                palette = self.palette()
-                if (item := model.item(self.currentIndex())) is not None and item.text():
-                    # use the palette to change the colour of the selection text - may not match for other themes
-                    palette.setColor(QtGui.QPalette.Active, QtGui.QPalette.Text, item.foreground().color())
-                    if self.textHighlightedCallback is not None:
-                        self.textHighlightedCallback(item.text())
-                else:
-                    palette.setColor(QtGui.QPalette.Active, QtGui.QPalette.Text, QtGui.QColor('black'))
-                self.setPalette(palette)
-        except Exception:
-            pass
-        finally:
-            super(PulldownDelegate, self).paintEvent(e)
 
     def hidePopup(self) -> None:
         """Hide the popup if event occurs after the double-click interval

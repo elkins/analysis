@@ -16,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-06-20 15:44:52 +0100 (Thu, June 20, 2024) $"
-__version__ = "$Revision: 3.2.3 $"
+__dateModified__ = "$dateModified: 2024-09-13 15:20:23 +0100 (Fri, September 13, 2024) $"
+__version__ = "$Revision: 3.2.7 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -29,40 +29,32 @@ __date__ = "$Date: 2021-02-04 11:28:53 +0000 (Thu, February 04, 2021) $"
 
 from collections import OrderedDict
 
-from PyQt5 import QtWidgets, QtGui
+from PyQt5 import QtGui
 
-from ccpn.core.lib import Util as ccpnUtil
 from ccpn.core.lib.DataStore import DataRedirection, DataStore, PathRedirections
 from ccpn.util.Path import aPath, Path
 from ccpn.util.Logging import getLogger
 
-from ccpn.framework.Application import getApplication
 from ccpn.framework.constants import UNDEFINED_STRING
 
 from ccpn.core.lib.SpectrumDataSources.EmptySpectrumDataSource import EmptySpectrumDataSource
 from ccpn.core.lib.SpectrumDataSources.SpectrumDataSourceABC import getDataFormats
-
 from ccpn.core.lib.SpectrumLib import getSpectrumDataSource
 
 from ccpn.ui.gui.widgets.Button import Button
-from ccpn.ui.gui.widgets.ButtonList import ButtonList, ButtonBoxList
+from ccpn.ui.gui.widgets.ButtonList import ButtonList
 from ccpn.ui.gui.widgets.FileDialog import SpectrumFileDialog, OtherFileDialog
 from ccpn.ui.gui.widgets.Label import Label
-from ccpn.ui.gui.widgets.LineEdit import LineEdit, ValidatedLineEdit
-from ccpn.ui.gui.widgets.ScrollArea import ScrollArea
-from ccpn.ui.gui.widgets.Frame import Frame
+from ccpn.ui.gui.widgets.LineEdit import ValidatedLineEdit
+from ccpn.ui.gui.widgets.Frame import Frame, ScrollableFrame
 from ccpn.ui.gui.widgets.CheckBox import CheckBox
 
-from ccpn.ui.gui.guiSettings import getColours, DIVIDER
 from ccpn.ui.gui.popups.Dialog import CcpnDialog
-from ccpn.ui.gui.widgets.Spacer import Spacer
 from ccpn.ui.gui.widgets.RadioButtons import RadioButtons
-from ccpn.ui.gui.widgets.Splitter import Splitter
 from ccpn.ui.gui.widgets.MessageDialog import showWarning, showOkCancel
 from ccpn.ui.gui.widgets.PulldownList import PulldownList
 from ccpn.ui.gui.widgets.MoreLessFrame import MoreLessFrame
 
-# from ccpn.ui.gui.lib.GuiPath import VALIDROWCOLOUR, ACCEPTROWCOLOUR, REJECTROWCOLOUR, INVALIDROWCOLOUR
 from ccpn.ui.gui.guiSettings import COLOUR_BLIND_LIGHTGREEN, COLOUR_BLIND_MEDIUM, COLOUR_BLIND_DARKGREEN, \
     COLOUR_BLIND_RED, COLOUR_BLIND_ORANGE
 
@@ -174,7 +166,7 @@ class PathRowABC(object):
             _font.setItalic(True)
             self.dataWidget.setFont(_font)
             self.dataWidget.setReadOnly(True)
-            self.setColour(LIGHTGREY)
+            # self.setColour(LIGHTGREY)
 
         self.buttonWidget = Button(parentWidget, grid=(self.rowIndex, self.BUTTON_COLLUMN), callback=self._getDialog,
                                    hPolicy='fixed',
@@ -761,7 +753,7 @@ class ValidateSpectraPopup(CcpnDialog):
         _f = MoreLessFrame(self, mainWindow=self.mainWindow,
                            name='Redirections', bold=True, showMore=True,
                            setLayout=True, grid=(row, 0),
-                           _frameMargins=(0, 5, 0, 5),
+                           frameMargins=(0, 5, 0, 5),
                            hPolicy='expanding',
                            )
 
@@ -774,7 +766,7 @@ class ValidateSpectraPopup(CcpnDialog):
         _f = MoreLessFrame(self, mainWindow=self.mainWindow,
                            name='Spectra', bold=True, showMore=True,
                            setLayout=True, grid=(row, 0),
-                           _frameMargins=(0, 5, 0, 5),
+                           frameMargins=(0, 5, 0, 5),
                            hPolicy='expanding',
                            )
         _frame2 = Frame(_f.contentsFrame, setLayout=True, grid=(0, 0), showBorder=_showBorders,
@@ -789,7 +781,7 @@ class ValidateSpectraPopup(CcpnDialog):
         _f = MoreLessFrame(self, mainWindow=self.mainWindow,
                            name='Search / Modify', bold=True, showMore=False,  # closed on default
                            setLayout=True, grid=(row, 0),
-                           _frameMargins=(0, 5, 0, 5),
+                           frameMargins=(0, 5, 0, 5),
                            hPolicy='expanding',
                            )
         _frame3 = Frame(_f.contentsFrame, setLayout=True, grid=(0, 0), showBorder=_showBorders,
@@ -853,19 +845,11 @@ class ValidateSpectraPopup(CcpnDialog):
                                       tipTexts=None,
                                       )
 
-        # set up a scroll area
-        _scrollArea = ScrollArea(frame, setLayout=True,
-                                 grid=(specRow, 0),  #gridSpan=(1, _colSpan),
-                                 hPolicy='expanding',
-                                 vAlign='top', vPolicy='expanding',
-                                 resizable=True, minimumSizes=(50, 50)
-                                 )
-        # add a Frame
-        self.scrollFrame = Frame(frame, setLayout=True, showBorder=_showBorders,
-                                 #hAlign = 'left',
-                                 hPolicy='expanding',
-                                 vAlign='top', vPolicy='minimal')
-        _scrollArea.setWidget(self.scrollFrame)
+        # set up a scrolling frame
+        self.scrollFrame = ScrollableFrame(frame, setLayout=True, showBorder=_showBorders,
+                                           grid=(specRow, 0),
+                                           hPolicy='expanding',
+                                           vAlign='top', vPolicy='minimal')
         specRow += 1
 
         # populate the widget with a list of spectrum buttons and filepath buttons
