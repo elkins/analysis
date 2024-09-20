@@ -1,0 +1,54 @@
+#!/usr/bin/env bash
+
+ANALYSIS=AnalysisDynamics
+FAIL_UNEXPECTED=32
+
+# get the script file if symbolic
+_path="${BASH_SOURCE[0]}"
+
+# check whether --auto-update in the switches
+args=()
+if [[ $# -ge 1 ]]; then
+    for n in $(seq $#); do
+        arg="${!n}"
+        case "$arg" in
+            '--auto-update')
+                autoUpdate=true
+                ;;
+            *)
+                args+=("${arg}")
+                ;;
+        esac
+    done
+fi
+
+# iterate through the symbolic links if needed
+for _ in $(seq 3); do
+    if [[ -d ${_path} ]]; then
+        # change to absolute path
+        _path="$(
+            cd "${_path}" || exit
+            pwd -P
+        )"
+    fi
+    _pathlink="$(readlink "${_path}")"
+    _pathlink="${_pathlink:-${_path}}"
+    _path="$(dirname "${_pathlink}")"
+done
+
+# get the required paths
+CCPNMR_TOP_DIR="${_pathlink}"
+export CCPNMR_TOP_DIR
+source "${CCPNMR_TOP_DIR}"/bin/paths.sh
+
+# update if required
+if [[ ${autoUpdate} ]]; then
+    "${CCPNMR_TOP_DIR}"/bin/update "${args[@]}"
+    err=$?
+    if [[ err -ge FAIL_UNEXPECTED ]]; then
+        echo "--> there was an issue auto-updating: ${err}"
+    fi
+fi
+
+ENTRY="${CCPNMR_TOP_DIR}"/src/python/ccpn/${ANALYSIS}
+"${CCPNMR_TOP_DIR}${CCPN_PYTHON}" -W ignore "${ENTRY}" "${args[@]}"
