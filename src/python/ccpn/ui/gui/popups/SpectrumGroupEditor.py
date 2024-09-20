@@ -6,8 +6,8 @@ Module Documentation here
 # Licence, Reference and Credits
 #=========================================================================================
 __copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
-__credits__ = ("Ed Brooksbank, Morgan Hayward, Morgan Hayward, Victoria A Higman, Luca Mureddu",
-               "Eliza Płoskoń, Timothy J Ragan, Brian O Smith, Daniel Thompson",
+__credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
+               "Timothy J Ragan, Brian O Smith, Daniel Thompson",
                "Gary S Thompson & Geerten W Vuister")
 __licence__ = ("CCPN licence. See https://ccpn.ac.uk/software/licensing/")
 __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, L.G., & Vuister, G.W.",
@@ -17,8 +17,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-07-31 14:54:52 +0100 (Wed, July 31, 2024) $"
-__version__ = "$Revision: 3.2.5 $"
+__dateModified__ = "$dateModified: 2024-09-20 14:00:50 +0100 (Fri, September 20, 2024) $"
+__version__ = "$Revision: 3.2.7 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -414,15 +414,17 @@ class SpectrumGroupEditor(_GroupEditorPopupABC):
         for tNum, (tabName, tabFunc) in enumerate(self.TAB_NAMES):
             self._tabWidget.setTabText(tNum, tabName)
 
-        # call the tab initialise functions (may show/hide tabs)
+        self.setDefaultButton(None)
+        self.setSizeGripEnabled(False)
+
+    def _postInit(self):
+
+        super()._postInit()
         for tNum, (tabName, tabFunc) in enumerate(self.TAB_NAMES):
             if tabFunc:
                 tabFunc()
-
         self._populate(populateSeries=False)  # populateSeries MUST be False here. already done  1Line above  tabFunc(). It is not needed to populate again all!
-        self.setDefaultButton(None)
         self.connectSignals()
-        self.setSizeGripEnabled(False)
 
     def connectSignals(self):
         # connect to changes in the spectrumGroup
