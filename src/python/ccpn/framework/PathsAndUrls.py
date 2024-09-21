@@ -15,7 +15,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-09-21 19:42:24 +0100 (Sat, September 21, 2024) $"
+__dateModified__ = "$dateModified: 2024-09-21 22:44:54 +0100 (Sat, September 21, 2024) $"
 __version__ = "$Revision: 3.2.7 $"
 #=========================================================================================
 # Created
@@ -61,6 +61,8 @@ ccpnResourcesPath               = ccpnCodePath / CCPN_RESOURCES_DIRECTORY
 ccpnBinPath                     = ccpnCodePath / 'bin'
 ccpnBatchPath                   = ccpnCodePath / 'bat'
 ccpnRunTerminal                 = ccpnBinPath / 'runTerminal.sh'
+ccpnRunModelAnalysis                 = ccpnBinPath / 'modelAnalysis'
+
 defaultPreferencesPath          = ccpnConfigPath / 'defaultv3settings.json'
 tipOfTheDayConfig               = ccpnConfigPath / 'tipConfig.hjson'
 
