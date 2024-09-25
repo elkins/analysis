@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+
+
+#!/usr/bin/env bash
+
+# get the script file if symbolic
+_path="${BASH_SOURCE[0]}"
+
+# iterate through the symbolic links if needed
+for ii in {1..3}; do
+    if [[ -d ${_path} ]]; then
+        # change to absolute path
+        _path="$(cd "${_path}" || exit; pwd -P)"
+    fi
+    _pathlink="$(readlink "${_path}")"
+    _pathlink="${_pathlink:-${_path}}"
+    _path="$(dirname "${_pathlink}")"
+done
+
+CCPNMR_TOP_DIR="${_pathlink}"
+export CCPNMR_TOP_DIR
+
+MODELANALYSIS="${CCPNMR_TOP_DIR}"/src/python/ccpn/AnalysisDynamics/lib/modelAnalysis
+source "${CCPNMR_TOP_DIR}"/bin/paths.sh
+
+"${CONDA}"/bin/python -W ignore "${MODELANALYSIS}" $*
