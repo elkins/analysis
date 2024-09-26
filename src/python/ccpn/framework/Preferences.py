@@ -16,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-06-20 16:42:21 +0100 (Thu, June 20, 2024) $"
-__version__ = "$Revision: 3.2.3 $"
+__dateModified__ = "$dateModified: 2024-09-26 12:39:32 +0100 (Thu, September 26, 2024) $"
+__version__ = "$Revision: 3.2.7 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -249,3 +249,8 @@ class Preferences(AttrDict):
             # set from the default for the OS-specific
             if not pr.get(prefFont):
                 pr[prefFont] = pr.get(frmFont, '')
+
+        if prefs.general.useProjectPath is True:
+            prefs.general.useProjectPath = 'Alongside'
+        elif prefs.general.useProjectPath is False:
+            prefs.general.useProjectPath = 'User-defined'
