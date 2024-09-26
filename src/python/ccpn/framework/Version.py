@@ -15,9 +15,9 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-09-09 19:06:21 +0100 (Mon, September 09, 2024) $"
-__version__ = "$Revision: 3.2.7 $"
+__modifiedBy__ = "$modifiedBy: Luca Mureddu $"
+__dateModified__ = "$dateModified: 2024-09-26 12:58:10 +0100 (Thu, September 26, 2024) $"
+__version__ = "$Revision: 3.2.9.alpha $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -295,7 +295,7 @@ class VersionString(str):
 #=========================================================================================
 
 _previousApplicationVersion = VersionString('3.2.6')
-applicationVersion = VersionString('3.2.7')
+applicationVersion = VersionString('3.2.9.alpha')
 _lastApplicationVersion = VersionString('4.0.0')  # hide any messages beyond this point
 revision = '3'
 
