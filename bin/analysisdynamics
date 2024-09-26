@@ -51,4 +51,4 @@ if [[ ${autoUpdate} ]]; then
 fi
 
 ENTRY="${CCPNMR_TOP_DIR}"/src/python/ccpn/${ANALYSIS}
-"${CCPNMR_TOP_DIR}${CCPN_PYTHON}" -W ignore "${ENTRY}" "${args[@]}"
+"${CCPNMR_TOP_DIR}${CCPN_PYTHON}" -W ignore "${ENTRY}" "--skip-updates" "${args[@]}"
