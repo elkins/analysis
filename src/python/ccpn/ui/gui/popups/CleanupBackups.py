@@ -16,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-09-25 18:43:30 +0100 (Wed, September 25, 2024) $"
-__version__ = "$Revision: 3.2.5 $"
+__dateModified__ = "$dateModified: 2024-09-27 11:46:09 +0100 (Fri, September 27, 2024) $"
+__version__ = "$Revision: 3.2.9.alpha $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -132,8 +132,6 @@ class CleanupBackups(CcpnDialogMainWidget):
         # enable the buttons
         self.setCloseButton(callback=self.reject)
         self.setDefaultButton(self.CLOSEBUTTON)
-
-        self._postInit()
 
     def _setWidgets(self):
         """Set up the widgets for the popup.
