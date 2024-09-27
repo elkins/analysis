@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+
+# get the script file if symbolic
+_path="${BASH_SOURCE[0]}"
+
+# iterate through the symbolic links if needed
+for _ in $(seq 3); do
+    if [[ -d ${_path} ]]; then
+        # change to absolute path
+        _path="$(
+            cd "${_path}" || exit
+            pwd -P
+        )"
+    fi
+    _pathlink="$(readlink "${_path}")"
+    _pathlink="${_pathlink:-${_path}}"
+    _path="$(dirname "${_pathlink}")"
+done
+
+"${_pathlink}"/bin/analysisdynamics "$@"
