@@ -254,6 +254,7 @@ MEMOPS_PACKAGE = f'{MEMOPS}.{IMPLEMENTATION}'
 XML_SUFFIX = '.xml'
 BACKUP_SUFFIX = '.ccpnV3backup'
 AUTOBACKUP_SUFFIX = '.ccpnV3autobackup'
+TEMPBACKUP_SUFFIX = '.ccpnV3tempbackup'
 KEY_SEPARATOR = '+'
 
 XML_LOADER_ATTR = 'xmlLoader'  # attribute name for MemopsRoot
@@ -421,8 +422,8 @@ class TopObject(XmlLoaderABC):
             _apiTopObjects = forceGetattr(self.root.memopsRoot, 'topObjects')
             self.apiTopObject = _apiTopObjects.get(self.guid)
             if not self.apiTopObject:
-                getLogger().debug2(
-                    f'{consoleStyle.fg.darkyellow}Undefined apiTopObject {self.guid}{consoleStyle.reset}')
+                getLogger().debug2(f'{consoleStyle.fg.darkyellow}Undefined apiTopObject '
+                                   f'{self.guid}{consoleStyle.reset}')
 
         _stack = self.root.loadingStack
         _stack.append(self)
@@ -492,8 +493,8 @@ class TopObject(XmlLoaderABC):
         """Save the apiTopObject to the xml file defined by self.path
         """
         if self.apiTopObject is None:
-            getLogger().warning(
-                f'{consoleStyle.fg.red}Cannot save {self._path}: undefined apiTopObject{consoleStyle.reset}')
+            getLogger().warning(f'{consoleStyle.fg.red}Cannot save {self._path}: '
+                                f'undefined apiTopObject{consoleStyle.reset}')
             return
 
         if self.apiTopObject.isDeleted:
@@ -520,8 +521,8 @@ class TopObject(XmlLoaderABC):
         """Save the apiTopObject to the xml file defined by self.path / CCPN_BACKUPS_DIRECTORY
         """
         if self.apiTopObject is None:
-            getLogger().warning(
-                f'{consoleStyle.fg.red}Cannot save {self._path}: undefined apiTopObject{consoleStyle.reset}')
+            getLogger().warning(f'{consoleStyle.fg.red}Cannot save {self._path}: '
+                                f'undefined apiTopObject{consoleStyle.reset}')
             return
         if self.apiTopObject.isDeleted:
             # ignore deleted objects
@@ -1267,8 +1268,8 @@ class XmlLoader(XmlLoaderABC):
             if not self.isV2:
                 raise RuntimeError(f'XmlLoader.loadProject: {es}') from es
 
-            self.logger.debug(
-                f'XmlLoader.loadProject: loading "{_projectXml}" failed on first try; retrying patial load')
+            self.logger.debug(f'XmlLoader.loadProject: loading "{_projectXml}" '
+                              f'failed on first try; retrying patial load')
             self._loadMemopsFromXml(_projectXml, partialLoad=True)
 
         if self.memopsRoot is None:
@@ -1420,7 +1421,6 @@ class XmlLoader(XmlLoaderABC):
 
         if self.readOnly:
             raise RuntimeError(f'Project "{self.name}" is read-only')
-
         if self.writeBlockingLevel:
             getLogger().debug('blocking save of .xml files')
             return
@@ -1434,8 +1434,8 @@ class XmlLoader(XmlLoaderABC):
 
         app = getApplication()
         try:
-            # check if we have to keep current ccpnv3 directory before removing it
-            if self.v3Path.exists() and keepFallBack and app.preferences.general.backupSaveEnabled:
+            # check if we have to keep current ccpnv3 directory before moving it
+            if self.v3Path.exists() and keepFallBack:  # and app.preferences.general.backupSaveEnabled:
 
                 self.backupsPath.mkdir(exist_ok=True, parents=False)
 
@@ -1454,6 +1454,19 @@ class XmlLoader(XmlLoaderABC):
                 bPath = self.backupsPath / (CCPN_API_DIRECTORY + BACKUP_SUFFIX)
                 bPath = bPath.addTimeStamp()
                 self.v3Path.rename(bPath)
+
+            # NOTE:ED 2024-09-23 There is currently an issue if backupSaveEnabled is False
+            #   All .xml files are written to the existing folder, old files are not deleted.
+            #   But deleting, e.g., structureData requires the deletion of a .xml file in the NMRConstraint folder
+            #   Currently writing to the same folder does not delete the old files which are then loaded when the
+            #   project is loaded an reappear as the original objects.
+            #   So, must always save one backup until issue is resolved :|
+            #   Possible solutions - keep tally of old files and new files, and rename old files as .bak
+            #           or just rename everything to .bak before saving?
+            #   can-of-worms as any errors could result in renaming too many files
+            #   Loader checks whether .xml on load belong to the current project state...
+            #   keepFallBack=False will have the same issue
+
         except (PermissionError, FileNotFoundError):
             getLogger().debug('Saving user-data: folder may be read-only')
 
@@ -1491,7 +1504,7 @@ class XmlLoader(XmlLoaderABC):
                 forceSetattr(self.memopsRoot, 'isModified', False)
 
         except (PermissionError, FileNotFoundError):
-            self.logger.info('Saving Memops: folder may be read-only')
+            getLogger().info('Saving Memops: folder may be read-only')
 
         self.memopsXmlPath = _xmlFile
 

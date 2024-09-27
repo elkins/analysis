@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-09-13 15:20:23 +0100 (Fri, September 13, 2024) $"
+__dateModified__ = "$dateModified: 2024-09-25 10:00:13 +0100 (Wed, September 25, 2024) $"
 __version__ = "$Revision: 3.2.7 $"
 #=========================================================================================
 # Created
@@ -129,7 +129,7 @@ class TableABC(QtWidgets.QTableView):
     defaultSortColumn = 0  # allow the use of integer or string/tuple values here
     defaultSortOrder = QtCore.Qt.AscendingOrder
     _newFocus = False
-    _disableNewFocus = False
+    _disableNewFocus = True  # allow instant click on table
 
     def __init__(self, parent, *, df=None,
                  multiSelect=True, selectRows=True,

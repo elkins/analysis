@@ -57,8 +57,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-09-16 16:56:38 +0100 (Mon, September 16, 2024) $"
-__version__ = "$Revision: 3.2.7 $"
+__dateModified__ = "$dateModified: 2024-09-25 18:53:58 +0100 (Wed, September 25, 2024) $"
+__version__ = "$Revision: 3.2.5 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -3117,10 +3117,8 @@ class CcpnGLWidget(QOpenGLWidget):
         """
         if self._blankDisplay:
             return
-
         if self.strip.isDeleted:
             return
-
         # if self.visibleRegion().isEmpty():
         #     return
         # print(f'--> paintGL   {id(self)}   {self.strip}   {not self.visibleRegion()}')

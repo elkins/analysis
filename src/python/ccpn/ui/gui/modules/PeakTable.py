@@ -16,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-06-20 16:42:22 +0100 (Thu, June 20, 2024) $"
-__version__ = "$Revision: 3.2.3 $"
+__dateModified__ = "$dateModified: 2024-09-20 19:28:10 +0100 (Fri, September 20, 2024) $"
+__version__ = "$Revision: 3.2.7 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -92,13 +92,14 @@ class PeakTableModule(CcpnTableModule):
         self._settings = None
         if self.activePulldownClass:
             # add to settings widget - see sequenceGraph for more detailed example
-            settingsDict = OrderedDict(((LINKTOPULLDOWNCLASS, {'label'   : f'Link to current {self.activePulldownClass.className}',
-                                                               'tipText' : f'Set/update current {self.activePulldownClass.className} when selecting from pulldown',
-                                                               'callBack': None,
-                                                               'enabled' : True,
-                                                               'checked' : False,
-                                                               '_init'   : None}),
-                                        ))
+            settingsDict = OrderedDict(
+                    ((LINKTOPULLDOWNCLASS, {'label'   : f'Link to current {self.activePulldownClass.className}',
+                                            'tipText' : f'Set/update current {self.activePulldownClass.className} when selecting from pulldown',
+                                            'callBack': None,
+                                            'enabled' : True,
+                                            'checked' : False,
+                                            '_init'   : None}),
+                     ))
 
             self._settings = ModuleSettingsWidget(parent=settingsWidget, mainWindow=self.mainWindow,
                                                   settingsDict=settingsDict,
@@ -127,10 +128,10 @@ class PeakTableModule(CcpnTableModule):
         """Set the active callbacks for the module
         """
         if self.activePulldownClass:
-            self._setCurrentPulldown = Notifier(self.current,
-                                                [Notifier.CURRENT],
-                                                targetName=self.activePulldownClass._pluralLinkName,
-                                                callback=self._mainFrame._selectCurrentPulldownClass)
+            self.setNotifier(self.current,
+                             [Notifier.CURRENT],
+                             targetName=self.activePulldownClass._pluralLinkName,
+                             callback=self._mainFrame._selectCurrentPulldownClass)
 
             # set the active callback from the pulldown
             self._mainFrame.setActivePulldownClass(coreClass=self.activePulldownClass,
@@ -154,8 +155,6 @@ class PeakTableModule(CcpnTableModule):
         """CCPN-INTERNAL: used to close the module
         """
         if self.activePulldownClass:
-            if self._setCurrentPulldown:
-                self._setCurrentPulldown.unRegister()
             if self._settings:
                 self._settings._cleanupWidget()
         if self.tableFrame:
@@ -384,7 +383,8 @@ class _NewPeakTableWidget(_CoreTableWidgetABC):
         peak = objs[0] if isinstance(objs, (tuple, list)) else objs
 
         if self.current.strip is not None:
-            validPeakListViews = [pp.peakList for pp in self.current.strip.peakListViews if isinstance(pp.peakList, PeakList)]
+            validPeakListViews = [pp.peakList for pp in self.current.strip.peakListViews if
+                                  isinstance(pp.peakList, PeakList)]
 
             if peak and peak.peakList in validPeakListViews:
                 widths = None
@@ -459,7 +459,8 @@ class _NewPeakTableWidget(_CoreTableWidgetABC):
             # Assignment column
             for i in range(peakList.spectrum.dimensionCount):
                 assignTipText = f'NmrAtom assignments of peak in dimension {str(i + 1)}'
-                columnDefs.append((f'Assign F{str(i + 1)}', lambda pk, dim=i: getPeakAnnotation(pk, dim), assignTipText, None, None))
+                columnDefs.append((f'Assign F{str(i + 1)}', lambda pk, dim=i: getPeakAnnotation(pk, dim), assignTipText,
+                                   None, None))
 
             # # Expanded Assignment columns
             # for i in range(peakList.spectrum.dimensionCount):
@@ -472,12 +473,15 @@ class _NewPeakTableWidget(_CoreTableWidgetABC):
             # Peak positions column
             for i in range(peakList.spectrum.dimensionCount):
                 positionTipText = f'Peak position in dimension {str(i + 1)}'
-                columnDefs.append((f'Pos F{str(i + 1)}', lambda pk, dim=i, unit=self.positionsUnit: getPeakPosition(pk, dim, unit), positionTipText, None, '%0.3f'))
+                columnDefs.append((f'Pos F{str(i + 1)}',
+                                   lambda pk, dim=i, unit=self.positionsUnit: getPeakPosition(pk, dim, unit),
+                                   positionTipText, None, '%0.3f'))
 
             # line-width column TODO remove hardcoded Hz unit
             for i in range(peakList.spectrum.dimensionCount):
                 linewidthTipTexts = f'Peak line width {str(i + 1)}'
-                columnDefs.append((f'LW F{str(i + 1)} (Hz)', lambda pk, dim=i: getPeakLinewidth(pk, dim), linewidthTipTexts, None, '%0.3f'))
+                columnDefs.append((f'LW F{str(i + 1)} (Hz)', lambda pk, dim=i: getPeakLinewidth(pk, dim),
+                                   linewidthTipTexts, None, '%0.3f'))
 
         # height column
         heightTipText = 'Magnitude of spectrum intensity at peak center (interpolated), unless user edited'
@@ -492,8 +496,9 @@ class _NewPeakTableWidget(_CoreTableWidgetABC):
 
         # ClusterId column
         clusterIdTipText = 'The peak clusterId. ClusterIds are used for grouping peaks in fitting routines.'
-        columnDefs.append(('ClusterId', lambda pk: pk.clusterId if pk.clusterId is not None else 'None', clusterIdTipText,
-                           lambda pk, value: self._setClusterId(pk, value), None))
+        columnDefs.append(
+                ('ClusterId', lambda pk: pk.clusterId if pk.clusterId is not None else 'None', clusterIdTipText,
+                 lambda pk, value: self._setClusterId(pk, value), None))
 
         # figureOfMerit column
         figureOfMeritTipText = 'Figure of merit'

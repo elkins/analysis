@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-09-13 20:32:53 +0100 (Fri, September 13, 2024) $"
+__dateModified__ = "$dateModified: 2024-09-20 19:28:10 +0100 (Fri, September 20, 2024) $"
 __version__ = "$Revision: 3.2.7 $"
 #=========================================================================================
 # Created
@@ -175,10 +175,10 @@ class RestraintTableModule(CcpnTableModule):
         """Set the active callbacks for the module.
         """
         if self.activePulldownClass:
-            self._setCurrentPulldown = Notifier(self.current,
-                                                [Notifier.CURRENT],
-                                                targetName=self.activePulldownClass._pluralLinkName,
-                                                callback=self._mainFrame._selectCurrentPulldownClass)
+            self.setNotifier(self.current,
+                             [Notifier.CURRENT],
+                             targetName=self.activePulldownClass._pluralLinkName,
+                             callback=self._mainFrame._selectCurrentPulldownClass)
 
             # set the active callback from the pulldown
             self._mainFrame.setActivePulldownClass(coreClass=self.activePulldownClass,
@@ -202,8 +202,6 @@ class RestraintTableModule(CcpnTableModule):
         """CCPN-INTERNAL: used to close the module.
         """
         if self.activePulldownClass:
-            if self._setCurrentPulldown:
-                self._setCurrentPulldown.unRegister()
             if self._settings:
                 self._settings._cleanupWidget()
         if self.tableFrame:
