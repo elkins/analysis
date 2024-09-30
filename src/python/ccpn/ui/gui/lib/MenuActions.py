@@ -15,9 +15,9 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-08-23 19:23:56 +0100 (Fri, August 23, 2024) $"
-__version__ = "$Revision: 3.2.5 $"
+__modifiedBy__ = "$modifiedBy: Luca Mureddu $"
+__dateModified__ = "$dateModified: 2024-09-30 16:31:48 +0100 (Mon, September 30, 2024) $"
+__version__ = "$Revision: 3.2.9.alpha $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -895,7 +895,7 @@ class _openItemChemicalShiftListTable(OpenItemABC):
             # Might think of merging multiple lists ?
             return
         if len(objs) > 0:
-            from ccpn.ui.gui.popups.ChemicalShiftList2PeakListPopup import ChemicalShiftList2SpectrumPopup
+            from ccpn.ui.gui.popups.SimulatePeakListPopup import ChemicalShiftList2SpectrumPopup
 
             popup = ChemicalShiftList2SpectrumPopup(chemicalShiftList=objs[0])
             popup.show()

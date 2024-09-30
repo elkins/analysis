@@ -62,7 +62,7 @@ class MapperRowWidgetLabels(Widget):
         self.mmrAtomEntryLabel = Label(self, 'NmrAtom Name', grid=(0,col),
                                      tipText='NmrAtom Name. Used to assign the NmrAtom to newly created peaks')
         col += 1
-        self.offsetEntryLabel = Label(self, 'Offset', grid=(0,col),
+        self.offsetEntryLabel = Label(self, 'Residue Offset', grid=(0,col),
                                      tipText='Residue Offset. Used to fetch the correct NmrResidue')
 
         self.isotopeCodeLabel.setFixedWidth(widgetFixedWidth)
