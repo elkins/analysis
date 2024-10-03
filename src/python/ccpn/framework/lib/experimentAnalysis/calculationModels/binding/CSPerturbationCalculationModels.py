@@ -61,7 +61,7 @@ class EuclideanCalculationModel(CalculationModel):
     """
     modelName = sv.EUCLIDEAN_DISTANCE
     targetSeriesAnalyses = [
-                                            sv.ChemicalShiftMappingAnalysis
+                                            sv.ChemicalShiftPerturbationAnalysis
                                             ]
     modelInfo        = 'Calculate The DeltaDelta shifts for a series using the average Euclidean Distance.'
     # maTex       = r'$\sqrt{\frac{1}{N}\sum_{i=0}^N (\alpha_i*\delta_i)^2}$'

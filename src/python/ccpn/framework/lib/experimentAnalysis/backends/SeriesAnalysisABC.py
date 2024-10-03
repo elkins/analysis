@@ -16,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-08-23 18:53:01 +0100 (Fri, August 23, 2024) $"
-__version__ = "$Revision: 3.2.5 $"
+__dateModified__ = "$dateModified: 2024-10-03 09:42:40 +0100 (Thu, October 03, 2024) $"
+__version__ = "$Revision: 3.2.9.alpha $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -452,7 +452,7 @@ class SeriesAnalysisABC(ABC):
     @property
     def currentCalculationModel(self):
         """ The working CalculationModel in the module.
-        E.g.: the initiated EuclidianModel for ChemicalshiftMapping. See models for docs. """
+        E.g.: the initiated EuclidianModel for  ChemicalShift Perturbation. See models for docs. """
         if self._currentCalculationModel is None:
             model = self._getFirstModel(self.calculationModels)
             return model()

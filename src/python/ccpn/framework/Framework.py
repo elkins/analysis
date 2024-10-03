@@ -12,9 +12,9 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-09-16 15:51:34 +0100 (Mon, September 16, 2024) $"
-__version__ = "$Revision: 3.2.7 $"
+__modifiedBy__ = "$modifiedBy: Luca Mureddu $"
+__dateModified__ = "$dateModified: 2024-10-03 09:42:40 +0100 (Thu, October 03, 2024) $"
+__version__ = "$Revision: 3.2.9.alpha $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -2381,17 +2381,17 @@ class Framework(NotifierBase, GuiBase):
         """
         self.ui.mainWindow.toggleConsole()
 
-    @deprecated('Use showChemicalShiftMappingModule to access the latest implementation')
-    def showChemicalShiftMapping(self, position: str = 'top', relativeTo: CcpnModule = None):
-        return self.showChemicalShiftMappingModule(position=position, relativeTo=relativeTo)
+    @deprecated('Use showChemicalShiftPerturbationModule to access the latest implementation')
+    def showChemicalShiftPerturbation(self, position: str = 'top', relativeTo: CcpnModule = None):
+        return self.showChemicalShiftPerturbationModule(position=position, relativeTo=relativeTo)
 
-    def showChemicalShiftMappingModule(self, position: str = 'top', relativeTo: CcpnModule = None):
-        from ccpn.ui.gui.modules.experimentAnalysis.ChemicalShiftMappingGuiModule import ChemicalShiftMappingGuiModule
+    def showChemicalShiftPerturbationModule(self, position: str = 'top', relativeTo: CcpnModule = None):
+        from ccpn.ui.gui.modules.experimentAnalysis.ChemicalShiftPerturbationGuiModule import ChemicalShiftPerturbationGuiModule
 
         mainWindow = self.ui.mainWindow
         if not relativeTo:
             relativeTo = mainWindow.moduleArea
-        cs = ChemicalShiftMappingGuiModule(mainWindow=mainWindow)
+        cs = ChemicalShiftPerturbationGuiModule(mainWindow=mainWindow)
         mainWindow.moduleArea.addModule(cs, position=position, relativeTo=relativeTo)
         return cs
 

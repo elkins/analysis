@@ -16,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-08-21 13:51:13 +0100 (Wed, August 21, 2024) $"
-__version__ = "$Revision: 3.2.5 $"
+__dateModified__ = "$dateModified: 2024-10-03 09:42:40 +0100 (Thu, October 03, 2024) $"
+__version__ = "$Revision: 3.2.9.alpha $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -374,7 +374,7 @@ class RSDMOutputFrame(SeriesFrameBC):
     SERIESFRAMETYPE = sv.RSDM_OUTPUT_FRAME
 
 ########################################################################################################################
-################################   Chemical Shift Mapping  I/O Series Output Table      ################################
+################################   Chemical Shift Perturbation  I/O Series Output Table      ################################
 ########################################################################################################################
 
 class CSMOutputFrame(SeriesFrameBC):

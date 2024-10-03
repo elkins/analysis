@@ -56,7 +56,7 @@ def getShowModulesCalls():
                     Framework.showMultipletTable,
                     Framework.showRestraintTable,
                     Framework.showStructureTable,
-                    Framework.showChemicalShiftMapping,
+                    Framework.showChemicalShiftPerturbation,
                     Framework.showNotesEditor,
                     ]
     allModules = assignModules+screenModules+viewModules

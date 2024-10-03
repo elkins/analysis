@@ -17,8 +17,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-09-20 20:01:08 +0100 (Fri, September 20, 2024) $"
-__version__ = "$Revision: 3.2.7 $"
+__dateModified__ = "$dateModified: 2024-10-03 09:42:40 +0100 (Thu, October 03, 2024) $"
+__version__ = "$Revision: 3.2.9.alpha $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -282,7 +282,7 @@ OUTPUT_SERIESFRAME_TYPES = [
 ############################################################################################
 ### Used in SeriesAnalyisBC
 ############################################################################################
-ChemicalShiftMappingAnalysis = 'ChemicalShiftMappingAnalysis'  # used in SeriesName for the ChemicalShiftMappingAnalysis
+ChemicalShiftPerturbationAnalysis = 'ChemicalShiftPerturbationAnalysis'  # used in SeriesName for the ChemicalShiftPerturbationAnalysis
 RelaxationAnalysis = 'RelaxationAnalysis'                      # used in SeriesName for the RelaxationAnalysis
 JCouplingAnalysis = 'JCouplingAnalysis'
 RDCAnalysis = 'RDCAnalysis'

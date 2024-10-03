@@ -24,7 +24,7 @@ __date__ = "$Date: 2022-05-20 12:59:02 +0100 (Fri, May 20, 2022) $"
 #=========================================================================================
 
 ######## core imports ########
-from ccpn.framework.lib.experimentAnalysis.backends.ChemicalShiftMappingAnalysis import ChemicalShiftMappingAnalysisBC
+from ccpn.framework.lib.experimentAnalysis.backends.ChemicalShiftPerturbationAnalysis import ChemicalShiftPerturbationAnalysisBC
 import ccpn.framework.lib.experimentAnalysis.SeriesAnalysisVariables as sv
 
 ######## gui/ui imports ########
@@ -35,17 +35,17 @@ from ccpn.ui.gui.modules.experimentAnalysis.ExperimentAnalysisGuiModuleBC import
 #######################  The main GUI Module ########################
 #####################################################################
 
-class ChemicalShiftMappingGuiModule(ExperimentAnalysisGuiModuleBC):
+class ChemicalShiftPerturbationGuiModule(ExperimentAnalysisGuiModuleBC):
 
-    className = 'ChemicalShiftMapping'
-    analysisType = sv.ChemicalShiftMappingAnalysis
+    className = 'ChemicalShiftPerturbation'
+    analysisType = sv.ChemicalShiftPerturbationAnalysis
     # _helpFilePath = ccpnModuleHelpPath /  'ChemicalShiftMappingModuleHelp.html'
 
-    def __init__(self, mainWindow, name='Chemical Shift Mapping Analysis (Beta)', **kwds):
+    def __init__(self, mainWindow, name='Chemical Shift Perturbation Analysis (Beta)', **kwds):
         super(ExperimentAnalysisGuiModuleBC, self)
 
         ## link to the Non-Gui backend and its Settings
-        backendHandler = ChemicalShiftMappingAnalysisBC()
+        backendHandler = ChemicalShiftPerturbationAnalysisBC()
         ExperimentAnalysisGuiModuleBC.__init__(self, mainWindow=mainWindow, name=name, backendHandler=backendHandler)
 
     #################################################################

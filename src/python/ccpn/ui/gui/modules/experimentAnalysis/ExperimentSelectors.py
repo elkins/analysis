@@ -13,8 +13,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-08-29 16:53:21 +0100 (Thu, August 29, 2024) $"
-__version__ = "$Revision: 3.2.5 $"
+__dateModified__ = "$dateModified: 2024-10-03 09:42:40 +0100 (Thu, October 03, 2024) $"
+__version__ = "$Revision: 3.2.9.alpha $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -231,7 +231,7 @@ class _ExperimentSelectorUserDefined(_ExperimentSelectorBC):
 class _ExperimentSelectorTitration(_ExperimentSelectorBC):
     """ An Experiment  Selector  for CSM titrations"""
     name =  Unicode(allow_none=True, default_value=sv.TITRATION,  read_only=True)
-    analysisType = Unicode(allow_none=True, default_value=sv.ChemicalShiftMappingAnalysis, read_only=True)
+    analysisType = Unicode(allow_none=True, default_value=sv.ChemicalShiftPerturbationAnalysis, read_only=True)
     calculationOption = Unicode(allow_none=True,  default_value=sv.EUCLIDEAN_DISTANCE, read_only=True)
     fittingOption = Unicode(allow_none=True,  default_value=sv.FRACTION_BINDING_WITH_FIXED_TARGET_MODEL, read_only=True)
 

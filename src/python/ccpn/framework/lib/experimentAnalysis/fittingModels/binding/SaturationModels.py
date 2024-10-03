@@ -15,8 +15,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-09-02 17:27:08 +0100 (Mon, September 02, 2024) $"
-__version__ = "$Revision: 3.2.5 $"
+__dateModified__ = "$dateModified: 2024-10-03 09:42:40 +0100 (Thu, October 03, 2024) $"
+__version__ = "$Revision: 3.2.9.alpha $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -590,7 +590,7 @@ class FractionBindingModel(BindingModelBC):
     Minimiser = _FractionBindingMinimiser
     isEnabled = True
     targetSeriesAnalyses = [
-                                            sv.ChemicalShiftMappingAnalysis
+                                            sv.ChemicalShiftPerturbationAnalysis
                                             ]
 
 class FractionBindingWithFixedTargetConcentrModel(BindingModelBC):
@@ -613,7 +613,7 @@ class FractionBindingWithFixedTargetConcentrModel(BindingModelBC):
     Minimiser = _FractionBindingWithFixedTargetConcentMinimiser
     isEnabled = True
     targetSeriesAnalyses = [
-                                            sv.ChemicalShiftMappingAnalysis
+                                            sv.ChemicalShiftPerturbationAnalysis
                                             ]
 
 
@@ -646,7 +646,7 @@ class FractionBindingWithVariableTargetConcentrationModel(BindingModelBC):
     Minimiser = _FractionBindingWithVariableTargetConcentMinimiser
     isEnabled = True
     targetSeriesAnalyses = [
-                                            sv.ChemicalShiftMappingAnalysis
+                                            sv.ChemicalShiftPerturbationAnalysis
                                             ]
 
 
@@ -676,7 +676,7 @@ class MonomerDimerBindingModel(BindingModelBC):
     Minimiser = _MonomerDimerMinimiser
     isEnabled = False
     targetSeriesAnalyses = [
-        sv.ChemicalShiftMappingAnalysis
+        sv.ChemicalShiftPerturbationAnalysis
         ]
 
 
@@ -707,7 +707,7 @@ class CooperativityBindingModel(BindingModelBC):
     Minimiser = _BindingCooperativityMinimiser
     isEnabled = True
     targetSeriesAnalyses = [
-        sv.ChemicalShiftMappingAnalysis
+        sv.ChemicalShiftPerturbationAnalysis
         ]
 
     def _preFittingAdditionalParamsSettings(self, df, params, **kwargs):
@@ -756,7 +756,7 @@ class TwoSiteBindingModel(BindingModelBC):
 
     isEnabled = False
     targetSeriesAnalyses = [
-        sv.ChemicalShiftMappingAnalysis
+        sv.ChemicalShiftPerturbationAnalysis
         ]
 
     def fitSeries(self, inputData: TableFrame, rescale=True, *args, **kwargs) -> TableFrame:
@@ -788,7 +788,7 @@ class OneSiteWithAllostericBindingModel(BindingModelBC):
 
     isEnabled = False
     targetSeriesAnalyses = [
-        sv.ChemicalShiftMappingAnalysis
+        sv.ChemicalShiftPerturbationAnalysis
         ]
 
     def fitSeries(self, inputData: TableFrame, rescale=True, *args, **kwargs) -> TableFrame:

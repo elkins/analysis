@@ -30,15 +30,16 @@ __date__ = "$Date: 2022-02-02 14:08:56 +0000 (Wed, February 02, 2022) $"
 from ccpn.util.Logging import getLogger
 from ccpn.framework.lib.experimentAnalysis.backends.SeriesAnalysisABC import SeriesAnalysisABC
 import ccpn.framework.lib.experimentAnalysis.SeriesAnalysisVariables as sv
-from ccpn.framework.lib.experimentAnalysis.calculationModels.binding.CSMappingCalculationModels import EuclideanCalculationModel
+from ccpn.framework.lib.experimentAnalysis.calculationModels.binding.CSPerturbationCalculationModels import EuclideanCalculationModel
 
-class ChemicalShiftMappingAnalysisBC(SeriesAnalysisABC):
+class ChemicalShiftPerturbationAnalysisBC(SeriesAnalysisABC):
     """
-    Chemical Shift Mapping Analysis Non-Gui module.
+    Chemical Shift Perturbation Analysis Non-Gui module.
     # needed settings:
     """
-    seriesAnalysisName = sv.ChemicalShiftMappingAnalysis
-    _allowedPeakProperties = [sv._PPMPOSITION, sv._LINEWIDTH]
+    seriesAnalysisName = sv.ChemicalShiftPerturbationAnalysis
+    _allowedPeakProperties = [sv._HEIGHT, sv._VOLUME, sv._PPMPOSITION, sv._LINEWIDTH]
+
 
     def __init__(self):
         super().__init__()
