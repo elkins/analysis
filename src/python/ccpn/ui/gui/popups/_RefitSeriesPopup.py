@@ -16,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-08-21 16:50:08 +0100 (Wed, August 21, 2024) $"
-__version__ = "$Revision: 3.2.5 $"
+__dateModified__ = "$dateModified: 2024-10-04 07:50:07 +0100 (Fri, October 04, 2024) $"
+__version__ = "$Revision: 3.2.9.alpha $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -75,10 +75,14 @@ class _RefitSelectedSeriesPopup(CcpnDialogMainWidget):
         # enable the buttons
         self.setOkButton(callback=self._okClicked, text='Refit', tipText='Refit Series using the selected options')
         self.setCloseButton(callback=self.reject, tipText='Close popup')
-        self.setDefaultButton(CcpnDialogMainWidget.CLOSEBUTTON)
         # initialise the buttons and dialog size
         self._postInit()
         self.getLayout().setSizeConstraint(QtWidgets.QLayout.SetNoConstraint)
+
+    def _postInit(self):
+        super()._postInit()
+
+        self.setDefaultButton(CcpnDialogMainWidget.CLOSEBUTTON)
 
     def getCollectionsPids(self):
         collectionsPids = set()
