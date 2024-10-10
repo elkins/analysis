@@ -55,8 +55,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-07-31 14:54:52 +0100 (Wed, July 31, 2024) $"
-__version__ = "$Revision: 3.2.5 $"
+__dateModified__ = "$dateModified: 2024-10-10 13:24:29 +0100 (Thu, October 10, 2024) $"
+__version__ = "$Revision: 3.2.9.alpha $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -1923,10 +1923,13 @@ class Spectrum(AbstractWrapperObject):
         from ccpn.core.SpectrumGroup import SpectrumGroup
         spectrumGroup = self.project.getByPid(spectrumGroup) if isinstance(spectrumGroup, str) else spectrumGroup
         if not isinstance(spectrumGroup, SpectrumGroup):
-            raise TypeError(f'{str(spectrumGroup)} is not a spectrumGroup')
+            msg = f'{str(spectrumGroup)} is not a spectrumGroup'
+            getLogger().debug(msg)
+            return ()
         if self not in spectrumGroup.spectra:
-            raise ValueError(f'Spectrum {str(self)} does not belong to spectrumGroup {str(spectrumGroup)}')
-
+            msg = f'Spectrum {str(self)} does not belong to spectrumGroup {str(spectrumGroup)}'
+            getLogger().debug(msg)
+            return ()
         additionalSeriesItems = self._getInternalParameter(self._ADDITIONALSERIESITEMS)
         if additionalSeriesItems and spectrumGroup.pid in additionalSeriesItems:
             return additionalSeriesItems[spectrumGroup.pid]
