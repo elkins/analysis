@@ -18,8 +18,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-06-28 21:15:26 +0100 (Fri, June 28, 2024) $"
-__version__ = "$Revision: 3.2.4 $"
+__dateModified__ = "$dateModified: 2024-10-02 10:04:24 +0100 (Wed, October 02, 2024) $"
+__version__ = "$Revision: 3.2.7 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -38,6 +38,8 @@ from collections import OrderedDict
 from datetime import datetime
 from collections.abc import Iterable
 import pandas as pd
+import numpy as np
+import re
 
 from ccpn.core._implementation.AbstractWrapperObject import AbstractWrapperObject
 from ccpn.core._implementation.Updater import UPDATE_POST_PROJECT_INITIALISATION
@@ -1448,8 +1450,8 @@ class Project(AbstractWrapperObject):
             self._isTemporary = False
             self._isNew = False
 
-    def _backup(self):
-        """Backup project
+    def _autoBackup(self):
+        """Auto-backup project
         """
         if self.readOnly:
             getLogger().warning('Backup skipped: project is read-only')
@@ -1459,29 +1461,30 @@ class Project(AbstractWrapperObject):
             getLogger().debug('Project is not modified: ignoring backup')
             return
 
-        # stop the auto-backups, so they don't clash with current save
-        with self.application.pauseAutoBackups():
+        # # stop the auto-backups, so they don't clash with current save
+        # with self.application.pauseAutoBackups():
+        # NOTE:ED - this is called inside auto-backup so shouldn't need pausing
 
-            try:
-                apiStatus = self._getAPIObjectsStatus()
-                if apiStatus.invalidObjects:
-                    # if deleteInvalidObjects:
-                    # delete here ...
-                    # run save and apiStatus again. Ensure nothing else has been compromised on the deleting process
-                    # else:
-                    errorMsg = '\n '.join(apiStatus.invalidObjectsErrors)
-                    getLogger().critical(
-                            f'Backup found compromised items. Project might be left in an invalid state. {errorMsg}')
-                    raise RuntimeError(errorMsg)
+        try:
+            apiStatus = self._getAPIObjectsStatus()
+            if apiStatus.invalidObjects:
+                # if deleteInvalidObjects:
+                # delete here ...
+                # run save and apiStatus again. Ensure nothing else has been compromised on the deleting process
+                # else:
+                errorMsg = '\n '.join(apiStatus.invalidObjectsErrors)
+                getLogger().critical(
+                        f'Backup found compromised items. Project might be left in an invalid state. {errorMsg}')
+                raise RuntimeError(errorMsg)
 
-            except Exception as es:
-                getLogger().warning(f'Error checking project status: {str(es)}')
+        except Exception as es:
+            getLogger().warning(f'Error checking project status: {str(es)}')
 
-            self._xmlLoader.backupUserData(updateIsModified=False)
-            # there was a valid save
-            return True
+        self._xmlLoader.backupUserData(updateIsModified=False)
+        # there was a valid save
+        return True
 
-            # don't touch anything else for the minute
+        # don't touch anything else for the minute
 
     #-----------------------------------------------------------------------------------------
     # CCPN properties
@@ -2311,8 +2314,8 @@ class Project(AbstractWrapperObject):
             dTable = self.newDataTable(name=f'{name}-average', data=averageStructure(ensemble))
             dTable.setMetadata('structureEnsemble', se.pid)
 
-            def getLoopNames( filename):
-                print(filename)
+            def getLoopNames(filename):
+                getLogger().info(filename)
                 loopNames = []
                 loop_ = False
                 with open(filename) as f:
@@ -2367,19 +2370,19 @@ class Project(AbstractWrapperObject):
 
                 df = pd.DataFrame(atomData, columns=columns)
                 # df = df.infer_objects()  # This method returns the DataFrame with inferred data types
-                df['idx'] = numpy.arange(1, df.shape[0] + 1)  # Create an 'idx' column
+                df['idx'] = np.arange(1, df.shape[0] + 1)  # Create an 'idx' column
                 df.set_index('idx', inplace=True)  # Set 'idx' as the index
 
                 return df
 
             try:
-                if len(self.chains == 1):
-                    chain in self.chains[0]
+                if len(self.chains) == 1:
+                    chain = self.chains[0]
                 else:
-                    print(self.chains)
+                    getLogger().info(self.chains)
                     return
             except:
-                print(self.chains)
+                getLogger().info(self.chains)
                 return
 
             if (("_struct_conf" in loopNames) or ("_struct_sheet_range" in loopNames)):
@@ -2406,24 +2409,23 @@ class Project(AbstractWrapperObject):
                 except:
                     dfSheet = None
 
-                # priocees the helix data - if there is some
+                # process the helix data - if there is some
                 if dfHelix is not None:
                     # Iterate over rows in the DataFrame
-                    print("dfHelix\n", dfHelix.tail())
+                    getLogger().info("dfHelix\n", dfHelix.tail())
                     for index, row in dfHelix.iterrows():
                         # Get the relevant values from the row
                         conf_type_id = row['conf_type_id']
                         startID = row['beg_label_seq_id']
                         endID = row['end_label_seq_id']
-                        print(conf_type_id, startID, endID)
+                        getLogger().info(conf_type_id, startID, endID)
                         # Iterate over the range between startID and endID
                         for id in range(int(startID), int(endID) + 1):
                             # Set dictionary values for each 'id'
                             try:
                                 _struct_confDict[id]['conf_type_id'] = conf_type_id
                             except:
-                                print("Not found error. Likely mismatch between Chain and mmcif sequence")
-
+                                getLogger().warning("Not found error. Likely mismatch between Chain and mmcif sequence")
 
                 # process the sheet data if there is some
                 if dfSheet is not None:
@@ -2440,7 +2442,7 @@ class Project(AbstractWrapperObject):
                             try:
                                 _struct_confDict[id]['conf_type_id'] = conf_type_id
                             except:
-                                print("Not found error. Likely mismatch between Chain and mmcif sequence")
+                                getLogger().warning("Not found error. Likely mismatch between Chain and mmcif sequence")
 
                 # Convert the nested dictionary to a Pandas DataFrame
                 df1 = pd.DataFrame.from_dict(_struct_confDict, orient='index')
@@ -2451,7 +2453,7 @@ class Project(AbstractWrapperObject):
 
                 # save the secondary structure dataframe
                 self.newDataTable(name="SecondaryStructure", data=df1,
-                                          comment='Secondary Structure Data from MMCIF')
+                                  comment='Secondary Structure Data from MMCIF')
 
         return [se]
 

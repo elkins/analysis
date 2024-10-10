@@ -4,9 +4,10 @@ Module Documentation here
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2023"
-__credits__ = ("Ed Brooksbank, Joanna Fox, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
-               "Timothy J Ragan, Brian O Smith, Gary S Thompson & Geerten W Vuister")
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
+               "Timothy J Ragan, Brian O Smith, Daniel Thompson",
+               "Gary S Thompson & Geerten W Vuister")
 __licence__ = ("CCPN licence. See https://ccpn.ac.uk/software/licensing/")
 __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, L.G., & Vuister, G.W.",
                  "CcpNmr AnalysisAssign: a flexible platform for integrated NMR analysis",
@@ -15,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2023-01-05 15:28:41 +0000 (Thu, January 05, 2023) $"
-__version__ = "$Revision: 3.1.1 $"
+__dateModified__ = "$dateModified: 2024-10-04 16:03:30 +0100 (Fri, October 04, 2024) $"
+__version__ = "$Revision: 3.2.7 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -178,9 +179,11 @@ class DataFrameABC(pd.DataFrame):
     _registeredDefaultClassName = None
     _JSON_PREFIX = 'ccpn.'
 
+
     class _classproperty():
         """Class to define getter for a class-property, similar to a class method.
         """
+
         def __init__(self, func):
             self._func = func
 
@@ -264,7 +267,8 @@ class DataFrameABC(pd.DataFrame):
         Json-types are strings of the form ccpn.<name>; name is the class-name of a registered class.
         :return: registered class-type.
         """
-        return next((klass for typ, klass in DataFrameABC._registeredClasses.items() if DataFrameABC._classNameToJsonType(typ) == jsonType), None)
+        return next((klass for typ, klass in DataFrameABC._registeredClasses.items()
+                     if DataFrameABC._classNameToJsonType(typ) == jsonType), None)
 
     #=========================================================================================
     # Properties
@@ -281,7 +285,8 @@ class DataFrameABC(pd.DataFrame):
         if (value is None or (hasattr(value, 'className') and value._isPandasTableClass)):
             self._containerDataTable = value
         else:
-            raise ValueError(f'{self.__class__.__name__}._containingObject must be None, subclass of DataTable, was {value}')
+            raise ValueError(
+                    f'{self.__class__.__name__}._containingObject must be None, subclass of DataTable, was {value}')
 
     @property
     def _dataTable(self) -> typing.Optional['DataTable']:
@@ -681,7 +686,8 @@ class DataFrameABC(pd.DataFrame):
             slan = self.loc[index].as_namedtuples()
 
             if not (index[0] in self.index and aant == slan):
-                raise ValueError(f'{self.__class__.__name__}s used for selection must be (or match) row in current {self.__class__.__name__}')
+                raise ValueError(f'{self.__class__.__name__}s used for selection must be '
+                                 f'(or match) row in current {self.__class__.__name__}')
 
             sl = self.loc[index].as_namedtuples()  # DataFrameABC get
             nt = sl[0]._asdict()
@@ -994,12 +1000,20 @@ class DataFrameABC(pd.DataFrame):
 
     @property
     def nefCompatibleColumns(self):
-        """Return the columns as nef compatible
+        """Return the columns as nef compatible,
         changes all upper to lower, replaces all others with _
+        Appends number to end of duplicate columns.
+        This is not reversible, but the actual columns are stored in the metadata.
         """
         cols = []
         for col in self.columns:
-            cols.append(re.sub(_REGEXNEFCOMPATIBLE, '_', col.lower()))
+            header = re.sub(_REGEXNEFCOMPATIBLE, '_', col.lower())
+            # iterate until a non-repeating header is found
+            newHeader = next((''.join([header, str(_count or '')])
+                              for _count in range(len(self.columns))
+                              if ''.join([header, str(_count or '')]) not in cols), None
+                             )
+            cols.append(newHeader)
         return cols
 
 
@@ -1007,7 +1021,7 @@ def fitToDataType(data: collections.abc.Sequence, dataType: type, force: bool = 
     """Convert any data sequence to a list of dataType.
 
     If force will convert all values to type, if possible, and set None otherwise.
-    Otherwise will check that all values are of correct type or None,
+    Otherwise, will check that all values are of correct type or None,
     and raise ValueError otherwise.
 
     force=True will work for types int, float, or str; it may or may not work for other types

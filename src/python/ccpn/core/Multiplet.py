@@ -15,16 +15,13 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-05-22 14:42:25 +0100 (Wed, May 22, 2024) $"
+__dateModified__ = "$dateModified: 2024-10-04 12:05:03 +0100 (Fri, October 04, 2024) $"
 __version__ = "$Revision: 3.2.5 $"
 #=========================================================================================
 # Created
 #=========================================================================================
 __author__ = "$Author: Ed Brooksbank $"
 __date__ = "$Date: 2017-04-07 10:28:41 +0000 (Fri, April 07, 2017) $"
-
-from itertools import chain
-
 #=========================================================================================
 # Start of code
 #=========================================================================================
@@ -762,7 +759,7 @@ class Multiplet(AbstractWrapperObject):
                             assign.append(ll[dim])
 
         for pk in self.peaks:
-            pk.assignDimensions(axisCodes, assignments)
+            pk.assignDimensions(axisCodes=axisCodes, values=assignments)
 
 #=========================================================================================
 # Connections to parents

@@ -16,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-09-27 11:46:09 +0100 (Fri, September 27, 2024) $"
-__version__ = "$Revision: 3.2.9.alpha $"
+__dateModified__ = "$dateModified: 2024-10-02 10:04:24 +0100 (Wed, October 02, 2024) $"
+__version__ = "$Revision: 3.2.7 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -113,7 +113,7 @@ class CleanupBackups(CcpnDialogMainWidget):
     def __init__(self, parent=None, mainWindow=None, currentProjectOnly=False, **kwds):
         """Initialise the popup.
         """
-        super().__init__(parent, setLayout=True, windowTitle='Clean-up Backups', **kwds)
+        super().__init__(parent, setLayout=True, windowTitle='View Backups', **kwds)
 
         if mainWindow:
             self.mainWindow = mainWindow
@@ -130,7 +130,7 @@ class CleanupBackups(CcpnDialogMainWidget):
         self._populateProjectState(True)
 
         # enable the buttons
-        self.setCloseButton(callback=self.reject)
+        self.setCloseButton(callback=self.reject, tipText='Close dialog')
         self.setDefaultButton(self.CLOSEBUTTON)
 
     def _setWidgets(self):
@@ -175,7 +175,7 @@ class CleanupBackups(CcpnDialogMainWidget):
         self._autoListLabel.setFixedSize(self._autoListLabel.sizeHint())
         self._autoList.currentContextMenu = partial(self._getContextMenu, widget=self._autoList)
         self._autoList.setToolTip('Current auto-backups in the project.\n'
-                                  'Auto-backups are created based on the settings in preferences.')
+                                  'Auto-backups are created at regular intervals based on the settings in preferences.')
         self._autoList.setMinimumHeight(48)
         # listWidgets have strange initial sizePolicies
         self._autoList.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)

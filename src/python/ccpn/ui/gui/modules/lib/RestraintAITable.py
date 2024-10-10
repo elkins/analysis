@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-09-16 15:51:34 +0100 (Mon, September 16, 2024) $"
+__dateModified__ = "$dateModified: 2024-10-02 16:39:51 +0100 (Wed, October 02, 2024) $"
 __version__ = "$Revision: 3.2.7 $"
 #=========================================================================================
 # Created
@@ -44,12 +44,14 @@ from ccpn.core.lib.Notifiers import Notifier
 from ccpn.ui.gui.lib._CoreMITableFrame import _CoreMITableWidgetABC
 from ccpn.ui.gui.lib._CoreTableFrame import _CoreTableFrameABC
 import ccpn.ui.gui.modules.PyMolUtil as pyMolUtil
-from ccpn.ui.gui.modules.lib.RestraintAITableCommon import (
-    _RestraintOptions, UNITS, HeaderIndex, HeaderMatch, HeaderObject, HeaderRestraint,
-    HeaderAtoms, HeaderViolation, HeaderTarget, HeaderLowerLimit, HeaderUpperLimit,
-    HeaderMin, HeaderMax, HeaderMean, HeaderStd,
-    HeaderCount1, HeaderCount2, _OLDHEADERS, _VIOLATIONRESULT, ALL, PymolScriptName,
-    _RestraintAITableFilter)
+from ccpn.ui.gui.modules.lib.RestraintAITableCommon import (_RestraintOptions, UNITS, HeaderIndex, HeaderMatch,
+                                                            HeaderObject, HeaderRestraint,
+                                                            HeaderAtoms, HeaderViolation, HeaderTarget,
+                                                            HeaderLowerLimit, HeaderUpperLimit,
+                                                            HeaderMin, HeaderMax, HeaderMean, HeaderStd,
+                                                            HeaderCount1, HeaderCount2, _OLDHEADERS, _VIOLATIONRESULT,
+                                                            ALL, PymolScriptName, _RestraintAITableFilter,
+                                                            INDEXCOL, PEAKSERIALCOL, OBJCOL)
 from ccpn.ui.gui.widgets.Button import Button
 from ccpn.ui.gui.widgets.ButtonList import ButtonList
 from ccpn.ui.gui.widgets.Column import ColumnClass, Column
@@ -66,6 +68,7 @@ from ccpn.util.Path import joinPath
 from ccpn.util.OrderedSet import OrderedSet
 from ccpn.ui.gui.widgets.table._MITableModel import _MITableModel
 from ccpn.ui.gui.widgets.table._MITableDelegates import _ExpandVerticalCellDelegate
+from ccpn.framework.Application import getProject
 
 
 SELECT = '< Select >'
@@ -152,6 +155,11 @@ class _MultiSort(_MITableModel):
 #=========================================================================================
 # _NewRestraintWidget - main widget for table, will need to change to _MultiIndex
 #=========================================================================================
+
+def _getContributions(restraint):
+    # create a table of the cross-links for speed - does not update!
+    return [' - '.join(sorted(ri)) for rc in restraint.restraintContributions
+            for ri in rc.restraintItems]
 
 
 def _checkRestraintFloat(offset, value, row, col):
@@ -375,10 +383,12 @@ class _NewRestraintTableWidget(_CoreMITableWidgetABC):
             self.current.clearPeaks()
             self.current.clearRestraints()
         else:
-            rTables = [rTable for cSet in self.resources.comparisonSets for rTable in cSet.getTreeTables(depth=1)]
-            newRes = list({res for pk in objs for res in pk.restraints
-                           if res and res.restraintTable in rTables})
-            self.current.peaks = objs
+            self.current.peaks = list(filter(lambda obj: isinstance(obj, Peak), selection[self._OBJECT]))
+            # get all the restraint-pid columns
+            resPids = OrderedSet(selection.loc[:, (slice(None), HeaderRestraint)].values.flatten())
+            # get all the valid core-restraints
+            getByPid = getProject().getByPid
+            newRes = list(filter(None, map(lambda x: getByPid(x), resPids)))
             self.current.restraints = newRes
 
     def actionCallback(self, selection, lastItem):
@@ -529,11 +539,6 @@ class _NewRestraintTableWidget(_CoreMITableWidgetABC):
         :return pandas dataFrame
         """
 
-        def _getContributions(restraint):
-            # create a table of the cross-links for speed - does not update!
-            return [' - '.join(sorted(ri)) for rc in restraint.restraintContributions
-                    for ri in rc.restraintItems]
-
         rss = self.resources
         # get the target peakLists
         # pks = (self._table and self._table.peaks) or []  # ._sourcePeaks
@@ -542,9 +547,6 @@ class _NewRestraintTableWidget(_CoreMITableWidgetABC):
 
         # column-headers
         cSetLists = [cSet for cSet in rss.comparisonSets if not cSet.isEmpty]
-        INDEXCOL = ('Row', 'Row')
-        PEAKSERIALCOL = (HeaderMatch, HeaderMatch)
-        OBJCOL = ('_object', '_object')
         extraDefaultHiddenColumns = []
 
         # need to remove the 'str' and use pd.MultiIndex.from_tuples(list[tuple, ...])
@@ -624,6 +626,30 @@ class _NewRestraintTableWidget(_CoreMITableWidgetABC):
                         ]
                 _ll = pd.DataFrame(ll)
                 _ll.columns = COLS[:len(_ll.columns)]  # may not contain headerTarget, etc.
+
+                # NOTE:ED - nasty hack to get the includeNonPeaks state :|
+                if rss._includeNonPeaksCheckBox.isChecked():
+                    # get the restraints without peaks?
+                    nonPeaks = [(res.pid,
+                                 ' - '.join(sorted(_atom.split(' - '), key=universalSortKey)) if _atom else None,
+                                 res.targetValue,
+                                 res.lowerLimit,
+                                 res.upperLimit,
+                                 )
+                                for resList in resLists
+                                for res in resList.restraints if not res.peaks
+                                for _atom in contribs[res]]
+                    if nonPeaks:
+                        allPLen = len(index) + 1
+                        index = pd.concat([index,
+                                           pd.DataFrame(list(range(allPLen, allPLen + len(nonPeaks))),
+                                                        columns=[INDEXCOL, ]
+                                                        )],
+                                          axis=0, ignore_index=True)
+                        _np = pd.DataFrame(nonPeaks)
+                        _np.columns = COLS[:len(_np.columns)]
+                        _ll = pd.concat([_ll, _np], axis=0, ignore_index=True)
+
                 # put the serial and atoms into another table to be concatenated to the right, lCount = index in resLists
                 dd = pd.concat([allPkSerials, _ll], axis=1)
                 dfsAll[cSetName] = dd.dropna(how='all', axis=1)
@@ -662,10 +688,9 @@ class _NewRestraintTableWidget(_CoreMITableWidgetABC):
                     cSetName = cSet.comparisonSetName
                     # if not cSet.getTreeTables(depth=1, selected=True):
                     #     continue
-
-                    HEADERSCOL = (cSetName, f'{HeaderRestraint}')
-                    ATOMSCOL = (cSetName, 'Atoms')
-                    HEADERMEANCOL = (cSetName, f'{HeaderMean}')
+                    HEADERSCOL = (cSetName, HeaderRestraint)
+                    ATOMSCOL = (cSetName, HeaderAtoms)
+                    HEADERMEANCOL = (cSetName, HeaderMean)
                     HEADERVIOLATION = (cSetName, HeaderViolation)
 
                     if violationResults.get(cSetName):
@@ -738,7 +763,7 @@ class _NewRestraintTableWidget(_CoreMITableWidgetABC):
 
                     elif cSetName in dfsAll:
                         # lose the PeakSerial column for each
-                        _new = dfsAll[cSetName].drop(columns=[PEAKSERIALCOL])
+                        _new = dfsAll[cSetName].drop(columns=[PEAKSERIALCOL], errors='ignore')
                         # fill the blank spaces with the correct types
                         _new = _new.fillna({HEADERSCOL: '-', ATOMSCOL: '-', HEADERVIOLATION: False})
                         _new = _new.fillna(0.0)
@@ -767,31 +792,22 @@ class _NewRestraintTableWidget(_CoreMITableWidgetABC):
                 # no results - just show the table
                 for ii, cSet in enumerate(cSetLists):
                     cSetName = cSet.comparisonSetName
-                    if (not cSet.getTreeTables(depth=1, selected=True) or
-                            cSetName not in dfsAll or
-                            PEAKSERIALCOL not in dfsAll[cSetName].columns):
+                    if (not cSet.getTreeTables(depth=1, selected=True) or cSetName not in dfsAll):
                         continue
 
-                    HEADERSCOL = (cSetName, f'{HeaderRestraint}')
-                    ATOMSCOL = (cSetName, 'Atoms')
-                    HEADERVIOLATION = (cSetName, f'{HeaderViolation}')
-
+                    HEADERSCOL = (cSetName, HeaderRestraint)
+                    ATOMSCOL = (cSetName, HeaderAtoms)
+                    HEADERVIOLATION = (cSetName, HeaderViolation)
                     # lose the PeakSerial column for each
-                    _new = dfsAll[cSetName].drop(columns=[PEAKSERIALCOL])
+                    _new = dfsAll[cSetName].drop(columns=[PEAKSERIALCOL], errors='ignore')
                     # fill the blank spaces with the correct types
                     _new = _new.fillna({HEADERSCOL: '-', ATOMSCOL: '-', HEADERVIOLATION: False})
                     _new = _new.fillna(0.0)
                     _out.append(_new)
-
-                    # # create new column headings
-                    # for _colID in (HeaderRestraint, HeaderAtoms):
-                    #     _cols.append((f'{_colID}_{ii + 1}', lambda row: _getValueByHeader(row, f'{_colID}_{ii + 1}'), f'{_colID}_Tip{ii + 1}', None, None))
-
                     self._addColumnDefs(_new, cSetName, ii)
 
                 # concatenate to give the final table
                 _table = pd.concat(_out, axis=1)
-
         else:
             # # get the target peakLists
             # pks = (self._table and self._table.peaks) or []  # ._sourcePeaks
@@ -805,27 +821,14 @@ class _NewRestraintTableWidget(_CoreMITableWidgetABC):
             _table = pd.DataFrame({}, columns=[INDEXCOL, PEAKSERIALCOL, OBJCOL])
 
         _table.columns = pd.MultiIndex.from_tuples(_table.columns)
-
-        # # # set the table _columns
-        # # self._columns = ColumnClass(_cols)
-        #
-        # # set the table from the dataFrame
-        # # NOTE:ED - gaaaah get rid of this
-        # _dataFrame = DataFrameObject(dataFrame=_table,
-        #                              columnDefs=[],
-        #                              table=self,
-        #                              )
-        # # extract the row objects from the dataFrame
-        # _objects = list(_table.itertuples())
-        # _dataFrame._objects = _objects
-        #
-        # return _dataFrame
-
+        if rss._includeNonPeaksCheckBox.isChecked():
+            _table = (_table
+                      .fillna({PEAKSERIALCOL: '-'})
+                      .loc[~_table.loc[:, (slice(None), HeaderRestraint)].isna().all(axis=1)]
+                      .fillna('-')
+                      )
         _objects = list(_table.itertuples())
         self._objects = _objects
-
-        # NOTE:ED - removed dataFrameObject or ColumnClass
-
         if extraDefaultHiddenColumns:
             hCols = self.headerColumnMenu._internalColumns
             self.headerColumnMenu.setInternalColumns(set(hCols) | set(extraDefaultHiddenColumns))

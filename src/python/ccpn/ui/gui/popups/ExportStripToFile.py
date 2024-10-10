@@ -16,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-08-23 19:23:04 +0100 (Fri, August 23, 2024) $"
-__version__ = "$Revision: 3.2.5 $"
+__dateModified__ = "$dateModified: 2024-10-01 12:04:15 +0100 (Tue, October 01, 2024) $"
+__version__ = "$Revision: 3.2.7 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -1097,26 +1097,26 @@ class ExportStripToFilePopup(ExportDialogABC):
         self.setSave(self.objectPulldown.getText() + exportExtension)
 
     @staticmethod
-    def _resetPulldownColours(combo):
-        model = combo.model()
-        for ii in range(combo.count()):
-            idx = model.index(ii)
-            itm = combo.itemFromIndex(idx)
+    def _resetPulldownColours(qtList: QtWidgets.QListWidget):
+        model = qtList.model()
+        for ii in range(qtList.count()):
+            idx = model.index(ii, 0)
+            itm = qtList.itemFromIndex(idx)
             if itm.text().startswith(PulldownFill):
                 itm.setFlags(itm.flags() & ~QtCore.Qt.ItemIsEnabled)
                 # reset the foreground colour to follow palette
-                itm.setData(None, QtCore.Qt.ForegroundRole)
+                itm.setData(QtCore.Qt.ForegroundRole, None)  # QAbstractListItem :| parameters other way round
 
     @staticmethod
-    def _setListColours(combo, validStripIds):
-        model = combo.model()
-        for ind in range(combo.count()):
-            idx = model.index(ind)
-            itm = combo.itemFromIndex(idx)
+    def _setListColours(qtList: QtWidgets.QListWidget, validStripIds: list[str]):
+        model = qtList.model()
+        for ind in range(qtList.count()):
+            idx = model.index(ind, 0)
+            itm = qtList.itemFromIndex(idx)
             if PulldownFill not in itm.text() and itm.text() in validStripIds:
-                itm.setData(PRINT_COLOR, QtCore.Qt.ForegroundRole)
+                itm.setData(QtCore.Qt.ForegroundRole, PRINT_COLOR)
             else:
-                itm.setData(None, QtCore.Qt.ForegroundRole)
+                itm.setData(QtCore.Qt.ForegroundRole, None)
 
     def _populateRange(self):
         """Populate the list/spinboxes in range widget
@@ -2001,7 +2001,7 @@ class ExportStripToFilePopup(ExportDialogABC):
             return partial(self._setFontSize, _value)
 
     def _setFontSize(self, value):
-        self.printSettings.fontSize = value
+        self.printSettings.fontSize = int(value)
 
     @queueStateChange(_verifyPopupApply)
     def _queueFontNameCallback(self, _value):

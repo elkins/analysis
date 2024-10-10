@@ -16,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-08-23 19:23:05 +0100 (Fri, August 23, 2024) $"
-__version__ = "$Revision: 3.2.5 $"
+__dateModified__ = "$dateModified: 2024-10-09 19:49:20 +0100 (Wed, October 09, 2024) $"
+__version__ = "$Revision: 3.2.7 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -46,7 +46,7 @@ from ccpn.ui.gui.guiSettings import getColours, DIVIDER
 from ccpn.ui.gui.widgets.Button import Button
 from ccpn.ui.gui.widgets.CheckBox import CheckBox
 from ccpn.ui.gui.widgets.ColourDialog import ColourDialog
-from ccpn.ui.gui.widgets.DoubleSpinbox import ScientificDoubleSpinBox
+from ccpn.ui.gui.widgets.DoubleSpinbox import ScientificDoubleSpinBox, DoubleSpinbox
 from ccpn.ui.gui.widgets.FilteringPulldownList import FilteringPulldownList
 from ccpn.ui.gui.widgets.Label import Label
 from ccpn.ui.gui.widgets.LineEdit import LineEdit
@@ -60,8 +60,10 @@ from ccpn.ui.gui.widgets.HLine import HLine
 from ccpn.ui.gui.widgets.CompoundWidgets import PulldownListCompoundWidget
 from ccpn.ui.gui.widgets.Spacer import Spacer
 from ccpn.ui.gui.widgets.MagnetisationTransferTable import MagnetisationTransferTable
+from ccpn.ui.gui.widgets.RadioButtons import RadioButtons
 from ccpn.ui.gui.popups.ExperimentTypePopup import _getExperimentTypes
 from ccpn.ui.gui.popups.ValidateSpectraPopup import SpectrumPathRow
+from ccpn.ui.gui.popups.PreferencesPopup import PEAKFITTINGDEFAULTS
 from ccpn.ui.gui.popups.Dialog import CcpnDialogMainWidget, handleDialogApply, _verifyPopupApply
 from ccpn.ui.gui.lib.ChangeStateHandler import changeState, ChangeDict
 from ccpn.ui.gui.lib.DynamicSizeAdjust import dynamicSizeAdjust
@@ -593,7 +595,7 @@ class _SpectrumPathRow(SpectrumPathRow):
 class GeneralTab(Widget):
     def __init__(self, parent=None, container=None, mainWindow=None, spectrum=None, item=None, colourOnly=False):
 
-        super().__init__(parent, setLayout=True, spacing=DEFAULTSPACING)  # ejb
+        super().__init__(parent, setLayout=True, spacing=DEFAULTSPACING)
         self.setWindowTitle("Spectrum Properties")
 
         self._parent = parent
@@ -608,56 +610,56 @@ class GeneralTab(Widget):
         self.atomCodes = ()
 
         self.experimentTypes = spectrum._project._experimentTypeMap
+        self._setWidgets(spectrum)
 
+    def _setWidgets(self, spectrum):
         row = 0
         self.layout().addItem(QtWidgets.QSpacerItem(row, 5), 0, 0)
         Spacer(self, 5, 1, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Minimum,
                grid=(row, 3))
         row += 1
-
         Label(self, text="Pid ", vAlign='t', hAlign='l', grid=(row, 0), tipText=getAttributeTipText(Spectrum, 'pid'))
         self.spectrumPidLabel = Label(self, vAlign='t', grid=(row, 1))
         row += 1
-
         Label(self, text="Name ", grid=(row, 0), tipText=getAttributeTipText(Spectrum, 'name'))
         self.nameData = LineEdit(self, textAlignment='left', vAlign='t', grid=(row, 1), backgroundText='> Enter name <')
         self.nameData.textChanged.connect(partial(self._queueSpectrumNameChange, spectrum))  # ejb - was editingFinished
         row += 1
-
         Label(self, text="Comment ", grid=(row, 0), tipText=getAttributeTipText(Spectrum, 'comment'))
-        self.commentData = LineEdit(self, textAlignment='left', vAlign='t', grid=(row, 1), backgroundText='> Optional <')
-        self.commentData.textChanged.connect(partial(self._queueSpectrumCommentChange, spectrum))  # ejb - was editingFinished
+        self.commentData = LineEdit(self, textAlignment='left', vAlign='t', grid=(row, 1),
+                                    backgroundText='> Optional <')
+        self.commentData.textChanged.connect(
+            partial(self._queueSpectrumCommentChange, spectrum))  # ejb - was editingFinished
         row += 1
-
         self.spectrumRow = _SpectrumPathRow(parentWidget=self, rowIndex=row, labelText='Path',
                                             spectrum=self.spectrum,
                                             enabled=(not self.spectrum.isEmptySpectrum()),
                                             callback=self._queueSpectrumPathChange,
                                             )
         row += 1
-
         from ccpn.core.lib.SpectrumDataSources.SpectrumDataSourceABC import getDataFormats
 
         _dataFormats = list(getDataFormats().keys())
-        Label(self, text="DataFormat ", grid=(row, 0), tipText=getAttributeTipText(Spectrum, 'Format of the binary data defined by path'))
+        Label(self, text="DataFormat ", grid=(row, 0),
+              tipText=getAttributeTipText(Spectrum, 'Format of the binary data defined by path'))
         self.dataFormatWidget = PulldownList(parent=self, vAlign='t', grid=(row, 1), editable=False, texts=_dataFormats,
                                              )
         self.dataFormatWidget.select(self.spectrum.dataFormat)
         self.dataFormatWidget.disable()
         row += 1
-
-        Label(self, text="Chemical Shift List ", vAlign='t', hAlign='l', grid=(row, 0), tipText=getAttributeTipText(Spectrum, 'chemicalShiftList'))
+        Label(self, text="Chemical Shift List ", vAlign='t', hAlign='l', grid=(row, 0),
+              tipText=getAttributeTipText(Spectrum, 'chemicalShiftList'))
         self.chemicalShiftListPulldown = PulldownList(self, vAlign='t', grid=(row, 1),
                                                       callback=partial(self._queueChemicalShiftListChange, spectrum))
         row += 1
-
-        Label(self, text="Sample", vAlign='t', hAlign='l', grid=(row, 0), tipText=getAttributeTipText(Spectrum, 'sample'))
+        Label(self, text="Sample", vAlign='t', hAlign='l', grid=(row, 0),
+              tipText=getAttributeTipText(Spectrum, 'sample'))
         self.samplesPulldownList = PulldownList(self, vAlign='t', grid=(row, 1))
         self.samplesPulldownList.currentIndexChanged.connect(partial(self._queueSampleChange, spectrum))
         row += 1
-
         if spectrum.dimensionCount == 1:
-            Label(self, text="Colour", vAlign='t', hAlign='l', grid=(row, 0), tipText=getAttributeTipText(Spectrum, 'sliceColour'))
+            Label(self, text="Colour", vAlign='t', hAlign='l', grid=(row, 0),
+                  tipText=getAttributeTipText(Spectrum, 'sliceColour'))
             self.colourBox = PulldownList(self, vAlign='t', grid=(row, 1))
 
             # populate initial pulldown
@@ -668,7 +670,8 @@ class GeneralTab(Widget):
                                   callback=partial(self._queueSetSpectrumColour, spectrum), icon='icons/colours')
             row += 1
 
-            Label(self, text="Reference Experiment Type ", vAlign='t', hAlign='l', grid=(row, 0), tipText=getAttributeTipText(Spectrum, 'experimentType'))
+            Label(self, text="Reference Experiment Type ", vAlign='t', hAlign='l', grid=(row, 0),
+                  tipText=getAttributeTipText(Spectrum, 'experimentType'))
             self.spectrumType = FilteringPulldownList(self, vAlign='t', grid=(row, 1))
             spButton = Button(self, grid=(row, 2),
                               callback=partial(self._raiseExperimentFilterPopup, spectrum),
@@ -678,33 +681,64 @@ class GeneralTab(Widget):
             self.spectrumType.currentIndexChanged.connect(partial(self._queueSetSpectrumType, spectrum))
             row += 1
 
-            Label(self, text="Spinning Rate (Hz)", grid=(row, 0), hAlign='l', tipText=getAttributeTipText(Spectrum, 'spinningRate'))
+            #====== Peak Picking ======
+            Label(self, text="Default 1d peak picker", vAlign='t', hAlign='l', grid=(row, 0))
+            self.peakPicker1dData = PulldownList(self, vAlign='t', grid=(row, 1), headerText='< default >')
+            self.peakPicker1dData.currentIndexChanged.connect(partial(self._queueChangePeakPicker1dIndex, spectrum))
+            row += 1
+            self.peakFittingMethodLabel = Label(self, text="Peak interpolation method", grid=(row, 0))
+            self.peakFittingMethod = RadioButtons(self, texts=PEAKFITTINGDEFAULTS,
+                                                  callback=self._queueSetPeakFittingMethod,
+                                                  direction='h',
+                                                  grid=(row, 1), hAlign='l', #gridSpan=(1, 2),
+                                                  tipTexts=None,
+                                                  )
+            row += 1
+            # self.dropFactorLabel = Label(self, text="1D Peak picking drop (%)",
+            #                                   tipText='Increase to filter out more', grid=(row, 0))
+            # self.peakFactor1D = DoubleSpinbox(self, grid=(row, 1), hAlign='l', decimals=1, step=0.1, min=-100,
+            #                                   max=100)
+            # # self.peakFactor1D.valueChanged.connect(self._queueSetDropFactor1D)
+            # row += 1
+
+            #====== Other  ======
+            Label(self, text="Spinning Rate (Hz)", grid=(row, 0), hAlign='l',
+                  tipText=getAttributeTipText(Spectrum, 'spinningRate'))
             self.spinningRateData = ScientificDoubleSpinBox(self, vAlign='t', grid=(row, 1), min=0, max=100000.0)
-            self.spinningRateData.valueChanged.connect(partial(self._queueSpinningRateChange, spectrum, self.spinningRateData.textFromValue))
+            self.spinningRateData.valueChanged.connect(
+                partial(self._queueSpinningRateChange, spectrum, self.spinningRateData.textFromValue))
             row += 1
 
-            Label(self, text="Temperature", grid=(row, 0), hAlign='l', tipText=getAttributeTipText(Spectrum, 'temperature'))
+            Label(self, text="Temperature", grid=(row, 0), hAlign='l',
+                  tipText=getAttributeTipText(Spectrum, 'temperature'))
             self.temperatureData = ScientificDoubleSpinBox(self, vAlign='t', grid=(row, 1), min=0, max=1000.0)
-            self.temperatureData.valueChanged.connect(partial(self._queueTemperatureChange, spectrum, self.temperatureData.textFromValue))
+            self.temperatureData.valueChanged.connect(
+                partial(self._queueTemperatureChange, spectrum, self.temperatureData.textFromValue))
             row += 1
 
-            Label(self, text='Spectrum Scaling', vAlign='t', hAlign='l', grid=(row, 0), tipText=getAttributeTipText(Spectrum, 'scale'))
-            self.spectrumScalingData = ScientificDoubleSpinBox(self, vAlign='t', grid=(row, 1), min=-1e12, max=1e12, decimals=8)
-            self.spectrumScalingData.valueChanged.connect(partial(self._queueSpectrumScaleChange, spectrum, self.spectrumScalingData.textFromValue))
+            Label(self, text='Spectrum Scaling', vAlign='t', hAlign='l', grid=(row, 0),
+                  tipText=getAttributeTipText(Spectrum, 'scale'))
+            self.spectrumScalingData = ScientificDoubleSpinBox(self, vAlign='t', grid=(row, 1), min=-1e12, max=1e12,
+                                                               decimals=8)
+            self.spectrumScalingData.valueChanged.connect(
+                partial(self._queueSpectrumScaleChange, spectrum, self.spectrumScalingData.textFromValue))
             row += 1
 
             Label(self, text="Date Recorded ", vAlign='t', hAlign='l', grid=(row, 0))
             Label(self, text='n/a', vAlign='t', hAlign='l', grid=(row, 1))
             row += 1
 
-            Label(self, text="Noise Level ", vAlign='t', hAlign='l', grid=(row, 0), tipText=getAttributeTipText(Spectrum, 'noiseLevel'))
+            Label(self, text="Noise Level ", vAlign='t', hAlign='l', grid=(row, 0),
+                  tipText=getAttributeTipText(Spectrum, 'noiseLevel'))
             self.noiseLevelData = ScientificDoubleSpinBox(self, vAlign='t', hAlign='l', grid=(row, 1))
 
-            self.noiseLevelData.valueChanged.connect(partial(self._queueNoiseLevelDataChange, spectrum, self.noiseLevelData.textFromValue))
+            self.noiseLevelData.valueChanged.connect(
+                partial(self._queueNoiseLevelDataChange, spectrum, self.noiseLevelData.textFromValue))
             row += 1
 
         else:
-            _specLabel = Label(self, text="Reference Experiment Type ", vAlign='t', hAlign='l', grid=(row, 0), tipText=getAttributeTipText(Spectrum, 'experimentType'))
+            _specLabel = Label(self, text="Reference Experiment Type ", vAlign='t', hAlign='l', grid=(row, 0),
+                               tipText=getAttributeTipText(Spectrum, 'experimentType'))
             self.spectrumType = FilteringPulldownList(self, vAlign='t', grid=(row, 1))
             _specButton = Button(self, grid=(row, 2),
                                  callback=partial(self._raiseExperimentFilterPopup, spectrum),
@@ -716,30 +750,59 @@ class GeneralTab(Widget):
             _specButton.setVisible(False)
             row += 1
 
-            Label(self, text="Spinning rate (Hz)", grid=(row, 0), hAlign='l', tipText=getAttributeTipText(Spectrum, 'spinningRate'))
+            #====== Peak Picking ======
+            Label(self, text="Default nD peak picker", vAlign='t', hAlign='l', grid=(row, 0))
+            self.peakPickerNdData = PulldownList(self, vAlign='t', grid=(row, 1), headerText='< default >')
+            self.peakPickerNdData.currentIndexChanged.connect(partial(self._queueChangePeakPickerNdIndex, spectrum))
+            row += 1
+            self.peakFittingMethodLabel = Label(self, text="Peak interpolation method", grid=(row, 0))
+            self.peakFittingMethod = RadioButtons(self, texts=PEAKFITTINGDEFAULTS,
+                                                  callback=self._queueSetPeakFittingMethod,
+                                                  direction='h',
+                                                  grid=(row, 1), hAlign='l', #gridSpan=(1, 2),
+                                                  tipTexts=None,
+                                                  )
+            row += 1
+            # self.dropFactorLabel = Label(self, text="nD Peak picking drop (%)",
+            #                                   tipText='Increase to filter out more', grid=(row, 0))
+            # self.peakFactorNd = DoubleSpinbox(self, grid=(row, 1), hAlign='l', decimals=1, step=0.1, min=-100,
+            #                                   max=100)
+            # # self.peakFactorNd.valueChanged.connect(self._queueSetDropFactor1D)
+            # row += 1
+
+            #====== Other ======
+            Label(self, text="Spinning rate (Hz)", grid=(row, 0), hAlign='l',
+                  tipText=getAttributeTipText(Spectrum, 'spinningRate'))
             self.spinningRateData = ScientificDoubleSpinBox(self, vAlign='t', grid=(row, 1), min=0, max=100000.0)
-            self.spinningRateData.valueChanged.connect(partial(self._queueSpinningRateChange, spectrum, self.spinningRateData.textFromValue))
+            self.spinningRateData.valueChanged.connect(
+                partial(self._queueSpinningRateChange, spectrum, self.spinningRateData.textFromValue))
             row += 1
 
-            Label(self, text="Temperature", grid=(row, 0), hAlign='l', tipText=getAttributeTipText(Spectrum, 'temperature'))
+            Label(self, text="Temperature", grid=(row, 0), hAlign='l',
+                  tipText=getAttributeTipText(Spectrum, 'temperature'))
             self.temperatureData = ScientificDoubleSpinBox(self, vAlign='t', grid=(row, 1), min=0, max=1000.0)
-            self.temperatureData.valueChanged.connect(partial(self._queueTemperatureChange, spectrum, self.temperatureData.textFromValue))
+            self.temperatureData.valueChanged.connect(
+                partial(self._queueTemperatureChange, spectrum, self.temperatureData.textFromValue))
             row += 1
 
-            spectrumScalingLabel = Label(self, text='Spectrum Scaling', vAlign='t', grid=(row, 0), tipText=getAttributeTipText(Spectrum, 'scale'))
-            self.spectrumScalingData = ScientificDoubleSpinBox(self, vAlign='t', grid=(row, 1), min=-1e12, max=1e12, decimals=8)
-            self.spectrumScalingData.valueChanged.connect(partial(self._queueSpectrumScaleChange, spectrum, self.spectrumScalingData.textFromValue))
+            spectrumScalingLabel = Label(self, text='Spectrum Scaling', vAlign='t', grid=(row, 0),
+                                         tipText=getAttributeTipText(Spectrum, 'scale'))
+            self.spectrumScalingData = ScientificDoubleSpinBox(self, vAlign='t', grid=(row, 1), min=-1e12, max=1e12,
+                                                               decimals=8)
+            self.spectrumScalingData.valueChanged.connect(
+                partial(self._queueSpectrumScaleChange, spectrum, self.spectrumScalingData.textFromValue))
             row += 1
 
-            noiseLevelLabel = Label(self, text="Noise Level ", vAlign='t', hAlign='l', grid=(row, 0), tipText=getAttributeTipText(Spectrum, 'noiseLevel'))
+            noiseLevelLabel = Label(self, text="Noise Level ", vAlign='t', hAlign='l', grid=(row, 0),
+                                    tipText=getAttributeTipText(Spectrum, 'noiseLevel'))
             self.noiseLevelData = ScientificDoubleSpinBox(self, vAlign='t', grid=(row, 1))
             self.layout().addItem(QtWidgets.QSpacerItem(26, 10), row, 2)
             row += 1
 
-            self.noiseLevelData.valueChanged.connect(partial(self._queueNoiseLevelDataChange, spectrum, self.noiseLevelData.textFromValue))
+            self.noiseLevelData.valueChanged.connect(
+                partial(self._queueNoiseLevelDataChange, spectrum, self.noiseLevelData.textFromValue))
 
             self.layout().addItem(QtWidgets.QSpacerItem(0, 10), 0, 0)
-
         Spacer(self, 5, 5, QtWidgets.QSizePolicy.MinimumExpanding, QtWidgets.QSizePolicy.MinimumExpanding,
                grid=(row, 1), gridSpan=(1, 1))
 
@@ -795,6 +858,23 @@ class GeneralTab(Widget):
 
                 if (idx := self.spectrumType.findText(key)) > 0:
                     self.spectrumType.setCurrentIndex(idx)
+
+            # add the peakPicker list
+            from ccpn.core.lib.PeakPickers.PeakPickerABC import getPeakPickerTypes
+
+            _peakPickers = getPeakPickerTypes()
+            if self.spectrum.dimensionCount == 1:
+                self.peakPicker1dData.setData(texts=sorted([name for name, pp in _peakPickers.items()]))
+                if pp := self.spectrum.peakPicker:
+                    self.peakPicker1dData.set(pp.peakPickerType)
+            else:
+                self.peakPickerNdData.setData(texts=sorted([name for name, pp in _peakPickers.items()
+                                                            if not pp.onlyFor1D]))
+                if pp := self.spectrum.peakPicker:
+                    self.peakPickerNdData.set(pp.peakPickerType)
+            # this is still a global value here :|
+            self.peakFittingMethod.setIndex(PEAKFITTINGDEFAULTS.index(
+                    self.application.preferences.general.peakFittingMethod))
 
             value = self.spectrum.spinningRate
             self.spinningRateData.setValue(value if value is not None else 0)
@@ -928,6 +1008,56 @@ class GeneralTab(Widget):
     @staticmethod
     def _setSpectrumType(spectrum, expType):
         spectrum.experimentType = expType or None
+
+    @queueStateChange(_verifyPopupApply)
+    def _queueChangePeakPicker1dIndex(self, spectrum, _value):
+        value = self.peakPicker1dData.get() or None
+        if value != spectrum.peakPicker:
+            return partial(self._updatePeakPickerOnSpectra, [spectrum], value)
+
+    # def _setPeakPicker1d(self, spectrum, value):
+    #     """Set the default peak picker for 1d spectra
+    #     """
+    #     self._updatePeakPickerOnSpectra([spectrum], value)
+
+    @queueStateChange(_verifyPopupApply)
+    def _queueChangePeakPickerNdIndex(self, spectrum, _value):
+        value = self.peakPickerNdData.get() or None
+        if value != spectrum.peakPicker:
+            return partial(self._updatePeakPickerOnSpectra, [spectrum], value)
+
+    # def _setPeakPickerNd(self, spectrum, value):
+    #     """Set the default peak picker for Nd spectra
+    #     """
+    #     self._updatePeakPickerOnSpectra([spectrum], value)
+
+    @staticmethod
+    def _updatePeakPickerOnSpectra(spectra, value):
+        from ccpn.core.lib.ContextManagers import undoBlock
+        from ccpn.core.lib.PeakPickers.PeakPickerABC import getPeakPickerTypes
+
+        PeakPicker = getPeakPickerTypes().get(value)
+        if PeakPicker is None:  # Don't use a fetch or fallback to default. User should select one.
+            raise RuntimeError(f'Cannot find a PeakPicker called {value}.')
+        # getLogger().info(f'Setting the {value} PeakPicker to Spectra')
+        with undoBlock():
+            for sp in spectra:
+                if sp.peakPicker and sp.peakPicker.peakPickerType == value:
+                    continue  # is the same. no need to reset.
+                sp.peakPicker = None
+                thePeakPicker = PeakPicker(spectrum=sp)
+                sp.peakPicker = thePeakPicker
+
+    @queueStateChange(_verifyPopupApply)
+    def _queueSetPeakFittingMethod(self):
+        value = PEAKFITTINGDEFAULTS[self.peakFittingMethod.getIndex()]
+        if value != self.application.preferences.general.peakFittingMethod:
+            return partial(self._setPeakFittingMethod, value)
+
+    def _setPeakFittingMethod(self, value):
+        """Set the matching of the axis codes across different strips
+        """
+        self.application.preferences.general.peakFittingMethod = value
 
     # spectrum sliceColour button and pulldown
     def _queueSetSpectrumColour(self, spectrum):

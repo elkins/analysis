@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-09-16 10:12:12 +0100 (Mon, September 16, 2024) $"
+__dateModified__ = "$dateModified: 2024-10-01 12:04:16 +0100 (Tue, October 01, 2024) $"
 __version__ = "$Revision: 3.2.7 $"
 #=========================================================================================
 # Created
@@ -28,7 +28,7 @@ __date__ = "$Date: 2017-04-07 10:28:41 +0000 (Fri, April 07, 2017) $"
 #=========================================================================================
 
 import contextlib
-from PyQt5 import QtGui, QtCore
+from PyQt5 import QtGui, QtCore, QtWidgets
 from ccpn.ui.gui.widgets.CheckBox import CheckBox
 from ccpn.ui.gui.widgets.Label import Label
 from ccpn.ui.gui.widgets.PulldownList import PulldownList
@@ -150,18 +150,18 @@ class SetupNmrResiduesPopup(CcpnDialogMainWidget):
                 self.peakListPulldown.insertSeparator(len(stripPkLists))
 
             # highlight peak-lists that are bad or empty
-            combo = self.peakListPulldown
+            combo: QtWidgets.QComboBox = self.peakListPulldown
             model = combo.model()
             for ind in range(combo.count()):
                 if (item := model.item(ind)) is not None:
                     txt = item.text()
                     if (pkList := self.project.getByPid(txt)) is None or not pkList.peaks:
-                        item.setData(self._BADCOLOR, QtCore.Qt.ForegroundRole)
+                        item.setData(self._BADCOLOR, role=QtCore.Qt.ForegroundRole)
                     elif txt in visiblePkLists:
-                        item.setData(self._STRIPCOLOR, QtCore.Qt.ForegroundRole)
+                        item.setData(self._STRIPCOLOR, role=QtCore.Qt.ForegroundRole)
                     else:
                         # clears the colour and reverts to palette.Text
-                        item.setData(None, QtCore.Qt.ForegroundRole)
+                        item.setData(None, role=QtCore.Qt.ForegroundRole)
             combo.repaint()
 
     def _setupNmrResidues(self):

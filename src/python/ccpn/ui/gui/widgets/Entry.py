@@ -16,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-08-23 19:21:19 +0100 (Fri, August 23, 2024) $"
-__version__ = "$Revision: 3.2.5 $"
+__dateModified__ = "$dateModified: 2024-10-09 14:37:08 +0100 (Wed, October 09, 2024) $"
+__version__ = "$Revision: 3.2.7 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -27,31 +27,27 @@ __date__ = "$Date: 2017-04-07 10:28:41 +0000 (Fri, April 07, 2017) $"
 # Start of code
 #=========================================================================================
 
+import contextlib
+import re
 from PyQt5 import QtGui, QtWidgets, QtCore
-from PyQt5.QtCore import QRegularExpression
-from PyQt5.QtWidgets import QStyle, QPushButton
+from PyQt5.QtWidgets import QStyle
 from ccpn.ui.gui.widgets.Base import Base
 from ccpn.ui.gui.widgets.Frame import Frame
 from ccpn.ui.gui.widgets.Label import Label
-from ccpn.ui.gui.widgets.Font import setWidgetFont, getFontHeight
-
-# Width?
-# Allow setting of max length based on data model?
-
-import re
 
 
 SPLIT_REG_EXP = re.compile(',?\s*')
 SEPARATOR = ', '
 MAXINT = 2**31 - 1
 INFINITY = float('Inf')
+VALIDATEASICON = 'validateAsIcon'
 
 
 class Entry(QtWidgets.QLineEdit, Base):
 
     def __init__(self, parent, text='', callback=None, maxLength=1000,
                  listener=None, stripEndWhitespace=True, editable=True,
-                 backgroundText='<default>', allowFeedback=False,
+                 backgroundText='<default>', validateAsIcon=False,
                  validator=None, **kwds):
 
         super().__init__(parent)
@@ -87,85 +83,101 @@ class Entry(QtWidgets.QLineEdit, Base):
             self.setEnabled(False)
 
         icon = self.style().standardIcon(getattr(QStyle, 'SP_MessageBoxCritical'))
-        self.feedbackAction = self.addAction(icon, self.TrailingPosition)
-        self.textEdited.connect(self.validate)
+        self._validator = None
+        self._validateAsIcon = None
+        self._validateAction = self.addAction(icon, self.TrailingPosition)
 
-        self.allowFeedback = allowFeedback
-        self.validator = validator
-        self.feedback = None
+        self.validateAsIcon = validateAsIcon
+        self.setValidator(validator)
+        self._showIconState(None)
 
         self._setStyle()
 
     def _setStyle(self):
         _style = """QLineEdit {
-                        padding: 3px;
-                        border-color: palette(mid);
-                        border-style: solid;
-                        border-width: 1px;
-                        border-radius: 2px;
-                    }
-                    QLineEdit:focus {
-                        border-color: palette(highlight);
-                    }
-                    QLineEdit:disabled {
-                        color: palette(dark);
-                        background-color: palette(midlight);
-                    }
-                    """
+                    padding: 3px 3px 3px 3px;
+                    background-color: palette(norole);
+                }
+                QLineEdit:disabled {
+                    color: #808080;
+                    background-color: palette(midlight);
+                }
+                QLineEdit:read-only {
+                    color: #808080;
+                }
+                """
         self.setStyleSheet(_style)
+        QtWidgets.QApplication.instance()._sigPaletteChanged.connect(self._revalidate)
 
-    def setValidator(self, a0):
+    def _revalidate(self, palette):
+        if val := (self.validator() or self._validator):
+            if hasattr(val, 'baseColour'):
+                # update the base-colour for change of theme
+                val.baseColour = palette.base().color()
+            # force repaint of the widget
+            val.validate(self.text(), 0)
+
+    def setValidator(self, validator: QtGui.QValidator | None):
         """Overrides the traditional Validator to allow
         the user to write what they want, however if the input is not
         allowed and feedback is enabled then a feedback icon will appear.
 
-        .. NOTE:: allowFeedback must be true for this to work.
+        .. NOTE:: validateAsIcon must be true for this to work.
         """
-        if self.allowFeedback:
-            self.validator = a0
-            self.validate()
+        if self.validateAsIcon:
+            if not isinstance(validator, QtGui.QValidator | type(None)):
+                raise TypeError(f'{self.__class__.__name__}.setValidator: {validator} is not a valid validator')
+            if validator:
+                self.validate()
+            self.textEdited.connect(self.validate)
+            self._validator = validator
+            super().setValidator(None)
         else:
-            super().setValidator(a0)
+            with contextlib.suppress(TypeError, ValueError):
+                self.textEdited.disconnect(self.validate)
+            self._validator = None
+            super().setValidator(validator)
 
     def validate(self):
         """If there is a validator set add corresponding feedback for the box"""
         # removes the feedback if box is empty
         # or there is no validator set
-        if not self.text() or not self.validator:
-            self.feedback = False
+        if not self.text() or not self._validator:
+            self._showIconState(False)
             return
 
-        validity = self.validator.validate(self.text(), 0)[0]
-        if validity != 2:
-            self.feedback = True
+        validity = self._validator.validate(self.text(), 0)[0]
+        if validity != self._validator.Acceptable:
+            self._showIconState(True)
         else:
-            self.feedback = False
+            self._showIconState(False)
 
-    @property
-    def feedback(self) -> bool:
-        return self._feedback
-
-    @feedback.setter
-    def feedback(self, value: bool | None):
-        """Sets current feedback response."""
-        if not self.allowFeedback or value is None:
-            self.feedbackAction.setVisible(False)
+    def _showIconState(self, value: bool | None):
+        """Sets current feedback response - icon visibility.
+        """
+        if not self.validateAsIcon or value is None:
+            self._validateAction.setVisible(False)
             return
 
-        self.feedbackAction.setVisible(value)
+        self._validateAction.setVisible(value)
         self._feedback = value
 
     @property
-    def allowFeedback(self) -> bool:
-        return self._allowFeedback
+    def validateAsIcon(self) -> bool:
+        # NOTE:ED - this property name is used in validators, search VALIDATEASICON
+        return self._validateAsIcon
 
-    @allowFeedback.setter
-    def allowFeedback(self, value: bool | None):
-        self._allowFeedback = value
+    @validateAsIcon.setter
+    def validateAsIcon(self, value: bool | None):
+        if value == self._validateAsIcon:
+            return
+        self._validateAsIcon = value
 
         if value is None or value is False:
-            self.feedback = False
-            self.feedbackAction.setVisible(False)
+            self._showIconState(False)
+            self._validateAction.setVisible(False)
+
+        self.setValidator(self.validator() or self._validator)
 
     def _callback(self):
 
@@ -201,7 +213,8 @@ class Entry(QtWidgets.QLineEdit, Base):
         if doCallback:
             self._callback()
 
-    def _split(self, text: str):
+    @staticmethod
+    def _split(text: str):
         return [x.strip() for x in text.split(',')]
 
 
@@ -213,7 +226,7 @@ class IntEntry(Entry):
         Entry.__init__(self, parent, text, callback, **kwds)
         valid = QtGui.QIntValidator(minValue, maxValue, self)
         self.setValidator(valid)
-        self.allowFeedback = True
+        self.validateAsIcon = True
 
     def convertText(self, text):
         if not text:
@@ -245,7 +258,7 @@ class FloatEntry(Entry):
 
         self.decimals = decimals
         self.setText(self.convertInput(text))
-        self.allowFeedback = True
+        self.validateAsIcon = True
         valid = QtGui.QDoubleValidator(minValue, maxValue, decimals, self)
         self.setValidator(valid)
 
@@ -282,14 +295,14 @@ class RegExpEntry(Entry):
     def __init__(self, parent, text='', callback=None, **kwds):
         Entry.__init__(self, parent, text, callback, **kwds)
 
-        self.setValidator(QtGui.QRegExpValidator)
+        self.setValidator(QtGui.QRegExpValidator())
 
 
 class ArrayEntry(Entry):
 
     def __init__(self, parent, text='', callback=None, **kwds):
         Entry.__init__(self, parent, text, callback, **kwds)
-        self.allowFeedback = False
+        self.validateAsIcon = False
 
     def convertText(self, text):
         # return re.split(SPLIT_REG_EXP, text) or []
@@ -303,7 +316,7 @@ class IntArrayEntry(IntEntry):
 
     def __init__(self, parent, text='', callback=None, **kwds):
         IntEntry.__init__(self, parent, text, callback, **kwds)
-        self.allowFeedback = False
+        self.validateAsIcon = False
 
     def convertText(self, text):
         # array = re.split(SPLIT_REG_EXP, text) or []
@@ -319,7 +332,7 @@ class FloatArrayEntry(FloatEntry):
 
     def __init__(self, parent, text='', callback=None, **kwds):
         FloatEntry.__init__(self, parent, text, callback, **kwds)
-        self.allowFeedback = False
+        self.validateAsIcon = False
 
     def convertText(self, text):
         # array = re.split(SPLIT_REG_EXP, text) or []
@@ -393,7 +406,7 @@ if __name__ == '__main__':
 
     Entry(frame, 'Start Text', callback, grid=(0, 0))
 
-    entry = Entry(frame, 'Fail Text', callback, backgroundText='Only Lowercase', grid=(1, 0), allowFeedback=True)
+    entry = Entry(frame, 'Fail Text', callback, backgroundText='Only Lowercase', grid=(1, 0), validateAsIcon=True)
 
     # regex test that disallows any string that is not
     # all lower case - allows underscores.
@@ -404,7 +417,6 @@ if __name__ == '__main__':
     ArrayEntry(frame, ['A', 'C', 'D', 'C'], callback, grid=(2, 0))
 
     IntEntry(frame, 123, callback, backgroundText='Int Entry', grid=(3, 0))
-
 
     IntArrayEntry(frame, [4, 5, 6, 7], callback, grid=(4, 0))
 

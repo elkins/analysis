@@ -508,7 +508,7 @@ class Framework(NotifierBase, GuiBase):
     # Backup (TODO: need refactoring in AutoBackupManager)
     #-----------------------------------------------------------------------------------------
 
-    def _updateAutoBackup(self, disable=False, kill=False):
+    def _updateAutoBackup(self, disable=False, kill=False, resetInterval=False):
         # CCPNINTERNAL: also called from preferences popup
         # raise NotImplementedError('AutoBackup is not available in the current release')
         if not self.hasGui:
@@ -518,9 +518,13 @@ class Framework(NotifierBase, GuiBase):
         if self._autoBackupThread is None:
             self._setBackupModifiedTime()
             self._setLastBackupTime()
-            self._autoBackupThread = AutoBackupHandler(eventFunction=self._backupProject,
-                                                       eventInterval=self.preferences.general.autoBackupFrequency * 60
+            self._autoBackupThread = AutoBackupHandler(eventFunction=self._autoBackupProject,
+                                                       eventInterval=self.preferences.general.autoBackupFrequency * 60,
                                                        )
+        if resetInterval:
+            # otherwise does not update correctly from preferences
+            self._autoBackupThread.setInterval(self.preferences.general.autoBackupFrequency * 60)
+        self._autoBackupThread.setEnabled(self.preferences.general.autoBackupEnabled)
         if disable:
             # stores the remaining time
             self._autoBackupThread.stop()
@@ -530,8 +534,9 @@ class Framework(NotifierBase, GuiBase):
             self._autoBackupThread.kill()
 
         else:
+            if not resetInterval:
+                self._autoBackupThread.setInterval(self.preferences.general.autoBackupFrequency * 60)
             # start the thread - preferences is minutes
-            self._autoBackupThread.setInterval(self.preferences.general.autoBackupFrequency * 60)
             self._autoBackupThread.start()
 
     @contextlib.contextmanager
@@ -571,7 +576,7 @@ class Framework(NotifierBase, GuiBase):
         """
         self._lastBackupTime = time.perf_counter()
 
-    def _backupProject(self):
+    def _autoBackupProject(self):
         try:
             if self.project.readOnly:
                 # skip if the project is read-only
@@ -582,14 +587,23 @@ class Framework(NotifierBase, GuiBase):
                 getLogger().debug('Backup skipped: Not modified since last backup')
                 return
 
-            if self.project._backup():
+            if self.project._autoBackup():
                 # log the time that a backup was completed
                 self._setLastBackupTime()
 
         except (PermissionError, FileNotFoundError):
             getLogger().info('Backup failed: Folder may be read-only')
+            self.ui.mainWindow.statusBar().showMessage('Backup failed: Folder may be read-only')
         except Exception as es:
             getLogger().warning(f'Project backup failed with error {es}')
+            self.ui.mainWindow.statusBar().showMessage('Project backup failed')
+        else:
+            # is the gui always present here?
+            self.ui.mainWindow.statusBar().showMessage('Backup completed')
+
+    def _forceBackup(self):
+        if self._autoBackupThread is not None:
+            self._autoBackupThread.manualBackup(autoBackupEnabled=self.preferences.general.autoBackupEnabled)
 
     #-----------------------------------------------------------------------------------------
 

@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Propagate and Copy Assignments</title>
+    <link rel="stylesheet" href="CcpnVideoTutorials.css">
+</head>
+<body>
+<div class="header"><a href="https://www.ccpn.ac.uk/"><img src="CCPN.png" alt="CCPN Logo" height="50"></a><a
+        href="index.html" class="button">Video<br> Tutorials<br> & Manual</a><a href="https://forums.ccpn.ac.uk"><img
+        src="CCPNForumLogo.png" alt="CCPN Logo" height="50" style="padding-left: 15px"></a></div>
+<br>
+<div class="headerBar">Propagate and Copy Assignments</div>
+<div class="tutorial">
+
+    <h2>Propagate and Copy Assignments</h2>
+    <p>When you want to copy the assignments from one peak to another there are several different ways in which you can do this, depending on whether you want to take spectrum assignment tolerances into account or not or whether you want to swap assignments, or copy the assignments only from one peak to others.</p>
+
+    <h3>Propagate Assignments</h3>
+    <p>This feature can be found in the main menu under <span class="action">Assign / Propagate Assignments</span> or using the shortcut <span class="action">PG</span> and operates on all currently selected peaks. The feature works analogous to the V2 propagate assignments feature which essentially means that all assignments are swapped between peaks (i.e. if peak A is assigned to Ala 5 and peak B is assigned to Val 23, then all selected peaks including A and B will become assigned to both Ala 5 and Val 23). Propagating peak assignments will always take the spectrum <span class="action">Assignment Tolerances</span> into account. These can be found and adjusted in the <span class="action">Dimensions</span> tab of the <span class="action">Spectrum Properties</span>. This means that an assignment is only copied if the source and destination dimension positions are within the Assignment Tolerance of the target Spectrum. Note, however, that the Assignment Tolerances are not taken into account if an assignment is being copied between spectra that belong to different Chemical Shift Lists. So if you have a titration series, then you should generally place all the spectra in separate Chemical Shift Lists and then you would still be able to copy the assignments using the Propagate Assignments feature.</p>
+
+    <h3>Copy Assignments</h3>
+    <p>This feature can be found in the main menu under <span class="action">Assign / Copy Assignments</span> or using the shortcut <span class="action">CA</span> and operates on all currently selected peaks. Like <span class="action">Propagate Assignments</span>, the assignments will be swapped between all peaks, but this time the Assignment Tolerances will not be taken into account. </p>
+
+    <h3>Propagate Assignments from Reference</h3>
+    <p>This feature is available from the Selected Peak(s) context menu (i.e. when you <span class="action">right-click</span> on a Peak) as <span class="action">Propagate Assignments from Reference</span>. In this case the assignments will not be swapped between all peaks, but only propagated from the Peak from which the mouse context menu was accessed. Assignment Tolerances will, however, still be taken into account.</p>
+
+    <h3>Copy Assignments from Reference</h3>
+    <p>This feature is available from the Selected Peak(s) context menu (i.e. when you <span class="action">right-click</span> on a Peak) as <span class="action">Copy Assignments from Reference</span>. As for <span class="action">Propagate Assignments from Reference</span> the assignments will be copied only from the Peak from which the mouse context menu was accessed. And as for <span class="action">Copy Assignments</span> the Assignment Tolerances will not be taken into account.</p>
+</div>
+</body>
+</html>

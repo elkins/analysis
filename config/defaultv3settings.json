@@ -98,8 +98,8 @@
         "enableAntiAliasing"                   : true,
         "numSideBands"                         : 2,
         "showSideBands"                        : false,
-        "_copySpectraSettings1d"               : null,
-        "_copySpectraSettingsNd"               : null,
+        "_copySpectraSettings1d"               : [],
+        "_copySpectraSettingsNd"               : [],
         "exportDpi"                            : 300,
         "editorFont"                           : "Helvetica,12,-1,5,50,0,0,0,0,0,Regular",
         "moduleFont"                           : "Helvetica,12,-1,5,50,0,0,0,0,0,Regular",
@@ -306,6 +306,9 @@
             "dontShowPopup": false
         },
         "_NewChemicalShiftTableMerge": {
+            "dontShowPopup": false
+        },
+        "MainWindowBadSpectra": {
             "dontShowPopup": false
         }
     },

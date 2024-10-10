@@ -16,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-09-05 11:44:14 +0100 (Thu, September 05, 2024) $"
-__version__ = "$Revision: 3.2.5 $"
+__dateModified__ = "$dateModified: 2024-10-02 16:39:51 +0100 (Wed, October 02, 2024) $"
+__version__ = "$Revision: 3.2.7 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -34,9 +34,11 @@ from ccpn.ui.gui.lib.GuiStripContextMenus import (_selectedPeaksMenuItem, _addMe
                                                   _getNdPeakMenuItems, _setEnabledAllItems)
 from ccpn.ui.gui.widgets.table._TableAdditions import TableMenuABC
 from ccpn.ui.gui.widgets.SearchWidget import _TableFilterABC, Exclude, NotEqual
+from ccpn.util.DataEnum import DataEnum
 
 
 UNITS = ['ppm', 'Hz', 'point']
+HeaderRow = 'Row'
 HeaderIndex = '#'
 HeaderMatch = 'Match'
 HeaderObject = '_object'
@@ -72,6 +74,10 @@ Headers = [HeaderRestraint,
 _OLDHEADERS = {'RestraintPid': HeaderRestraint,
                'Count>0.3'   : HeaderCount1,
                'Count>0.5'   : HeaderCount2}
+INDEXCOL = (HeaderRow, HeaderRow)
+PEAKSERIALCOL = (HeaderMatch, HeaderMatch)
+OBJCOL = (HeaderObject, HeaderObject)
+
 PymolScriptName = 'Restraint_Pymol_Template.py'
 _COLLECTION = 'Collection'
 _COLLECTIONBUTTON = 'CollectionButton'
@@ -84,8 +90,14 @@ _CLEARBUTTON = 'ClearButton'
 _COMPARISONSETS = 'ComparisonSets'
 
 _DEFAULTMEANTHRESHOLD = 0.0
-
 ALL = '<Use all>'
+
+
+class SearchModes(DataEnum):
+    # name, value, description, dataValue
+    INCLUDE = 0, 'Include partial', 'Include peak-groups that match on at least one row.'
+    EXCLUDE = 1, 'Exclude partial', 'Exclude peak-groups that do not match on all rows.'
+    EXACT = 2, 'Exact', 'Ignore peak-groups, only return rows matching search.'
 
 
 #=========================================================================================
@@ -105,12 +117,15 @@ class _ModuleHandler(QtWidgets.QWidget):
     _outputTables: list = field(default_factory=list)
     _thisPeakList = None
 
+    # don't like this holding on to widgets :|
     _collectionPulldown = None
     _collectionButton = None
     _displayListWidget = None
     _resTableWidget = None
     _outTableWidget = None
     _modulePulldown = None
+    _searchModeRadio = None
+    _includeNonPeaksCheckBox = None
 
     _meanLowerLimitSpinBox = None
     _autoExpandCheckBox = None
@@ -255,8 +270,7 @@ class _RestraintAITableFilter(_TableFilterABC):
                         dfCache.loc[~mask, colCheck] = '-'
         return dfCache
 
-    @staticmethod
-    def postFilterTableDf(df: pd.DataFrame, dfFound: pd.Series, condition: str) -> pd.Series:
+    def postFilterTableDf(self, df: pd.DataFrame, dfFound: pd.Series, condition: str) -> pd.Series:
         """Apply post-search filtering to the pandas-dataFrame.
 
         Search for peaks in df, there are multiple occurrences, that appear in dfFound.
@@ -268,9 +282,28 @@ class _RestraintAITableFilter(_TableFilterABC):
         :return: post-filtered dataFrame
         :rtype: pd.Series mask
         """
-        _col = df.columns[2]
+        if PEAKSERIALCOL not in df.columns:
+            # can't filter on missing column
+            return dfFound
+        try:
+            # NOTE:ED - nasty hack to get searchMode from parent :|
+            idx = self._parent.resources._searchModeRadio.getIndex()
+            searchMode = SearchModes(idx)
+        except Exception:
+            return dfFound
 
-        if condition in [Exclude, NotEqual]:
-            return ~df[_col].isin(df.loc[~dfFound, _col])
+        if searchMode == SearchModes.EXACT:
+            # return only the required rows, with no peak-grouping
+            return dfFound
+
+        xor = (searchMode == SearchModes.INCLUDE) ^ (condition in [Exclude, NotEqual])
+        if xor:
+            return (df[PEAKSERIALCOL]
+                    .isin(df.loc[dfFound, PEAKSERIALCOL])
+                    .where(df[PEAKSERIALCOL] != '-', other=dfFound)
+                    )
         else:
-            return df[_col].isin(df.loc[dfFound, _col])
+            return ((~df[PEAKSERIALCOL]
+                     .isin(df.loc[~dfFound, PEAKSERIALCOL]))
+                    .where(df[PEAKSERIALCOL] != '-', other=dfFound)
+                    )

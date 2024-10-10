@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-09-25 09:58:47 +0100 (Wed, September 25, 2024) $"
+__dateModified__ = "$dateModified: 2024-10-02 09:30:47 +0100 (Wed, October 02, 2024) $"
 __version__ = "$Revision: 3.2.7 $"
 #=========================================================================================
 # Created
@@ -974,85 +974,84 @@ class _commonSettings():
         if removeTopWidget:
             del widget
 
-    def _fillSpectrumFrame(self, displays, data=None):
-        """Populate the spectrumFrame with the selectable spectra
-        """
-        if self._spectraWidget:
-            self._spectraWidget.hide()
-            self._spectraWidget.setParent(None)
-            self._removeWidget(self._spectraWidget, removeTopWidget=True)
+    # Depreciated, replaced by _fillAllSpectrumFrame
+    # def _fillSpectrumFrame(self, displays, data=None):
+    #     """Populate the spectrumFrame with the selectable spectra
+    #     """
+    #     if self._spectraWidget:
+    #         self._spectraWidget.hide()
+    #         self._spectraWidget.setParent(None)
+    #         self._removeWidget(self._spectraWidget, removeTopWidget=True)
+    #
+    #     self._spectraWidget = Widget(parent=self.spectrumDisplayOptionsFrame, setLayout=True, hPolicy='minimal',
+    #                                  grid=(1, 0), gridSpan=(self._spectraRows, 1), vAlign='top', hAlign='left')
+    #
+    #     # calculate the maximum number of axes
+    #     self.maxLen, self.axisLabels, specInd, self.validSpectrumViews = self._getSpectraFromDisplays(displays, data)
+    #     self.spectrumIndex = [specInd]
+    #     if not self.maxLen:
+    #         return
+    #
+    #     # modifier for atomCode
+    #     spectraRow = 0
+    #     self.atomCodeFrame = Frame(self._spectraWidget, setLayout=True, showBorder=False, fShape='noFrame',
+    #                                grid=(spectraRow, 0), gridSpan=(1, self.maxLen + 1),
+    #                                vAlign='top', hAlign='left')
+    #     self.axisCodeLabel = Label(self.atomCodeFrame, 'Restricted Axes', grid=(0, 0))
+    #
+    #     # remember current selection so can be set after redefining checkboxes
+    #     currentSelection = None
+    #     if self.axisCodeOptions:
+    #         currentSelection = self.axisCodeOptions.getSelectedText()
+    #
+    #     self.axisCodeOptions = CheckBoxes(self.atomCodeFrame, selectedInd=None, texts=[],
+    #                                       callback=self._changeAxisCode, grid=(0, 1))
+    #     self.axisCodeOptions.setCheckBoxes(texts=self.axisLabels, tipTexts=self.axisLabels)
+    #
+    #     # set current selection back to the checkboxes
+    #     # if currentSelection:
+    #     #     self.axisCodeOptions.setSelectedByText(currentSelection, True, presetAll=True)
+    #
+    #     # just clear the 'C' axes - this is the usual configuration
+    #     self.axisCodeOptions.selectAll()
+    #     for ii, box in enumerate(self.axisCodeOptions.checkBoxes):
+    #         if box.text().upper().startswith('C'):
+    #             self.axisCodeOptions.clearIndex(ii)
+    #
+    #     # put in a divider
+    #     spectraRow += 1
+    #     HLine(self._spectraWidget, grid=(spectraRow, 0), gridSpan=(1, 4),
+    #           colour=getColours()[SOFTDIVIDER], height=15)
+    #
+    #     # add labels for the columns
+    #     spectraRow += 1
+    #     Label(self._spectraWidget, 'Spectrum', grid=(spectraRow, 0))
+    #
+    #     # for ii in range(self.maxLen):
+    #     #     Label(self._spectraWidget, 'Tolerance', grid=(spectraRow, ii + 1))
+    #     Label(self._spectraWidget, '(double-width tolerances)', grid=(spectraRow, 1), gridSpan=(1, self.maxLen))
+    #
+    #     self.spectraStartRow = spectraRow + 1
+    #
+    #     if self.application:
+    #         spectraWidgets = {}  # spectrum.pid, frame dict to show/hide
+    #         for row, spectrum in enumerate(self.validSpectrumViews.keys()):
+    #             spectraRow += 1
+    #             f = _SpectrumRow(parent=self._spectraWidget,
+    #                              application=self.application,
+    #                              spectrum=spectrum,
+    #                              spectrumDisplay=displays[0],
+    #                              row=spectraRow, startCol=0,
+    #                              setLayout=True,
+    #                              visible=self.validSpectrumViews[spectrum])
+    #
+    #             spectraWidgets[spectrum.pid] = f
 
-        self._spectraWidget = Widget(parent=self.spectrumDisplayOptionsFrame, setLayout=True, hPolicy='minimal',
-                                     grid=(1, 0), gridSpan=(self._spectraRows, 1), vAlign='top', hAlign='left')
-
-        # calculate the maximum number of axes
-        self.maxLen, self.axisLabels, specInd, self.validSpectrumViews = self._getSpectraFromDisplays(
-                displays, data)
-        self.spectrumIndex = [specInd]
-        if not self.maxLen:
-            return
-
-        # modifier for atomCode
-        spectraRow = 0
-        self.atomCodeFrame = Frame(self._spectraWidget, setLayout=True, showBorder=False, fShape='noFrame',
-                                   grid=(spectraRow, 0), gridSpan=(1, self.maxLen + 1),
-                                   vAlign='top', hAlign='left')
-        self.axisCodeLabel = Label(self.atomCodeFrame, 'Restricted Axes', grid=(0, 0))
-
-        # remember current selection so can be set after redefining checkboxes
-        currentSelection = None
-        if self.axisCodeOptions:
-            currentSelection = self.axisCodeOptions.getSelectedText()
-
-        self.axisCodeOptions = CheckBoxes(self.atomCodeFrame, selectedInd=None, texts=[],
-                                          callback=self._changeAxisCode, grid=(0, 1))
-        self.axisCodeOptions.setCheckBoxes(texts=self.axisLabels, tipTexts=self.axisLabels)
-
-        # set current selection back to the checkboxes
-        # if currentSelection:
-        #     self.axisCodeOptions.setSelectedByText(currentSelection, True, presetAll=True)
-
-        # just clear the 'C' axes - this is the usual configuration
-        self.axisCodeOptions.selectAll()
-        for ii, box in enumerate(self.axisCodeOptions.checkBoxes):
-            if box.text().upper().startswith('C'):
-                self.axisCodeOptions.clearIndex(ii)
-
-        # put in a divider
-        spectraRow += 1
-        HLine(self._spectraWidget, grid=(spectraRow, 0), gridSpan=(1, 4),
-              colour=getColours()[SOFTDIVIDER], height=15)
-
-        # add labels for the columns
-        spectraRow += 1
-        Label(self._spectraWidget, 'Spectrum', grid=(spectraRow, 0))
-
-        # for ii in range(self.maxLen):
-        #     Label(self._spectraWidget, 'Tolerance', grid=(spectraRow, ii + 1))
-        Label(self._spectraWidget, '(double-width tolerances)', grid=(spectraRow, 1), gridSpan=(1, self.maxLen))
-
-        self.spectraStartRow = spectraRow + 1
-
-        if self.application:
-            spectraWidgets = {}  # spectrum.pid, frame dict to show/hide
-            for row, spectrum in enumerate(self.validSpectrumViews.keys()):
-                spectraRow += 1
-                f = _SpectrumRow(parent=self._spectraWidget,
-                                 application=self.application,
-                                 spectrum=spectrum,
-                                 spectrumDisplay=displays[0],
-                                 row=spectraRow, startCol=0,
-                                 setLayout=True,
-                                 visible=self.validSpectrumViews[spectrum])
-
-                spectraWidgets[spectrum.pid] = f
-
-    def _fillAllSpectrumFrame(self, displays, data=None):
+    def _fillAllSpectrumFrame(self, displays):
         """Populate all spectrumFrames into a moreLessFrame
         """
         def _codeDictUpdate(displayKey : str = None, checkBox : CheckBox = None):
-            """
-
+            """update axisCode dict when check boxes are changed.
             """
             if (display is None) or (box is None):
                 return
@@ -1076,7 +1075,7 @@ class _commonSettings():
 
         self.spectrumIndex = []
         for num, display in enumerate(displays):
-            maxLen, axisLabels, specInd, validSpectrumViews = self._getSpectraFromDisplays([display], data)
+            maxLen, axisLabels, specInd, validSpectrumViews = self._getSpectraFromDisplays([display])
             self.spectrumIndex.append(specInd)
 
             curFrame = MoreLessFrame(self._spectraWidget, name=display.pid, showMore=True, grid=(num, 0), gridSpan=(1,4))
@@ -1122,17 +1121,19 @@ class _commonSettings():
                                      visible=validSpectrumViews[spectrum])
                     spectraWidgets[spectrum.pid] = f
 
-
-    def _spectrumDisplaySelectionPulldownCallback(self):
+    def _spectrumDisplaySelectionPulldownCallback(self, data=None):
         """Notifier Callback for selecting a spectrumDisplay
         """
         texts = self.spectrumDisplayPulldown.getTexts()
         if ALL in texts:
-            gids = [self.application.getByGid(gid) for gid in self.spectrumDisplayPulldown.pulldownList.texts
-                    if gid not in [ALL, SelectToAdd]]
+            gids = self.project.spectrumDisplays
         else:
             gids = [self.application.getByGid(gid) for gid in texts if gid not in [ALL, SelectToAdd]]
 
+        # check if display is deleted, removes from list if it has been. Data passed by notifier
+        if data is not None and data.get(Notifier.TRIGGER) == 'delete':
+            obj = data.get(Notifier.OBJECT)
+            gids = [gg for gg in gids if gg and gg != obj]
         self._fillAllSpectrumFrame(gids)
 
         # if gid == '> All <':
@@ -1425,7 +1426,7 @@ class StripPlot(Widget, _commonSettings, SignalBlocking):
         """
         self.displaysWidget.setLabelText(label) if self.displaysWidget else None
 
-    def _displayWidgetChanged(self):
+    def _displayWidgetChanged(self, data=None):
         """Handle adding/removing items from display selection
         """
         pass
@@ -1465,22 +1466,23 @@ class StripPlot(Widget, _commonSettings, SignalBlocking):
         if self.includeSpectrumTable:
             self.spectrumDisplayPulldown._close()
 
-    def _spectrumViewChanged(self, data):
-        """Respond to spectrumViews being created/deleted, update contents of the spectrumWidgets frame
-        """
-        # TODO
-        if self.includeSpectrumTable:
-            # self._fillSpectrumFrame(self.displaysWidget._getDisplays())
-            gid = self.spectrumDisplayPulldown.getText()
-            self._fillSpectrumFrame([self.application.getByGid(gid)], data)
-
-    def _spectrumViewVisibleChanged(self):
-        """Respond to a visibleChanged in one of the spectrumViews
-        """
-        if self.includeSpectrumTable:
-            # self._fillSpectrumFrame(self.displaysWidget._getDisplays())
-            gid = self.spectrumDisplayPulldown.getText()
-            self._fillSpectrumFrame([self.application.getByGid(gid)])
+    # not required as never called, now uses SpectrumDisplaySelectionWidget notifiers
+    # def _spectrumViewChanged(self, data):
+    #     """Respond to spectrumViews being created/deleted, update contents of the spectrumWidgets frame
+    #     """
+    #     if self.includeSpectrumTable:
+    #         gid = self.spectrumDisplayPulldown.getText()
+    #         # self._fillSpectrumFrame([self.application.getByGid(gid)], data)
+    #         self._spectrumDisplaySelectionPulldownCallback({f'{self.application.getByGid(gid)}': data})
+    #
+    # def _spectrumViewVisibleChanged(self):
+    #     """Respond to a visibleChanged in one of the spectrumViews
+    #     """
+    #     if self.includeSpectrumTable:
+    #         # self._fillSpectrumFrame(self.displaysWidget._getDisplays())
+    #         # gid = self.spectrumDisplayPulldown.getText()
+    #         # self._fillSpectrumFrame([self.application.getByGid(gid)])
+    #         self._spectrumDisplaySelectionPulldownCallback()
 
     def doCallback(self):
         """Handle the user callback
@@ -1793,9 +1795,10 @@ class ObjectSelectionWidget(ListCompoundWidget):
 
         # handle signals when the items in the displaysWidget have changed
         model = self.listWidget.model()
-        model.rowsInserted.connect(self._objectWidgetChanged)
-        model.rowsRemoved.connect(self._objectWidgetChanged)
-        self.listWidget.cleared.connect(self._objectWidgetChanged)
+        # QT Lists add a default arg so needs Data=None (otherwise crashes)
+        model.rowsInserted.connect(partial(self._objectWidgetChanged, data=None))
+        model.rowsRemoved.connect(partial(self._objectWidgetChanged, data=None))
+        self.listWidget.cleared.connect(partial(self._objectWidgetChanged, data=None))
         self.listWidget.changed.connect(self._passThroughListChanged)
 
         # Notifiers
@@ -1809,6 +1812,11 @@ class ObjectSelectionWidget(ListCompoundWidget):
                                             triggers=[Notifier.DELETE],
                                             targetName=self.KLASS.className,
                                             callback=self._objDeletedCallback)
+
+            self._notifierCreate = Notifier(theObject=self.project,
+                                            triggers=[Notifier.CREATE],
+                                            targetName=self.KLASS.className,
+                                            callback=self._objCreatedCallback)
 
         else:
             self._notifierRename = self._notifierDelete = None
@@ -1845,7 +1853,7 @@ class ObjectSelectionWidget(ListCompoundWidget):
         if self._selectObjectInListCallback:
             self._selectObjectInListCallback()
 
-    def _objectWidgetChanged(self):
+    def _objectWidgetChanged(self, data=None):
         """Handle adding/removing items from object selection
         """
         if self._objectWidgetChangedCallback:
@@ -1857,6 +1865,15 @@ class ObjectSelectionWidget(ListCompoundWidget):
             oldPid = data.get(Notifier.OLDPID)
             # get the old pid and replace with the new
             self.renameText(oldPid, obj.pid)
+
+    def _objCreatedCallback(self, data):
+        """
+        Add the created object to listWidget
+        """
+        obj = data.get(Notifier.OBJECT)
+        if obj:
+            if ALL in self.getTexts():
+                self._objectWidgetChanged()
 
     def _objDeletedCallback(self, data):
         """
@@ -2001,6 +2018,10 @@ class ViolationTableSelectionWidget(ObjectSelectionWidget):
 
 
 class SpectrumDisplaySelectionWidget(ObjectSelectionWidget):
+    """
+    Spectrum Display Object Selection Widget
+    .. Note:: Method for callback requires a data argument.
+    """
     KLASS = SpectrumDisplay
 
     def getDisplays(self):
@@ -2047,6 +2068,45 @@ class SpectrumDisplaySelectionWidget(ObjectSelectionWidget):
                 toRemoveTexts.append(i)
         self.removeTexts(toRemoveTexts)
         self.addText(obj.pid)
+
+    def unRegister(self):
+        """Unregister the notifiers; needs to be called when disgarding a instance
+        """
+        self.deleteNotifiers()
+
+    def _objectWidgetChanged(self, data=None):
+        """
+        Handle adding/removing items from object selection
+        Data will be passed to _objectWidgetChanged method
+        """
+        if self._objectWidgetChangedCallback:
+            self._objectWidgetChangedCallback(data)
+
+    def _objCreatedCallback(self, data):
+        """
+        Add the created object to listWidget
+        Data will be passed to _objectWidgetChanged method
+        """
+        obj = data.get(Notifier.OBJECT)
+        if obj:
+            if ALL in self.getTexts():
+                self._objectWidgetChanged(data)
+
+    def _objDeletedCallback(self, data):
+        """
+        Remove the deleted object from listWidget
+        Data will be passed to _objectWidgetChanged method
+        """
+        obj = data.get(Notifier.OBJECT)
+        if obj:
+            # when <Use All> in texts
+            if ALL in (tt := self.getTexts()):
+                if obj.pid in tt:
+                    self.removeTexts([obj.pid])  # remove text if is also in listWidget
+                else:
+                    self._objectWidgetChanged(data)  # ensure update even if text isn't in listWidget
+            else:
+                self.removeTexts([obj.pid])
 
 
 def main():

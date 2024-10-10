@@ -16,13 +16,14 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-09-11 14:44:29 +0100 (Wed, September 11, 2024) $"
+__dateModified__ = "$dateModified: 2024-10-02 16:39:51 +0100 (Wed, October 02, 2024) $"
 __version__ = "$Revision: 3.2.7 $"
 #=========================================================================================
 # Created
 #=========================================================================================
 __author__ = "$Author: Ed Brooksbank $"
 __date__ = "$Date: 2021-04-26 11:53:10 +0100 (Mon, April 26, 2021) $"
+
 #=========================================================================================
 # Start of code
 #=========================================================================================
@@ -41,22 +42,26 @@ from ccpn.core.StructureEnsemble import StructureEnsemble
 from ccpn.core.Collection import Collection
 from ccpn.core.lib.Notifiers import Notifier
 from ccpn.ui.gui.modules.CcpnModule import CcpnTableModule
-from ccpn.ui.gui.modules.lib.RestraintAITableCommon import _ModuleHandler, \
-    _COLLECTION, _COLLECTIONBUTTON, _SPECTRUMDISPLAYS, _RESTRAINTTABLE, _RESTRAINTTABLES, \
-    _VIOLATIONTABLES, _VIOLATIONRESULT, _DEFAULTMEANTHRESHOLD, ALL, _CLEARBUTTON, _COMPARISONSETS
+from ccpn.ui.gui.modules.lib.RestraintAITableCommon import (_ModuleHandler,
+                                                            _COLLECTION, _COLLECTIONBUTTON, _SPECTRUMDISPLAYS,
+                                                            _RESTRAINTTABLE, _RESTRAINTTABLES,
+                                                            _VIOLATIONTABLES, _VIOLATIONRESULT, _DEFAULTMEANTHRESHOLD,
+                                                            ALL, _CLEARBUTTON, _COMPARISONSETS, SearchModes)
 from ccpn.ui.gui.modules.lib.RestraintAITable import RestraintFrame
 from ccpn.ui.gui.widgets.PulldownListsForObjects import CollectionPulldown, SELECT
-from ccpn.ui.gui.widgets.CompoundWidgets import DoubleSpinBoxCompoundWidget, ButtonCompoundWidget
-from ccpn.ui.gui.widgets.Spacer import Spacer
+from ccpn.ui.gui.widgets.CompoundWidgets import (DoubleSpinBoxCompoundWidget, ButtonCompoundWidget,
+                                                 RadioButtonsCompoundWidget)
+# from ccpn.ui.gui.widgets.Spacer import Spacer
 from ccpn.ui.gui.widgets.Icon import Icon
-from ccpn.ui.gui.widgets.SettingsWidgets import ModuleSettingsWidget, \
-    RestraintTableSelectionWidget, SpectrumDisplaySelectionWidget, ViolationTableSelectionWidget, SelectToAdd
+from ccpn.ui.gui.widgets.SettingsWidgets import (ModuleSettingsWidget,
+                                                 RestraintTableSelectionWidget, SpectrumDisplaySelectionWidget,
+                                                 ViolationTableSelectionWidget, SelectToAdd)
 from ccpn.ui.gui.widgets import MessageDialog
 from ccpn.ui.gui.widgets.HLine import HLine
 from ccpn.ui.gui.widgets.Frame import ScrollableFrame
 from ccpn.ui.gui.widgets.Menu import Menu
 from ccpn.ui.gui.widgets.Label import Label
-from ccpn.ui.gui.widgets.Splitter import Splitter
+# from ccpn.ui.gui.widgets.Splitter import Splitter
 from ccpn.ui.gui.lib.alignWidgets import alignWidgets
 from ccpn.util.Logging import getLogger
 from ccpn.util.Path import fetchDir
@@ -466,6 +471,9 @@ _MEANLOWERLIMIT = 'meanLowerLimit'
 _AUTOEXPAND = 'autoExpand'
 _MARKPOSITIONS = 'markPositions'
 _AUTOCLEARMARKS = 'autoClearMarks'
+_SEQUENTIALSTRIPS = 'sequentialStrips'
+_SEARCHMODE = 'searchMode'
+_INCLUDENONPEAKS = 'includeNonPeaks'
 
 
 class RestraintAnalysisTableModule(CcpnTableModule):
@@ -625,20 +633,46 @@ class RestraintAnalysisTableModule(CcpnTableModule):
                                                                     'value'        : _DEFAULTMEANTHRESHOLD,
                                                                     'minimumWidths': (180, 100, 100)},
                                                        }),
+                                    (_SEARCHMODE, {'label'   : '',
+                                                   'tipText' : '',
+                                                   'enabled' : True,
+                                                   '_init'   : None,
+                                                   'type'    : RadioButtonsCompoundWidget,
+                                                   'callBack': self._searchModeCallback,
+                                                   'kwds'    : {
+                                                       'labelText'    : 'Peak Group Behaviour',
+                                                       'objectName'   : 'SearchMode',
+                                                       'minimumWidths': (180, 100, 100),
+                                                       'compoundKwds' : {
+                                                           'texts'      : SearchModes.descriptions(),
+                                                           'tipTexts'   : SearchModes.dataValues(),
+                                                           'direction'  : 'v',
+                                                           'selectedInd': 0,
+                                                           }
+                                                       }
+                                                   }),
+                                    (_INCLUDENONPEAKS, {'label'        : 'Include Restraints\nwithout Peaks',
+                                                        'tipText'      : 'Include restraints that do not have any peaks.',
+                                                        'callBack'     : self._updateIncludeNonPeaksCallback,
+                                                        'enabled'      : True,
+                                                        'checked'      : True,
+                                                        'minimumWidths': (180, 30),
+                                                        '_init'        : None,
+                                                        }),
                                     (_AUTOEXPAND, {'label'   : 'Auto-expand Groups',
                                                    'tipText' : 'Automatically expand/collapse groups on\nadding new restraintTable, or sorting.',
                                                    'callBack': self._updateAutoExpand,
                                                    'enabled' : True,
-                                                   'checked' : False,
+                                                   'checked' : True,
                                                    '_init'   : None,
                                                    }),
-                                    ('sequentialStrips', {'label'   : 'Show sequential strips',
-                                                          'tipText' : 'Show nmrResidue in all strips.',
-                                                          'callBack': None,
-                                                          'enabled' : True,
-                                                          'checked' : False,
-                                                          '_init'   : None,
-                                                          }),
+                                    (_SEQUENTIALSTRIPS, {'label'   : 'Show sequential strips',
+                                                         'tipText' : 'Show nmrResidue in all strips.',
+                                                         'callBack': None,
+                                                         'enabled' : True,
+                                                         'checked' : False,
+                                                         '_init'   : None,
+                                                         }),
                                     (_MARKPOSITIONS, {'label'   : 'Mark positions',
                                                       'tipText' : 'Mark positions in all strips.',
                                                       'callBack': None,
@@ -691,6 +725,8 @@ class RestraintAnalysisTableModule(CcpnTableModule):
         rss._outTableWidget.listChanged.connect(self._updateOutputTables)
 
         rss._meanLowerLimitSpinBox = settings.getWidget(_MEANLOWERLIMIT)
+        rss._searchModeRadio = settings.getWidget(_SEARCHMODE)
+        rss._includeNonPeaksCheckBox = settings.getWidget(_INCLUDENONPEAKS)
         rss._autoExpandCheckBox = settings.getWidget(_AUTOEXPAND)
         rss._markPositions = settings.getWidget(_MARKPOSITIONS)
         rss._autoClearMarks = settings.getWidget(_AUTOCLEARMARKS)
@@ -886,6 +922,12 @@ class RestraintAnalysisTableModule(CcpnTableModule):
 
     def _updateAutoExpand(self, expand):
         self.resources._autoExpand = expand
+
+    def _searchModeCallback(self):
+        self._mainFrame.setRefreshButtonEnabled(True)
+
+    def _updateIncludeNonPeaksCallback(self, nonPeaks):
+        self._mainFrame.setRefreshButtonEnabled(True)
 
     def _updateMeanLowerLimit(self, value):
         self.resources._meanLowerLimit = value

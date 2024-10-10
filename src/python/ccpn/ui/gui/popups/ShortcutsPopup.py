@@ -1,9 +1,10 @@
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2023"
-__credits__ = ("Ed Brooksbank, Joanna Fox, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
-               "Timothy J Ragan, Brian O Smith, Gary S Thompson & Geerten W Vuister")
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
+               "Timothy J Ragan, Brian O Smith, Daniel Thompson",
+               "Gary S Thompson & Geerten W Vuister")
 __licence__ = ("CCPN licence. See https://ccpn.ac.uk/software/licensing/")
 __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, L.G., & Vuister, G.W.",
                  "CcpNmr AnalysisAssign: a flexible platform for integrated NMR analysis",
@@ -11,9 +12,9 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: Geerten Vuister $"
-__dateModified__ = "$dateModified: 2023-02-02 13:23:42 +0000 (Thu, February 02, 2023) $"
-__version__ = "$Revision: 3.1.1 $"
+__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
+__dateModified__ = "$dateModified: 2024-10-03 12:47:18 +0100 (Thu, October 03, 2024) $"
+__version__ = "$Revision: 3.2.7 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -49,25 +50,18 @@ class ShortcutsPopup(CcpnDialogMainWidget):
         self.application = self.mainWindow.application
         self.preferences = self.application.preferences
 
-        self.shortcutWidget = ShortcutWidget(self.mainWidget, mainWindow=mainWindow, setLayout=True, grid=(0, 0))  # ejb
-
+        self._shortcutWidget = ShortcutWidget(self.mainWidget, mainWindow=mainWindow, setLayout=True,
+                                              grid=(0, 0))  # ejb
         self.setMinimumSize(400, 400)
 
-        # ButtonList(self, grid=(1, 1),
-        #            texts=['Cancel', 'Save', 'Save and Close'],
-        #            callbacks=[self.close, self.save, self.saveAndQuit])
-
-        # add close/save/saveAndClose buttons (close/apply/ok)
+        # add close/save/saveAndClose buttons (close/apply/OK)
         self.setCloseButton(callback=self.close)
         self.setApplyButton(callback=self.save, text='Save')
         self.setOkButton(callback=self.saveAndQuit, text='Save and Close')
         self.setDefaultButton(CcpnDialogMainWidget.CLOSEBUTTON)
 
-        # make the buttons appear
-        self._setButtons()
-
     def save(self):
-        newShortcuts = self.shortcutWidget.getShortcuts()
+        newShortcuts = self._shortcutWidget.getShortcuts()
         self.preferences.shortcuts = newShortcuts
         if hasattr(self.application, '_userShortcuts') and self.application._userShortcuts:
             for shortcut in newShortcuts:
@@ -76,6 +70,9 @@ class ShortcutsPopup(CcpnDialogMainWidget):
     def saveAndQuit(self):
         self.save()
         self.close()
+
+    def addToFirstAvailableShortCut(self, filePath):
+        self._shortcutWidget._addToFirstAvailableShortCut(filePath)
 
 
 class ShortcutWidget(Frame):
@@ -95,7 +92,8 @@ class ShortcutWidget(Frame):
             self.shortcutLineEdit = LineEdit(self, grid=(i, 1))
             self.shortcutLineEdit.setText(self.preferences.shortcuts[shortcut])
             # self.shortcutLineEdit.editingFinished.connect(partial(self.validateFunction, i))
-            pathButton = Button(self, grid=(i, 2), icon='icons/applications-system', callback=partial(self._getMacroFile, i))
+            pathButton = Button(self, grid=(i, 2), icon='icons/applications-system',
+                                callback=partial(self._getMacroFile, i))
             self.widgets.append([shortcutLabel, self.shortcutLineEdit, pathButton])
             i += 1
 
@@ -109,7 +107,7 @@ class ShortcutWidget(Frame):
         return shortcutDict
 
     def _addToFirstAvailableShortCut(self, filePath):
-        command = 'runMacro("%s")' %filePath
+        command = 'runMacro("%s")' % filePath
         layout = self.layout()
         if command not in self.getShortcuts().values():
             for i in range(layout.rowCount()):

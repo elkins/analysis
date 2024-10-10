@@ -16,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-09-06 11:32:58 +0100 (Fri, September 06, 2024) $"
-__version__ = "$Revision: 3.2.6 $"
+__dateModified__ = "$dateModified: 2024-10-04 11:47:18 +0100 (Fri, October 04, 2024) $"
+__version__ = "$Revision: 3.2.5 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -806,21 +806,21 @@ class Gui(Ui):
                 with busyHandler(self.mainWindow, title='Loading',
                                  text=f'Loading project {dataLoader.path} ...', closeDelay=1000):
                     _loaded = dataLoader.load()
-                    if _loaded is None or len(_loaded) == 0:
-                        MessageDialog.showWarning('Loading Project',
-                                                  f'There was a problem loading project {dataLoader.path}\n'
-                                                  f'Please check the log for more information.',
-                                                  parent=self.mainWindow)
-                        return None
             else:
                 # busy-status not required on the first load
                 _loaded = dataLoader.load()
-                if _loaded is None or len(_loaded) == 0:
-                    MessageDialog.showWarning('Loading Project',
-                                              f'There was a problem loading project {dataLoader.path}\n'
-                                              f'Please check the log for more information.',
-                                              parent=self.mainWindow)
-                    return None
+
+            # NOTE:ED - another one here, if the message-dialog appears BEFORE the window-modal busy popup
+            #   then the window containing the busy-popup takes control (but is still mouse-blocked)
+            #   and the message-dialog doesn't close or doesn't pass modality back to the parent :|
+            #   solution -  make sure busy popups are already visible,
+            #               or show dialogs outside the busy context-manager
+            if _loaded is None or len(_loaded) == 0:
+                MessageDialog.showWarning('Loading Project',
+                                          f'There was a problem loading project {dataLoader.path}\n'
+                                          f'Please check the log for more information.',
+                                          parent=self.mainWindow)
+                return None
 
             newProject = _loaded[0]
             # # Note that the newProject has its own MainWindow; i.e. it is not self

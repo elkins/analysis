@@ -4,8 +4,9 @@
 # Licence, Reference and Credits
 #=========================================================================================
 __copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
-__credits__ = ("Ed Brooksbank, Joanna Fox, Morgan Hayward, Victoria A Higman, Luca Mureddu",
-               "Eliza Płoskoń, Timothy J Ragan, Brian O Smith, Gary S Thompson & Geerten W Vuister")
+__credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
+               "Timothy J Ragan, Brian O Smith, Daniel Thompson",
+               "Gary S Thompson & Geerten W Vuister")
 __licence__ = ("CCPN licence. See https://ccpn.ac.uk/software/licensing/")
 __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, L.G., & Vuister, G.W.",
                  "CcpNmr AnalysisAssign: a flexible platform for integrated NMR analysis",
@@ -14,8 +15,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-03-20 19:06:25 +0000 (Wed, March 20, 2024) $"
-__version__ = "$Revision: 3.2.2.1 $"
+__dateModified__ = "$dateModified: 2024-10-04 12:05:03 +0100 (Fri, October 04, 2024) $"
+__version__ = "$Revision: 3.2.5 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -800,7 +801,7 @@ class Peak(AbstractWrapperObject):
             raise RuntimeError(f'{self}:  Counter below 0')
 
     @property
-    def multiplets(self) -> Optional[Tuple[Any]]:
+    def multiplets(self) -> tuple['Multiplet', ...]:
         """List of multiplets containing the Peak."""
         return tuple(
                 self._project._data2Obj[mt]
@@ -839,10 +840,14 @@ class Peak(AbstractWrapperObject):
             assignedNmrAtoms.append(value)
             self.assignedNmrAtoms = assignedNmrAtoms
 
+    nmrSeq = list[str | NmrAtom] | tuple[str | NmrAtom, ...]
+    listtuple = list[str | NmrAtom | None | nmrSeq] | tuple[str | NmrAtom | None | nmrSeq, ...] | None
+
     @logCommand(get='self')
-    def assignDimension(self, axisCode: str, value: Union[Union[str, 'NmrAtom'],
-    Sequence[Union[str, 'NmrAtom']]] = None):
-        """Assign dimension with axisCode to value (NmrAtom, or Pid or sequence of either, or None)."""
+    def assignDimension(self, axisCode: list[str] | tuple[str, ...],
+                        value: nmrSeq | None = None):
+        """Assign dimension with axisCode to value (NmrAtom, or Pid or sequence of either, or None).
+        """
 
         axisCodes = self.spectrum.axisCodes
         try:
@@ -854,69 +859,89 @@ class Peak(AbstractWrapperObject):
             value = []
         elif isinstance(value, str):
             value = [self.getByPid(value)]
-        elif isinstance(value, Sequence):
+        elif isinstance(value, list | tuple):
             value = [(self.getByPid(x) if isinstance(x, str) else x) for x in value]
         else:
             value = [value]
+        if not all(isinstance(val, NmrAtom) for val in value):
+            raise TypeError(f'{self.__class__.__name__}.assignDimension: value contains bad objects {value}')
         dimensionNmrAtoms = list(self.dimensionNmrAtoms)
-
         dimensionNmrAtoms[axis] = value
-        self.dimensionNmrAtoms = dimensionNmrAtoms
-        # isotopeCode. if not defined, assign to the nmrAtoms from the spectrum isotopeCodes
-        for na in value:
-            if na.isotopeCode in [UnknownIsotopeCode, self._UNKNOWN_VALUE_STRING, None]:
-                try:
-                    isotopeCodes = self.spectrum.getByAxisCodes('isotopeCodes', [axisCode])
-                    if len(isotopeCodes) == 1:
-                        na._setIsotopeCode(isotopeCodes[0])
-                except Exception as err:
-                    getLogger().debug2(f'Impossible to set isotopeCode to {na}. {err}')
+
+        with undoBlockWithoutSideBar():
+            # set all the nmrAtoms
+            self.dimensionNmrAtoms = dimensionNmrAtoms
+            dimIso = self.spectrum.isotopeCodes[axis]
+            # isotopeCode. if not defined, assign to the nmrAtoms from the spectrum isotopeCodes
+            for nmrAtm in value:
+                if nmrAtm.isotopeCode in [UnknownIsotopeCode, self._UNKNOWN_VALUE_STRING, None]:
+                    try:
+                        # multiQuantum are accessed from mqIsotopeCodes
+                        nmrAtm._setIsotopeCode(dimIso)
+                    except Exception as err:
+                        getLogger().debug(f'{self.__class__.__name__}.assignDimension: '
+                                          f'Impossible to set isotopeCode to {nmrAtm}. {err}')
 
     @logCommand(get='self')
-    def assignDimensions(self, axisCodes: list, values:  list[str | NmrAtom | Sequence[str | NmrAtom]] | None = None):
+    def assignDimensions(self, values: listtuple = None,
+                         *, axisCodes: list[str] | tuple[str, ...] = None
+                         ):
         """Assign dimensions with axisCode to values (NmrAtom, or Pid or sequence of either, or None).
+
+        :param values:
+        :param axisCodes:
         """
         specAxisCodes = self.spectrum.axisCodes
+        if values is None:
+            # clear the current assignments
+            self.dimensionNmrAtoms = [[] for _ in specAxisCodes]
+            return
+        if not isinstance(values, list | tuple):
+            raise TypeError(f'{self.__class__.__name__}.assignDimensions: values is not a list|tuple')
+        if axisCodes is None:
+            axisCodes = specAxisCodes
+        elif not isinstance(axisCodes, list | tuple):
+            raise TypeError(f'{self.__class__.__name__}.assignDimensions: axisCodes is not a list|tuple')
         if len(axisCodes) != len(specAxisCodes) or len(values) != len(specAxisCodes):
             raise TypeError(f'{self.__class__.__name__}.assignDimensions: axisCodes or values are not the correct length')
         if badAxisCodes := list(set(specAxisCodes) - set(axisCodes)):
-            raise ValueError(f'{self.__class__.__name__}.assignDimensions: axisCodes {badAxisCodes} not recognised') from None
-        if not isinstance(values, list):
-            raise TypeError(f'{self.__class__.__name__}.assignDimensions: values is not a list')
+            raise ValueError(f'{self.__class__.__name__}.assignDimensions: axisCodes {badAxisCodes} not recognised')
 
-        dimensionNmrAtoms = [None] * len(specAxisCodes)
+        dimensionNmrAtoms = [[] for _ in specAxisCodes]
         for axis, value in zip(axisCodes, values):
             if axis not in specAxisCodes:
                 raise ValueError(f'{self.__class__.__name__}.assignDimensions: axisCode {axis} not recognised')
-
             if value is None:
                 value = []
             elif isinstance(value, str):
                 value = [self.getByPid(value)]
-            elif isinstance(value, Sequence):
+            elif isinstance(value, list | tuple):
                 value = [(self.getByPid(x) if isinstance(x, str) else x) for x in value]
             else:
                 value = [value]
+            if not all(isinstance(val, NmrAtom) for val in value):
+                raise TypeError(f'{self.__class__.__name__}.assignDimensions: values contains bad objects {value}')
             dimensionNmrAtoms[specAxisCodes.index(axis)] = value
 
-        # set all the nmrAtoms
-        self.dimensionNmrAtoms = dimensionNmrAtoms
+        with undoBlockWithoutSideBar():
+            # set all the nmrAtoms
+            self.dimensionNmrAtoms = dimensionNmrAtoms
 
-        for axis, value in zip(axisCodes, values):
-            # isotopeCode. if not defined, assign to the nmrAtoms from the spectrum isotopeCodes
-            for na in value:
-                if na.isotopeCode in [UnknownIsotopeCode, self._UNKNOWN_VALUE_STRING, None]:
-                    try:
-                        isotopeCodes = self.spectrum.getByAxisCodes('isotopeCodes', [specAxisCodes.index(axis)])
-                        if len(isotopeCodes) == 1:
-                            na._setIsotopeCode(isotopeCodes[0])
-                    except Exception as err:
-                        getLogger().debug2(f'Impossible to set isotopeCode to {na}. {err}')
+            for axis, nmrAtms, dimIso in zip(specAxisCodes, dimensionNmrAtoms, self.spectrum.isotopeCodes):
+                # isotopeCode. if not defined, assign to the nmrAtoms from the spectrum isotopeCodes
+                for nmrAtm in nmrAtms:
+                    if nmrAtm.isotopeCode in [UnknownIsotopeCode, self._UNKNOWN_VALUE_STRING, None]:
+                        try:
+                            # multiQuantum are accessed from mqIsotopeCodes
+                            nmrAtm._setIsotopeCode(dimIso)
+                        except Exception as err:
+                            getLogger().debug(f'{self.__class__.__name__}.assignDimensions: '
+                                              f'Impossible to set isotopeCode to {nmrAtm}. {err}')
 
     def getByAxisCodes(self, parameterName: str, axisCodes: Sequence[str] = None,
                        exactMatch: bool = False) -> list:
         """Return a list of values defined by parameterName in order defined by axisCodes (default order if None).
-        Perform a mapping if exactMatch=False (eg. 'H' to 'Hn')
+        Perform a mapping if exactMatch=False (e.g. 'H' to 'Hn')
 
         :param parameterName: a str denoting a Spectrum dimensional attribute
         :param axisCodes: a tuple or list of axisCodes

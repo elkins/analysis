@@ -742,9 +742,11 @@ class GuiMainWindow(QtWidgets.QMainWindow, Shortcuts):
             text = 'Use menu "Spectrum --> Validate paths..." Or "VP" shortcut to correct\n\n'
             text += 'Please inspect file path(s) for:\n'
             for sp in badSpectra:  # these can be >1000 lines message. Added in a scrollable area.
-                text += '%s\n' % str(sp)
+                text += f'{str(sp)}\n'
             title = 'Detected invalid Spectrum file paths'
-            MessageDialog.showWarning(title=title, message=text, scrollableMessage=True)
+            MessageDialog.showWarning(title=title, message=text, scrollableMessage=True,
+                                      dontShowEnabled=True, defaultResponse=None,
+                                      popupId=f'{self.__class__.__name__}BadSpectra')
 
     def _showNefPopup(self, dataLoader):
         """Helper function; it allows the user to select the elements

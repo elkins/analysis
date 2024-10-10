@@ -4,9 +4,10 @@ Module Documentation here
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2022"
-__credits__ = ("Ed Brooksbank, Joanna Fox, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
-               "Timothy J Ragan, Brian O Smith, Gary S Thompson & Geerten W Vuister")
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
+               "Timothy J Ragan, Brian O Smith, Daniel Thompson",
+               "Gary S Thompson & Geerten W Vuister")
 __licence__ = ("CCPN licence. See https://ccpn.ac.uk/software/licensing/")
 __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, L.G., & Vuister, G.W.",
                  "CcpNmr AnalysisAssign: a flexible platform for integrated NMR analysis",
@@ -15,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2022-12-21 12:16:44 +0000 (Wed, December 21, 2022) $"
-__version__ = "$Revision: 3.1.0 $"
+__dateModified__ = "$dateModified: 2024-10-09 14:37:07 +0100 (Wed, October 09, 2024) $"
+__version__ = "$Revision: 3.2.7 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -30,6 +31,7 @@ import re
 
 from PyQt5 import QtGui
 from ccpn.ui.gui.modules.CcpnModule import INVALIDROWCOLOUR, WARNINGROWCOLOUR
+from ccpn.ui.gui.widgets.Entry import VALIDATEASICON
 
 
 #=========================================================================================
@@ -171,8 +173,10 @@ class LineEditValidatorCoreObject(QtGui.QValidator):
         """Set the colour/valid state depending on the name and objects in the target list
         """
         palette = self.parent().palette()
-
-        if self._isValidInput(p_str):
+        if not p_str:
+            palette.setColor(QtGui.QPalette.Base, self.baseColour)
+            state = QtGui.QValidator.Acceptable  # treat empty entry is valid
+        elif self._isValidInput(p_str):
             if self._warnRename and not self._isValidObject(p_str):
                 palette.setColor(QtGui.QPalette.Base, WARNINGROWCOLOUR)
                 state = QtGui.QValidator.Intermediate  # entry is valid, but warn for bad object (only if renaming later)
@@ -182,7 +186,8 @@ class LineEditValidatorCoreObject(QtGui.QValidator):
         else:
             palette.setColor(QtGui.QPalette.Base, INVALIDROWCOLOUR)
             state = QtGui.QValidator.Intermediate  # entry is NOT valid, but can continue editing
-        self.parent().setPalette(palette)
+        if not getattr(self.parent(), VALIDATEASICON, False):
+            self.parent().setPalette(palette)
 
         return state, p_str, p_int
 

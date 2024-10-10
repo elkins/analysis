@@ -15,8 +15,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-08-23 19:21:20 +0100 (Fri, August 23, 2024) $"
+__modifiedBy__ = "$modifiedBy: Daniel Thompson $"
+__dateModified__ = "$dateModified: 2024-09-18 17:05:45 +0100 (Wed, September 18, 2024) $"
 __version__ = "$Revision: 3.2.5 $"
 #=========================================================================================
 # Created
@@ -491,10 +491,18 @@ def showYesNoCancel(title, message, parent=None, iconPath=None):
         return None
 
 
-def showWarning(title, message, parent=None, iconPath=None, scrollableMessage=False):
+def showWarning(title, message, parent=None, iconPath=None, scrollableMessage=False, dontShowEnabled=False,
+                           defaultResponse=None, popupId=None):
     dialog = MessageDialog(title='Warning', basicText=title, message=message, icon=Warning, iconPath=iconPath,
-                           parent=parent, scrollableMessage=scrollableMessage)
-    dialog.setStandardButtons(Close)
+                           parent=parent, scrollableMessage=scrollableMessage, dontShowEnabled=dontShowEnabled,
+                           defaultResponse=defaultResponse, popupId=popupId)
+
+    if dialog.dontShowPopup():
+        getLogger().debug(f'Popup {popupId!r} skipped with response={defaultResponse}')
+        return defaultResponse
+
+    # don't show checkbox required an 'accepted' response to work
+    dialog.setStandardButtons(Close if not dontShowEnabled else Ok)
     dialog.exec_()
     return
 
