@@ -21,7 +21,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
 __dateModified__ = "$Date: 2024-07-17 14:29:44 +0100 (Wed, July 17, 2024) $"
-__version__ = "$Revision: 3.2.5 $"
+__dateModified__ = "$dateModified: 2024-10-14 17:20:01 +0100 (Mon, October 14, 2024) $"
+__version__ = "$Revision: 3.2.9.alpha $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -53,6 +54,7 @@ VOLUME = 'Volume'
 MASS = 'Mass'
 DISTANCE = 'Distance'
 GENERIC = 'Generic'
+FREQUENCY = 'Frequency'
 
 PRIMARY_SERIES_CATEGORY = [CONCENTRATION, TIME, EQUIVALENT, ARBITRARYUNIT]
 SECONDARY_SERIES_CATEGORY = [OTHER, TEMPERATURE, pH, PRESSURE,  DISTANCE, VOLUME, MASS, ]
@@ -294,6 +296,13 @@ class DistanceUnit(_SI_Unit):
 
     uiPrefixSelection = ['k', 'c', 'm', _microUnicode, 'n', ]
 
+class FrequencyUnit(_SI_Unit):
+    SI_baseUnit = 'hz'
+    SI_baseUnitWord = 'hertz'
+    quantity = FREQUENCY
+
+    uiPrefixSelection = ['G', 'M', 'k']
+
 # ---------------- Special cases -------------------- #
 
 class VolumeUnit(_SI_Unit):
@@ -416,7 +425,8 @@ SERIESUNITS = {
     DistanceUnit.quantity: DistanceUnit,
     VolumeUnit.quantity: VolumeUnit,
     MassUnit.quantity: MassUnit,
-    MoleUnit.quantity: MoleUnit
+    MoleUnit.quantity: MoleUnit,
+    FrequencyUnit.quantity:FrequencyUnit
     }
 
 def getAllSeriesUnits():
