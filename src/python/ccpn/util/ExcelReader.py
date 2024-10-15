@@ -12,9 +12,9 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-07-04 18:52:00 +0100 (Thu, July 04, 2024) $"
-__version__ = "$Revision: 3.2.5 $"
+__modifiedBy__ = "$modifiedBy: Luca Mureddu $"
+__dateModified__ = "$dateModified: 2024-10-15 10:35:58 +0100 (Tue, October 15, 2024) $"
+__version__ = "$Revision: 3.2.9.alpha $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -614,16 +614,19 @@ class ExcelReader(object):
                     setattr(wrapperObject, attr, (value,))
             else:
                 try:
-                    if getattr(wrapperObject, attr) is None or getattr(wrapperObject, attr) == 0:
-                        setattr(wrapperObject, attr, self._getDFValue(attr, dataframe))
+                    currentAttrValue = getattr(wrapperObject, attr)
+                    newDataValue = self._getDFValue(attr, dataframe)
+                    if currentAttrValue in [None, 0]:
+                        setattr(wrapperObject, attr, newDataValue)
+                    else:
+                        if attr == comment:
+                            setattr(wrapperObject, attr, newDataValue)
 
                 except Exception:  #wrapper needs a int
                     value = self._getDFValue(attr, dataframe)
                     if value is not None:
                         setattr(wrapperObject, attr, int(value))
-
                 except:
-                    print('Value  not set for %s' % attr)
                     getLogger().debug3(msg=('Value  not set for %s' % attr))
 
     def _getDFValue(self, header, data):
