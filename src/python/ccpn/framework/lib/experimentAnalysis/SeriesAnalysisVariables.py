@@ -17,7 +17,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-10-03 09:42:40 +0100 (Thu, October 03, 2024) $"
+__dateModified__ = "$dateModified: 2024-10-17 13:45:43 +0100 (Thu, October 17, 2024) $"
 __version__ = "$Revision: 3.2.9.alpha $"
 #=========================================================================================
 # Created
@@ -111,6 +111,7 @@ UNCERTAINTIESMETHOD = 'UncertaintiesMethod'
 MODEL_ID = 'model_id'
 MODEL_SCORE = 'model_score'
 MODEL_SELECTION_METHOD = 'model_selection_method'
+FAILED = 'Failed'
 
 ## Peak properties. Used to get nmrAtom assigned-peak by dimension and build tables.
 _POSITION = 'position'
