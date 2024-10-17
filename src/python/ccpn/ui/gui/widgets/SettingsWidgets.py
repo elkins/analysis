@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Daniel Thompson $"
-__dateModified__ = "$dateModified: 2025-03-05 15:51:45 +0000 (Wed, March 05, 2025) $"
+__dateModified__ = "$dateModified: 2025-03-10 10:17:32 +0000 (Mon, March 10, 2025) $"
 __version__ = "$Revision: 3.3.1 $"
 #=========================================================================================
 # Created
@@ -36,7 +36,7 @@ from ccpn.ui.gui.widgets.Frame import Frame, ScrollableFrame
 from ccpn.ui.gui.lib.alignWidgets import alignWidgets
 
 from ccpn.ui.gui.popups.PreferencesPopup import DEFAULTSPACING
-from ccpn.ui.gui.widgets.CompoundWidgets import ListCompoundWidget
+from ccpn.ui.gui.widgets.CompoundWidgets import ListCompoundWidget, RadioButtonsCompoundWidget
 from ccpn.ui.gui.widgets.Widget import Widget
 from ccpn.ui.gui.widgets.Button import Button
 from ccpn.ui.gui.widgets.RadioButtons import RadioButtons
@@ -1217,6 +1217,44 @@ class StripPlot(Widget, _commonSettings, SignalBlocking):
         row = 0
         colwidth = 180
 
+        self.automaticBbNmrAtomAssignment = CheckBoxCompoundWidget(self,
+                                                                   grid=(row, 0), vAlign='top', stretch=(0, 0),
+                                                                   hAlign='left',
+                                                                   fixedWidths=(colwidth, None),
+                                                                   orientation='left',
+                                                                   labelText='Automatic C/CA/CB NmrAtom assignment',
+                                                                   checked=False,
+                                                                   callback=self._autoBbNmrAtomCallback)
+
+        row += 1
+
+        self.glyHasCaSign = CheckBoxCompoundWidget(self,
+                                                 grid=(row, 0), vAlign='top', stretch=(0, 0),
+                                                 hAlign='left',
+                                                 fixedWidths=(colwidth, None),
+                                                 orientation='left',
+                                                 labelText='Gly has same sign as CAs',
+                                                 checked=False)
+
+        row += 1
+
+        self.casPosCbsNeg = RadioButtons(self, grid=(row, 0), vAlign='top', hAlign='left',
+                                                       fixedWidths=(colwidth, None), orientation='left',
+                                                       texts=['CAs positive / CBs negative',
+                                                              'CAs negative / CBs positive'])
+
+        self.glyHasCaSign.setVisible(False)
+        self.casPosCbsNeg.setVisible(False)
+
+        row += 1
+        # LabeledHLine(self, text='HNCACB Settings', grid=(row, 0), gridSpan=(1, 4),
+        #               colour=getColours()[DIVIDER], height=15)
+
+        HLine(self, grid=(row, 0), gridSpan=(1, 4),
+              colour=getColours()[DIVIDER], height=15)
+
+        row += 1
+
         texts = [defaultSpectrum.pid] if (defaultSpectrum and defaultSpectrum is not NO_STRIP) else (
                 [ALL] + displayText)
 
@@ -1391,6 +1429,16 @@ class StripPlot(Widget, _commonSettings, SignalBlocking):
 
         self.maxRows = rows
         self._registerNotifiers()
+
+    def _autoBbNmrAtomCallback(self):
+        if self.automaticBbNmrAtomAssignment.isChecked():
+            # self.glyHasCaSign.setEnabled(True)
+            # self.casPosCbsNeg.setEnabled(True)
+            self.glyHasCaSign.setVisible(True)
+            self.casPosCbsNeg.setVisible(True)
+        elif not self.automaticBbNmrAtomAssignment.isChecked():
+            self.glyHasCaSign.setVisible(False)
+            self.casPosCbsNeg.setVisible(False)
 
     def storeWidgetState(self):
         """Store the state of the checkBoxes between popups
