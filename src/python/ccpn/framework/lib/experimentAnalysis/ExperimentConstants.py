@@ -17,7 +17,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-10-21 14:32:19 +0100 (Mon, October 21, 2024) $"
+__dateModified__ = "$dateModified: 2024-10-21 16:03:48 +0100 (Mon, October 21, 2024) $"
 __version__ = "$Revision: 3.2.9.alpha $"
 #=========================================================================================
 # Created
@@ -76,7 +76,6 @@ HgyromagneticRatio = 26.7522212 * 1e7   # Ɣ in rad s^-1*T^-1
 N15gyromagneticRatio = -2.7126 * 1e7
 C13gyromagneticRatio = 6.728 * 1e7
 
-## Chemical shift anisotropy (CSA) and bond lengths.
-N15_CSA =  160 * 1e-6
+
 # NH_BOND_LENGTH = 1.02 * 1e-10
 rNH = 1.015
