@@ -17,7 +17,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-10-17 13:45:43 +0100 (Thu, October 17, 2024) $"
+__dateModified__ = "$dateModified: 2024-10-21 14:32:20 +0100 (Mon, October 21, 2024) $"
 __version__ = "$Revision: 3.2.9.alpha $"
 #=========================================================================================
 # Created
@@ -112,7 +112,8 @@ MODEL_ID = 'model_id'
 MODEL_SCORE = 'model_score'
 MODEL_SELECTION_METHOD = 'model_selection_method'
 FAILED = 'Failed'
-
+DIFFERENTIAL_EVOLUTION = 'differential_evolution'
+MINIMISERPREFIX = 'minimiser_'
 ## Peak properties. Used to get nmrAtom assigned-peak by dimension and build tables.
 _POSITION = 'position'
 _POINTPOSITION = 'pointPosition'
@@ -391,7 +392,7 @@ TROSY_XYB = 'TROSY_ETAxyB'
 TROSY_Z = 'TROSY_ETAz'
 
 EXPERIMENTS  = [USERDEFINEDEXPERIMENT, T1, T2, HETNOE]
-
+_custom = 'custom'
 ## Warnings
 UNDER_DEVELOPMENT_WARNING = f'''This functionality is currently under active development. Use it at your own risk.'''
 NIY_WARNING = f'''This functionality has not been implemented yet.'''
