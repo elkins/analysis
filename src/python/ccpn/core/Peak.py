@@ -15,8 +15,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-10-04 12:05:03 +0100 (Fri, October 04, 2024) $"
-__version__ = "$Revision: 3.2.5 $"
+__dateModified__ = "$dateModified: 2024-10-10 15:45:25 +0100 (Thu, October 10, 2024) $"
+__version__ = "$Revision: 3.2.7 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -1342,7 +1342,8 @@ class Peak(AbstractWrapperObject):
             with notificationEchoBlocking():
                 while iterations > 0 and consecutiveSameLWsCount <= maxSameLWsCount:
                     peakList.fitExistingPeaks([peak], fitMethod=fitMethod,
-                                              halfBoxSearchWidth=halfBoxSearchWidth, singularMode=True)
+                                              halfBoxSearchWidth=halfBoxSearchWidth,
+                                              singularMode=False)  # group-mode by default
                     if keepPosition:
                         peak.position = originalPosition
                         peak.height = peakList.spectrum.getHeight(peak.ppmPositions)

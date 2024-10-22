@@ -2,8 +2,9 @@
 # Licence, Reference and Credits
 #=========================================================================================
 __copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
-__credits__ = ("Ed Brooksbank, Joanna Fox, Morgan Hayward, Victoria A Higman, Luca Mureddu",
-               "Eliza Płoskoń, Timothy J Ragan, Brian O Smith, Gary S Thompson & Geerten W Vuister")
+__credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
+               "Timothy J Ragan, Brian O Smith, Daniel Thompson",
+               "Gary S Thompson & Geerten W Vuister")
 __licence__ = ("CCPN licence. See https://ccpn.ac.uk/software/licensing/")
 __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, L.G., & Vuister, G.W.",
                  "CcpNmr AnalysisAssign: a flexible platform for integrated NMR analysis",
@@ -12,8 +13,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-04-04 15:19:22 +0100 (Thu, April 04, 2024) $"
-__version__ = "$Revision: 3.2.5 $"
+__dateModified__ = "$dateModified: 2024-10-14 18:40:06 +0100 (Mon, October 14, 2024) $"
+__version__ = "$Revision: 3.2.7 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -30,6 +31,7 @@ from ccpn.ui.gui.widgets.Button import Button
 from ccpn.ui.gui.widgets.Label import Label
 from ccpn.ui.gui.widgets.FilteringPulldownList import FilteringPulldownList
 from ccpn.ui.gui.popups.Dialog import CcpnDialogMainWidget
+from ccpn.util.Logging import getLogger
 
 
 def _getAtomCodes(spectrum):
@@ -49,13 +51,13 @@ def _getExperimentTypes(project, spectrum):
 
 
 class ExperimentTypePopup(CcpnDialogMainWidget):
-    """Popup to handle the experiment-types for all spectra
+    """Popup to handle the experiment-types for all spectra.
     """
     USESCROLLWIDGET = True
     FIXEDWIDTH = True
 
     def __init__(self, parent=None, mainWindow=None, title: str = 'Experiment Type Selection', **kwds):
-        """Initialise the popup
+        """Initialise the popup.
         """
         super().__init__(parent, setLayout=True, windowTitle=title, **kwds)
 
@@ -66,10 +68,11 @@ class ExperimentTypePopup(CcpnDialogMainWidget):
             self.current = mainWindow.application.current
 
         self._parent = parent
-        spectra = self.project.spectra
+        self._spectra = spectra = self.project.spectra
         self.experimentTypes = self.project._experimentTypeMap
 
         self._setWidgets(spectra)
+        self._populate()
 
         self.setCloseButton(callback=self.accept)
         self.setDefaultButton(CcpnDialogMainWidget.CLOSEBUTTON)
@@ -82,10 +85,8 @@ class ExperimentTypePopup(CcpnDialogMainWidget):
         self.setFixedWidth(self.sizeHint().width() + 24)
 
     def _setWidgets(self, spectra):
-        """Set up the widgets
+        """Set up the widgets.
         """
-        from ccpnmodel.ccpncore.lib.spectrum.NmrExpPrototype import priorityNameRemapping
-
         self.spPulldowns = []
         for spectrumIndex, spectrum in enumerate(spectra):
             atomCodes = _getAtomCodes(spectrum)
@@ -95,13 +96,13 @@ class ExperimentTypePopup(CcpnDialogMainWidget):
             _spLabel = Label(self.mainWidget, text=spectrum.pid, grid=(spectrumIndex, 0))
             spPulldown = FilteringPulldownList(self.mainWidget, grid=(spectrumIndex, 1),
                                                callback=partial(self._setExperimentType, spectrum, atomCodes), )
-
             if itemFilter:
                 # populate pullDown with filtered experimentTypes
                 pulldownItems = [''] + list(itemFilter.keys())
             else:
                 # populate pullDown with all experimentTypes
-                pulldownItems = [''] + [vv for vals in self.experimentTypes[spectrum.dimensionCount].values() for vv in vals.keys()]
+                pulldownItems = [''] + [vv for vals in self.experimentTypes[spectrum.dimensionCount].values() for vv in
+                                        vals.keys()]
 
             spPulldown.setData(texts=pulldownItems)
 
@@ -109,30 +110,39 @@ class ExperimentTypePopup(CcpnDialogMainWidget):
             self.spPulldowns.append(spPulldown)
 
             _spButton = Button(self.mainWidget, grid=(spectrumIndex, 2),
-                              callback=partial(self.raiseExperimentFilterPopup,
-                                               spectrum, spectrumIndex, atomCodes),
-                              hPolicy='fixed', icon='icons/applications-system')
+                               callback=partial(self.raiseExperimentFilterPopup,
+                                                spectrum, spectrumIndex, atomCodes),
+                               hPolicy='fixed', icon='icons/applications-system')
 
-            # Get the text that was used in the pulldown from the refExperiment
-            # NBNB This could possibly give unpredictable results
-            # if there is an experiment with experimentName (user settable!)
-            # that happens to match the synonym for a different experiment type.
-            # But if people will ignore our defined vocabulary, on their head be it!
-            # Anyway, the alternative (discarded) is to look into the ExpPrototype
-            # to compare RefExperiment names and synonyms
-            # or (too ugly for words) to have a third attribute in parallel with
-            # spectrum.experimentName and spectrum.experimentType
-            if (text := spectrum.experimentType):
-                # reference-experiment is set
-                key = spectrum.synonym or text
-                key = priorityNameRemapping.get(key, key)
+    def _populate(self):
+        """Populate the widgets, set the indexes of the spectrum pulldowns.
+        """
+        from ccpnmodel.ccpncore.lib.spectrum.NmrExpPrototype import priorityNameRemapping
 
-                if (idx := spPulldown.findText(key)) > 0:
-                    spPulldown.setCurrentIndex(idx)
+        with self.blockWidgetSignals(self):
+            for spPulldown, spectrum in zip(self.spPulldowns, self._spectra):
+                # Get the text that was used in the pulldown from the refExperiment
+                # NBNB This could possibly give unpredictable results
+                # if there is an experiment with experimentName (user settable!)
+                # that happens to match the synonym for a different experiment type.
+                # But if people will ignore our defined vocabulary, on their head be it!
+                # Anyway, the alternative (discarded) is to look into the ExpPrototype
+                # to compare RefExperiment names and synonyms
+                # or (too ugly for words) to have a third attribute in parallel with
+                # spectrum.experimentName and spectrum.experimentType
+                if (text := spectrum.experimentType):
+                    # reference-experiment is set
+                    key = spectrum.synonym or text
+                    key = priorityNameRemapping.get(key, key)
+
+                    if (idx := spPulldown.findText(key)) > 0:
+                        spPulldown.setCurrentIndex(idx)
 
     def _setExperimentType(self, spectrum, atomCodes, item):
         expType = self.experimentTypes[spectrum.dimensionCount].get(atomCodes).get(item)
         spectrum.experimentType = expType
+
+        self._setReferenceDimensions(spectrum)
 
     def raiseExperimentFilterPopup(self, spectrum, spectrumIndex, atomCodes):
 
@@ -145,7 +155,8 @@ class ExperimentTypePopup(CcpnDialogMainWidget):
             if expType is not None:
                 spectrum.experimentType = expType
 
-    def editedExpTypeChecker(self, pulldown, items):
+    @staticmethod
+    def editedExpTypeChecker(pulldown, items):
         if pulldown.currentText() not in items and pulldown.currentText():
             msg = ' (ExpTypeNotFound!)'
             if msg not in pulldown.currentText():
@@ -155,3 +166,23 @@ class ExperimentTypePopup(CcpnDialogMainWidget):
     def keyPressEvent(self, KeyEvent):
         if KeyEvent.key() == QtCore.Qt.Key_Return:
             return
+
+    @staticmethod
+    def _setReferenceDimensions(spectrum):
+        """Populate the references dimensions from the current experiment and the current value.
+        """
+        expType = spectrum.experimentType
+        # get the nucleus codes from the current isotope codes
+        refDimensions = spectrum.referenceExperimentDimensions
+        _referenceLists = [[] for _ in refDimensions]
+        # get the permutations of the available experiment dimensions
+        matches = spectrum.getAvailableReferenceExperimentDimensions(_experimentType=expType)
+        if matches:
+            for ac in matches:
+                for ii in range(spectrum.dimensionCount):
+                    if ac[ii] not in _referenceLists[ii]:
+                        _referenceLists[ii].append(ac[ii])
+
+        spectrum.referenceExperimentDimensions = tuple(rl[0] if rl and rl[0] else None for rl in _referenceLists)
+        getLogger().debug(f'ExpType {spectrum.dimensionCount}:{spectrum} {spectrum.referenceExperimentDimensions}')
+        getLogger().debug(f'{spectrum.magnetisationTransfers}')

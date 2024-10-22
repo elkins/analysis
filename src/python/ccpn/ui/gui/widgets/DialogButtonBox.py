@@ -16,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-08-23 19:21:19 +0100 (Fri, August 23, 2024) $"
-__version__ = "$Revision: 3.2.5 $"
+__dateModified__ = "$dateModified: 2024-10-14 19:13:40 +0100 (Mon, October 14, 2024) $"
+__version__ = "$Revision: 3.2.7 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -27,13 +27,12 @@ __date__ = "$Date: 2020-05-26 14:50:42 +0000 (Tue, May 26, 2020) $"
 # Start of code
 #=========================================================================================
 
-from PyQt5 import QtCore, QtWidgets, QtGui
+from PyQt5 import QtCore, QtWidgets
+from operator import or_
+from functools import reduce, partial
 from ccpn.ui.gui.widgets.Base import Base
 from ccpn.ui.gui.widgets.Icon import Icon
-from operator import or_
-from functools import reduce
 from ccpn.ui.gui.widgets.Font import setWidgetFont
-from ccpn.ui.gui.guiSettings import getColours
 
 
 class DialogButtonBox(QtWidgets.QDialogButtonBox, Base):
@@ -102,6 +101,7 @@ class DialogButtonBox(QtWidgets.QDialogButtonBox, Base):
                 # add 'AcceptRole' buttons for user defined buttons - store in user dict
                 newButton = self.addButton(button, QtWidgets.QDialogButtonBox.AcceptRole)
                 self._userButtonDict[button] = newButton
+            self.clicked.connect(self._setButtonClicked)
 
             if callbacks:
                 for button, callback, text, tipText, icon, enabledState, visibleState in \
@@ -133,6 +133,11 @@ class DialogButtonBox(QtWidgets.QDialogButtonBox, Base):
                 self._parent.setDefaultButton(self.button(defaultButton))
 
         self._setStyle()
+
+    def _setButtonClicked(self, button):
+        # Set which button has been pressed to close the dialog. Need to check that this fires before
+        # individual callbacks (I think is okay), and user buttons (non-standard) are okay
+        self._clickedButtonId = self.standardButton(button)
 
     def _setStyle(self):
         _style = """QPushButton { padding: 3px 5px 3px 5px; }

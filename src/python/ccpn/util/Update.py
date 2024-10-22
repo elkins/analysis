@@ -5,8 +5,9 @@ Module Documentation here
 # Licence, Reference and Credits
 #=========================================================================================
 __copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
-__credits__ = ("Ed Brooksbank, Joanna Fox, Morgan Hayward, Victoria A Higman, Luca Mureddu",
-               "Eliza Płoskoń, Timothy J Ragan, Brian O Smith, Gary S Thompson & Geerten W Vuister")
+__credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
+               "Timothy J Ragan, Brian O Smith, Daniel Thompson",
+               "Gary S Thompson & Geerten W Vuister")
 __licence__ = ("CCPN licence. See https://ccpn.ac.uk/software/licensing/")
 __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, L.G., & Vuister, G.W.",
                  "CcpNmr AnalysisAssign: a flexible platform for integrated NMR analysis",
@@ -15,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-03-20 19:06:28 +0000 (Wed, March 20, 2024) $"
-__version__ = "$Revision: 3.2.2.1 $"
+__dateModified__ = "$dateModified: 2024-10-15 17:45:58 +0100 (Tue, October 15, 2024) $"
+__version__ = "$Revision: 3.2.6 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -36,6 +37,7 @@ from datetime import datetime
 from contextlib import suppress
 from ccpn.util import Path
 from ccpn.framework.Version import applicationVersion
+from ccpn.ui.gui.guiSettings import consoleStyle
 
 
 ccpn2Url = 'https://www.ccpn.ac.uk'
@@ -366,7 +368,7 @@ class UpdateAgent:
                  dryRun=True):
 
         self.version = version
-        self.showError = showError or (lambda title, msg: print(msg))
+        self.showError = showError or (lambda title, msg: print(f'{consoleStyle.fg.red}{msg}{consoleStyle.reset}'))
         self.showInfo = showInfo or (lambda title, msg: print(msg))
         self.askPassword = askPassword
         self.serverUser = serverUser  # None for downloads, not None for uploads

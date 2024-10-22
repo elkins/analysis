@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-10-09 19:49:20 +0100 (Wed, October 09, 2024) $"
+__dateModified__ = "$dateModified: 2024-10-11 11:33:02 +0100 (Fri, October 11, 2024) $"
 __version__ = "$Revision: 3.2.7 $"
 #=========================================================================================
 # Created
@@ -694,6 +694,10 @@ class GeneralTab(Widget):
                                                   tipTexts=None,
                                                   )
             row += 1
+            self.peakFittingMethodLabel.setEnabled(False)
+            self.peakFittingMethodLabel.setVisible(False)
+            self.peakFittingMethod.setEnabled(False)
+            self.peakFittingMethod.setVisible(False)
             # self.dropFactorLabel = Label(self, text="1D Peak picking drop (%)",
             #                                   tipText='Increase to filter out more', grid=(row, 0))
             # self.peakFactor1D = DoubleSpinbox(self, grid=(row, 1), hAlign='l', decimals=1, step=0.1, min=-100,
@@ -763,6 +767,10 @@ class GeneralTab(Widget):
                                                   tipTexts=None,
                                                   )
             row += 1
+            self.peakFittingMethodLabel.setEnabled(False)
+            self.peakFittingMethodLabel.setVisible(False)
+            self.peakFittingMethod.setEnabled(False)
+            self.peakFittingMethod.setVisible(False)
             # self.dropFactorLabel = Label(self, text="nD Peak picking drop (%)",
             #                                   tipText='Increase to filter out more', grid=(row, 0))
             # self.peakFactorNd = DoubleSpinbox(self, grid=(row, 1), hAlign='l', decimals=1, step=0.1, min=-100,

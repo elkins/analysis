@@ -4,9 +4,10 @@ Module Documentation here
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2023"
-__credits__ = ("Ed Brooksbank, Joanna Fox, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
-               "Timothy J Ragan, Brian O Smith, Gary S Thompson & Geerten W Vuister")
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
+               "Timothy J Ragan, Brian O Smith, Daniel Thompson",
+               "Gary S Thompson & Geerten W Vuister")
 __licence__ = ("CCPN licence. See https://ccpn.ac.uk/software/licensing/")
 __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, L.G., & Vuister, G.W.",
                  "CcpNmr AnalysisAssign: a flexible platform for integrated NMR analysis",
@@ -14,9 +15,9 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2023-10-16 14:45:44 +0100 (Mon, October 16, 2023) $"
-__version__ = "$Revision: 3.2.0 $"
+__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
+__dateModified__ = "$dateModified: 2024-10-10 15:45:26 +0100 (Thu, October 10, 2024) $"
+__version__ = "$Revision: 3.2.7 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -27,21 +28,9 @@ __date__ = "$Date: 2021-06-01 09:23:39 +0100 (Tue, June 1, 2021) $"
 #=========================================================================================
 
 import numpy as np
-from typing import Sequence, List
-from ccpnmodel.ccpncore.lib._ccp.nmr.Nmr.PeakList import pickNewPeaks
+from typing import Sequence
 from ccpn.core.PeakList import PARABOLICMETHOD, GAUSSIANMETHOD
-
-
-from ccpn.util.Common import percentage
-from scipy.ndimage import maximum_filter, minimum_filter
-from ccpn.util import Common as commonUtil
-from ccpn.core.Spectrum import Spectrum
-from ccpnmodel.ccpncore.api.ccp.nmr.Nmr import PeakList as ApiPeakList
-# from ccpnmodel.ccpncore.lib._ccp.nmr.Nmr.PeakList import pickNewPeaks
-from ccpn.util.decorators import logCommand
-from ccpn.core.lib.ContextManagers import newObject, undoBlock, undoBlockWithoutSideBar, notificationEchoBlocking
-from ccpn.util.Logging import getLogger
-from ccpn.core._implementation.PMIListABC import PMIListABC
+from ccpnmodel.ccpncore.lib._ccp.nmr.Nmr.PeakList import pickNewPeaks
 
 
 def _pickPeaksRegion(peakList, regionToPick: dict = {},
@@ -60,7 +49,7 @@ def _pickPeaksRegion(peakList, regionToPick: dict = {},
     Each limit is defined as a key, value pair: (str, tuple),
     with the tuple supplied as (min,max) axis limits in ppm.
 
-    For axisCodes that are not included, the limits will by taken from the aliasingLimits of the spectrum.
+    For axisCodes that are not included, the limits will be taken from the aliasingLimits of the spectrum.
 
     Illegal axisCodes will raise an error.
 
@@ -148,49 +137,16 @@ def _pickPeaksRegion(peakList, regionToPick: dict = {},
             continue
 
         dataArray, intRegion, \
-        startPoints, endPoints, \
-        startPointBufferActual, endPointBufferActual, \
-        startPointIntActual, numPointInt, \
-        startPointBuffer, endPointBuffer = region
+            startPoints, endPoints, \
+            startPointBufferActual, endPointBufferActual, \
+            startPointIntActual, numPointInt, \
+            startPointBuffer, endPointBuffer = region
 
-        if dataArray.size:
-
-            # # 20191004:ED testing - plot the dataArray during debugging
-            # import np as np
-            # from mpl_toolkits import mplot3d
-            # import matplotlib.pyplot as plt
-            #
-            # fig = plt.figure(figsize=(10, 8), dpi=100)
-            # ax = fig.gca(projection='3d')
-            #
-            # shape = dataArray.shape
-            # rr = (np.max(dataArray) - np.min(dataArray)) * 100
-            #
-            # from ccpn.ui.gui.lib.GuiSpectrumViewNd import _getLevels
-            # posLevels = _getLevels(spectrum.positiveContourCount, spectrum.positiveContourBase,
-            #                             spectrum.positiveContourFactor)
-            # posLevels = np.array(posLevels)
-            #
-            # dims = []
-            # for ii in shape:
-            #     dims.append(np.linspace(0, ii-1, ii))
-            #
-            # for ii in range(shape[0]):
-            #     try:
-            #         ax.contour(dims[2], dims[1], dataArray[ii] / rr, posLevels / rr, offset=(shape[0]-ii-1), cmap=plt.cm.viridis)
-            #     except Exception as es:
-            #         pass                    # trap stupid plot error
-            #
-            # ax.legend()
-            # ax.set_xlim3d(-0.1, shape[2]-0.9)
-            # ax.set_ylim3d(-0.1, shape[1]-0.9)
-            # ax.set_zlim3d(-0.1, shape[0]-0.9)
-            # # plt.show() is at the bottom of function
-
+        if dataArray is not None and dataArray.size:
             # find new peaks
-
             # exclusion code copied from Nmr/PeakList.py
-            excludedRegionsList = [np.array(excludedRegion, dtype=np.float32) - startPointBuffer for excludedRegion in excludedRegions]
+            excludedRegionsList = [np.array(excludedRegion, dtype=np.float32) - startPointBuffer
+                                   for excludedRegion in excludedRegions]
             excludedDiagonalDimsList = []
             excludedDiagonalTransformList = []
             for n in range(len(excludedDiagonalDims)):
@@ -216,9 +172,9 @@ def _pickPeaksRegion(peakList, regionToPick: dict = {},
 
             # only keep those points which are inside original region, not extended region
             peakPoints = [(position, height) for position, height in peakPoints if
-                          ((startPoints - startPointIntActual) <= position).all() and (position < (endPoints - startPointIntActual)).all()]
-
-            existingPositions = [np.array([int(pp)-1 for pp in pk.pointPositions]) for pk in peakList.peaks]
+                          ((startPoints - startPointIntActual) <= position).all() and
+                          (position < (endPoints - startPointIntActual)).all()]
+            existingPositions = [np.array([int(pp) - 1 for pp in pk.pointPositions]) for pk in peakList.peaks]
 
             # NB we can not overwrite exclusionBuffer, because it may be used as a parameter in redoing
             # and 'if not exclusionBuffer' does not work on np arrays.
@@ -244,10 +200,7 @@ def _pickPeaksRegion(peakList, regionToPick: dict = {},
             allRegionArrays = []
             regionArray = None
 
-            # can I divide the peaks into subregions to make the solver more stable?
-
             for position, height in validPeakPoints:
-
                 position -= startPointBufferActual
                 numDim = len(position)
 
@@ -286,71 +239,24 @@ def _pickPeaksRegion(peakList, regionToPick: dict = {},
 
                     position = center + startPointBufferActual
                     peak = peakList.newPickedPeak(pointPositions=position, height=height,
-                                              lineWidths=linewidth if estimateLineWidths else None,
-                                              fitMethod=fitMethod)
+                                                  lineWidths=linewidth if estimateLineWidths else None,
+                                                  fitMethod=fitMethod)
                     peaks.append(peak)
 
                 if fitMethod != PARABOLICMETHOD:
-                    peakList.fitExistingPeaks(peaks, fitMethod=fitMethod, singularMode=True)
-
-                # # 20191004:ED testing - plotting scatterplot of data
-                # else:
-                #
-                # # result = CPeak.fitPeaks(dataArray, regionArray, allPeaksArray, method)
-                # result = CPeak.fitParabolicPeaks(dataArray, regionArray, allPeaksArray)
-                #
-                # for height, centerGuess, linewidth in result:
-                #
-                #     # clip the point to the exclusion area, to stop rogue peaks
-                #     # center = np.array(centerGuess).clip(min=position - npExclusionBuffer,
-                #     #                                        max=position + npExclusionBuffer)
-                #     center = np.array(centerGuess)
-                #
-                #     # outofPlaneMinTest = np.array([])
-                #     # outofPlaneMaxTest = np.array([])
-                #     # for ii in range(numDim):
-                #     #     outofPlaneMinTest = np.append(outofPlaneMinTest, 0.0)
-                #     #     outofPlaneMaxTest = np.append(outofPlaneMaxTest, dataArray.shape[numDim-ii-1]-1.0)
-                #     #
-                #     # # check whether the new peak is outside of the current plane
-                #     # outofPlaneCenter = np.array(centerGuess).clip(min=position - np.array(outofPlaneMinTest),
-                #     #                      max=position + np.array(outofPlaneMaxTest))
-                #     #
-                #     # print(">>>", center, outofPlaneCenter, not np.array_equal(center, outofPlaneCenter))
-                #
-                #     # ax.scatter(*center, c='r', marker='^')
-                #     #
-                #     # x2, y2, _ = mplot3d.proj3d.proj_transform(1, 1, 1, ax.get_proj())
-                #     #
-                #     # ax.text(*center, str(center), fontsize=12)
-                #
-                #     # except Exception as es:
-                #     #     print('>>>error:', str(es))
-                #     #     dimCount = len(startPoints)
-                #     #     height = float(dataArray[tuple(position[::-1])])
-                #     #     # have to reverse position because dataArray backwards
-                #     #     # have to float because API does not like np.float32
-                #     #     center = position
-                #     #     linewidth = dimCount * [None]
-                #
-                #     position = center + startPointBufferActual
-                #
-                #     peak = peakList._newPickedPeak(pointPositions=position, height=height,
-                #                                lineWidths=linewidth, fitMethod=fitMethod)
-                #     peaks.append(peak)
-                #
-        # plt.show()
+                    peakList.fitExistingPeaks(peaks, fitMethod=fitMethod,
+                                              singularMode=False)  # group-mode by default
 
     return peaks
 
 
 def _pickPeaksNd(peakList, regionToPick: Sequence[float] = None,
-                doPos: bool = True, doNeg: bool = True,
-                fitMethod: str = GAUSSIANMETHOD, excludedRegions=None,
-                excludedDiagonalDims=None, excludedDiagonalTransform=None,
-                minDropFactor: float = 0.1):
-
+                 doPos: bool = True, doNeg: bool = True,
+                 fitMethod: str = GAUSSIANMETHOD, excludedRegions=None,
+                 excludedDiagonalDims=None, excludedDiagonalTransform=None,
+                 minDropFactor: float = 0.1):
     # TODO NBNB Add doc string and put type annotation on all parameters
+    # DEPRECATED
 
     startPoint = []
     endPoint = []
@@ -410,8 +316,8 @@ def _pickPeaksNd(peakList, regionToPick: Sequence[float] = None,
     return result
 
 
-def _fitExistingPeaks(peakList, peaks: Sequence['Peak'], fitMethod: str = GAUSSIANMETHOD, singularMode: bool = True,
-                     halfBoxSearchWidth: int = 4, halfBoxFitWidth: int = 4):
+def _fitExistingPeaks(peakList, peaks: Sequence['Peak'], fitMethod: str = GAUSSIANMETHOD, singularMode: bool = False,
+                      halfBoxSearchWidth: int = 4, halfBoxFitWidth: int = 4):
     """Refit the current selected peaks.
     Must be called with peaks that belong to this peakList
     """
@@ -423,7 +329,6 @@ def _fitExistingPeaks(peakList, peaks: Sequence['Peak'], fitMethod: str = GAUSSI
     getApp = getApplication()
 
     if peaks:
-
         badPeaks = [peak for peak in peaks if peak.peakList is not peakList]
         if badPeaks:
             raise ValueError('List contains peaks that are not in the same peakList.')

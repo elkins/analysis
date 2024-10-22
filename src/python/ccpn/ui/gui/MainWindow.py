@@ -15,9 +15,9 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-10-03 08:39:53 +0100 (Thu, October 03, 2024) $"
-__version__ = "$Revision: 3.2.9.alpha $"
+__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
+__dateModified__ = "$dateModified: 2024-10-14 19:13:39 +0100 (Mon, October 14, 2024) $"
+__version__ = "$Revision: 3.2.7 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -249,7 +249,16 @@ class GuiMainWindow(QtWidgets.QMainWindow, Shortcuts):
                         QMenuBar::item:disabled {
                             color: palette(dark);
                         }
+                        QProgressBar {
+                            color: palette(text);
+                            text-align: center;
+                        }
                         """
+        # there is also some weird stuff with the qprogressbar text-colour:
+        #   the left-edge of the text-label is its local 0%, the right-edge its local 100%,
+        #   and the text-label is coloured highlighttedtext|text based on the progress %
+        #   it doesn't follow the edge of the progress-chunk :|
+        #   ... but I think the stylesheet sometimes overwrites this
         # set stylesheet
         base = pal.base().color().lightness()  # use as a guide for light/dark theme
         colours = getColours()
@@ -479,6 +488,10 @@ class GuiMainWindow(QtWidgets.QMainWindow, Shortcuts):
             genPrefs.userWorkingPath = project.projectPath.parent.asString()
         elif genPrefs.useProjectPath == 'Inside':
             genPrefs.userWorkingPath = project.projectPath.asString()
+
+        # if temporary file set working path to user defined
+        if project.isTemporary:
+            genPrefs.userWorkingPath = genPrefs.userSetWorkingPath
 
         from copy import deepcopy
 
@@ -736,17 +749,20 @@ class GuiMainWindow(QtWidgets.QMainWindow, Shortcuts):
     def _checkForBadSpectra(self, project):
         """Report bad spectra in a popup
         """
+        from ccpn.ui.gui.popups.Dialog import showWarning
+
         badSpectra = [str(spectrum.pid) for spectrum in project.spectra if not spectrum.hasValidPath()]
 
         if badSpectra:
-            text = 'Use menu "Spectrum --> Validate paths..." Or "VP" shortcut to correct\n\n'
-            text += 'Please inspect file path(s) for:\n'
+            msg = 'Use menu "Spectrum --> Validate paths..." Or "VP" shortcut to correct\n\n'
+            details = 'Please inspect file path(s) for:\n'
             for sp in badSpectra:  # these can be >1000 lines message. Added in a scrollable area.
-                text += f'{str(sp)}\n'
-            title = 'Detected invalid Spectrum file paths'
-            MessageDialog.showWarning(title=title, message=text, scrollableMessage=True,
-                                      dontShowEnabled=True, defaultResponse=None,
-                                      popupId=f'{self.__class__.__name__}BadSpectra')
+                details += f'{str(sp)}\n'
+            basicText = 'Detected invalid Spectrum file paths'
+            title = 'Invalid Spectra'
+            showWarning(title, basicText, msg, detailedText=details, parent=self,
+                        dontShowEnabled=True, defaultResponse=None,
+                        popupId=f'{self.__class__.__name__}BadSpectra')
 
     def _showNefPopup(self, dataLoader):
         """Helper function; it allows the user to select the elements
@@ -1806,7 +1822,7 @@ class GuiMainWindow(QtWidgets.QMainWindow, Shortcuts):
                     getLogger().warning('Current strip is not 1D')
 
     @logCommand('mainWindow.')
-    def refitCurrentPeaks(self, singularMode=True):
+    def refitCurrentPeaks(self, singularMode=False):
         from ccpn.core.lib import AssignmentLib
 
         peaks = self.application.current.peaks

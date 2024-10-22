@@ -4,9 +4,10 @@ Module Documentation here
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2023"
-__credits__ = ("Ed Brooksbank, Joanna Fox, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
-               "Timothy J Ragan, Brian O Smith, Gary S Thompson & Geerten W Vuister")
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
+               "Timothy J Ragan, Brian O Smith, Daniel Thompson",
+               "Gary S Thompson & Geerten W Vuister")
 __licence__ = ("CCPN licence. See https://ccpn.ac.uk/software/licensing/")
 __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, L.G., & Vuister, G.W.",
                  "CcpNmr AnalysisAssign: a flexible platform for integrated NMR analysis",
@@ -15,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2023-08-01 13:38:21 +0100 (Tue, August 01, 2023) $"
-__version__ = "$Revision: 3.2.0 $"
+__dateModified__ = "$dateModified: 2024-10-16 18:41:25 +0100 (Wed, October 16, 2024) $"
+__version__ = "$Revision: 3.2.7 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -241,9 +242,11 @@ class _HorizontalMITableHeaderModel(_MITableHeaderModelABC):
             # return the pixmap
             return self._editableIcon
 
+        # this is the value that is queried when calling sizeHintForRow/Column for the header
         # not required
         # elif role == SIZE_ROLE:
-        #     return QtCore.QSize(16, 24)
+        #     print(f'=>> header beep   {index.row()} {index.column()}')
+        #     # return QtCore.QSize(16, 24)
 
     def headerData(self, section, orientation, role=None):
         # The headers of this table will show the level names of the MultiIndex
@@ -254,27 +257,30 @@ class _HorizontalMITableHeaderModel(_MITableHeaderModelABC):
                 return str(self._df.columns.name)
 
         # possibly not needed, but slightly quicker than the default bbox
-        elif role == SIZE_ROLE:
-            # process the heights/widths of the headers
-            if orientation == QtCore.Qt.Vertical:
-
-                try:
-                    # vertical-height of horizontal header
-                    if type(self._df.columns) is pd.MultiIndex:
-                        txts = [col[section] for col in self._df.columns.values]
-                    else:
-                        txts = list(self._df.columns)
-                    height = int(max(len(txt.split('\n') * self._chrHeight) for txt in txts))
-
-                    # return the height of the maximum text in the row, width is discarded
-                    return QtCore.QSize(int(self._chrWidth), height)
-
-                except Exception:
-                    # return the size
-                    return QtCore.QSize(int(self._chrWidth), int(self._chrHeight))
-
-            # column-width, return the default QSize
-            return QtCore.QSize(int(self._chrWidth), int(self._chrHeight))
+        # elif role == SIZE_ROLE:
+        #     print(f'==> header column size  {section}, {orientation}')
+            # return super().headerData(section, orientation, role)
+        #     # process the heights/widths of the headers
+        #     if orientation == QtCore.Qt.Vertical:
+        #         # print(f'size-hz   {section}    {self._parent._indexHeader.sizeHintForRow(section)}')
+        #         try:
+        #             # vertical-height of horizontal header
+        #             if type(self._df.columns) is pd.MultiIndex:
+        #                 txts = [col[section] for col in self._df.columns.values]
+        #             else:
+        #                 txts = list(self._df.columns)
+        #             height = int(max(len(txt.split('\n') * self._chrHeight) for txt in txts))
+        #
+        #             # return the height of the maximum text in the row, width is discarded
+        #             return QtCore.QSize(int(self._chrWidth), height)
+        #
+        #         except Exception:
+        #             # return the size
+        #             return QtCore.QSize(int(self._chrWidth), int(self._chrHeight))
+        #
+        #     # print(f'size-hz   {section}    {self._parent._columnHeader.sizeHintForColumn(section)}')
+        #     # column-width, return the default QSize
+        #     return QtCore.QSize(int(self._chrWidth), int(self._chrHeight))
 
     def _isColumnEditable(self, index):
         try:
@@ -379,25 +385,28 @@ class _VerticalMITableHeaderModel(_MITableHeaderModelABC):
                 return str(self._df.index.name)
 
         # possibly not needed, but slightly quicker than the default bbox
-        elif role == SIZE_ROLE:
-            # process the heights/widths of the headers
-            if orientation == QtCore.Qt.Horizontal:
-                try:
-                    # horizontal-width of vertical header
-                    if type(self._df.index) is pd.MultiIndex:
-                        txts = [row[section] for row in self._df.index.values]
-                    else:
-                        txts = list(self._df.index)
-
-                    width = max(len(splt) for txt in txts for splt in txt.split('\n'))
-                    _w = int(min(self._MAXCHARS, width) * self._chrWidth) + 2
-
-                    # return the width of the maximum text in the row, height is discarded
-                    return QtCore.QSize(_w, int(self._chrHeight))
-
-                except Exception:
-                    # return the size
-                    return QtCore.QSize(int(self._chrWidth), int(self._chrHeight))
-
-            # row-height, return the default QSize
-            return QtCore.QSize(int(self._chrWidth), int(self._chrHeight))
+        # elif role == SIZE_ROLE:
+        #     # process the heights/widths of the headers
+        #     if orientation == QtCore.Qt.Horizontal:
+        #         try:
+        #             # width of vertical-header
+        #             print(f'size-vt   {section}    {self._parent._columnHeader.sizeHintForColumn(section)}')
+        #             # horizontal-width of vertical header
+        #             if type(self._df.index) is pd.MultiIndex:
+        #                 txts = [row[section] for row in self._df.index.values]
+        #             else:
+        #                 txts = list(self._df.index)
+        #
+        #             width = max(len(splt) for txt in txts for splt in txt.split('\n'))
+        #             _w = int(min(self._MAXCHARS, width) * self._chrWidth) + 2
+        #
+        #             # return the width of the maximum text in the row, height is discarded
+        #             return QtCore.QSize(_w, int(self._chrHeight))
+        #
+        #         except Exception:
+        #             # return the size
+        #             return QtCore.QSize(int(self._chrWidth), int(self._chrHeight))
+        #
+        #     # print(f'size-vt   {section}    {self._parent._indexHeader.sizeHintForRow(section)}')
+        #     # row-height, return the default QSize
+        #     return QtCore.QSize(int(self._chrWidth), int(self._chrHeight))

@@ -15,9 +15,9 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: Daniel Thompson $"
-__dateModified__ = "$dateModified: 2024-09-18 17:05:45 +0100 (Wed, September 18, 2024) $"
-__version__ = "$Revision: 3.2.5 $"
+__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
+__dateModified__ = "$dateModified: 2024-10-11 18:50:23 +0100 (Fri, October 11, 2024) $"
+__version__ = "$Revision: 3.2.7 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -110,8 +110,8 @@ class MessageDialog(QtWidgets.QMessageBox):
     _defaultResponse = None
     _popupId = None
 
-    def __init__(self, title, basicText, message, icon=Information, iconPath=None, parent=None, scrollableMessage=False,
-                 dontShowEnabled=False, defaultResponse=None, popupId=None):
+    def __init__(self, title, basicText, message, icon=Information, iconPath=None, parent=None,
+                 detailedText=None, dontShowEnabled=False, defaultResponse=None, popupId=None):
         super().__init__(parent=parent)
 
         # set modality to take control
@@ -120,9 +120,8 @@ class MessageDialog(QtWidgets.QMessageBox):
         self.setSizePolicy(QtWidgets.QSizePolicy.MinimumExpanding, QtWidgets.QSizePolicy.Expanding)
         self._parent = parent
         self.setWindowTitle(title)
-        self._setWrappedText(basicText, message, scrollableMessage)
+        self._setWrappedText(basicText, message, detailedText)
         self._setFonts()
-        self._setScrollWidget(scrollableMessage)
         self.setIcon(icon)
         if iconPath:
             image = QtGui.QPixmap(iconPath)
@@ -151,7 +150,7 @@ class MessageDialog(QtWidgets.QMessageBox):
                 # change the header to bold-font
                 setWidgetFont(widg, bold=True)
 
-    def _setWrappedText(self, basicText, message, scrollableMessage):
+    def _setWrappedText(self, basicText, message, detailedText):
         """Split the text by \n and fix the width of the widgets.
         This does not currently work with richText.
         """
@@ -159,6 +158,9 @@ class MessageDialog(QtWidgets.QMessageBox):
         messageWrap, message = _wrapString(message)
         self.setText(basicText)
         self.setInformativeText(message)
+        if detailedText:
+            # adds the 'Show Details...' button - style is not correct though
+            self.setDetailedText(detailedText)
         layout = self.layout()
         maxTextWidth = _STARTMAXWIDTH
         widgetSet = set()
@@ -180,18 +182,18 @@ class MessageDialog(QtWidgets.QMessageBox):
                 maxTextWidth = max(maxTextWidth, tWidth)
         return maxTextWidth
 
-    def _setScrollWidget(self, scrollableMessage=False):
-        """Move main message into scroll-area as required.
-        """
-        layout = self.layout()
-        if scrollableMessage and ((item := layout.itemAtPosition(1, 2)) and (widg := item.widget())):
-            # insert the Label widgetMessage inside a scrollArea.
-            # Could be done automatically if len(text) > someValue...
-            scrollArea = QtWidgets.QScrollArea(self)
-            scrollArea.setWidgetResizable(True)
-            widg.setWordWrap(True)
-            scrollArea.setWidget(widg)
-            layout.addWidget(scrollArea, 1, 2)
+    # def _setScrollWidget(self, scrollableMessage=False):
+    #     """Move main message into scroll-area as required.
+    #     """
+    #     layout = self.layout()
+    #     if scrollableMessage:  # and ((item := layout.itemAtPosition(1, 2)) and (widg := item.widget())):
+    #         # insert the Label widgetMessage inside a scrollArea.
+    #         # Could be done automatically if len(text) > someValue...
+    #         scrollArea = QtWidgets.QScrollArea(self)
+    #         scrollArea.setWidgetResizable(True)
+    #         widg.setWordWrap(True)
+    #         scrollArea.setWidget(widg)
+    #         layout.addWidget(scrollArea, 1, 2)
 
     def _setDontShow(self):
         # put a Don't Show checkbox at the bottom of the dialog if needed
@@ -220,11 +222,11 @@ class MessageDialog(QtWidgets.QMessageBox):
         #                      'font-size: {_size}pt ; }}'.format(_size=_frame.font().pointSize(), **getColours()))
 
         _msg = 'This popup can be enabled again from preferences->appearance'
-        self._dontShowCheckBox = CheckBox(_frame, text=_DONTSHOWMESSAGE)
-        self._dontShowCheckBox.setToolTip(_msg)
-        self._dontShowCheckBox.setContentsMargins(0, 0, 0, 0)
-        self._dontShowCheckBox.setChecked(state)
-        innerLayout.addWidget(self._dontShowCheckBox, 0, QtCore.Qt.AlignLeft | QtCore.Qt.AlignVCenter)
+        dsc = self._dontShowCheckBox = CheckBox(_frame, text=_DONTSHOWMESSAGE)
+        dsc.setToolTip(_msg)
+        dsc.setContentsMargins(0, 0, 0, 0)
+        dsc.setChecked(state)
+        innerLayout.addWidget(dsc, 0, QtCore.Qt.AlignLeft | QtCore.Qt.AlignVCenter)
 
         self.accepted.connect(self._accept)
         self.rejected.connect(self._reject)
@@ -236,6 +238,15 @@ class MessageDialog(QtWidgets.QMessageBox):
         layout.addItem(_spacer, layout.rowCount(), 0, 1, layout.columnCount())
 
         self._setStyle()
+
+    def _getStandardIcon(self):
+        # NOTE:ED - how to grab the standardIcons as pixmaps for our own message-widget
+        icon = QtWidgets.QProxyStyle().standardIcon(QtWidgets.QStyle.SP_MessageBoxWarning)
+        pixmap = icon.pixmap(QtCore.QSize(48, 48))
+        ll = QtWidgets.QLabel('Resizing')
+        ll.setFixedSize(48, 48)
+        self.layout().addWidget(ll, 0, 0)
+        ll.setPixmap(pixmap)
 
     def _setStyle(self):
         _style = """QPushButton {
@@ -491,11 +502,11 @@ def showYesNoCancel(title, message, parent=None, iconPath=None):
         return None
 
 
-def showWarning(title, message, parent=None, iconPath=None, scrollableMessage=False, dontShowEnabled=False,
-                           defaultResponse=None, popupId=None):
+def showWarning(title, message, parent=None, iconPath=None, detailedText=None,
+                dontShowEnabled=False, defaultResponse=None, popupId=None):
     dialog = MessageDialog(title='Warning', basicText=title, message=message, icon=Warning, iconPath=iconPath,
-                           parent=parent, scrollableMessage=scrollableMessage, dontShowEnabled=dontShowEnabled,
-                           defaultResponse=defaultResponse, popupId=popupId)
+                           parent=parent, detailedText=detailedText,
+                           dontShowEnabled=dontShowEnabled, defaultResponse=defaultResponse, popupId=popupId)
 
     if dialog.dontShowPopup():
         getLogger().debug(f'Popup {popupId!r} skipped with response={defaultResponse}')
@@ -509,8 +520,7 @@ def showWarning(title, message, parent=None, iconPath=None, scrollableMessage=Fa
 
 def showNYI(parent=None):
     text = 'Not yet implemented'
-    dialog = MessageDialog(title=text, basicText=text, message='Sorry!', icon=Warning, iconPath=None, parent=parent,
-                           scrollableMessage=False)
+    dialog = MessageDialog(title=text, basicText=text, message='Sorry!', icon=Warning, iconPath=None, parent=parent)
     dialog.setStandardButtons(Close)
     dialog.exec_()
     return

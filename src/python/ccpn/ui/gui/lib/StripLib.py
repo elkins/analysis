@@ -16,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Daniel Thompson $"
-__dateModified__ = "$dateModified: 2024-06-17 10:44:36 +0100 (Mon, June 17, 2024) $"
-__version__ = "$Revision: 3.2.3 $"
+__dateModified__ = "$dateModified: 2024-10-10 10:55:30 +0100 (Thu, October 10, 2024) $"
+__version__ = "$Revision: 3.2.7 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -425,7 +425,8 @@ def navigateToNmrResidueInDisplay(nmrResidue, display, stripIndex=0, widths=None
                 display.deleteStrip(display.strips[-1])
 
             navigateToNmrAtomsInStrip(display.strips[stripIndex], nmrResidue.nmrAtoms,
-                                      widths=widths, markPositions=markPositions, setNmrResidueLabel=True)
+                                      widths=widths, markPositions=markPositions, setNmrResidueLabel=True,
+                                      axisMask=axisMask)
             strips.append(display.strips[stripIndex])
 
             # add connection tags to non-sequential strips

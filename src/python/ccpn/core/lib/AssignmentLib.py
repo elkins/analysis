@@ -16,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-07-04 18:51:59 +0100 (Thu, July 04, 2024) $"
-__version__ = "$Revision: 3.2.5 $"
+__dateModified__ = "$dateModified: 2024-10-10 15:45:26 +0100 (Thu, October 10, 2024) $"
+__version__ = "$Revision: 3.2.7 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -1026,7 +1026,7 @@ def sameAxisCodes(peaks: typing.List[Peak], dim: int):
     return True
 
 
-def refitPeaks(peaks: Sequence[Peak], fitMethod: str = GAUSSIANMETHOD, singularMode=True):
+def refitPeaks(peaks: Sequence[Peak], fitMethod: str = GAUSSIANMETHOD, singularMode: bool = False):
     from ccpnmodel.ccpncore.lib.spectrum import Peak as LibPeak
 
     # LibPeak.fitExistingPeaks([peak._wrappedData for peak in peaks], method)

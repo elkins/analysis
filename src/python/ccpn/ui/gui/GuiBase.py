@@ -16,9 +16,9 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-10-03 09:42:40 +0100 (Thu, October 03, 2024) $"
-__version__ = "$Revision: 3.2.9.alpha $"
+__modifiedBy__ = "$modifiedBy: Daniel Thompson $"
+__dateModified__ = "$dateModified: 2024-10-11 18:10:08 +0100 (Fri, October 11, 2024) $"
+__version__ = "$Revision: 3.2.7 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -444,12 +444,14 @@ class GuiBase(object):
 
         # self.ui.loadData(formatFilter=(StarDataLoader.dataFormat,))
 
-    def _loadDataIgnoreExtension(self, dataLoader=None) -> list:
+    def _loadDataIgnoreExtension(self, dataLoader=None):
         """Load the data defined by dataLoader, provides file dialog.
 
         :param dataLoader: Data Loader used to import data
-        :return: a list of loaded objects
         """
+        from ccpn.framework.lib.DataLoaders.StarDataLoader import StarDataLoader
+        from ccpn.framework.lib.DataLoaders.NefDataLoader import NefDataLoader
+
         from ccpn.ui.gui.widgets import FileDialog
         if not dataLoader:
             getLogger().debug('Load failed no DataLoader provided')
@@ -467,20 +469,72 @@ class GuiBase(object):
             if not _path.exists():
                 txt = f'"{path}" does not exist'
                 getLogger().warning(txt)
-                MessageDialog.showError('Load Data', txt, parent=self)
+                MessageDialog.showError('Load Data', txt, parent=self.mainWindow)
                 continue
             # loads data using the provided dataLoader
             dataLoaders.append(dataLoader(path))
 
-        # unmodified from GUI line 830
-        objs = self.ui.application._loadData(dataLoaders)
-        if len(objs) == 0:
-            _pp = ','.join(f'"{p}"' for p in paths)
-            txt = f'No objects were loaded from {_pp}'
-            getLogger().warning(txt)
-            MessageDialog.showError('Load Data', txt, parent=self.mainWindow)
+        for dataLoader in dataLoaders:
+            if isinstance(dataLoader, NefDataLoader):
+                (_, createNewProject, ignore) = self._queryChoices(dataLoader)
+                if not createNewProject and not ignore:
+                    ok = self.mainWindow._showNefPopup(dataLoader)
+                    if not ok:
+                        continue
 
-        return objs
+            elif isinstance(dataLoader, StarDataLoader):
+                (_, createNewProject, ignore) = self._queryChoices(dataLoader)
+                if not ignore:
+                    title = 'New project from NmrStar' if createNewProject else \
+                        'Import from NmrStar'
+                    dataLoader.getDataBlock()  # this will read and parse the file
+                    from ccpn.ui.gui.popups.ImportStarPopup import StarImporterPopup
+                    popup = StarImporterPopup(dataLoader=dataLoader,
+                                              parent=self.mainWindow,
+                                              size=(700, 1000),
+                                              title=title
+                                              )
+                    popup.exec_()
+                    ignore = (popup.result == popup.CANCEL_PRESSED)
+
+                    if ignore:
+                        continue
+
+            # unmodified from GUI line 830
+            objs = self.ui.application._loadData(dataLoaders)
+            if len(objs) == 0:
+                _pp = ','.join(f'"{p}"' for p in paths)
+                txt = f'No objects were loaded from {_pp}'
+                getLogger().warning(txt)
+                MessageDialog.showError('Load Data', txt, parent=self.mainWindow)
+
+    def _queryChoices(self, dataLoader):
+        """Query the user about his/her choice to import/new/cancel
+        """
+        choices = ('Import', 'New project', 'Cancel')
+        choice = MessageDialog.showMulti(
+                f'Load {dataLoader.dataFormat}',
+                f'How do you want to handle "{dataLoader.path}":',
+                choices,
+                parent=self.mainWindow,
+                )
+
+        if choice == choices[0]:  # import
+            dataLoader.createNewProject = False
+            createNewProject = False
+            ignore = False
+
+        elif choice == choices[1]:  # new project
+            dataLoader.createNewProject = True
+            createNewProject = True
+            ignore = False
+
+        else:  # cancel
+            dataLoader = None
+            createNewProject = False
+            ignore = True
+
+        return (dataLoader, createNewProject, ignore)
 
     def _saveCallback(self):
         """The project save callback"""

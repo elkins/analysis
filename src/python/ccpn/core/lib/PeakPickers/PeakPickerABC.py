@@ -18,8 +18,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-08-28 18:22:04 +0100 (Wed, August 28, 2024) $"
-__version__ = "$Revision: 3.2.5 $"
+__dateModified__ = "$dateModified: 2024-10-11 16:58:53 +0100 (Fri, October 11, 2024) $"
+__version__ = "$Revision: 3.2.7 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -409,12 +409,13 @@ class PeakPickerABC(CcpNmrJson):
         newStart = len(pointToPeak)
         for pk in peaks:
             # check within the limits of the defaultPointExtension
-            if any(not (self.defaultPointExtension <= pos < (st[1] - st[0] + 1 - self.defaultPointExtension))
+            dpe = 0  # self.defaultPointExtension
+            if any(not (dpe <= pos < (st[1] - st[0] + 1 - dpe))
                    for pos, st in zip(pk.points[::-1], self.sliceTuples)):
                 # do I need to include 0.5 offset to the boundary?
                 getLogger().debug2(f'==> skipping peak, too close to boundary {pk.points[::-1]} '
-                                   f'{self.defaultPointExtension}:{self.sliceTuples}'
-                                   f'{[(st[1] - st[0] + 1 - self.defaultPointExtension) for pos, st in zip(pk.points[::-1], self.sliceTuples)]}')
+                                   f'{dpe}:{self.sliceTuples}'
+                                   f'{[(st[1] - st[0] + 1 - dpe) for pos, st in zip(pk.points[::-1], self.sliceTuples)]}')
                 continue
             # correct the peak.points for "offset" (the slice-positions taken) and ordering (i.e. inverse)
             pointPositions = [float(p) + float(self.sliceTuples[idx][0]) for idx, p in enumerate(pk.points[::-1])]

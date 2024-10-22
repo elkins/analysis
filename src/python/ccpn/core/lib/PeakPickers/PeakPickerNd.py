@@ -4,9 +4,10 @@ Module Documentation here
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2023"
-__credits__ = ("Ed Brooksbank, Joanna Fox, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
-               "Timothy J Ragan, Brian O Smith, Gary S Thompson & Geerten W Vuister")
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
+               "Timothy J Ragan, Brian O Smith, Daniel Thompson",
+               "Gary S Thompson & Geerten W Vuister")
 __licence__ = ("CCPN licence. See https://ccpn.ac.uk/software/licensing/")
 __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, L.G., & Vuister, G.W.",
                  "CcpNmr AnalysisAssign: a flexible platform for integrated NMR analysis",
@@ -14,9 +15,9 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2023-11-15 11:58:48 +0000 (Wed, November 15, 2023) $"
-__version__ = "$Revision: 3.2.0 $"
+__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
+__dateModified__ = "$dateModified: 2024-10-11 11:32:03 +0100 (Fri, October 11, 2024) $"
+__version__ = "$Revision: 3.2.7 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -30,6 +31,8 @@ import math
 import numpy as np
 from typing import Sequence
 from collections import Counter
+import matplotlib.pyplot as plt
+
 from ccpn.core.lib.PeakPickers.PeakPickerABC import PeakPickerABC, SimplePeak
 from ccpn.util.traits.CcpNmrTraits import CFloat, CInt, CBool, CList, Dict
 from ccpn.util.Logging import getLogger
@@ -41,6 +44,145 @@ LORENTZIANMETHOD = 'lorentzian'
 PARABOLICMETHOD = 'parabolic'
 PICKINGMETHODS = (GAUSSIANMETHOD, LORENTZIANMETHOD, PARABOLICMETHOD)
 
+_DEBUG = False
+_DEBUGPLOT = False
+_MAXGROUPING = 5
+
+
+# these functions could probably go into a .lib somewhere
+def _makeGauss(N, sigma, mu, height):
+    """Generate a gaussian distribution from given parameters
+    """
+    k = height
+    s = -1.0 / (2 * sigma * sigma)
+    return k * np.exp(s * (N - mu) * (N - mu))
+
+
+def _makeLorentzian(N, fwhm, mu, height):
+    """Generate a lorentzian distribution from given parameters
+    """
+    k = height
+    return k * (0.5 * fwhm)**2 / ((N - mu) * (N - mu) + ((0.5 * fwhm)**2))
+
+
+def _makeParabola(x, fwhm, mu, height):
+    a = -2 * height / fwhm**2
+    return a * (x - mu)**2 + height
+
+
+def _sigma2fwhm(sigma):
+    return sigma * np.sqrt(8 * np.log(2))
+
+
+def _fwhm2sigma(fwhm):
+    return fwhm / np.sqrt(8 * np.log(2))
+
+
+def _logp(z):
+    return np.log(z / (1 - z))
+
+
+def _checkOverlap(arr1, arr2):
+    # Check if two arrays overlap
+    min_overlap = np.maximum(arr1[0], arr2[0])
+    max_overlap = np.minimum(arr1[1], arr2[1])
+    return np.all(max_overlap >= min_overlap)
+
+
+def _plotGaussLorentzGroup(data, fwhm2sigma, logp, make_gauss, make_lorentzian, method, regionArray, result):
+    try:
+        fig = plt.figure(figsize=(10, 8), dpi=100)
+        axS = fig.gca()
+        # plot the centre-line of the pick-region
+        axS.plot(data[data.shape[0] // 2,
+                 regionArray[0, 1]:regionArray[1, 1],
+                 data.shape[2] // 2])
+        for _intensity, _centre, _linewidth in result:
+            _cc = _centre[1] - regionArray[0, 1]
+            axS.scatter(_cc, _intensity, marker='+', s=200,
+                        linewidths=2, c='red')
+            # make a 2d peak
+            lim = 3 * _linewidth[1] / 2.0
+            xx = np.linspace(0.05, 0.95, 25)
+            # make a scale biased towards the centre
+            xxLog = -logp(xx) / logp(xx[0:1])[0]  # [-1, 1]
+            xxPpm = lim * xxLog
+            if method == 0:
+                vals = make_gauss(xxPpm, fwhm2sigma(_linewidth[1]), 0, _intensity)
+            else:
+                vals = make_lorentzian(-3 * xxLog, 2, 0, _intensity)  # [-3, 3]
+            axS.plot(xxPpm + _cc, vals, c='orange', linewidth=2)
+        axS.grid()
+    except Exception:
+        ...
+
+
+def _plotGaussLorentz(data, fwhm2sigma, localRegionArray, localResult, logp, make_gauss, make_lorentzian,
+                      method):
+    try:
+        _intensity, _centre, _linewidth = localResult[0]
+        _cc = _centre[1] - localRegionArray[0, 1]
+        fig = plt.figure(figsize=(10, 8), dpi=100)
+        axS = fig.gca()
+        axS.plot(data[data.shape[0] // 2,
+                 localRegionArray[0, 1]:localRegionArray[1, 1],
+                 data.shape[2] // 2])
+        axS.scatter(_cc, _intensity, marker='+', s=200,
+                    linewidths=2, c='red')
+        # make a 2d peak
+        lim = 3 * _linewidth[1] / 2.0
+        xx = np.linspace(0.05, 0.95, 25)
+        # make a scale biased towards the centre
+        xxLog = -logp(xx) / logp(xx[0:1])[0]  # [-1, 1]
+        xxPpm = lim * xxLog
+        if method == 0:
+            vals = make_gauss(xxPpm, fwhm2sigma(_linewidth[1]), 0, _intensity)
+        else:
+            vals = make_lorentzian(-3 * xxLog, 2, 0, _intensity)  # [-3, 3]
+        axS.plot(xxPpm + _cc, vals, c='orange', linewidth=2)
+        axS.grid()
+    except Exception:
+        ...
+
+
+def _plotParabolic(data, logp, make_parabola, regionArray, result):
+    try:
+        fig = plt.figure(figsize=(10, 8), dpi=100)
+        axS = fig.gca()
+        # plot the centre-line of the pick-region
+        axS.plot(data[data.shape[0] // 2,
+                 regionArray[0, 1]:regionArray[1, 1],
+                 data.shape[2] // 2])
+        for _intensity, _centre, _linewidth in result:
+            _cc = _centre[1] - regionArray[0, 1]
+            axS.scatter(_cc, _intensity, marker='+', s=200,
+                        linewidths=2, c='red')
+            # make a 2d peak
+            lim = 3 * _linewidth[1] / 2.0
+            xx = np.linspace(0.05, 0.95, 25)
+            # make a scale biased towards the centre
+            xxLog = -logp(xx) / logp(xx[0:1])[0]  # [-1, 1]
+            xxPpm = lim * xxLog
+            vals = make_parabola(xxPpm, _linewidth[1], 0, _intensity)
+            dd = np.array([xxPpm + _cc, vals])
+            if _intensity >= 0:
+                # remove the negative part of the trace
+                dd = dd[:, dd[1, :] > 0]
+            else:
+                dd = dd[:, dd[1, :] < 0]
+            # small tweak so the end-points go to zero, not really necessary though
+            left, right = np.copy(dd[:, 0]), np.copy(dd[:, -1])
+            left[1] = right[1] = 0
+            dd = np.concatenate((left.reshape(-1, 1), dd, right.reshape(-1, 1)), axis=1)
+            axS.plot(dd[0], dd[1], c='orange', linewidth=2)
+        axS.grid()
+    except Exception:
+        ...
+
+
+#=========================================================================================
+# PeakPickerNd
+#=========================================================================================
 
 class PeakPickerNd(PeakPickerABC):
     """A simple Nd peak picker for testing
@@ -56,7 +198,7 @@ class PeakPickerNd(PeakPickerABC):
     noise = CFloat(allow_none=True, default_value=None)
     minimumLineWidth = CList(allow_none=True, default_value=[])
     checkAllAdjacent = CBool(allow_none=True, default_value=True)
-    singularMode = CBool(allow_none=True, default_value=True)
+    singularMode = CBool(allow_none=True, default_value=False)
     halfBoxFindPeaksWidth = CInt(allow_none=True, default_value=4)
     halfBoxSearchWidth = CInt(allow_none=True, default_value=4)
     halfBoxFitWidth = CInt(allow_none=True, default_value=4)
@@ -92,58 +234,115 @@ class PeakPickerNd(PeakPickerABC):
         """
 
         # find the list of peaks in the region
-        allPeaksArray, allRegionArrays, regionArray, _ = self._findPeaks(data, self.positiveThreshold, self.negativeThreshold)
+        allPeaksArray, allRegionArrays, regionArray, _ = self._findPeaks(data, self.positiveThreshold,
+                                                                         self.negativeThreshold)
+        if allPeaksArray is None or allPeaksArray.size == 0:
+            return []
 
-        # if peaks exist then create a list of simple peaks
-        if allPeaksArray is not None and allPeaksArray.size != 0:
+        result = self._fitPeaks(allPeaksArray, np.array(allRegionArrays), data, regionArray)
+        func = self.findFunc
+        return func(filter(None, result))
 
-            fitMethod = self.fitMethod
-            singularMode = self.singularMode
-
-            try:
+    def _fitPeaks(self, allPeaksArray, allRegionArrays, data, regionArray):
+        # if peaks exist then create a list of fitted peaks
+        fitMethod = self.fitMethod
+        singularMode = self.singularMode
+        try:
+            if fitMethod == PARABOLICMETHOD:  # and singularMode is True:
+                getLogger().debug(f'{self.__class__.__name__}._fitPeaks: parabolic')
+                # parabolic - generate all peaks in one operation
+                result = CPeak.fitParabolicPeaks(data, regionArray, allPeaksArray)
+                if _DEBUGPLOT:
+                    # debugging - make plots of the centre-line of the picked-region
+                    #             (not actually very good unless in pick-and-assign module)
+                    _plotParabolic(data, _logp, _makeParabola, regionArray, result)
+            else:
                 result = ()
-                if fitMethod == PARABOLICMETHOD:  # and singularMode is True:
+                # currently gaussian or lorentzian
+                method = 0 if fitMethod == GAUSSIANMETHOD else 1
+                maxGroup = 1 if singularMode else _MAXGROUPING
+                getLogger().debug(f'{self.__class__.__name__}._fitPeaks: {method} {maxGroup}')
+                _errorMsgs = []
 
-                    # parabolic - generate all peaks in one operation
-                    result = CPeak.fitParabolicPeaks(data, regionArray, allPeaksArray)
+                arrMins = allRegionArrays[:, 0]  # effectively the bottom-left of a peak-regions
+                arrMaxs = allRegionArrays[:, 1]  # the top-right, but can be any number of dimensions
+                # Create a comparison across all pairs
+                # creates a correlation matrix for which peak-regions overlap (their min/max point-positions)
+                # True values in the same row correspond to overlapped regions
+                # the last 2 lines only keep the first occurrence of a region in each column
+                # so that regions are not processed twice
+                #   COULD replace these with estimated ppms/linewidths from parabolic fit above
+                minmax = arrMins[:, None, :] < arrMaxs[None, :, :]
+                maxmin = arrMaxs[:, None, :] > arrMins[None, :, :]
+                # find all places where bounds are overlapping
+                # change to upper-triangular - probably not needed
+                mask = np.triu(np.all(minmax, axis=-1) & np.all(maxmin, axis=-1), k=0)
+                # remove all Trues below the first occurrence in each column
+                mask = mask > (mask.argmax(axis=0) < np.arange(mask.shape[0]).reshape(-1, 1))
+                # remove any rows that are all False - these have been merged into a previous region
+                mask = mask[np.isin(mask, True).any(axis=1)]
 
-                else:
-                    method = 0 if fitMethod == GAUSSIANMETHOD else 1
+                arrays = []
+                if _DEBUG:
+                    getLogger().debug(str(mask))
+                    getLogger().debug('==> partitioning for group fitting ~~~~~~~~~~~')
+                for row in range(mask.shape[0]):
+                    # read the indexes for all the regions in this row
+                    rowMask = np.where(mask[row, :] == True)[0]
+                    if len(rowMask) == 0:
+                        # SHOULD always contain 1 value
+                        continue
+                    # partition so that number of grouped peaks is not too large
+                    partitions = [rowMask[kk:kk + maxGroup] for kk in range(0, len(rowMask), maxGroup)]
+                    # merge the bounds of the regions in this partition
+                    for blocks in partitions:
+                        startArray = allRegionArrays[blocks[0]]
+                        for mergeBlock in blocks[1:]:
+                            # successively merge the region containing the adjacent peaks
+                            endArray = allRegionArrays[mergeBlock]
+                            startArray = np.array([np.minimum(startArray[0], endArray[0]),
+                                                   np.maximum(startArray[1], endArray[1])])
+                        arrays.append((startArray, blocks))
+                        if _DEBUG:
+                            getLogger().debug(str(arrays[-1]))
 
-                    # currently gaussian or lorentzian
-                    if singularMode is True:
+                if _DEBUGPLOT:
+                    fig = plt.figure(figsize=(10, 8), dpi=100)
+                    ax = fig.add_subplot(111, projection='3d')
+                    xmS, ymS = np.meshgrid(range(data.shape[1]), range(data.shape[0]))
+                    ax.plot_wireframe(xmS, ymS, data)
 
-                        _errorMsgs = []
-                        # fit peaks individually in small regions
-                        for peakArray, localRegionArray in zip(allPeaksArray, allRegionArrays):
-                            peakArray = peakArray.reshape((1, self.dimensionCount))
-                            peakArray = peakArray.astype(np.float32)
-
-                            try:
-                                localResult = CPeak.fitPeaks(data, localRegionArray, peakArray, method)
-                                result += tuple(localResult)
-                            except Exception as es:
-                                # catch all errors as a single report
-                                _errorMsgs.append(f'failed to fit peak: {peakArray}\n{es}')
-
-                        if _errorMsgs:
-                            getLogger().warning('\n'.join(_errorMsgs))
-
+                # now iterate over all the new merged-regions, as group-peak-fits
+                for row, (lRegion, slc) in enumerate(arrays):
+                    peakArray = allPeaksArray[slc, :]
+                    try:
+                        localResult = CPeak.fitPeaks(data, lRegion, peakArray, method)
+                        result += tuple(localResult)
+                    except Exception as es:
+                        # catch all errors as a single report - make sure results stay aligned
+                        # by padding with Nones
+                        _errorMsgs.append(f'failed to fit peaks: {peakArray}\n{es}')
+                        result += tuple([None] * len(slc))
                     else:
+                        if _DEBUGPLOT:
+                            # debugging - make plots of the centre-line of the picked-region
+                            # (not actually very good unless in pick-and-assign module)
+                            _plotGaussLorentzGroup(data, _fwhm2sigma, _logp, _makeGauss, _makeLorentzian, method,
+                                                   lRegion, localResult)
+                if _errorMsgs:
+                    getLogger().warning('\n'.join(_errorMsgs))
 
-                        # fit all peaks in one operation
-                        result = CPeak.fitPeaks(data, regionArray, allPeaksArray, method)
+            if _DEBUGPLOT:
+                # quick hack to show plots
+                try:
+                    plt.show()
+                except Exception:
+                    ...
+            return result
 
-                func = self.findFunc
-                return func(result)
-                # return [SimplePeak(points=point[::-1], height=height, lineWidths=pointLineWidths)
-                #         for height, point, pointLineWidths in result]
-
-            except CPeak.error as es:
-                getLogger().warning(f'Aborting peak fit: {es}')
-                return []
-
-        return []
+        except CPeak.error as es:
+            getLogger().warning(f'Aborting peak fit: {es}')
+            return []
 
     def _findPeaks(self, data, posThreshold, negThreshold):
         """find the peaks in data (type numpy-array) and return as a list of SimplePeak instances
@@ -169,14 +368,12 @@ class PeakPickerNd(PeakPickerABC):
                                      self.dropFactor,
                                      minLinewidth,
                                      excludedRegionsList, excludedDiagonalDimsList, excludedDiagonalTransformList)
-        # the above can be replaced with the peak list for
 
         # get the peak maxima from pointPeaks
         pointPeaks = [(np.array(position), height) for position, height in pointPeaks]
 
         # ignore exclusion buffer for the minute
         validPointPeaks = [pk for pk in pointPeaks]
-
         allPeaksArray = None
         allRegionArrays = []
         regionArray = None
@@ -278,7 +475,8 @@ class PeakPickerNd(PeakPickerABC):
             boxWidths = []
             pointCounts = spectrum.pointCounts
             peakBoxWidths = peak.boxWidths
-            for axisCode, pointCount, peakBWidth, valuePPoint in zip(axisCodes, pointCounts, peakBoxWidths, valuesPerPoint):
+            for axisCode, pointCount, peakBWidth, valuePPoint in zip(axisCodes, pointCounts, peakBoxWidths,
+                                                                     valuesPerPoint):
                 _halfBoxWidth = pointCount / 100  # copied from V2
                 boxWidths.append(max(_halfBoxWidth, 1, int((peakBWidth or 1) / 2)))
 
@@ -288,11 +486,10 @@ class PeakPickerNd(PeakPickerABC):
         # find the co-ordinates of the lower corner of the data region
         startPoint = np.maximum(pLower - boxWidths, 0)
 
-        self.sliceTuples = [(int(pos - bWidth), int(pos + bWidth + 1)) for pos, bWidth in zip(pointPositions, boxWidths)]
-        data = self.spectrum.dataSource.getRegionData(self.sliceTuples, aliasingFlags=[1] * self.spectrum.dimensionCount)
-
-        # getLogger().debug('%s.snapToExtremum: found %d peaks in spectrum %s; %r' %
-        #                   (self.__class__.__name__, len(peaks), self.spectrum, axisDict))
+        self.sliceTuples = [(int(pos - bWidth), int(pos + bWidth + 1))
+                            for pos, bWidth in zip(pointPositions, boxWidths)]
+        data = self.spectrum.dataSource.getRegionData(self.sliceTuples,
+                                                      aliasingFlags=[1] * self.spectrum.dimensionCount)
 
         # get the height of the current peak (to stop peak flipping)
         height = spectrum.getPointValue(peak.pointPositions)
@@ -332,6 +529,7 @@ class PeakPickerNd(PeakPickerABC):
             peakArray = peakArray.astype(np.float32)
 
             try:
+                # NOTE:ED - this still needs duplicate-code check with _fitPeaks
                 if self.searchBoxDoFit:
                     if self.fitMethod == PARABOLICMETHOD:
                         # parabolic - generate all peaks in one operation
@@ -387,7 +585,6 @@ class PeakPickerNd(PeakPickerABC):
 
         # set the correct parameters for the standard findPeaks
         self._hbsWidth = self.halfBoxFindPeaksWidth
-
         allPeaksArray = None
         allRegionArrays = []
         regionArray = None
@@ -417,7 +614,7 @@ class PeakPickerNd(PeakPickerABC):
 
             # consider for each dimension on the interval [point-3,point+4>, account for min and max
             # of each dimension
-            if self.fitMethod == PARABOLICMETHOD or self.singularMode is True:
+            if self.fitMethod == PARABOLICMETHOD:  # or self.singularMode is True:
                 firstArray = np.maximum(pLower - self._hbsWidth, 0)
                 lastArray = np.minimum(pUpper + self._hbsWidth, numPoints)
             else:
@@ -445,159 +642,36 @@ class PeakPickerNd(PeakPickerABC):
                 allPeaksArray = np.append(allPeaksArray, peakArray, axis=0)
             allRegionArrays.append(localRegionArray)
 
-        if allPeaksArray is not None and allPeaksArray.size != 0:
+        if allPeaksArray is None or allPeaksArray.size == 0:
+            return
 
-            # map to (0, 0)
-            regionArray = np.array((firstArray - firstArray, lastArray - firstArray))
+        self.sliceTuples = [(fst, lst) for fst, lst in zip(firstArray, lastArray)]
+        data = self.spectrum.dataSource.getRegionData(self.sliceTuples,
+                                                      aliasingFlags=[1] * self.spectrum.dimensionCount)
 
-            self.sliceTuples = [(fst, lst) for fst, lst in zip(firstArray, lastArray)]
-            data = self.spectrum.dataSource.getRegionData(self.sliceTuples, aliasingFlags=[1] * self.spectrum.dimensionCount)
+        # update positions relative to the corner of the data array
+        #   - maps all regions to (0, 0)
+        regionArray -= firstArray
+        allPeaksArray -= firstArray.astype(np.float32)
+        allRegionArrays = np.array(allRegionArrays) - firstArray
 
-            # update positions relative to the corner of the data array
-            firstArray = firstArray.astype(np.float32)
-            updatePeaksArray = None
-            for pk in allPeaksArray:
-                if updatePeaksArray is None:
-                    updatePeaksArray = pk - firstArray
-                    updatePeaksArray = updatePeaksArray.reshape((1, numDim))
-                    updatePeaksArray = updatePeaksArray.astype(np.float32)
-                else:
-                    pk = pk - firstArray
-                    pk = pk.reshape((1, numDim))
-                    pk = pk.astype(np.float32)
-                    updatePeaksArray = np.append(updatePeaksArray, pk, axis=0)
+        result = self._fitPeaks(allPeaksArray, allRegionArrays, data, regionArray)
 
-            try:
-                result = ()
-                # NOTE:ED - groupMode must be gaussian
-                if self.fitMethod == PARABOLICMETHOD and self.singularMode is True:
-
-                    # parabolic - generate all peaks in one operation
-                    result = CPeak.fitParabolicPeaks(data, regionArray, updatePeaksArray)
-
-                else:
-                    method = 0 if self.fitMethod == GAUSSIANMETHOD else 1
-
-                    # currently gaussian or lorentzian
-                    if self.singularMode is True:
-
-                        # fit peaks individually
-                        for peakArray, localRegionArray in zip(allPeaksArray, allRegionArrays):
-                            peakArray = peakArray - firstArray
-                            peakArray = peakArray.reshape((1, numDim))
-                            peakArray = peakArray.astype(np.float32)
-                            localRegionArray = np.array((localRegionArray[0] - firstArray, localRegionArray[1] - firstArray), dtype=np.int32)
-
-                            localResult = CPeak.fitPeaks(data, localRegionArray, peakArray, method)
-                            result += tuple(localResult)
-                    else:
-
-                        # fit all peaks in one operation
-                        result = CPeak.fitPeaks(data, regionArray, updatePeaksArray, method)
-
-            except CPeak.error as e:
-
-                # there could be some fitting error
-                getLogger().warning("Aborting peak fit, Error for peak: %s:\n\n%s " % (peak, e))
-                return
-
-            for pkNum, peak in enumerate(pointPeaks):
-                height, center, linewidth = result[pkNum]
-
-                _shape = data.shape[::-1]
-                newPos = list(peak.pointPositions)
-                for ii in range(len(center)):
-                    if 0.5 < center[ii] < (_shape[ii] - 0.5):
-                        newPos[ii] = center[ii] + firstArray[ii]
-
-                peak.pointPositions = newPos
-                peak.pointLineWidths = linewidth
-                peak.height = height
-
-    # NOTE:ED - example for plotting in pycharm - keep for the minute
-    # # 20191004:ED testing - plot the dataArray during debugging
-    # import np as np
-    # from mpl_toolkits import mplot3d
-    # import matplotlib.pyplot as plt
-    #
-    # fig = plt.figure(figsize=(10, 8), dpi=100)
-    # ax = fig.gca(projection='3d')
-    #
-    # shape = dataArray.shape
-    # rr = (np.max(dataArray) - np.min(dataArray)) * 100
-    #
-    # from ccpn.ui.gui.lib.GuiSpectrumViewNd import _getLevels
-    # posLevels = _getLevels(spectrum.positiveContourCount, spectrum.positiveContourBase,
-    #                             spectrum.positiveContourFactor)
-    # posLevels = np.array(posLevels)
-    #
-    # dims = []
-    # for ii in shape:
-    #     dims.append(np.linspace(0, ii-1, ii))
-    #
-    # for ii in range(shape[0]):
-    #     try:
-    #         ax.contour(dims[2], dims[1], dataArray[ii] / rr, posLevels / rr, offset=(shape[0]-ii-1), cmap=plt.cm.viridis)
-    #     except Exception as es:
-    #         pass                    # trap stupid plot error
-    #
-    # ax.legend()
-    # ax.set_xlim3d(-0.1, shape[2]-0.9)
-    # ax.set_ylim3d(-0.1, shape[1]-0.9)
-    # ax.set_zlim3d(-0.1, shape[0]-0.9)
-    # # plt.show() is at the bottom of function
-
-    # find new peaks
-
-    # self.fitExistingPeaks(peaks, fitMethod=fitMethod, singularMode=True)
-
-    # # 20191004:ED testing - plotting scatterplot of data
-    # else:
-    #
-    # # result = CPeak.fitPeaks(dataArray, regionArray, allPeaksArray, method)
-    # result = CPeak.fitParabolicPeaks(dataArray, regionArray, allPeaksArray)
-    #
-    # for height, centerGuess, linewidth in result:
-    #
-    #     # clip the point to the exclusion area, to stop rogue peaks
-    #     # center = np.array(centerGuess).clip(min=position - npExclusionBuffer,
-    #     #                                        max=position + npExclusionBuffer)
-    #     center = np.array(centerGuess)
-    #
-    #     # outofPlaneMinTest = np.array([])
-    #     # outofPlaneMaxTest = np.array([])
-    #     # for ii in range(numDim):
-    #     #     outofPlaneMinTest = np.append(outofPlaneMinTest, 0.0)
-    #     #     outofPlaneMaxTest = np.append(outofPlaneMaxTest, dataArray.shape[numDim-ii-1]-1.0)
-    #     #
-    #     # # check whether the new peak is outside of the current plane
-    #     # outofPlaneCenter = np.array(centerGuess).clip(min=position - np.array(outofPlaneMinTest),
-    #     #                      max=position + np.array(outofPlaneMaxTest))
-    #     #
-    #     # print(">>>", center, outofPlaneCenter, not np.array_equal(center, outofPlaneCenter))
-    #
-    #     # ax.scatter(*center, c='r', marker='^')
-    #     #
-    #     # x2, y2, _ = mplot3d.proj3d.proj_transform(1, 1, 1, ax.get_proj())
-    #     #
-    #     # ax.text(*center, str(center), fontsize=12)
-    #
-    #     # except Exception as es:
-    #     #     print('>>>error:', str(es))
-    #     #     dimCount = len(startPoints)
-    #     #     height = float(dataArray[tuple(position[::-1])])
-    #     #     # have to reverse position because dataArray backwards
-    #     #     # have to float because API does not like np.float32
-    #     #     center = position
-    #     #     linewidth = dimCount * [None]
-    #
-    #     position = center + startPointBufferActual
-    #
-    #     peak = self._newPickedPeak(pointPositions=position, height=height,
-    #                                lineWidths=linewidth, fitMethod=fitMethod)
-    #     peaks.append(peak)
-    #
-    # plt.show()
+        for pkNum, peak in enumerate(pointPeaks):
+            # result indexing SHOULD correspond to original peaks, with Nones as bad refits
+            if not (res := result[pkNum]):
+                continue
+            height, center, linewidth = res
+            # overwrite the peak pointPositions
+            _shape = data.shape[::-1]
+            newPos = list(peak.pointPositions)
+            for ii in range(len(center)):
+                if 0.5 < center[ii] < (_shape[ii] - 0.5):
+                    newPos[ii] = center[ii] + firstArray[ii]
+            peak.pointPositions = newPos
+            peak.pointLineWidths = linewidth
+            peak.height = height
 
 
+# register the peakPicker as available
 PeakPickerNd._registerPeakPicker()

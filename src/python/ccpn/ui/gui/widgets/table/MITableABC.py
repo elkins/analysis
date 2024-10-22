@@ -16,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-06-20 16:42:23 +0100 (Thu, June 20, 2024) $"
-__version__ = "$Revision: 3.2.3 $"
+__dateModified__ = "$dateModified: 2024-10-16 18:41:24 +0100 (Wed, October 16, 2024) $"
+__version__ = "$Revision: 3.2.7 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -383,7 +383,7 @@ class MITableABC(TableABC):
             _header.setSectionResizeMode(QtWidgets.QHeaderView.Interactive)
             _header.setStretchLastSection(True)
             # only look at visible section
-            _header.setResizeContentsPrecision(5)
+            _header.setResizeContentsPrecision(10)
             _header.setDefaultAlignment(QtCore.Qt.AlignLeft)
             _header.setMinimumSectionSize(20)
             _header.setVisible(False)

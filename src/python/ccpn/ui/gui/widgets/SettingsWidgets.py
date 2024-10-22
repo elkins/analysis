@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-10-02 09:30:47 +0100 (Wed, October 02, 2024) $"
+__dateModified__ = "$dateModified: 2024-10-15 12:09:49 +0100 (Tue, October 15, 2024) $"
 __version__ = "$Revision: 3.2.7 $"
 #=========================================================================================
 # Created
@@ -801,6 +801,8 @@ class _commonSettings():
     Not to be used as a stand-alone class
     """
 
+    prevNotifierObj = None
+
     # separated from settings widgets below, but only one seems to use it now
 
     def _getSpectraFromDisplays(self, displays, data=None):
@@ -1047,8 +1049,9 @@ class _commonSettings():
     #
     #             spectraWidgets[spectrum.pid] = f
 
-    def _fillAllSpectrumFrame(self, displays):
+    def _fillAllSpectrumFrame(self, displays, data=None):
         """Populate all spectrumFrames into a moreLessFrame
+        :param data : Required for SpectrumView notifiers.
         """
         def _codeDictUpdate(displayKey : str = None, checkBox : CheckBox = None):
             """update axisCode dict when check boxes are changed.
@@ -1111,6 +1114,14 @@ class _commonSettings():
             if self.application:
                 spectraWidgets = {}  # spectrum.pid, frame dict to show/hide
                 for row, spectrum in enumerate(validSpectrumViews.keys()):
+
+                    # ignore if view is deleted
+                    if data is not None and data.get(Notifier.TRIGGER) == 'delete':
+                        notifObj = data.get(Notifier.OBJECT)
+                        # check if it is a SpectrumView and both correct spectrum display and spectrum.
+                        if isinstance(notifObj, SpectrumView) and notifObj.strip.spectrumDisplay is display and notifObj.spectrum is spectrum:
+                            continue
+
                     f_row += 1
                     f = _SpectrumRow(parent=_frame,
                                      application=self.application,
@@ -1133,14 +1144,16 @@ class _commonSettings():
         # check if display is deleted, removes from list if it has been. Data passed by notifier
         if data is not None and data.get(Notifier.TRIGGER) == 'delete':
             obj = data.get(Notifier.OBJECT)
-            gids = [gg for gg in gids if gg and gg != obj]
-        self._fillAllSpectrumFrame(gids)
 
-        # if gid == '> All <':
-        #     gids = [self.application.getByGid(gid) for gid in self.spectrumDisplayPulldown.getTexts() if gid not in ['> All <', '> Select <']]
-        #     self._fillAllSpectrumFrame(gids)
-        # else:
-        #     self._fillSpectrumFrame([self.application.getByGid(gid)])
+            if isinstance(obj, SpectrumView):
+                # object is a SpectrumView, check if last object deleted is this views display
+                if obj.strip.spectrumDisplay is self.prevNotifierObj:
+                    return
+
+            gids = [gg for gg in gids if gg and gg != obj]
+            self.prevNotifierObj = obj
+
+        self._fillAllSpectrumFrame(gids, data)
 
 
 LINKTOPULLDOWNCLASS = 'linkToPulldownClass'
@@ -1365,7 +1378,9 @@ class StripPlot(Widget, _commonSettings, SignalBlocking):
                     objectWidgetChangedCallback=self._spectrumDisplaySelectionPulldownCallback,
                     labelText='Pick Peaks in\n'
                               'Display')
-
+        else:
+            # just to be sure
+            self.spectrumDisplayPulldown = None
             # self.spectrumDisplayPulldown.setTexts(['> All <'] + list(self.spectrumDisplayPulldown.getTexts()))
 
         # add a spacer in the bottom-right corner to stop everything moving
@@ -1454,13 +1469,38 @@ class StripPlot(Widget, _commonSettings, SignalBlocking):
         #                                       SpectrumView.className,
         #                                       self._spectrumViewChanged,
         #                                       onceOnly=True)
-        ...
+        if self.project and self.includeSpectrumTable:
+            # suppress is a bit of a hack :| but settings needs revisiting
+            with contextlib.suppress(Exception):
+                self._notifierRename = Notifier(theObject=self.project,
+                                                triggers=[Notifier.RENAME],
+                                                targetName=SpectrumView.className,
+                                                callback=self._spectrumDisplaySelectionPulldownCallback)
+
+                self._notifierDelete = Notifier(theObject=self.project,
+                                                triggers=[Notifier.DELETE],
+                                                targetName=SpectrumView.className,
+                                                callback=self._spectrumDisplaySelectionPulldownCallback)
+
+                self._notifierCreate = Notifier(theObject=self.project,
+                                                triggers=[Notifier.CREATE],
+                                                targetName=SpectrumView.className,
+                                                callback=self._spectrumDisplaySelectionPulldownCallback)
+                return
+        # if anything goes wrong unregister still works
+        self._notifierRename = None
+        self._notifierDelete = None
+        self._notifierCreate = None
 
     def _unRegisterNotifiers(self):
         """Unregister notifiers
         """
-        # if self._spectrumViewNotifier:
-        #     self._spectrumViewNotifier.unRegister()
+        if self._notifierRename:
+            self._notifierRename.unRegister()
+        if self._notifierDelete:
+            self._notifierDelete.unRegister()
+        if self._notifierCreate:
+            self._notifierCreate.unRegister()
         if self.includeNmrChainPullSelection:
             self.ncWidget.unRegister()
         if self.includeSpectrumTable:

@@ -15,9 +15,9 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: Geerten Vuister $"
-__dateModified__ = "$dateModified: 2024-07-23 18:25:51 +0100 (Tue, July 23, 2024) $"
-__version__ = "$Revision: 3.2.5 $"
+__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
+__dateModified__ = "$dateModified: 2024-10-18 15:00:18 +0100 (Fri, October 18, 2024) $"
+__version__ = "$Revision: 3.2.7 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -387,7 +387,7 @@ class AbstractWrapperObject(CoreModel, NotifierBase):
     #     return name
 
     @classmethod
-    def _uniqueName(cls, parent, name=None) -> str:
+    def _uniqueName(cls, parent, name=None, caseSensitive=False) -> str:
         """Return a unique name based on name (set to defaultName if None)
         :param parent: container for self (usually of type Project)
         :param name (str | None): target name (as required)
@@ -397,13 +397,18 @@ class AbstractWrapperObject(CoreModel, NotifierBase):
             name = cls._defaultName()
         cls._validateStringValue('name', name)
         name = name.strip()
-        names = [sib.name for sib in getattr(parent, cls._pluralLinkName)]
-        while name in names:
-            name = commonUtil.incrementName(name)
+        if caseSensitive:
+            names = [sib.name for sib in getattr(parent, cls._pluralLinkName)]
+            while name in names:
+                name = commonUtil.incrementName(name)
+        else:
+            names = [sib.name.lower() for sib in getattr(parent, cls._pluralLinkName)]
+            while name.lower() in names:
+                name = commonUtil.incrementName(name)
         return name
 
     @classmethod
-    def _uniqueApiName(cls, project, name=None) -> str:
+    def _uniqueApiName(cls, project, name=None, caseSensitive=False) -> str:
         """Return a unique name based on api name (set to defaultName if None)
         Needed to stop recursion when generating unique names from '.name'
         """
@@ -411,9 +416,14 @@ class AbstractWrapperObject(CoreModel, NotifierBase):
             name = cls._defaultName()
         cls._validateStringValue('name', name)
         name = name.strip()
-        names = [sib._wrappedData.name for sib in getattr(project, cls._pluralLinkName)]
-        while name in names:
-            name = commonUtil.incrementName(name)
+        if caseSensitive:
+            names = [sib._wrappedData.name for sib in getattr(project, cls._pluralLinkName)]
+            while name in names:
+                name = commonUtil.incrementName(name)
+        else:
+            names = [sib._wrappedData.name.lower() for sib in getattr(project, cls._pluralLinkName)]
+            while name.lower() in names:
+                name = commonUtil.incrementName(name)
         return name
 
     @classmethod

@@ -5,6 +5,8 @@ Select a peak, Run the macro.
 """
 
 import numpy as np
+from ccpn.core.lib.ContextManagers import undoBlockWithSideBar
+
 
 peak = current.peak
 spectrum = peak.spectrum
@@ -18,9 +20,9 @@ for dim in spectrum.dimensions:
     properties = ['spectralWidths', 'spectralWidthsHz', 'spectrometerFrequencies', 'referencePoints', 'referenceValues']
     for p in properties:
         dd[p] = spectrum.getByDimensions(p, [dim])
-    sp = project.newEmptySpectrum(name=f'{spectrum.name}-slice-{dim}',isotopeCodes=isotopeCodes, pointCounts=pointCounts, **dd)
-    sp.noiseLevel = spectrum.noiseLevel
-    sp.setBuffering(True)
-    sp.setSliceData(data, )
-
-
+    with undoBlockWithSideBar():
+        # set everything as a single undo-operation
+        sp = project.newEmptySpectrum(name=f'{spectrum.name}-slice-{dim}',isotopeCodes=isotopeCodes, pointCounts=pointCounts, **dd)
+        sp.noiseLevel = spectrum.noiseLevel
+        sp.setBuffering(True)
+        sp.setSliceData(data, )

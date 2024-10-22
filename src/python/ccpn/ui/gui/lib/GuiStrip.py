@@ -16,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-08-28 18:22:04 +0100 (Wed, August 28, 2024) $"
-__version__ = "$Revision: 3.2.5 $"
+__dateModified__ = "$dateModified: 2024-10-18 14:25:34 +0100 (Fri, October 18, 2024) $"
+__version__ = "$Revision: 3.2.7 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -757,6 +757,17 @@ class GuiStrip(Frame):
         TBD: the naive approach below should be improved
         """
         return axisCode  #if axisCode[0].isupper() else axisCode
+
+    def _toggleLastAxisOnly(self):
+        self.spectrumDisplay.setLastAxisOnly(lastAxisOnly=self.lastAxisOnlyCheckBox.isChecked())
+        self.spectrumDisplay.showAxes()
+
+    def toggleLastAxisOnly(self):
+        """
+        Toggles whether the axis is displayed in the last strip of the display.
+        """
+        self.lastAxisOnlyCheckBox.setChecked(not self.lastAxisOnlyCheckBox.isChecked())
+        self._toggleLastAxisOnly()
 
     # GWV; commented 24/12/21
     # @property

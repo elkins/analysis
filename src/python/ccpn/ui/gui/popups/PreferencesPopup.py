@@ -618,6 +618,9 @@ class PreferencesPopup(CcpnDialogMainWidget):
 
         self.userWorkingPathRadio = RadioButtons(parent,
                                                  texts=OPTIONS_DICT.values(),
+                                                 tipTexts=['An editable path defined by the user',
+                                                           'A non-editable path: the projects parent folder',
+                                                           'A non-editable path: the project folder'],
                                                  direction='h',
                                                  grid=(row, 1),
                                                  callback=self._queueRadioWorkingPath)
@@ -1695,9 +1698,9 @@ class PreferencesPopup(CcpnDialogMainWidget):
         self.aliasShadeLabel = _makeLabel(parent, text="Label opacity", grid=(row, 0))
         _sliderBox = Frame(parent, setLayout=True, grid=(row, 1), hAlign='l')
         # self.aliasShadeData = Slider(parent, grid=(row, 1), hAlign='l')
-        Label(_sliderBox, text="0%", grid=(0, 0), hAlign='l')
+        # Label(_sliderBox, text="0%", grid=(0, 0), hAlign='l')
         self.aliasShadeData = Slider(_sliderBox, grid=(0, 1), hAlign='l')
-        Label(_sliderBox, text="100%", grid=(0, 2), hAlign='l')
+        self.shadeLabel = Label(_sliderBox, text="100%", grid=(0, 2), hAlign='l')
         self.aliasShadeData.setMinimumWidth(LineEditsMinimumWidth)
         self.aliasShadeData.valueChanged.connect(self._queueSetAliasShade)
 
@@ -2023,7 +2026,7 @@ class PreferencesPopup(CcpnDialogMainWidget):
         of the radio buttons
         """
         option = OPTIONS_DICT[self.userWorkingPathRadio.getIndex()]
-        path = self.workingPathDataStore.path
+        path = self.workingPathDataStore.path.filepath
 
         if option == "User-defined":  # saves user set result in preferences dict
             self.preferences.general.userSetWorkingPath = path.asString()
@@ -2069,20 +2072,24 @@ class PreferencesPopup(CcpnDialogMainWidget):
         if option is None:
             option = OPTIONS_DICT[self.userWorkingPathRadio.getIndex()]
 
+        # make text the user defined if in temporary file
+        if self.project.isTemporary:
+            option = "User-defined"
+
         match option:
             case "User-defined":
                 # If path is passed as arg user is writing data
                 # else get from prefs as its radio button change.
                 if path:
                     self.workingPathDataStore = DataStore.newFromPath(
-                            path=aPath(self.userWorkingPathData.text()))
+                            path=aPath(self.userWorkingPathData.text()).filepath)
                 else:
                     self.workingPathDataStore = DataStore.newFromPath(
                             path=aPath(self.preferences.general.userSetWorkingPath))
             case "Alongside":
-                self.workingPathDataStore = DataStore.newFromPath(path=Path(self.project.path).parent)
+                self.workingPathDataStore = DataStore.newFromPath(path=Path(self.project.path).filepath.parent)
             case "Inside":
-                self.workingPathDataStore = DataStore.newFromPath(path=Path(self.project.path))
+                self.workingPathDataStore = DataStore.newFromPath(path=Path(self.project.path).filepath)
             case _:  # All other cases raise error.
                 raise RuntimeError(f'Invalid choice returned; This should not happen')
 
@@ -2241,7 +2248,7 @@ class PreferencesPopup(CcpnDialogMainWidget):
         option = OPTIONS_DICT[self.userWorkingPathRadio.getIndex()]
         self._enableUserWorkingPath()
         if option != self.preferences.general.useProjectPath:
-            self._changeRadioWorkingPath(option)
+            return partial(self._changeRadioWorkingPath, option)
 
     def _changeRadioWorkingPath(self, option):
         self.preferences.general.useProjectPath = option
@@ -2469,6 +2476,7 @@ class PreferencesPopup(CcpnDialogMainWidget):
     @queueStateChange(_verifyPopupApply)
     def _queueSetAliasShade(self, _value):
         value = int(self.aliasShadeData.get())
+        self.shadeLabel.setText(f'{value}%')
         if value != self.preferences.general.aliasShade:
             return partial(self._setAliasShade, value)
 
@@ -2645,7 +2653,7 @@ class PreferencesPopup(CcpnDialogMainWidget):
     def _setNumSideBands(self, value):
         """Set the value for number of sideband gridlines to display
         """
-        self.preferences.general.numSideBands = value
+        self.preferences.general.numSideBands = int(value)
 
     @queueStateChange(_verifyPopupApply)
     def _queueSetMatchAxisCode(self):

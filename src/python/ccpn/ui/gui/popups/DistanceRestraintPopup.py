@@ -6,8 +6,9 @@ Alpha release and called from a macro.
 # Licence, Reference and Credits
 #=========================================================================================
 __copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
-__credits__ = ("Ed Brooksbank, Joanna Fox, Morgan Hayward, Victoria A Higman, Luca Mureddu",
-               "Eliza Płoskoń, Timothy J Ragan, Brian O Smith, Gary S Thompson & Geerten W Vuister")
+__credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
+               "Timothy J Ragan, Brian O Smith, Daniel Thompson",
+               "Gary S Thompson & Geerten W Vuister")
 __licence__ = ("CCPN licence. See https://ccpn.ac.uk/software/licensing/")
 __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, L.G., & Vuister, G.W.",
                  "CcpNmr AnalysisAssign: a flexible platform for integrated NMR analysis",
@@ -16,8 +17,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-04-04 15:19:22 +0100 (Thu, April 04, 2024) $"
-__version__ = "$Revision: 3.2.5 $"
+__dateModified__ = "$dateModified: 2024-10-17 15:36:30 +0100 (Thu, October 17, 2024) $"
+__version__ = "$Revision: 3.2.7 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -31,6 +32,7 @@ __date__ = "$Date: 2021-03-05 11:01:32 +0000 (Fri, March 05, 2021) $"
 import ccpn.core #this is needed it to avoid circular imports
 from PyQt5 import QtCore, QtGui, QtWidgets
 import ccpn.ui.gui.widgets.CompoundWidgets as cw
+from ccpn.ui.gui.widgets.MessageDialog import showWarning
 from ccpn.ui.gui.widgets.PulldownListsForObjects import PeakListPulldown
 from ccpn.ui.gui.popups.Dialog import CcpnDialogMainWidget
 from ccpn.ui.gui.widgets.MoreLessFrame import MoreLessFrame
@@ -194,15 +196,20 @@ class CalculateDistanceRestraintsPopup(CcpnDialogMainWidget):
 
     def _okCallback(self):
         import ccpn.core.lib._DistanceRestraintsLib as drl
-        if self.project:
-            pl = self.pLwidget.getSelectedObject()
-            if pl:
-                nmrAtoms = drl._getNmrAtomsFromPeakList(pl)
-                drl._correctIsotopeCodes(nmrAtoms)
-                resonanceSets, atomSets = drl._setupResonanceAndAtomSets(pl)
-                drl._newV3DistanceRestraint(pl, **self.params)
-                drl._deleteTempResonanceAndAtomSets(self.project, resonanceSets, atomSets)
-        self.accept()
+
+        try:
+            if self.project:
+                pl = self.pLwidget.getSelectedObject()
+                if pl:
+                    nmrAtoms = drl._getNmrAtomsFromPeakList(pl)
+                    drl._correctIsotopeCodes(nmrAtoms)
+                    resonanceSets, atomSets = drl._setupResonanceAndAtomSets(pl)
+                    drl._newV3DistanceRestraint(pl, **self.params)
+                    drl._deleteTempResonanceAndAtomSets(self.project, resonanceSets, atomSets)
+            self.accept()
+        except Exception as es:
+            showWarning('Calculating Distance Restraints...', str(es))
+
 
 if __name__ == '__main__':
     from ccpn.ui.gui.widgets.Application import TestApplication

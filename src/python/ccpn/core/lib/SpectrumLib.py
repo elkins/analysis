@@ -4,8 +4,9 @@
 # Licence, Reference and Credits
 #=========================================================================================
 __copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
-__credits__ = ("Ed Brooksbank, Joanna Fox, Morgan Hayward, Victoria A Higman, Luca Mureddu",
-               "Eliza Płoskoń, Timothy J Ragan, Brian O Smith, Gary S Thompson & Geerten W Vuister")
+__credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
+               "Timothy J Ragan, Brian O Smith, Daniel Thompson",
+               "Gary S Thompson & Geerten W Vuister")
 __licence__ = ("CCPN licence. See https://ccpn.ac.uk/software/licensing/")
 __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, L.G., & Vuister, G.W.",
                  "CcpNmr AnalysisAssign: a flexible platform for integrated NMR analysis",
@@ -13,9 +14,9 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-02-23 16:58:09 +0000 (Fri, February 23, 2024) $"
-__version__ = "$Revision: 3.2.2 $"
+__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
+__dateModified__ = "$dateModified: 2024-10-10 15:45:26 +0100 (Thu, October 10, 2024) $"
+__version__ = "$Revision: 3.2.7 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -2296,19 +2297,17 @@ def _pickPeaksByRegion(spectrum, sliceTuples, peakList, positiveThreshold, negat
     fitMethod = preferences.general.peakFittingMethod
     peakPicker.setParameters(dropFactor=minDropFactor,
                              fitMethod=fitMethod,
-                             setLineWidths=True
+                             setLineWidths=True,
+                             singularMode=False
                              )
-
     peaks = []
     with undoBlockWithoutSideBar():
-
         try:
             peaks = peakPicker.pickPeaks(sliceTuples=_sliceTuples,
                                          peakList=peakList,
                                          positiveThreshold=positiveThreshold,
                                          negativeThreshold=negativeThreshold
                                          )
-
         except Exception as err:
             # need to trap error that Nd spectra may not be defined in all dimensions of axisDict
             logger.debug('_pickPeaks %s, trapped error: %s' % (spectrum, str(err)))

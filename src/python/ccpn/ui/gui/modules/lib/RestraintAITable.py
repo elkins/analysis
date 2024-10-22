@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-10-02 16:39:51 +0100 (Wed, October 02, 2024) $"
+__dateModified__ = "$dateModified: 2024-10-16 17:57:43 +0100 (Wed, October 16, 2024) $"
 __version__ = "$Revision: 3.2.7 $"
 #=========================================================================================
 # Created
@@ -821,7 +821,7 @@ class _NewRestraintTableWidget(_CoreMITableWidgetABC):
             _table = pd.DataFrame({}, columns=[INDEXCOL, PEAKSERIALCOL, OBJCOL])
 
         _table.columns = pd.MultiIndex.from_tuples(_table.columns)
-        if rss._includeNonPeaksCheckBox.isChecked():
+        if rss._includeNonPeaksCheckBox.isChecked() and _table is not None and not _table.empty:
             _table = (_table
                       .fillna({PEAKSERIALCOL: '-'})
                       .loc[~_table.loc[:, (slice(None), HeaderRestraint)].isna().all(axis=1)]

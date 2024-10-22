@@ -36,7 +36,7 @@
         "symbolSizePixel"                      : 9,
         "symbolType"                           : 0,
         "symbolThickness"                      : 2,
-        "contourThickness"                     : 1.0,
+        "contourThickness"                     : 1,
         "multipletAnnotationType"              : 0,
         "multipletType"                        : 0,
         "arrowType"                            : 1,
@@ -45,7 +45,7 @@
         "zoomPercent"                          : 5.0,
         "zoomXLimitApply"                      : true,
         "zoomYLimitApply"                      : true,
-        "intensityLimit"                       : 10,
+        "intensityLimit"                       : 10.0,
         "stripWidthZoomPercent"                : 10.0,
         "scalingFactorStep"                    : 0.01,
         "lastAxisOnly"                         : true,
@@ -309,6 +309,9 @@
             "dontShowPopup": false
         },
         "MainWindowBadSpectra": {
+            "dontShowPopup": false
+        },
+        "_TestInfo": {
             "dontShowPopup": false
         }
     },
