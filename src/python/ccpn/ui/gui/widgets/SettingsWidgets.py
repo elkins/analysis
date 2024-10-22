@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Daniel Thompson $"
-__dateModified__ = "$dateModified: 2025-03-10 10:17:32 +0000 (Mon, March 10, 2025) $"
+__dateModified__ = "$dateModified: 2025-03-10 10:20:08 +0000 (Mon, March 10, 2025) $"
 __version__ = "$Revision: 3.3.1 $"
 #=========================================================================================
 # Created
@@ -1064,7 +1064,7 @@ class _commonSettings():
             self._removeWidget(self._spectraWidget, removeTopWidget=True)
 
         self._spectraWidget = Widget(parent=self.spectrumDisplayOptionsFrame, setLayout=True,
-                                     grid=(1, 0), gridSpan=(1, 2), vAlign='top')
+                                     grid=(10, 0), gridSpan=(1, 2), vAlign='top')
 
         if not displays:
             return
@@ -1216,39 +1216,6 @@ class StripPlot(Widget, _commonSettings, SignalBlocking):
         # underpinning the addNotifier call do not allow for it either
         row = 0
         colwidth = 180
-
-        self.automaticBbNmrAtomAssignment = CheckBoxCompoundWidget(self,
-                                                                   grid=(row, 0), vAlign='top', stretch=(0, 0),
-                                                                   hAlign='left',
-                                                                   fixedWidths=(colwidth, None),
-                                                                   orientation='left',
-                                                                   labelText='Automatic C/CA/CB NmrAtom assignment',
-                                                                   checked=False,
-                                                                   callback=self._autoBbNmrAtomCallback)
-
-        row += 1
-
-        self.glyHasCaSign = CheckBoxCompoundWidget(self,
-                                                 grid=(row, 0), vAlign='top', stretch=(0, 0),
-                                                 hAlign='left',
-                                                 fixedWidths=(colwidth, None),
-                                                 orientation='left',
-                                                 labelText='Gly has same sign as CAs',
-                                                 checked=False)
-
-        row += 1
-
-        self.casPosCbsNeg = RadioButtons(self, grid=(row, 0), vAlign='top', hAlign='left',
-                                                       fixedWidths=(colwidth, None), orientation='left',
-                                                       texts=['CAs positive / CBs negative',
-                                                              'CAs negative / CBs positive'])
-
-        self.glyHasCaSign.setVisible(False)
-        self.casPosCbsNeg.setVisible(False)
-
-        row += 1
-        # LabeledHLine(self, text='HNCACB Settings', grid=(row, 0), gridSpan=(1, 4),
-        #               colour=getColours()[DIVIDER], height=15)
 
         HLine(self, grid=(row, 0), gridSpan=(1, 4),
               colour=getColours()[DIVIDER], height=15)
@@ -1407,18 +1374,59 @@ class StripPlot(Widget, _commonSettings, SignalBlocking):
             self.spectrumDisplayOptionsFrame = Frame(self, setLayout=True, showBorder=False, fShape='noFrame',
                                                      grid=(row, 0), gridSpan=(row + 2, 0),
                                                      vAlign='top', hAlign='left')
+            specDisRow = 0
 
             self.spectrumDisplayPulldown = SpectrumDisplaySelectionWidget(
                     parent=self.spectrumDisplayOptionsFrame,
-                    mainWindow=self.mainWindow, grid=(0, 0),
+                    mainWindow=self.mainWindow, grid=(specDisRow, 0),
                     gridSpan=(1, 0), texts=texts, displayText=[ALL],
                     objectWidgetChangedCallback=self._spectrumDisplaySelectionPulldownCallback,
                     labelText='Pick Peaks\n'
                               'in Display')
+
+            specDisRow += 1
+
+            HLine(self.spectrumDisplayOptionsFrame, grid=(specDisRow, 0), gridSpan=(specDisRow, 4),
+                  colour = getColours()[DIVIDER], height = 15)
+
+            specDisRow += 1
+
+            self.automaticBbNmrAtomAssignment = CheckBoxCompoundWidget(self.spectrumDisplayOptionsFrame,
+                                                                       grid=(specDisRow, 0), vAlign='top', stretch=(0, 0),
+                                                                       hAlign='left',
+                                                                       fixedWidths=(colwidth, None),
+                                                                       orientation='left',
+                                                                       labelText='Automatic C/CA/CB \nNmrAtom assignment',
+                                                                       checked=False,
+                                                                       callback=self._autoBbNmrAtomCallback)
+
+            specDisRow += 1
+
+            self.glyHasCaSign = CheckBoxCompoundWidget(self.spectrumDisplayOptionsFrame,
+                                                       grid=(specDisRow, 0), vAlign='top', stretch=(specDisRow, 0),
+                                                       hAlign='left',
+                                                       fixedWidths=(colwidth, None),
+                                                       orientation='left',
+                                                       labelText='Gly has same sign as CAs',
+                                                       checked=False)
+
+            specDisRow += 1
+
+            self.casPosCbsNeg = RadioButtons(self.spectrumDisplayOptionsFrame, grid=(specDisRow, 0), vAlign='top',
+                                             hAlign='left',
+                                             fixedWidths=(colwidth, None), orientation='left',
+                                             texts=['CAs positive / CBs negative',
+                                                    'CAs negative / CBs positive'])
+
+            specDisRow += 1
+
+            HLine(self.spectrumDisplayOptionsFrame, grid=(specDisRow, 0), gridSpan=(specDisRow, 4),
+                  colour = getColours()[DIVIDER], height = 15)
+
+            self._autoBbNmrAtomCallback()
         else:
             # just to be sure
             self.spectrumDisplayPulldown = None
-            # self.spectrumDisplayPulldown.setTexts(['> All <'] + list(self.spectrumDisplayPulldown.getTexts()))
 
         # add a spacer in the bottom-right corner to stop everything moving
         rows = self.getLayout().rowCount()
