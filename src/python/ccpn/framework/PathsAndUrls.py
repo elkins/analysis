@@ -14,9 +14,9 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: Daniel Thompson $"
-__dateModified__ = "$dateModified: 2024-09-26 15:12:49 +0100 (Thu, September 26, 2024) $"
-__version__ = "$Revision: 3.2.5 $"
+__modifiedBy__ = "$modifiedBy: Luca Mureddu $"
+__dateModified__ = "$dateModified: 2024-10-22 16:58:15 +0100 (Tue, October 22, 2024) $"
+__version__ = "$Revision: 3.2.9.alpha $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -32,6 +32,7 @@ from ccpn.util import Path
 ccpnUrl                         = 'https://www.ccpn.ac.uk'
 ccpn2Url                        = 'https://www.ccpn.ac.uk'
 ccpnLicenceUrl                  = 'https://www.ccpn.ac.uk/software/licensing'
+ccpnAboutUrl                    = 'https://ccpn.ac.uk/about/'
 ccpnTutorials                   = 'https://www.ccpn.ac.uk/support/tutorials'
 ccpnForum                       = 'https://forum.ccpn.ac.uk'
 ccpnVideos                      = 'https://www.ccpn.ac.uk/manual/v3/'
