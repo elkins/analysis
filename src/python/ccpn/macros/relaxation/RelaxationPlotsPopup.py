@@ -10,8 +10,9 @@ Macro created for Analysis Version 3.1.1
 # Licence, Reference and Credits
 #=========================================================================================
 __copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
-__credits__ = ("Ed Brooksbank, Joanna Fox, Morgan Hayward, Victoria A Higman, Luca Mureddu",
-               "Eliza Płoskoń, Timothy J Ragan, Brian O Smith, Gary S Thompson & Geerten W Vuister")
+__credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
+               "Timothy J Ragan, Brian O Smith, Daniel Thompson",
+               "Gary S Thompson & Geerten W Vuister")
 __licence__ = ("CCPN licence. See https://ccpn.ac.uk/software/licensing/")
 __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, L.G., & Vuister, G.W.",
                  "CcpNmr AnalysisAssign: a flexible platform for integrated NMR analysis",
@@ -19,9 +20,9 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-04-04 15:19:21 +0100 (Thu, April 04, 2024) $"
-__version__ = "$Revision: 3.2.5 $"
+__modifiedBy__ = "$modifiedBy: Luca Mureddu $"
+__dateModified__ = "$dateModified: 2024-10-22 14:35:30 +0100 (Tue, October 22, 2024) $"
+__version__ = "$Revision: 3.2.9.alpha $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -66,14 +67,14 @@ MACROS_DICT = {
                             Rates: '_1_RelaxationRates_plots.py',
                             AnisotropyDetermination: '_2_AnisotropyDetermination_plots.py',
                             ReducedSpectralDensityMapping: '_3_ReduceSpectralDensityMapping_plots.py',
-                            T1T2ContouredScatter: '_4_T1T2_contourScatter_plot.py',
+                            # T1T2ContouredScatter: '_4_T1T2_contourScatter_plot.py',
                             }
 
 NeededColumns_DICT = {
                             Rates: [sv.R1, sv.R1_ERR, sv.R2_ERR, sv.R2, sv.HETNOE_VALUE, sv.HETNOE_VALUE_ERR],
                             AnisotropyDetermination:  [sv.R1, sv.R1_ERR, sv.R2_ERR, sv.R2, sv.HETNOE_VALUE, sv.HETNOE_VALUE_ERR],
                             ReducedSpectralDensityMapping: [sv.R1, sv.R1_ERR, sv.R2_ERR, sv.R2, sv.J0_ERR, sv.J0, sv.JwH, sv.JwH, sv.JwH_ERR, sv.JwX_ERR],
-                            T1T2ContouredScatter: [sv.R1, sv.R1_ERR, sv.R2_ERR, sv.R2],
+                            # T1T2ContouredScatter: [sv.R1, sv.R1_ERR, sv.R2_ERR, sv.R2],
                             }
 
 class RelaxationPlotsPopup(CcpnDialogMainWidget):
