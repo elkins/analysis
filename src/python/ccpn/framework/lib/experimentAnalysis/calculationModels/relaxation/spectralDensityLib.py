@@ -18,8 +18,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-09-18 17:27:42 +0100 (Wed, September 18, 2024) $"
-__version__ = "$Revision: 3.2.5 $"
+__dateModified__ = "$dateModified: 2024-10-25 12:18:15 +0100 (Fri, October 25, 2024) $"
+__version__ = "$Revision: 3.2.9.alpha $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -112,10 +112,42 @@ def _calculateMolecularTumblingCorrelationTime(omega, alpha, beta):
 ############################################################
 
 def _filterLowNoeFromR1R2(r1, r2, noe, noeExclusionLimit=0.65):
-    mask = np.argwhere(noe > noeExclusionLimit).flatten()
-    r1 = r1[mask]
-    r2 = r2[mask]
-    return r1, r2
+    mask = noe > noeExclusionLimit
+    r1_filtered = r1[mask]
+    r2_filtered = r2[mask]
+    excluded_indices = np.argwhere(~mask).flatten()
+    return r1_filtered, r2_filtered, excluded_indices
+
+
+def _filterByRateRelativeDeviation(r1, r2, stdevThreshold=1.5, method='median', proportiontocut=.1):
+    '''
+    A relative deviation comparison between two sets of rates, R1 and R2, normalized by their means (or trimmed means).
+    The aim of this comparison is to identify outliers where the difference in relative deviations between two sets exceeds a certain threshold, defined as 1.5 times the standard deviation of those differences.
+    Residues where the difference exceeds a certain threshold (1.5 std as default),  will be excluded from the initial Tc estimation')
+
+    [(<R_2> - R_2i )/<R_2 >) - (<R_1> - R_1i )/<R_1 >)] > 1.5 * stdev
+
+    :return:  filteredR1, filteredR2, excludedIndices
+    '''
+
+    if method=='median':
+        globR1 = np.median(r1)
+        globR2 = np.median(r2)
+    else:
+        globR1 = stats.trim_mean(r1,  proportiontocut=proportiontocut)
+        globR2 = stats.trim_mean(r2,  proportiontocut=proportiontocut)
+
+    relative_diff = ((globR2 - r2) / globR2) - ((globR1 - r1) / globR1)
+    std_dev = np.std(relative_diff)
+    # Find indices where the exclusion criteria are met
+    exclusion_criteria = np.abs(relative_diff) > stdevThreshold * std_dev
+    excludedIndices = np.argwhere(exclusion_criteria).flatten()
+
+    filteredR1 = r1[~exclusion_criteria]
+    filteredR2 = r2[~exclusion_criteria]
+
+    return filteredR1, filteredR2, excludedIndices
+
 
 def estimateAverageS2(r1, r2, noe=None, noeExclusionLimit=0.65, method='median', proportiontocut=.1):
     """
@@ -139,7 +171,7 @@ def estimateAverageS2(r1, r2, noe=None, noeExclusionLimit=0.65, method='median',
     """
 
     if noe is not None:
-        r1, r2 = _filterLowNoeFromR1R2(r1, r2, noe, noeExclusionLimit)
+        r1, r2, excludedInd = _filterLowNoeFromR1R2(r1, r2, noe, noeExclusionLimit)
     _pr = r1*r2
     if method=='median':
         p1 = np.median(_pr)
