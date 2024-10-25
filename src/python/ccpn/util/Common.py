@@ -21,8 +21,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-08-07 09:20:37 +0100 (Wed, August 07, 2024) $"
-__version__ = "$Revision: 3.2.5 $"
+__dateModified__ = "$dateModified: 2024-10-25 12:56:59 +0100 (Fri, October 25, 2024) $"
+__version__ = "$Revision: 3.2.9.alpha $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -550,6 +550,22 @@ def _traverse(obj, tree_types=(list, tuple)):
 def percentage(percent, whole):
     return (percent * whole) / 100.0
 
+
+def modifyByFraction(value, fraction):
+    """
+    Modify the given value by a specified fraction.
+
+    Parameters:
+    value (int, float): The original value to be modified.
+    fraction (float): The fraction representing the change (positive for increase, negative for decrease).
+
+    Returns:
+    float: The modified value after the operation.
+    """
+    # Calculate the modified value
+    new_value = value * (1 + fraction)  # Use fraction directly for both add and subtract
+
+    return new_value
 
 def _add(x, y):
     if y > 0:
