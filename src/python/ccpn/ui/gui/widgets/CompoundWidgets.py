@@ -13,8 +13,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-09-02 16:48:00 +0100 (Mon, September 02, 2024) $"
-__version__ = "$Revision: 3.2.5 $"
+__dateModified__ = "$dateModified: 2024-10-29 17:39:44 +0000 (Tue, October 29, 2024) $"
+__version__ = "$Revision: 3.2.9.alpha $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -594,6 +594,8 @@ class EntryPathCompoundWidget(CompoundBaseWidget):
             self.label.setToolTip(tipText)
 
         self.entry = LineEditButtonDialog(parent=self, textLineEdit=entryText, **compoundKwds)
+        if callback is not None:
+            self.entry.lineEdit.textChanged.connect(callback)
         self._addWidget(self.entry)
 
         if default is not None:
