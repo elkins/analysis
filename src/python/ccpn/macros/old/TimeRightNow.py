@@ -12,4 +12,4 @@ if __name__ == '__main__':
     print('\n==========  date and time for header ========== \n')
     print(f'__date__ = "$Date: {t} $"')
     print('\n===============================================')
-    print(f'__dateModified__ = "$Date: {t} $"')
+    print(f'__dateModified__ = "$dateModified: {t} $"')

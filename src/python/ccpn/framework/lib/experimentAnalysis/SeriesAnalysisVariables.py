@@ -17,7 +17,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-10-21 14:32:20 +0100 (Mon, October 21, 2024) $"
+__dateModified__ = "$dateModified: 2024-10-30 16:30:35 +0000 (Wed, October 30, 2024) $"
 __version__ = "$Revision: 3.2.9.alpha $"
 #=========================================================================================
 # Created
@@ -38,6 +38,12 @@ NMRRESIDUECODE   = 'nmrResidueCode'         # -> str   | nmrResidue Sequence Cod
 NMRRESIDUETYPE   = 'nmrResidueType'         # -> str   | nmrResidue Type (e.g.: 'ALA')
 NMRATOMNAME      = 'nmrAtomName'            # -> str   | nmrAtom name (e.g.: 'Hn')
 NMRATOMNAMES     = f'{NMRATOMNAME}s'        # -> str   | nmrAtom names comma separated (e.g.: 'Hn, Nh'). Used in OutPut datarames instead of ATOMNAME
+
+CHAINNAME     = 'ChainName'
+RESIDUECODE   = 'ResidueCode'
+RESIDUENAME   = 'ResidueName'
+ATOMNAME      = 'AtomName'
+
 
 NMRRESIDUECODETYPE = f'{NMRRESIDUECODE}-{NMRRESIDUETYPE}'  # -> str   | nmrResidue Sequence Code + Type (e.g.: '1-ALA')
 EXPERIMENT = 'experiment' # -> str, e.g.: T1, T2, HetNoe, 'Cest', etc
