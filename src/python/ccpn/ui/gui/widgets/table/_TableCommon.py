@@ -16,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-09-03 13:20:31 +0100 (Tue, September 03, 2024) $"
-__version__ = "$Revision: 3.2.5 $"
+__dateModified__ = "$dateModified: 2024-11-01 19:40:51 +0000 (Fri, November 01, 2024) $"
+__version__ = "$Revision: 3.2.9 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -104,3 +104,153 @@ class _TableSelection():
     orientation: int = None
     rows: list[int] = field(default_factory=list)
     columns: list[int] = field(default_factory=list)
+
+
+#=========================================================================================
+# Trait definitions for a json-serialisable multi-index column-header
+#=========================================================================================
+
+from ccpn.util.DataEnum import DataEnum
+from dataclasses import dataclass, field
+from contextlib import contextmanager
+from ccpn.util.traits.CcpNmrJson import CcpNmrJson, TraitJsonHandlerBase, Constants
+from ccpn.util.traits.CcpNmrTraits import List, Path, RecursiveList, Enum, Unicode, Bool, Int
+from traitlets import HasTraits
+
+
+class MIColumnType(Enum):
+    GROUP = 0
+    ITEM = 1
+
+
+class _TraitColumnABC(CcpNmrJson):
+    _columnType: MIColumnType
+    classVersion = 1.0  # for json saving
+    saveAllTraitsToJson = True
+    keysInOrder = True
+    name = Unicode(allow_none=True).tag(info='column name')
+    groupId = Unicode(allow_none=True).tag(info='column group identifier')
+    movable = Bool(default_value=False).tag(info='flag to indicate that the column can be moved within its parent')
+    index = Int(allow_none=True, default_value=None).tag(info='index of the column if re-ordering is allowed')
+    # attributes to handle ignore _metadata in the json-dumps
+    # as may contain times/dates that stop quick comparisons
+    # currently hard-coded, assumes that recursion is handled by subclass, e.g, see TraitColumnGroup
+    _excludeMetadata = False
+    _excludeMetadataLast = False
+    _excludeDepth = 0
+
+    def __init__(self, name: str, groupId: str, movable: bool, index: int):
+        super().__init__()
+        self.name = name
+        self.groupId = groupId
+        self.movable = movable
+        self.index = index
+
+    @contextmanager
+    def _excludeBlock(self):
+        """Exclude metadata from the json-dumps.
+        """
+        self._setExcludeFlag()
+        try:
+            yield  # yield control to the calling process
+        finally:
+            self._clearExcludeFlag()
+
+    def _setExcludeFlag(self):
+        """Block all Changes to the dict
+        """
+        # block metadata on first entry
+        if self._excludeDepth == 0:
+            # remember last state
+            self._excludeMetadataLast = self._excludeMetadata
+            self._excludeMetadata = True
+        self._excludeDepth += 1
+
+    def _clearExcludeFlag(self):
+        """Unblock all changes to the dict
+        """
+        if self._excludeDepth > 0:
+            self._excludeDepth -= 1
+            # unblock metadata on last exit
+            if self._excludeDepth == 0:
+                self._excludeMetadata = self._excludeMetadataLast
+        else:
+            raise RuntimeError(f'{self} Exclude already at 0')
+
+    def toJsonNoMetaData(self, **kwds):
+        with self._excludeBlock():
+            return self.toJson(**kwds)
+
+    def _encode(self):
+        """Return self as list of (trait, value) tuples
+        """
+
+        # get all traits that need saving to json
+        # Subtle but important implementation change relative to the previous one-liner
+        # Allow trait-specific saveToJson metadata (i.e. 'tag'), to override object's saveAllToJson
+        traitsToEncode = [] if self._excludeMetadata else [Constants.METADATA]
+        for trait in self.keys():
+            # check if saveToJson was defined for this trait
+            _saveTraitToJson = self.trait_metadata(traitname=trait, key='saveToJson', default=None)
+            # if saveToJson was not defined for this trait, check saveAllToJson flag
+            if _saveTraitToJson is None:
+                # We didn't obtain a result
+                if self.saveAllTraitsToJson:
+                    _saveTraitToJson = True
+                else:
+                    _saveTraitToJson = False
+
+            if _saveTraitToJson:
+                traitsToEncode.append(trait)
+
+        # create a list of (trait, value) tuples
+        dataList = []
+        for trait in traitsToEncode:
+            handler = self._getJsonHandler(trait)
+            if handler is not None:
+                dataList.append((trait, handler().encode(self, trait)))
+            else:
+                dataList.append((trait, getattr(self, trait)))
+        return dataList
+
+
+class ColumnGroup(_TraitColumnABC):
+    _columnType: MIColumnType = MIColumnType.GROUP
+    children = RecursiveList().tag(info='list to hold a group of columns/nested groups')
+
+    def __init__(self, *children: _TraitColumnABC,
+                 name: str = '', groupId: str = '',
+                 movable: bool = False, index: int = None):
+        super().__init__(name, groupId, movable, index)
+        self.children = children
+
+    def _setExcludeFlag(self):
+        """Block all Changes to the dict
+        """
+        super()._setExcludeFlag()
+        for att in self.children:
+            # a little hard-coded for now :|
+            att._setExcludeFlag()
+
+    def _clearExcludeFlag(self):
+        """Unblock all changes to the dict
+        """
+        super()._clearExcludeFlag()
+        for att in self.children:
+            att._clearExcludeFlag()
+
+    @property
+    def visible(self):
+        """Return True if any of its direct children are visible.
+        """
+        return any(att.visible for att in self.children)
+
+
+class ColumnItem(_TraitColumnABC):
+    _columnType: MIColumnType = MIColumnType.ITEM
+    visible = Bool(default_value=True).tag(info='flag to indicate that the column is visible')
+
+    def __init__(self, *, name: str = '', groupId: str = '',
+                 visible: bool = True, movable: bool = False, index: int = None):
+        super().__init__(name, groupId, movable, index)
+        self.visible = visible
