@@ -150,7 +150,7 @@ class MonteCarloSimulation(ParameterUncertaintyEstimation):
             # Re-optimize parameters with updated values
             mcMinimizer = self.minimiserCls(self.objectiveFunc, mcParams, method=self.minimiserMethod, **self.minimiserKwargs)
             try:
-                mcResult = mcMinimizer.minimize(method=self.minimiserMethod, options=self.minimiseOptions)
+                mcResult = mcMinimizer.minimize(method=self.minimiserMethod, **self.minimiseOptions, nan_policy='propagate')
                 self._minimiserResults.append(mcResult)
             except Exception as minError:
                 getLogger().debug(f'Minimisation Failed while {prefixMessage} uncertainties. Step {i} skipped. Minimiser kargs: {self.minimiserKwargs}. {minError}')
