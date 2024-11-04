@@ -16,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-10-16 17:57:43 +0100 (Wed, October 16, 2024) $"
-__version__ = "$Revision: 3.2.7 $"
+__dateModified__ = "$dateModified: 2024-11-01 19:40:51 +0000 (Fri, November 01, 2024) $"
+__version__ = "$Revision: 3.2.9 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -51,7 +51,7 @@ from ccpn.ui.gui.modules.lib.RestraintAITableCommon import (_RestraintOptions, U
                                                             HeaderMin, HeaderMax, HeaderMean, HeaderStd,
                                                             HeaderCount1, HeaderCount2, _OLDHEADERS, _VIOLATIONRESULT,
                                                             ALL, PymolScriptName, _RestraintAITableFilter,
-                                                            INDEXCOL, PEAKSERIALCOL, OBJCOL)
+                                                            INDEXCOL, PEAKSERIALCOL, OBJCOL, HeaderRow)
 from ccpn.ui.gui.widgets.Button import Button
 from ccpn.ui.gui.widgets.ButtonList import ButtonList
 from ccpn.ui.gui.widgets.Column import ColumnClass, Column
@@ -69,6 +69,7 @@ from ccpn.util.OrderedSet import OrderedSet
 from ccpn.ui.gui.widgets.table._MITableModel import _MITableModel
 from ccpn.ui.gui.widgets.table._MITableDelegates import _ExpandVerticalCellDelegate
 from ccpn.framework.Application import getProject
+from ccpnmodel.ccpncore.memops.metamodel.Constants import dataObjClassName
 
 
 SELECT = '< Select >'
@@ -153,7 +154,7 @@ class _MultiSort(_MITableModel):
 
 
 #=========================================================================================
-# _NewRestraintWidget - main widget for table, will need to change to _MultiIndex
+# _NewRestraintTableWidget - delegates/proxies/column handlers
 #=========================================================================================
 
 def _getContributions(restraint):
@@ -188,10 +189,20 @@ def _checkRestraintInt(offset, value, row, col):
     return '-'
 
 
+#=========================================================================================
+# _NewRestraintTableWidget - _MultiIndex table
+#=========================================================================================
+
+from ccpn.ui.gui.widgets.table._TableCommon import ColumnGroup, ColumnItem
+from ccpn.util.DataEnum import DataEnum
+from dataclasses import dataclass
+
+
 class _NewRestraintTableWidget(_CoreMITableWidgetABC):
     """Class to present a peak-driven Restraint Analysis Inspector Table
     """
-    className = '_NewRestraintWidget'
+    className = '_NewRestraintTableWidget'
+    # current class-type for the _object column, although this will also need to allow collections
     attributeName = 'peakLists'
 
     _OBJECT = ('_object', '_object')
@@ -211,6 +222,14 @@ class _NewRestraintTableWidget(_CoreMITableWidgetABC):
                              'Count > 0.5',
                              'Count > 0.3',
                              ]
+
+    columnFormat = ColumnGroup(ColumnItem(name=HeaderIndex),
+                               ColumnItem(name=HeaderRow),
+                               ColumnItem(name=HeaderObject),
+                               ColumnGroup(ColumnItem(name=HeaderObject),
+                                           ColumnItem(name=HeaderObject),
+                                           name='restraint-group'),
+                               movable=False, name='objects', groupId='indexing')
 
     # define the functions applied to the columns
     _subgroupColumns = [(HeaderRestraint, lambda val: str(val or '')),

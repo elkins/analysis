@@ -13,8 +13,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-09-04 18:51:19 +0100 (Wed, September 04, 2024) $"
-__version__ = "$Revision: 3.2.5 $"
+__dateModified__ = "$dateModified: 2024-11-01 19:40:51 +0000 (Fri, November 01, 2024) $"
+__version__ = "$Revision: 3.2.9 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -26,8 +26,12 @@ __date__ = "$Date: 2017-05-28 10:28:42 +0000 (Sun, May 28, 2017) $"
 
 
 from PyQt5 import QtGui, QtWidgets, QtCore
-from functools import partial
-from typing import Optional
+from functools import partial, reduce
+import pandas as pd
+import numpy as np
+import itertools
+from operator import or_
+
 from ccpn.ui.gui.widgets.Base import Base
 from ccpn.core.Chain import Chain
 from ccpn.core.ChemicalShiftList import ChemicalShiftList
@@ -65,7 +69,13 @@ INCLUDEORPHANS = 'includeOrphans'
 SPECTRA = 'spectra'
 RENAMEACTION = 'rename'
 BADITEMACTION = 'badItem'
+_ALLOW_UNCHECKALL = 'allowUncheckAll'
+_DEBUG_INSERTROW = False
 
+
+#=========================================================================================
+# ProjectTreeCheckBoxes
+#=========================================================================================
 
 class ProjectTreeCheckBoxes(QtWidgets.QTreeWidget, Base):
     """Class to handle a tree view created from a project
@@ -115,8 +125,10 @@ class ProjectTreeCheckBoxes(QtWidgets.QTreeWidget, Base):
         }
 
     mouseRelease = QtCore.pyqtSignal()
+    allowUncheckAll = True
+    _lastClickValid = False
 
-    def __init__(self, parent=None, project=None, maxSize=(250, 300),
+    def __init__(self, parent=None, *, project=None, maxSize=(250, 300),
                  includeProject=False, enableCheckBoxes=True, multiSelect=False,
                  enableMouseMenu=False, pathName=None,
                  **kwds):
@@ -216,9 +228,11 @@ class ProjectTreeCheckBoxes(QtWidgets.QTreeWidget, Base):
             self.projectItem = _StoredTreeWidgetItem(self.invisibleRootItem())
             self.projectItem.setText(0, self.project.name)
             if self._enableCheckBoxes:
-                self.projectItem.setFlags(self.projectItem.flags() | QtCore.Qt.ItemIsTristate | QtCore.Qt.ItemIsUserCheckable)
+                self.projectItem.setFlags(
+                        self.projectItem.flags() | QtCore.Qt.ItemIsTristate | QtCore.Qt.ItemIsUserCheckable)
             else:
-                self.projectItem.setFlags(self.projectItem.flags() & ~(QtCore.Qt.ItemIsTristate | QtCore.Qt.ItemIsUserCheckable))
+                self.projectItem.setFlags(
+                        self.projectItem.flags() & ~(QtCore.Qt.ItemIsTristate | QtCore.Qt.ItemIsUserCheckable))
             self.projectItem.setExpanded(True)
             self.headerItem = self.projectItem
 
@@ -337,7 +351,8 @@ class ProjectTreeCheckBoxes(QtWidgets.QTreeWidget, Base):
     def getCheckStateItems(self, includeRoot=False):
         """Get checked state of objects
         """
-        return {val.text(0): val.checkState(0) for val in self.findItems('', QtCore.Qt.MatchContains | QtCore.Qt.MatchRecursive)
+        return {val.text(0): val.checkState(0) for val in
+                self.findItems('', QtCore.Qt.MatchContains | QtCore.Qt.MatchRecursive)
                 }
 
     def getSelectedObjectsPids(self, includeRoot=False):
@@ -359,14 +374,23 @@ class ProjectTreeCheckBoxes(QtWidgets.QTreeWidget, Base):
 
     def _clicked(self, item, *args):
         if self._enableCheckBoxes:
-            for _item in self.findItems('', QtCore.Qt.MatchContains | QtCore.Qt.MatchRecursive):
+            items = self.findItems('', QtCore.Qt.MatchContains | QtCore.Qt.MatchRecursive)
+            for _item in items:
                 if _item.text(0) in self.lockedItems:
                     _item.setCheckState(0, self.lockedItems[_item.text(0)])
 
     def _itemChanged(self, item, column: int) -> None:
-        if column == 0 and hasattr(item, 'storedCheckedState') and item.storedCheckedState != item.checkState(0):
-            item.storedCheckedState = item.checkState(0)
+        if column == 0:
+            items = self.findItems('', QtCore.Qt.MatchContains | QtCore.Qt.MatchRecursive)
+            firstChecked = next((itm for itm in items
+                                 if itm.checkState(0) == QtCore.Qt.Checked and not itm.childCount()), None)
+            if hasattr(item, 'storedCheckedState') and item.storedCheckedState != item.checkState(0):
+                item.storedCheckedState = item.checkState(0)
             self.checkStateChanged.emit(item, column)
+
+            # could be nested changes
+            vis = set(id(_itm) for _itm in filter(lambda itm: itm.checkState(0) == 2 and not itm.childCount(), items))
+            firstChecked = next((itm for itm in items if itm.checkState(0) and not itm.childCount()), None)
 
     def _uncheckAll(self, includeRoot=False):
         """Clear all selection
@@ -421,6 +445,10 @@ class ProjectTreeCheckBoxes(QtWidgets.QTreeWidget, Base):
         # MUST BE SUBCLASSED
         raise NotImplementedError("Code error: function not implemented")
 
+
+#=========================================================================================
+# ExportTreeCheckBoxes
+#=========================================================================================
 
 class ExportTreeCheckBoxes(ProjectTreeCheckBoxes):
     """Class to handle exporting peaks/integrals/multiplets to nef files
@@ -487,7 +515,14 @@ class ExportTreeCheckBoxes(ProjectTreeCheckBoxes):
                 item.setDisabled(True)
 
 
+#=========================================================================================
+# _StoredTreeWidgetItem
+#=========================================================================================
+
 class _StoredTreeWidgetItem(QtWidgets.QTreeWidgetItem):
+    storedCheckedState: QtCore.Qt.CheckState
+    depth: int
+    _lastState: dict = None
 
     def __init__(self, parent, depth=0):
         super().__init__(parent)
@@ -501,6 +536,67 @@ class _StoredTreeWidgetItem(QtWidgets.QTreeWidgetItem):
             self.storedCheckedState = state
         return super().setCheckState(column, state)
 
+    def _countDescendants(self, item):
+        """Helper function to recursively count all descendants of a given item.
+        """
+        if item is None:
+            return 0
+        return sum((1 + self._countDescendants(item.child(ii))) for ii in range(item.childCount()))
+
+    def row(self):
+        """Get the row-number of the item relative to the top of the treeWidget.
+        """
+        row = 0
+        itm = self
+        try:
+            tree = self.treeWidget()
+            while itm is not None:
+                parent = itm.parent()
+                if parent:
+                    ind = parent.indexOfChild(itm)
+                    row += sum(self._countDescendants(parent.child(ii)) for ii in range(ind))
+                    row += (1 + parent.indexOfChild(itm))
+                else:
+                    ind = tree.indexOfTopLevelItem(itm)
+                    row += sum((1 + self._countDescendants(tree.topLevelItem(ii))) for ii in range(ind))
+                itm = parent
+        except Exception as es:
+            # there was an error, and no row can be found
+            return -1
+        else:
+            return row
+
+    def setData(self, column, role, value):
+        if role == QtCore.Qt.CheckStateRole:
+            if ((top := self.treeWidget()) and
+                    not getattr(top, _ALLOW_UNCHECKALL, False) and
+                    value != QtCore.Qt.Checked):
+                # find the list of checked boxes that are all leaves
+                items = top.findItems('', QtCore.Qt.MatchContains | QtCore.Qt.MatchRecursive)
+                vis = [_itm for _itm in filter(lambda itm: itm.checkState(0) == QtCore.Qt.Checked and
+                                                           not itm.childCount(), items)]
+                if len(vis) == 1 and self in vis:
+                    # this is the last checkbox, ensure checked
+                    value = QtCore.Qt.Checked
+        super().setData(column, role, value)
+
+
+if _DEBUG_INSERTROW:
+    # tweak the data-method to prefix the global-row to the display-role
+    def data(self, column, role):
+        if role == QtCore.Qt.DisplayRole:
+            # test - insert the row number at the head of the display item
+            return f'{self.row()} - {QtWidgets.QTreeWidgetItem.data(self, column, role)}'
+        return QtWidgets.QTreeWidgetItem.data(self, column, role)
+
+
+    # overwrite the class data-method
+    _StoredTreeWidgetItem.data = data
+
+
+#=========================================================================================
+# ImportTreeCheckBoxes
+#=========================================================================================
 
 class ImportTreeCheckBoxes(ProjectTreeCheckBoxes):
     """Class to handle importing peaks/integrals/multiplets from nef files
@@ -576,7 +672,8 @@ class ImportTreeCheckBoxes(ProjectTreeCheckBoxes):
                                             'nef_rdc_restraint_list', 'nef_rdc_restraint',
                                             'ccpn_restraint_list', 'ccpn_restraint'
                                             ],
-        PeakList._pluralLinkName         : ['ccpn_peak_list', 'nef_peak', 'nef_spectrum_dimension', 'nef_spectrum_dimension_transfer'],
+        PeakList._pluralLinkName         : ['ccpn_peak_list', 'nef_peak', 'nef_spectrum_dimension',
+                                            'nef_spectrum_dimension_transfer'],
         IntegralList._pluralLinkName     : ['ccpn_integral_list', 'ccpn_integral'],
         MultipletList._pluralLinkName    : ['ccpn_multiplet_list', 'ccpn_multiplet', 'ccpn_multiplet_peaks'],
         Sample._pluralLinkName           : ['ccpn_sample', 'ccpn_sample_component'],
@@ -590,8 +687,10 @@ class ImportTreeCheckBoxes(ProjectTreeCheckBoxes):
         # _PeakCluster._pluralLinkName  : ['ccpn_peak_cluster_list', 'ccpn_peak_cluster', 'ccpn_peak_cluster_peaks'],
         'restraintLinks'                 : ['nef_peak_restraint_link'],
         'additionalData'                 : ['ccpn_internal_data'],
-        ViolationTable._pluralLinkName   : ['ccpn_distance_restraint_violation_list', 'ccpn_distance_restraint_violation',
-                                            'ccpn_dihedral_restraint_violation_list', 'ccpn_dihedral_restraint_violation',
+        ViolationTable._pluralLinkName   : ['ccpn_distance_restraint_violation_list',
+                                            'ccpn_distance_restraint_violation',
+                                            'ccpn_dihedral_restraint_violation_list',
+                                            'ccpn_dihedral_restraint_violation',
                                             'ccpn_rdc_restraint_violation_list', 'ccpn_rdc_restraint_violation',
                                             'ccpn_restraint_violation_list_metadata'
                                             ],
@@ -646,10 +745,12 @@ class ImportTreeCheckBoxes(ProjectTreeCheckBoxes):
             else:
                 self.projectItem.setText(0, self.project.name)
             if self._enableCheckBoxes:
-                self.projectItem.setFlags(self.projectItem.flags() | QtCore.Qt.ItemIsTristate | QtCore.Qt.ItemIsUserCheckable)
+                self.projectItem.setFlags(
+                        self.projectItem.flags() | QtCore.Qt.ItemIsTristate | QtCore.Qt.ItemIsUserCheckable)
                 # self.projectItem.setCheckState(0, QtCore.Qt.Unchecked)
             else:
-                self.projectItem.setFlags(self.projectItem.flags() & ~(QtCore.Qt.ItemIsTristate | QtCore.Qt.ItemIsUserCheckable))
+                self.projectItem.setFlags(
+                        self.projectItem.flags() & ~(QtCore.Qt.ItemIsTristate | QtCore.Qt.ItemIsUserCheckable))
             self.projectItem.setExpanded(True)
             self.headerItem = self.projectItem
 
@@ -687,16 +788,19 @@ class ImportTreeCheckBoxes(ProjectTreeCheckBoxes):
 
     # NOTE:ED - define methods here to match CcpnNefIo
     def content_nef_molecular_system(self, project: Project, saveFrame: StarIo.NmrSaveFrame, saveFrameTag):
-        self._contentLoops(project, saveFrame, saveFrameTag,  #name=spectrumName, itemLength=saveFrame['num_dimensions'],
+        self._contentLoops(project, saveFrame, saveFrameTag,
+                           #name=spectrumName, itemLength=saveFrame['num_dimensions'],
                            )
         tag = 'nef_sequence_chain_code'
         content = self.contents[tag]
         content(self, project, saveFrame, tag)
 
-    def content_nef_sequence(self, project: Project, loop: StarIo.NmrLoop, parentFrame: StarIo.NmrSaveFrame) -> OrderedSet:
+    def content_nef_sequence(self, project: Project, loop: StarIo.NmrLoop,
+                             parentFrame: StarIo.NmrSaveFrame) -> OrderedSet:
         pass
 
-    def content_nef_covalent_links(self, project: Project, loop: StarIo.NmrLoop, parentFrame: StarIo.NmrSaveFrame) -> OrderedSet:
+    def content_nef_covalent_links(self, project: Project, loop: StarIo.NmrLoop,
+                                   parentFrame: StarIo.NmrSaveFrame) -> OrderedSet:
         pass
 
     def _contentParent(self, project: Project, saveFrame: StarIo.NmrSaveFrame, saveFrameTag):
@@ -773,19 +877,22 @@ class ImportTreeCheckBoxes(ProjectTreeCheckBoxes):
                     else:
                         content(self, project, saveFrame, tag, **kwds)
 
-    def content_nef_chemical_shift(self, parent: ChemicalShiftList, loop: StarIo.NmrLoop, parentFrame: StarIo.NmrSaveFrame) -> OrderedSet:
+    def content_nef_chemical_shift(self, parent: ChemicalShiftList, loop: StarIo.NmrLoop,
+                                   parentFrame: StarIo.NmrSaveFrame) -> OrderedSet:
         # ll = parentFrame._content[parentFrame['sf_category']]
         pass
 
     def content_nef_restraint_list(self, project: Project, saveFrame: StarIo.NmrSaveFrame):
         pass
 
-    def content_nef_restraint(self, restraintTable: RestraintTable, loop: StarIo.NmrLoop, parentFrame: StarIo.NmrSaveFrame,
-                              itemLength: int = None) -> Optional[OrderedSet]:
+    def content_nef_restraint(self, restraintTable: RestraintTable, loop: StarIo.NmrLoop,
+                              parentFrame: StarIo.NmrSaveFrame,
+                              itemLength: int = None) -> OrderedSet | None:
         pass
 
     def content_nef_nmr_spectrum(self, project: Project, saveFrame: StarIo.NmrSaveFrame, saveFrameTag):
-        self._contentLoops(project, saveFrame, saveFrameTag,  #name=spectrumName, itemLength=saveFrame['num_dimensions'],
+        self._contentLoops(project, saveFrame, saveFrameTag,
+                           #name=spectrumName, itemLength=saveFrame['num_dimensions'],
                            )
 
     def content_ccpn_integral_list(self, project: Project, loop: StarIo.NmrLoop, parentFrame: StarIo.NmrSaveFrame,
@@ -825,11 +932,13 @@ class ImportTreeCheckBoxes(ProjectTreeCheckBoxes):
         pass
 
     def content_ccpn_assignment(self, project: Project, saveFrame: StarIo.NmrSaveFrame, saveFrameTag):
-        self._contentLoops(project, saveFrame, saveFrameTag,  #name=spectrumName, itemLength=saveFrame['num_dimensions'],
+        self._contentLoops(project, saveFrame, saveFrameTag,
+                           #name=spectrumName, itemLength=saveFrame['num_dimensions'],
                            )
 
     def content_ccpn_default(self, project: Project, saveFrame: StarIo.NmrSaveFrame, saveFrameTag):
-        self._contentLoops(project, saveFrame, saveFrameTag,  #name=spectrumName, itemLength=saveFrame['num_dimensions'],
+        self._contentLoops(project, saveFrame, saveFrameTag,
+                           #name=spectrumName, itemLength=saveFrame['num_dimensions'],
                            )
 
     contents['nef_molecular_system'] = content_nef_molecular_system
@@ -934,7 +1043,8 @@ class ImportTreeCheckBoxes(ProjectTreeCheckBoxes):
 
         _itemPressed = self.itemAt(event.pos())
         if len(items) > 1:
-            contextMenu.addItem("Autorename All Conflicts in Selection", callback=self._autoRenameAllConflicts, enabled=True)
+            contextMenu.addItem("Autorename All Conflicts in Selection", callback=self._autoRenameAllConflicts,
+                                enabled=True)
             contextMenu.addSeparator()
             contextMenu.addItem("Autorename All in Selection", callback=self._autoRenameAll)
             contextMenu.addItem("Autorename Checked in Selection", callback=self._autoRenameSelected)
@@ -944,8 +1054,10 @@ class ImportTreeCheckBoxes(ProjectTreeCheckBoxes):
             contextMenu.addSeparator()
 
         if len(items) > 1:
-            contextMenu.addItem("Check All Conflicts in Selection", callback=partial(self._checkSelected, True, conflictsOnly=True), enabled=True)
-            contextMenu.addItem("Uncheck All Conflicts in Selection", callback=partial(self._checkSelected, False, conflictsOnly=True), enabled=True)
+            contextMenu.addItem("Check All Conflicts in Selection",
+                                callback=partial(self._checkSelected, True, conflictsOnly=True), enabled=True)
+            contextMenu.addItem("Uncheck All Conflicts in Selection",
+                                callback=partial(self._checkSelected, False, conflictsOnly=True), enabled=True)
             contextMenu.addSeparator()
             contextMenu.addItem("Check Selected", callback=partial(self._checkSelected, True))
             contextMenu.addItem("Uncheck Selected", callback=partial(self._checkSelected, False))
@@ -1032,28 +1144,356 @@ class ImportTreeCheckBoxes(ProjectTreeCheckBoxes):
         self._selectChildren(item, True)
 
 
+#=========================================================================================
+# PrintTreeCheckBoxes
+#=========================================================================================
+
 class PrintTreeCheckBoxes(ProjectTreeCheckBoxes):
     """Class to handle exporting peaks/integrals/multiplets to PDF or SVG files
     """
 
     # set the items in the project that can be printed
     checkList = []
-    # SPECTRA,
-    # PeakList._pluralLinkName,
-    # IntegralList._pluralLinkName,
-    # MultipletList._pluralLinkName,
-    # ]
-
     # all items can be selected
     selectableItems = []
-
-    # SPECTRA,
-    # PeakList._pluralLinkName,
-    # IntegralList._pluralLinkName,
-    # MultipletList._pluralLinkName,
-    # ]
-
     lockedItems = {}
 
-    def __init__(self, parent=None, project=None, maxSize=(250, 300), **kwds):
-        super(PrintTreeCheckBoxes, self).__init__(parent=parent, project=project, maxSize=maxSize, **kwds)
+    def __init__(self, parent=None, *, project=None, maxSize=(250, 300), **kwds):
+        super().__init__(parent=parent, project=project, maxSize=maxSize, **kwds)
+
+
+#=========================================================================================
+# ColumnTreeView delegates/proxies
+#=========================================================================================
+
+SEARCH_MODES = ['Literal', 'Case Sensitive Literal', 'Regular Expression']
+CheckboxTipText = 'Select column to be visible on the table.'
+
+
+class _TreeProxyStyle(QtWidgets.QProxyStyle):
+    """Proxy-class to handle setting background/border of checboxes in transparent QTables/QTreeViews.
+    """
+
+    def drawPrimitive(self, element: QtWidgets.QStyle.PrimitiveElement,
+                      option: QtWidgets.QStyleOption,
+                      painter: QtGui.QPainter,
+                      widget: QtWidgets.QWidget | None = ...) -> None:
+        if element in {QtWidgets.QStyle.PE_IndicatorCheckBox}:
+            # need to fix the background and border of checkboxes
+            # if QTables/QTree have a transparent background, otherwise there appear solid colour
+            option.palette.setColor(option.palette.Base, QtGui.QPalette().base().color())
+            option.palette.setColor(option.palette.Background, QtGui.QPalette().dark().color())
+        super().drawPrimitive(element, option, painter, widget)
+
+
+class _TreeTopBorderDelegate(QtWidgets.QStyledItemDelegate):
+    """Delegate to paint the top border of tree-items that have children.
+    """
+
+    def paint(self, painter, option, index):
+        # Draw the item as usual
+        super().paint(painter, option, index)
+        # Only add top border for items with children, except the first one
+        if (index.model().hasChildren(index) and  #index.row() != 0 and
+                not index.siblingAtRow(0) == index):
+            # Set a custom pen for the top border - a divider between top items
+            painter.setPen(QtGui.QPen(QtGui.QColor('orange'), 1))
+            painter.drawLine(option.rect.topLeft(), option.rect.topRight())
+        # keep for the minute, may want to show nested boundaries
+        # elif not index.siblingAtRow(0) == index:
+        #     prev = index.sibling(index.row() - 1, index.column())
+        #     if prev.model().hasChildren(prev):
+        #         # Set a custom pen for the top border - a divider between top items
+        #         painter.setPen(QtGui.QPen(QtGui.QColor('#7f7f7f'), 1))
+        #         painter.drawLine(option.rect.topLeft(), option.rect.topRight())
+
+
+#=========================================================================================
+# ColumnTreeView
+#=========================================================================================
+
+class ColumnTreeView(ProjectTreeCheckBoxes):
+    """Treeview to handle show/hide table-columns.
+    """
+    # set the items in the project that can be exported
+    checkList = []
+    # set which items can be selected/deselected, others are automatically set
+    selectableItems = []
+    lockedItems = {}
+
+    allowUncheckAll = False
+
+    def __init__(self, parent=None, *, df=None, **kwds):
+        self._df = df
+        self._treeItems = {}
+        self._spanDf = None
+
+        super().__init__(parent, **kwds)
+
+        self.setIndentation(48)
+        self.setItemDelegate(_TreeTopBorderDelegate(self))
+
+    def populate(self, project=None):
+        """Fill the tree-view from the single/multi-index columns.
+        """
+        self._spanDf = spans = self._setRowSpans(self._df)
+        # Create an OrderedSet of unique cell-spans to build the tree - row-order
+        ordered_spans = reduce(or_, [OrderedSet(vals) for vals in spans.values.tolist()]) - {None}
+        # ordered_spans = reduce(or_, [OrderedSet(spans[col].tolist()) for col in spans.columns]) - {None}
+
+        self._treeItems = treeItems = {}
+        for span in ordered_spans:
+            if not span:
+                continue
+            rr, cc, rSpan, cSpan = span
+            for col in range(cc - 1, -1, -1):
+                if (pSpan := spans.iat[rr, col]) is not None:
+                    # try and find this item in the tree, SHOULD always be there :|
+                    if parentItem := treeItems.get(pSpan):
+                        break
+            else:
+                # nothing found, use the top tree-item
+                parentItem = self.headerItem
+
+            item = _StoredTreeWidgetItem(parentItem)
+            item.setText(0, self._df.iat[rr, cc])
+            item.setData(0, QtCore.Qt.UserRole, span)
+            item.setFlags(item.flags() | QtCore.Qt.ItemIsTristate | QtCore.Qt.ItemIsUserCheckable)
+            item.setCheckState(0, QtCore.Qt.Checked)
+            treeItems[span] = item
+        self.expandAll()
+
+    def _setStyle(self):
+        _style = """QTreeView {
+                        border: 0px;
+                        background-color: transparent;
+                    }
+                    /* crazy border stuff
+                    QTreeView::branch { border: 1px solid red; }
+                    QTreeView::branch:has-siblings:!adjoins-item { border: 1px solid green; }
+                    QTreeView::branch:has-siblings:adjoins-item { border: 1px solid orange; }
+                    QTreeView::branch:!has-children:!has-siblings:adjoins-item { border: 1px solid blue; }
+                    QTreeView::branch:closed:has-children:has-siblings { border-top: 2px solid green; }
+                    QTreeView::branch:open:has-children:has-siblings { border-top: 2px solid purple; }
+                    QTreeView::branch:open:has-children:!has-siblings { border: 1px solid purple; }
+                    QTreeView::item:has-children { border-top: 2px solid orange; }
+                    */
+                    """
+        self.setStyleSheet(_style)
+        self.setRootIsDecorated(False)
+        # Wow! didn't realise I could do this on individual widgets :O
+        _styles = QtWidgets.QStyleFactory()
+        self.setStyle(_TreeProxyStyle(_styles.create('fusion')))
+
+    def _setRowSpans(self, df):
+        """Set the row-spans of each column ensuring that spans to the right
+        respect the boundaries of the spans from columns on their left.
+        """
+
+        def _fillSpan(row, column, rSpan, cSpan):
+            for rr, cc in itertools.product(range(rSpan), range(cSpan)):
+                # store the top-left cell in all the cells of the group
+                spanDf.iat[row + rr, column + cc] = (row, column, rSpan, cSpan)
+
+        def _setSingleSpan(col, df, row):
+            rr, cc = row - 1, col
+            for _inner in range(col + 1, df.shape[1]):
+                if df.iat[rr, _inner] == df.iat[rr, _inner - 1]:
+                    if _inner == df.shape[1] - 1:
+                        _fillSpan(rr, cc, 1, _inner - cc + 1)
+                else:
+                    if _inner - cc > 1:
+                        _fillSpan(rr, cc, 1, _inner - cc)
+                    cc = _inner
+
+        def _childSpans(col, d0, d1):
+            startRow = d0
+            for row in range(d0 + 1, d1):
+                if df.iat[row - 1, col] == df.iat[row, col]:
+                    if row == d1 - 1:
+                        # last element in the range
+                        _fillSpan(startRow, col, row - startRow + 1, 1)
+                        if col < df.shape[1] - 1:
+                            _childSpans(col + 1, startRow, row + 1)
+                else:
+                    # next item is different
+                    if row - startRow > 1:
+                        _fillSpan(startRow, col, row - startRow, 1)
+                        if col < df.shape[1] - 1:
+                            _childSpans(col + 1, startRow, row)
+                    else:
+                        _setSingleSpan(col, df, row)
+                    startRow = row
+
+        # df holding the spans for common elements
+        spanDf = pd.DataFrame([[(rr, cc, 1, 1) for cc in range(df.shape[1])]
+                               for rr in range(df.shape[0])])
+        self._horizontalDividers = []
+        self._verticalDividers = []
+
+        if self._df is None or self._df.empty:
+            return
+
+        # find the vertical spans
+        _childSpans(0, 0, df.shape[0])
+        for rr in range(spanDf.shape[0]):
+            for cc in range(spanDf.shape[1] - 1):
+                _, cL, rspL, _ = spanDf.iat[rr, cc]
+                _, cR, rspR, _ = spanDf.iat[rr, cc + 1]
+                if (rspL == rspR and cL != cR):
+                    spanDf.iat[rr, cc] = None
+        return spanDf
+
+    def raiseContextMenu(self, event: QtGui.QMouseEvent):
+        """Creates and raises a context menu enabling items to be deleted from the sidebar.
+        """
+        menu = self._getContextMenu(event)
+        if self._postMenuSetup:
+            self._postMenuSetup(menu)  # add options from the parent
+        if menu:
+            menu.move(event.globalPos().x(), event.globalPos().y() + 10)
+            menu.exec()
+
+    def _getContextMenu(self, event) -> Menu:
+        """Create a new menu.
+        Items are enabled as required based on the current selection.
+        """
+        contextMenu = Menu('', self, isFloatWidget=True)
+
+        selection = self.selectionModel().selectedIndexes()
+        newItems = [self.itemFromIndex(itm) for itm in selection]
+        # everything in the tree
+        allItems = self.findItems('', QtCore.Qt.MatchContains | QtCore.Qt.MatchRecursive)
+        # keep these extras for clarity
+        # checkAllItems = [itm for itm in allItems if itm.checkState(0) == QtCore.Qt.Checked]
+        # parcheckAllItems = [itm for itm in allItems if itm.checkState(0) == QtCore.Qt.PartiallyChecked]
+        selItems = [itm for itm in allItems if itm.isSelected()]
+        checkSelItems = [itm for itm in selItems if itm.checkState(0) == QtCore.Qt.Checked]
+        parcheckSelItems = [itm for itm in selItems if itm.checkState(0) == QtCore.Qt.PartiallyChecked]
+        # all the leaves, correspond to visible columns
+        childItems = [itm for itm in allItems if not itm.childCount()]
+        checkChildItems = [itm for itm in childItems if itm.checkState(0) == QtCore.Qt.Checked]
+        # keep these extras for clarity - could use later for uncheck-partials if not allowUncheckAll
+        # parcheckChildItems = [itm for itm in childItems if itm.checkState(0) == QtCore.Qt.PartiallyChecked]
+        # selChildItems = [itm for itm in childItems if itm.isSelected()]
+        # checkSelChildItems = [itm for itm in selChildItems if itm.checkState(0) == QtCore.Qt.Checked]
+        cs = contextMenu.addItem("Check selected columns",
+                                 callback=partial(self._checkItems, True))
+        us = contextMenu.addItem("Uncheck selected columns",
+                                 callback=partial(self._checkItems, False))
+        contextMenu.addSeparator()
+        ca = contextMenu.addItem("Check all columns",
+                                 callback=partial(self._checkAll, True))
+        ua = contextMenu.addItem("Uncheck all columns",
+                                 callback=partial(self._checkAll, False))
+        contextMenu.addSeparator()
+        allowed = self.allowUncheckAll
+        # checking
+        cs.setEnabled(len(checkSelItems) < len(selItems))
+        ca.setEnabled(len(checkChildItems) < len(childItems))
+        # unchecking - allow the tree-model-data to control keeping the last remaining item checked
+        #            - too many permutations to check otherwise
+        us.setEnabled(0 < len(checkSelItems) + len(parcheckSelItems) <= len(selItems))
+        # could add 'and self.allowUncheckAll' here but is always greyed out :|
+        ua.setEnabled(len(checkChildItems) > 0)
+        return contextMenu
+
+    def _checkItems(self, state: bool):
+        """Check/uncheck selection.
+        """
+        # NOTE:ED - move to base-class?
+        if self._enableCheckBoxes:
+            selection = self.selectionModel().selectedIndexes()
+            newItms = [self.itemFromIndex(itm) for itm in selection]
+            # reversed ensures that with the sub-classed treeWidgetItem the top checked item remains checked
+            # if allowUncheckAll is False
+            for itm in reversed(newItms):
+                itm.setCheckState(0, QtCore.Qt.Checked if state else QtCore.Qt.Unchecked)
+
+    def _checkAll(self, state: bool):
+        """Check/uncheck all.
+        """
+        if self._enableCheckBoxes:
+            items = self.findItems('', QtCore.Qt.MatchContains | QtCore.Qt.MatchRecursive)
+            # reversed ensures that with the sub-classed treeWidgetItem the top checked item remains checked
+            # if allowUncheckAll is False
+            for itm in reversed(items):
+                # if itm != firstChecked and not itm.childCount():
+                itm.setCheckState(0, QtCore.Qt.Checked if state else QtCore.Qt.Unchecked)
+
+    def _setCheckState(self, column, state):
+        span = self._spanDf.iat[column, -1]
+        if itm := self._treeItems.get(span):
+            itm.setCheckState(0, QtCore.Qt.Checked if state else QtCore.Qt.Unchecked)
+
+    def _allowUncheck(self):
+        items = self.findItems('', QtCore.Qt.MatchContains | QtCore.Qt.MatchRecursive)
+        vis = list(filter(lambda itm: itm.checkState(0) and not itm.childCount(), items))
+        return self.allowUncheckAll or len(vis) > 1
+
+
+#=========================================================================================
+# main
+#=========================================================================================
+
+def main():
+    from ccpn.ui.gui.widgets.Application import TestApplication
+    from ccpn.ui.gui.widgets.table._TableCommon import ColumnGroup, ColumnItem
+
+    def _itemChecked(item, column):
+        if not bool(item.childCount()):
+            # a child-item so corresponds to a real column
+            print(f'==> clicked  {item.text(0)}   '
+                  f'{item.storedCheckedState}  '
+                  f'{item.data(0, QtCore.Qt.UserRole)}  '
+                  )
+            rr, cc, rSpan, cSpan = item.data(0, QtCore.Qt.UserRole)
+            print(f'==> {dfCol.iloc[rr].tolist()}')
+
+    app = TestApplication()
+
+    dfCol = pd.DataFrame([
+        ("CCPN", "CCPN", "Again"),
+        ("testing", "testing", "Not again"),
+        ("Sheep", "Dog", "Llama"),
+        ("Sheep", "Dog", "hat"),
+        ("Sheep", "Fish", "Biscuits"),
+        ("No", "No", "No"),
+        ("Why", "Something", "Else"),
+        ("Most", "Petrol", "Toyota"),
+        ("Most", "Petrol", "Ford"),
+        ("Most", "Petrol", "Flowers"),
+        ("Most", "Fish", "Chips"),
+        ("Most", "Electric", "Tesla\nRAAAAAH!"),
+        ("Most", "Electric", "Nio"),
+        ("Most", "Quater", "Mass"),
+        ("Other", "Other", "Happy"),
+        ("Other1", "Other1", "Happy"),
+        ("Set", "NONO", "nay"),
+        ("Set", "NONO", "aye"),
+        ])
+
+    popup = ColumnTreeView(df=dfCol, multiSelect=True, enableMouseMenu=True, enableCheckBoxes=True)
+    popup.checkStateChanged.connect(_itemChecked)
+
+    columnFormat = ColumnGroup(ColumnItem(name='index'),
+                               ColumnItem(name='row'),
+                               ColumnItem(name='object'),
+                               ColumnGroup(ColumnItem(name='#'),
+                                           ColumnItem(name='target value'),
+                                           ColumnItem(name='lower limit'),
+                                           name='restraint-group'),
+                               movable=False, name='first-columns')
+    val = columnFormat.toJson()
+    ColumnGroup.register()
+    ColumnItem.register()
+    stuff = ColumnGroup.newObjectFromJson(jsonString=val)
+    assert (noMeta := columnFormat.toJsonNoMetaData()) not in [None, False, [], '']
+    assert columnFormat.toJsonNoMetaData() == stuff.toJsonNoMetaData()
+    print(val)
+    popup.show()
+    app.start()
+
+
+if __name__ == '__main__':
+    main()

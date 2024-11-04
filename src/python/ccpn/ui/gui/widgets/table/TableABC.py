@@ -16,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-10-16 18:41:24 +0100 (Wed, October 16, 2024) $"
-__version__ = "$Revision: 3.2.7 $"
+__dateModified__ = "$dateModified: 2024-11-01 19:40:51 +0000 (Fri, November 01, 2024) $"
+__version__ = "$Revision: 3.2.9 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -347,6 +347,7 @@ class TableABC(QtWidgets.QTableView):
         """Set the model for the view
         """
         super().setModel(model)
+        getLogger().debug(f'==> set model {model.__class__.__name__}')
 
         # attach a handler for updating the selection on sorting
         model.layoutAboutToBeChanged.connect(self._preChangeSelectionOrderCallback)
@@ -1059,6 +1060,116 @@ class TableABC(QtWidgets.QTableView):
         """
         if (model := self.model()):
             model.setBorderVisible(row, column, enabled)
+
+    def _setRowSpans(self):
+        """Set the row-spans of each column ensuring that spans to the right 
+        respect the boundaries of the spans from columns on their left.
+        """
+
+        def _setSingleSpan(col, df, row):
+            rr, cc = row - 1, col
+            for _inner in range(col + 1, df.shape[1]):
+                if df.iat[rr, _inner] == df.iat[rr, _inner - 1]:
+                    if _inner == df.shape[1] - 1:
+                        self.setSpan(rr, cc, 1, _inner - cc + 1)
+                else:
+                    if _inner - cc > 1:
+                        self.setSpan(rr, cc, 1, _inner - cc)
+                    cc = _inner
+
+        def _childSpans(col, d0, d1):
+            df = self._df
+            startRow = d0
+            for row in range(d0 + 1, d1):
+                if df.iat[row - 1, col] == df.iat[row, col]:
+                    if row == d1 - 1:
+                        # last element in the range
+                        self.setSpan(startRow, col, row - startRow + 1, 1)
+                        if col < df.shape[1] - 1:
+                            _childSpans(col + 1, startRow, row + 1)
+                else:
+                    # next item is different
+                    if row - startRow > 1:
+                        self.setSpan(startRow, col, row - startRow, 1)
+                        if col < df.shape[1] - 1:
+                            _childSpans(col + 1, startRow, row)
+                    else:
+                        _setSingleSpan(col, df, row)
+                    startRow = row
+
+        self.clearSpans()
+        self._horizontalDividers = []
+        self._verticalDividers = []
+
+        if self._df is None or self._df.empty:
+            return
+
+        # find the vertical spans
+        _childSpans(0, 0, self.rowCount())
+
+    def _setColumnSpans(self):
+        """Set the column-spans of each row ensuring that lower spans 
+        respect the boundaries of the spans from rows above.
+        """
+
+        def _setSingleSpan(col, df, row):
+            rr, cc = row, col - 1
+            for _inner in range(row + 1, df.shape[0]):
+                if df.iat[_inner, cc] == df.iat[_inner - 1, cc]:
+                    if _inner == df.shape[0] - 1:
+                        self.setSpan(rr, cc, _inner - rr + 1, 1)
+                else:
+                    if _inner - cc > 1:
+                        self.setSpan(rr, cc, _inner - rr, 1)
+                    rr = _inner
+
+        def _childSpans(row, d0, d1):
+            df = self._df
+            startCol = d0
+            for col in range(d0 + 1, d1):
+                if df.iat[row, col - 1] == df.iat[row, col]:
+                    if col == d1 - 1:
+                        # last element in the range
+                        self.setSpan(row, startCol, 1, col - startCol + 1)
+                        if row < df.shape[0] - 1:
+                            _childSpans(row + 1, startCol, col + 1)
+                else:
+                    # next item is different
+                    if col - startCol > 1:
+                        self.setSpan(row, startCol, 1, col - startCol)
+                        if row < df.shape[0] - 1:
+                            _childSpans(row + 1, startCol, col)
+                    else:
+                        _setSingleSpan(col, df, row)
+                    startCol = col
+
+        self.clearSpans()
+        self._horizontalDividers = []
+        self._verticalDividers = []
+
+        if self._df is None or self._df.empty:
+            return
+
+        # find the vertical spans
+        _childSpans(0, 0, self.columnCount())
+
+    # def setSpan(self, row: int, column: int, rowSpan: int, columnSpan: int) -> None:
+    #     """Set the span and set the top-left index for each cell in the span
+    #     """
+    #     super().setSpan(row, column, rowSpan, columnSpan)
+    # 
+    #     model = self.model()
+    #     for rr, cc in itertools.product(range(rowSpan), range(columnSpan)):
+    #         # store the top-left cell in all the cells of the group
+    #         model._spanTopLeft[row + rr, column + cc] = (row, column)
+    # 
+    # def clearSpans(self) -> None:
+    #     """Clear the spans
+    #     """
+    #     super().clearSpans()
+    # 
+    #     # clear the span information held in the header
+    #     self.model().clearSpans()
 
     #=========================================================================================
     # Table context menu

@@ -316,10 +316,13 @@
         }
     },
     "tables"           : {
+        "_NewRestraintTableWidget": {
+            "hiddenColumns": null
+        }
     },
     "modules": {
         "profileByReference" : {
-            "databasePath" : ""
+            "databasePaths" : []
         }
     }
 }

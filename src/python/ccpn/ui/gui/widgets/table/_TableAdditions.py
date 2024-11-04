@@ -16,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-09-02 17:56:54 +0100 (Mon, September 02, 2024) $"
-__version__ = "$Revision: 3.2.5 $"
+__dateModified__ = "$dateModified: 2024-11-01 19:40:51 +0000 (Fri, November 01, 2024) $"
+__version__ = "$Revision: 3.2.9 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -295,12 +295,12 @@ class TableCopyCell(TableMenuABC):
 #=========================================================================================
 
 _COLUMN_SETTINGS = menuItem('Column Settings...', 'Show/hide columns')
-_SAVE = menuItem('Save hidden columns', 'Save the current visible/hidden columns;\n'
-                                        'new tables will open from the saved state.')
-_RESTORE = menuItem('Restore hidden columns', 'Restore the visible/hidden columns from the\n'
-                                              'saved state for this table.')
-_RESET = menuItem('Reset hidden columns', 'Clear the current saved visible/hidden columns;\n'
-                                          'new tables will open with the default state for this table.')
+# _SAVE = menuItem('Save hidden columns', 'Save the current visible/hidden columns;\n'
+#                                         'new tables will open from the saved state.')
+# _RESTORE = menuItem('Restore hidden columns', 'Restore the visible/hidden columns from the\n'
+#                                               'saved state for this table.')
+# _RESET = menuItem('Reset hidden columns', 'Clear the current saved visible/hidden columns;\n'
+#                                           'new tables will open with the default state for this table.')
 _TABLES = 'tables'
 _HIDDENCOLUMNS = 'hiddenColumns'
 
@@ -326,18 +326,18 @@ class TableHeaderColumns(TableHeaderABC):
         """
         menu.addSeparator()
         self._columnSettingsAction = menu.addAction(_COLUMN_SETTINGS.name, self._showColumnsPopup)
-        self._saveAction = menu.addAction(_SAVE.name, self._saveCurrentColumns)
-        self._restoreAction = menu.addAction(_RESTORE.name, self.restoreColumns)
-        self._resetAction = menu.addAction(_RESET.name, self.resetColumns)
+        # self._saveAction = menu.addAction(_SAVE.name, self._saveCurrentColumns)
+        # self._restoreAction = menu.addAction(_RESTORE.name, self.restoreColumns)
+        # self._resetAction = menu.addAction(_RESET.name, self.resetColumns)
         self._columnSettingsAction.setToolTip(_COLUMN_SETTINGS.toolTip)
-        self._saveAction.setToolTip(_SAVE.toolTip)
-        self._restoreAction.setToolTip(_RESTORE.toolTip)
-        self._resetAction.setToolTip(_RESET.toolTip)
+        # self._saveAction.setToolTip(_SAVE.toolTip)
+        # self._restoreAction.setToolTip(_RESTORE.toolTip)
+        # self._resetAction.setToolTip(_RESET.toolTip)
 
     def setMenuOptions(self, menu):
         """Update the state of options in the right-mouse menu
         """
-        for itm in {self._columnSettingsAction, self._saveAction, self._restoreAction, self._resetAction}:
+        for itm in {self._columnSettingsAction}:  # , self._saveAction, self._restoreAction, self._resetAction}:
             itm.setEnabled(self._enabled)
             itm.setVisible(self._menuItemVisible)
 

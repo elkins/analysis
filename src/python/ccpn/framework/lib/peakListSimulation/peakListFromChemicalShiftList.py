@@ -17,8 +17,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Vicky Higman $"
-__dateModified__ = "$dateModified: 2024-07-04 17:09:52 +0100 (Thu, July 04, 2024) $"
-__version__ = "$Revision: 3.2.5 $"
+__dateModified__ = "$dateModified: 2024-10-23 14:19:12 +0100 (Wed, October 23, 2024) $"
+__version__ = "$Revision: 3.2.7 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -675,6 +675,35 @@ class SimulatedSpectrum_NCOCX(SimulatedSpectrumByExperimentTypeABC):
 
 
 #--------------------------------------------------------------------------------------------
+# 4D ExperimentTypes
+#--------------------------------------------------------------------------------------------
+
+class SimulatedSpectrum_CONCACX(SimulatedSpectrumByExperimentTypeABC):
+
+    experimentType      = 'CANCOCX (relayed)'
+    isotopeCodes        = ['13C', '13C', '15N', '13C']
+    axisCodes           = ['C', 'CO', 'N', 'CA']
+    spectralWidths      = [190, 30, 50, 35]
+    referenceValues     = [190, 190, 150, 75]
+    peakAtomNameMappers = None
+
+    @staticmethod
+    def _createAtomNameMappers():
+        from ccpn.core.lib.AssignmentLib import NEF_ATOM_NAMES
+
+        peakMappers = [[],]
+        for catom in NEF_ATOM_NAMES.get('13C', []):
+            atomNameMappers = [AtomNamesMapper(isotopeCode='13C', axisCode='C', offsetNmrAtomNames={0:catom}),
+                                AtomNamesMapper(isotopeCode='13C', axisCode='CO', offsetNmrAtomNames={0: 'C'}),
+                                AtomNamesMapper(isotopeCode='15N', axisCode='N', offsetNmrAtomNames={+1: 'N'}),
+                                AtomNamesMapper(isotopeCode='13C', axisCode='CA', offsetNmrAtomNames={+1: 'CA'})]
+            peakMappers.append(atomNameMappers)
+
+        return(peakMappers)
+
+
+
+#--------------------------------------------------------------------------------------------
 #  Register the Various ExperimentType classes
 #--------------------------------------------------------------------------------------------
 
@@ -694,4 +723,5 @@ CSL2SPECTRUM_DICT = OrderedDict([
                             (SimulatedSpectrum_CANcoCX.experimentType, SimulatedSpectrum_CANcoCX),
                             (SimulatedSpectrum_NCACX.experimentType, SimulatedSpectrum_NCACX),
                             (SimulatedSpectrum_NCOCX.experimentType, SimulatedSpectrum_NCOCX),
+                            (SimulatedSpectrum_CONCACX.experimentType, SimulatedSpectrum_CONCACX),
                             ])
