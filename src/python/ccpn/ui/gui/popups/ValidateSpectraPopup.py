@@ -15,8 +15,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-09-13 15:20:23 +0100 (Fri, September 13, 2024) $"
+__modifiedBy__ = "$modifiedBy: Daniel Thompson $"
+__dateModified__ = "$dateModified: 2024-11-06 16:02:26 +0000 (Wed, November 06, 2024) $"
 __version__ = "$Revision: 3.2.7 $"
 #=========================================================================================
 # Created
@@ -252,7 +252,7 @@ class PathRowABC(object):
         else:
             self.setText(path)  # This also validates the path
 
-        if self.isValid and self.initDone and self.hasChanged:  # This avoids setting on initialisation
+        if self.initDone and self.hasChanged:  # This avoids setting on initialisation
             self.setPath(path)
 
     def revert(self):
@@ -639,7 +639,7 @@ class SpectrumPathRow(PathRowABC):
         # For speed reasons, we check if it any different from before, or was not valid to start with
         if self.hasChanged:
             try:
-                self.spectrum._openFile(path=path, dataFormat=self.dataFormat)
+                self.spectrum._openFile(path=path, dataFormat=self.dataFormat, requireValid=False)
             except Exception as es:
                 getLogger().debug2(f'ignoring filePath, dataFormat error {es}')
 
