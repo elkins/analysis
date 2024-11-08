@@ -15,7 +15,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-11-08 13:13:10 +0000 (Fri, November 08, 2024) $"
+__dateModified__ = "$dateModified: 2024-11-08 13:25:22 +0000 (Fri, November 08, 2024) $"
 __version__ = "$Revision: 3.2.10 $"
 #=========================================================================================
 # Created
@@ -116,21 +116,21 @@ def fractionBoundWithFixedTargetConcentration(x, Kd, BMax, T):
     return Y
 
 
-def fractionBoundWithVariableProteinConcentration(x, Xs, Kd, BMax, T):
+def fractionBoundWithVariableProteinConcentration(x, Ls, Kd, BMax, T):
 
     """
     The one-site fractionBound equation for a saturation binding experiment with a variable Target Concentration. Note the similarity with the fractionBoundWithFixedTargetConcentration
-        Y = BMax*(((T * (1 - (x / Xs)) + x + Kd) - np.sqrt((T * (1 - (x / Xs)) + x + Kd)**2 - (4 * T * (1 - (x / Xs)) * x))) / (2 * T * (1 - (x / Xs))))
+        Y = BMax*(((T * (1 - (x / Ls)) + x + Kd) - np.sqrt((T * (1 - (x / Ls)) + x + Kd)**2 - (4 * T * (1 - (x / Ls)) * x))) / (2 * T * (1 - (x / Ls))))
 
     :param x: The ligand concentration.
-    :param Xs: The ligand stock concentration.
+    :param Ls: The ligand stock concentration.
     :param Kd: The dissociation constant.
     :param BMax: he maximum observed chemical shift.
     :param P0: The initial protein concentration.
     :return:  Y array same shape of x. Represents the points for the fitted curve Y to be plotted.
                 When plotting BMax is the Y axis, Kd the X axis.
     """
-    totT = T * (1 - (x / Xs))
+    totT = T * (1 - (x / Ls))
     Y = BMax*(((totT + x + Kd) - np.sqrt((totT + x + Kd)**2 - (4 * totT * x))) / (2 * totT))
     
     return Y
@@ -418,17 +418,17 @@ class _FractionBindingWithVariableTargetConcentMinimiser(MinimiserModel):
     FITTING_FUNC = fractionBoundWithVariableProteinConcentration
     KD = sv.KD # They must be exactly as they are defined in the FITTING_FUNC arguments! This was too hard to change!
     BMAX = sv.BMAX
-    Xs = sv.Xs # ligand stock
+    Ls = sv.Ls # ligand stock
     Tstr = sv.T
 
-    defaultParams = {KD:1,
-                                 Xs:10,
-                                 BMAX:0.5,
-                                 Tstr:1}
+    defaultParams = {KD  :1,
+                     Ls  :10,
+                     BMAX:0.5,
+                     Tstr:1}
 
     _defaultGlobalParams = [KD]
-    _fixedParams = [Tstr, Xs]
-    userInputParamNames = [Xs]
+    _fixedParams = [Tstr, Ls]
+    userInputParamNames = [Ls]
 
     def __init__(self, **kwargs):
         super().__init__(_FractionBindingWithVariableTargetConcentMinimiser.FITTING_FUNC, **kwargs)
@@ -633,15 +633,15 @@ class FractionBindingWithVariableTargetConcentrationModel(BindingModelBC):
                             \nModel:
                                 Y = BMax*(((totT + x + Kd) - np.sqrt((totT + x + Kd)**2 - (4 * totT * x))) / (2 * totT))
                             
-                            totT = T * (1 - (x / Xs))
+                            totT = T * (1 - (x / Ls))
                             Bmax: is the maximum specific binding and in the CSM is given by the Relative displacement (Deltas among chemicalShifts).
                             Kd: is the (equilibrium) dissociation constant in the same unit as the Series.
                             The Kd represents the [ligand] required to get a half-maximum binding at equilibrium.
                             T: Target concentration. (Fixed value during the minimisation)
-                            Xs: ligand stock solution concentration. 
+                            Ls: ligand stock solution concentration. 
     '''
     references  = '1) Eq. 6 from M.P. Williamson. Progress in Nuclear Magnetic Resonance Spectroscopy 73, 1–16 (2013).'
-    maTex =r'$Y = B_{\mathrm{max}}   \frac{T \left(1 - \frac{x}{X_s}\right) + x + K_d - \sqrt{\left(T \left(1 - \frac{x}{X_s}\right) + x + K_d\right)^2 - 4 T \left(1 - \frac{x}{X_s}\right) x}}{2 T \left(1 - \frac{x}{X_s}\right)}$'
+    maTex =r'$Y = B_{\mathrm{max}}   \frac{T \left(1 - \frac{x}{L_s}\right) + x + K_d - \sqrt{\left(T \left(1 - \frac{x}{L_s}\right) + x + K_d\right)^2 - 4 T \left(1 - \frac{x}{L_s}\right) x}}{2 T \left(1 - \frac{x}{L_s}\right)}$'
 
 
     Minimiser = _FractionBindingWithVariableTargetConcentMinimiser
