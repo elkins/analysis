@@ -99,8 +99,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-09-02 17:27:08 +0100 (Mon, September 02, 2024) $"
-__version__ = "$Revision: 3.2.5 $"
+__dateModified__ = "$dateModified: 2024-11-08 13:13:10 +0000 (Fri, November 08, 2024) $"
+__version__ = "$Revision: 3.2.10 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -623,7 +623,7 @@ MINIMISER_STAT_MAPPING_NAMES = {sv.MINIMISER_METHOD :'method',
                                                                    }
 
 class GlobalMinimiser(Minimizer):
-    def __init__(self, func, x, data, globalParamNames, localParamNames, fixedParamNames, *args, **kwargs):
+    def __init__(self, func, x, data, globalParamNames, localParamNames, fixedParamNames, nan_policy='propagate', *args, **kwargs):
         """
         :param func: callable. The model function to be used for fitting.
         :param x: array-like. The x-values for the model function.
@@ -641,18 +641,19 @@ class GlobalMinimiser(Minimizer):
         self.globalParamNames = globalParamNames
         self.localParamNames = localParamNames
         self.fixedParamNames = fixedParamNames
+        self.nan_policy = nan_policy # omit to ignore (or skips) NaN values, effectively excluding them from the calculations.
 
         # Define a residual function that will be used for minimization
         def residual(params):
             return self._globalResidual(params)
-        super().__init__(residual, *args, **kwargs)
+
+        super().__init__(residual, nan_policy=self.nan_policy, *args, **kwargs)
 
     def minimize(self, method='leastsq', params=None, **kws):
         result = super().minimize(method, params=params, **kws)
         r2 = rSQR_func(self._concData, result.redchi)
         result.r2 = r2
         return result
-
 
     def _globalResidual(self, params):
         residuals = []
@@ -661,9 +662,13 @@ class GlobalMinimiser(Minimizer):
         for i in range(self.data.shape[0]):
             localValues = {}
             if len(self.localParamNames)>0:
-                localValues = {name: params[f'{name}_{i}'].value for name in  self.localParamNames}
-            yFit = self.func(self.x, **globalValues, **localValues, **fixedValues)
-            residuals.append(yFit - self.data[i])
+                localValues = {name: params[f'{name}_{i}'].value for name in self.localParamNames}
+            try:
+                yFit = self.func(self.x, **globalValues, **localValues, **fixedValues)
+                res = yFit - self.data[i]
+                residuals.append(res)
+            except Exception as fittError:
+                getLogger().debug(f'Cannot compute residuals for {self.func}. {params}. Skipped data: {self.data[i]} with error: {fittError}')
         return np.concatenate(residuals)
 
     @staticmethod
@@ -727,7 +732,7 @@ class GlobalMinimiser(Minimizer):
                     localParamNames=self.localParamNames,
                     fixedParamNames=self.fixedParamNames,
                     params=_params,
-                    nan_policy=sv.PROPAGATE_MODE)
+                    nan_policy=self.nan_policy)
             syntheticResult = syntheticMinimizer.minimize()
             # Collect parameter values from the fit of the synthetic data
             for name, param in syntheticResult.params.items():

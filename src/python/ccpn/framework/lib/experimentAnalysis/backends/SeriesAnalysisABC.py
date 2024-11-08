@@ -16,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-10-04 07:50:07 +0100 (Fri, October 04, 2024) $"
-__version__ = "$Revision: 3.2.9.alpha $"
+__dateModified__ = "$dateModified: 2024-11-08 13:13:10 +0000 (Fri, November 08, 2024) $"
+__version__ = "$Revision: 3.2.10 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -385,22 +385,13 @@ class SeriesAnalysisABC(ABC):
         resultData = resultDataTable.data
         fittingModel = fittingModel or self.currentFittingModel
         func = fittingModel.getFittingFunc(fittingModel)
-
         dfForCollections = resultData[resultData[sv.COLLECTIONPID].isin(collectionPids)].copy()
         dfForCollections.sort_values([fittingModel.xSeriesStepHeader], inplace=True)
         params = self._makeParamsForGlobalFitting(fittingModel, resultData, collectionPids,
                                                                   globalParamNames=globalParamNames,
                                                                   localParamNames=localParamNames,
                                                                   fixedParamNames=fixedParamNames)
-        x = []
-        data = []
-        for collectionPid in collectionPids:
-            dfForCollection = resultData[resultData[sv.COLLECTIONPID] == collectionPid].copy()
-            dfForCollection.sort_values([fittingModel.xSeriesStepHeader], inplace=True)
-            seriesSteps = x = dfForCollection[fittingModel.xSeriesStepHeader].values
-            seriesValues = Ys = dfForCollection[fittingModel.ySeriesStepHeader].values
-            data.append(Ys)
-        data = np.array(data)
+        x, data = self._prepareDataForGlobalFit(collectionPids, fittingModel, resultData)
         minimiser = GlobalMinimiser(func, x, data,
                             globalParamNames=globalParamNames,
                             localParamNames=localParamNames,
@@ -419,6 +410,43 @@ class SeriesAnalysisABC(ABC):
             resultData.loc[match.index, sv.MINIMISER_METHOD] = minimiserMethod
             resultData.loc[match.index, sv.GLOBAL_FITTING_CLUSTER_ID] = globalFittingClusterId
 
+    def _prepareDataForGlobalFit(self, collectionPids, fittingModel, resultData):
+        """
+        Prepares data for global fitting by aligning multiple Y series to a common X-axis,  with np.nan padding applied to ensure all Y series have the same length.
+        :param collectionPids: list of  needed pids
+        :param fittingModel:     Model object containing the headers `xSeriesStepHeader` and `ySeriesStepHeader`, which specify  the column names for the X and Y data series in `resultData`
+        :param resultData:         DataFrame containing the experimental results, with at least `COLLECTIONPID`, `xSeriesStepHeader`,   and `ySeriesStepHeader` columns. `COLLECTIONPID` is used to select each dataset, while the headers
+        in `fittingModel` specify the X and Y data series.
+        :return: tuple of (numpy.ndarray, numpy.ndarray)   - x : numpy.ndarray  A sorted 1D array representing the unified X-axis (`commonX`) formed by taking the union  of all unique X values from each series in `resultData`.
+        - data : numpy.ndarray A 2D array with each row corresponding to a Y series aligned with `x`. Gaps in individual Y series,  caused by missing X values, are filled with `np.nan` to ensure consistent length.
+        """
+        x = []
+        data = []
+        # Populate x and data lists with series
+        for collectionPid in collectionPids:
+            dfForCollection = resultData[resultData[sv.COLLECTIONPID] == collectionPid].copy()
+            dfForCollection.sort_values([fittingModel.xSeriesStepHeader], inplace=True)
+            seriesSteps = dfForCollection[fittingModel.xSeriesStepHeader].values
+            seriesValues = dfForCollection[fittingModel.ySeriesStepHeader].values
+            x.append(seriesSteps)
+            data.append(seriesValues)
+        # Create a common x-axis by taking the union of all x-values
+        commonX = np.unique(np.concatenate(x))
+        # Align each Y series to the common x-axis with np.nan padding where needed
+        alignedData = []
+        for i in range(len(data)):
+            # Create an array filled with np.nan of the same length as commonX
+            alignedSeries = np.full(len(commonX), np.nan)
+            # Find indices in commonX where current x aligns
+            indices = np.searchsorted(commonX, x[i])
+            # Place values from data[i] at the correct positions in alignedSeries
+            alignedSeries[indices] = data[i]
+            alignedData.append(alignedSeries)
+        # Convert lists to NumPy arrays for consistent length and shape
+        x = commonX  # The common x-axis with all unique values across series
+        data = np.array(alignedData)
+        return x, data
+
     def _setMinimisedPropertyFromModels(self):
         """ Set the _minimisedProperty from the current models.
          Calculation model has priority, otherwise use the fitting model unless disabled."""
@@ -433,8 +461,6 @@ class SeriesAnalysisABC(ABC):
         for spGroup in self.inputSpectrumGroups:
             for inputData in self.inputDataTables:
                 inputData.data.buildFromSpectrumGroup(spGroup, parentCollection=inputCollection)
-
-
 
     @property
     def currentFittingModel(self):

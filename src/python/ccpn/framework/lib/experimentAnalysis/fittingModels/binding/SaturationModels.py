@@ -15,8 +15,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-10-03 09:42:40 +0100 (Thu, October 03, 2024) $"
-__version__ = "$Revision: 3.2.9.alpha $"
+__dateModified__ = "$dateModified: 2024-11-08 13:13:10 +0000 (Fri, November 08, 2024) $"
+__version__ = "$Revision: 3.2.10 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -589,6 +589,7 @@ class FractionBindingModel(BindingModelBC):
 
     Minimiser = _FractionBindingMinimiser
     isEnabled = True
+    isGUIVisible = False
     targetSeriesAnalyses = [
                                             sv.ChemicalShiftPerturbationAnalysis
                                             ]
