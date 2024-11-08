@@ -15,7 +15,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-11-08 13:25:22 +0000 (Fri, November 08, 2024) $"
+__dateModified__ = "$dateModified: 2024-11-08 13:30:42 +0000 (Fri, November 08, 2024) $"
 __version__ = "$Revision: 3.2.10 $"
 #=========================================================================================
 # Created
@@ -701,7 +701,7 @@ class CooperativityBindingModel(BindingModelBC):
                     Hs < 0: ligand/monomer binds to multiple sites with variable affinities or negative cooperativity.
                     '''
     references = '''
-                 1) Model derived from the Hill equation: https://en.wikipedia.org/wiki/Cooperative_binding. 
+                 1) Model derived from the Hill equation: The Combinations of Haemoglobin with Oxygen and with Carbon Monoxide. Biochem J (1913) 7 (5): 471–480. https://doi.org/10.1042/bj0070471
                  '''
     maTex = r'$Y = B_{max} \frac{(T + x^{H_s} + K_d^{H_s} - \sqrt{(T + x^{H_s} + K_d^{H_s})^2 - 4 T x^{H_s}}}{2 T}$'
 
