@@ -99,7 +99,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-11-08 13:13:10 +0000 (Fri, November 08, 2024) $"
+__dateModified__ = "$dateModified: 2024-11-08 14:15:07 +0000 (Fri, November 08, 2024) $"
 __version__ = "$Revision: 3.2.10 $"
 #=========================================================================================
 # Created
@@ -143,6 +143,7 @@ class FittingModelABC(ABC):
     _autoRegisterModel        = True                      # Register to the Backend when dynamically loading its Python module from disk
     _requiredInputDataColumns = []                      # The mandatory column headers required for this model to function correctly
     _columnMaps = {}                                            # Internal. Used for updating the columns and back-compatibility with previous software versions
+    ENTRYNUM = -1                                             # Internal. Used to ordering the models in the Gui settings widgets. If not defined or duplicated values, ordering is alphabetical. Automatically assigned using a decorator
 
     def __init__(self, *args, **kwargs):
         self.application = getApplication()
@@ -1003,6 +1004,20 @@ class MinimiserResult(ModelResult):
             plt.show()
         return fig
 
+def _assignEntryNumber(cls):
+    """
+    A decorator to automatically assign an entry number to each Fitting model.
+    An entry number is used to sort the models, for example in the GUI views
+    :param cls: FittingModel class
+    :return: the same cls + the new ENTRYNUM
+    """
+    if not hasattr(_assignEntryNumber, "counter"):
+        _assignEntryNumber.counter = 0  # Initialize counter if not already set
+
+    cls.ENTRYNUM = _assignEntryNumber.counter
+    _assignEntryNumber.counter += 1  # Increment for the next class
+
+    return cls
 
 
 ## ~~~~~~~~~ Uncertainties Estimatiors ~~~~~~~~~
@@ -1059,8 +1074,6 @@ class UncertaintyEstimatorBC():
                 continue
             param.stderr = np.std(values)
         return self.params
-
-
 
 class CovMatrixEstimator(UncertaintyEstimatorBC):
     NAME = sv.COVMATRIX

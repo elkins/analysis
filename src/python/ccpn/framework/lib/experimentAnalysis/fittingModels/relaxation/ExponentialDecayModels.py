@@ -16,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-09-02 17:27:08 +0100 (Mon, September 02, 2024) $"
-__version__ = "$Revision: 3.2.5 $"
+__dateModified__ = "$dateModified: 2024-11-08 14:15:07 +0000 (Fri, November 08, 2024) $"
+__version__ = "$Revision: 3.2.10 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -33,7 +33,7 @@ from lmfit import lineshapes as ls
 import ccpn.framework.lib.experimentAnalysis.SeriesAnalysisVariables as sv
 from ccpn.util.Logging import getLogger
 from ccpn.core.DataTable import TableFrame
-from ccpn.framework.lib.experimentAnalysis.fittingModels.FittingModelABC import FittingModelABC, MinimiserModel, MinimiserResult
+from ccpn.framework.lib.experimentAnalysis.fittingModels.FittingModelABC import FittingModelABC, MinimiserModel, MinimiserResult, _assignEntryNumber
 from ccpn.core.lib.ContextManagers import progressHandler
 
 
@@ -236,7 +236,7 @@ class _ExponentialBaseModel(FittingModelABC):
 
         return inputData
 
-
+@_assignEntryNumber
 class OnePhaseDecayModel(_ExponentialBaseModel):
     """
     FittingModel model class containing fitting equation and fitting information
@@ -259,6 +259,7 @@ class OnePhaseDecayModel(_ExponentialBaseModel):
 
         return self.Minimiser.RATE
 
+@_assignEntryNumber
 class ScaledOnePhaseDecayModel(_ExponentialBaseModel):
     """
     FittingModel model class containing fitting equation and fitting information
@@ -276,7 +277,7 @@ class ScaledOnePhaseDecayModel(_ExponentialBaseModel):
     isGUIVisible = False #This model is only used from a macro/custom setup
     maTex    = r'$y = amplitude\ e^{-4\ rate\ x}$'
 
-
+@_assignEntryNumber
 class OnePhaseDecayPlateauModel(_ExponentialBaseModel):
     """
     FittingModel model class containing fitting equation and fitting information

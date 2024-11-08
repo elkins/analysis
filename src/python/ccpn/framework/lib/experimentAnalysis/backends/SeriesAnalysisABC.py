@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-11-08 13:13:10 +0000 (Fri, November 08, 2024) $"
+__dateModified__ = "$dateModified: 2024-11-08 14:15:07 +0000 (Fri, November 08, 2024) $"
 __version__ = "$Revision: 3.2.10 $"
 #=========================================================================================
 # Created
@@ -523,7 +523,8 @@ class SeriesAnalysisABC(ABC):
 
     @property
     def fittingModels(self):
-        return dict(sorted(self._fittingModels.items()))
+        # Use the private method to handle sorting and return the sorted dictionary
+        return self._sortFittingModels(self._fittingModels)
 
     @property
     def calculationModels(self):
@@ -704,6 +705,34 @@ class SeriesAnalysisABC(ABC):
         nmrChains = [self.project.getNmrChain(c) for c in nmrChainCodesFromDf]
         chains = [nmrChain.chain for nmrChain in nmrChains]
         return chains
+
+    def _sortFittingModels(self, fitting_models):
+        # Extract ENTRYNUM for all classes
+        entry_numbers = [item[1].ENTRYNUM for item in fitting_models.items()]
+
+        # Create a dictionary to track duplicates
+        duplicate_entry_numbers = {num: [] for num in entry_numbers if entry_numbers.count(num) > 1}
+
+        # Group items by ENTRYNUM
+        grouped_by_entrynum = {}
+        for key, cls in fitting_models.items():
+            entrynum = cls.ENTRYNUM
+            if entrynum not in grouped_by_entrynum:
+                grouped_by_entrynum[entrynum] = []
+            grouped_by_entrynum[entrynum].append((key, cls))
+
+        # Sort only the duplicates alphabetically by model name (key)
+        for entrynum, items in grouped_by_entrynum.items():
+            if len(items) > 1:  # Duplicates found
+                grouped_by_entrynum[entrynum] = sorted(items, key=lambda item: item[0])  # Sort by model name
+
+        # Flatten the grouped dictionary into a sorted list
+        sorted_items = []
+        for entrynum in sorted(grouped_by_entrynum.keys()):  # Sort by ENTRYNUM first
+            sorted_items.extend(grouped_by_entrynum[entrynum])
+
+        # Return the sorted dictionary
+        return dict(sorted_items)
 
     @classmethod
     def exportToFile(cls, path, fileType, *args, **kwargs):

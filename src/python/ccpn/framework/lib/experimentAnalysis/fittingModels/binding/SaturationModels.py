@@ -15,7 +15,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-11-08 13:30:42 +0000 (Fri, November 08, 2024) $"
+__dateModified__ = "$dateModified: 2024-11-08 14:15:07 +0000 (Fri, November 08, 2024) $"
 __version__ = "$Revision: 3.2.10 $"
 #=========================================================================================
 # Created
@@ -29,7 +29,7 @@ __date__ = "$Date: 2022-02-02 14:08:56 +0000 (Wed, February 02, 2022) $"
 import numpy as np
 from ccpn.util.Logging import getLogger
 from ccpn.core.DataTable import TableFrame
-from ccpn.framework.lib.experimentAnalysis.fittingModels.FittingModelABC import FittingModelABC, MinimiserModel, MinimiserResult
+from ccpn.framework.lib.experimentAnalysis.fittingModels.FittingModelABC import FittingModelABC, MinimiserModel, MinimiserResult, _assignEntryNumber
 import ccpn.framework.lib.experimentAnalysis.SeriesAnalysisVariables as sv
 from ccpn.core.lib.ContextManagers import progressHandler
 
@@ -569,7 +569,7 @@ class BindingModelBC(FittingModelABC):
         return params
 
 
-
+@_assignEntryNumber
 class FractionBindingModel(BindingModelBC):
     """
     ChemicalShift Analysis: FractionBinding fitting Curve calculation model
@@ -594,6 +594,7 @@ class FractionBindingModel(BindingModelBC):
                                             sv.ChemicalShiftPerturbationAnalysis
                                             ]
 
+@_assignEntryNumber
 class FractionBindingWithFixedTargetConcentrModel(BindingModelBC):
     """
     ChemicalShift Analysis: FractionBinding with Target Concentration fitting Curve calculation model
@@ -622,7 +623,7 @@ class FractionBindingWithFixedTargetConcentrModel(BindingModelBC):
         """called before running the fitting routine to set any additional params options. To be subclasses"""
         return self._setGlobalTargetConcentrationToParams(df, params)
 
-
+@_assignEntryNumber
 class FractionBindingWithVariableTargetConcentrationModel(BindingModelBC):
     """
     ChemicalShift Analysis: FractionBinding with Target Concentration fitting Curve calculation model
@@ -656,31 +657,7 @@ class FractionBindingWithVariableTargetConcentrationModel(BindingModelBC):
 
         return self._setGlobalTargetConcentrationToParams(df, params)
 
-
-class MonomerDimerBindingModel(BindingModelBC):
-    """
-    ChemicalShift Analysis: Monomer-Dimer  fitting Curve calculation model
-    """
-    modelName = sv.MONOMERDIMER_BINDING_MODEL
-    modelInfo = 'Fit data to using the Monomer-Dimer model.'
-    description = '''Fitting model for one-site fraction bound in a saturation binding experiment. This model can be used when a large fraction of the ligand binds to the target.
-                    \nModel:
-
-                    Y = BMax * ( (Kd + 4x - sqrt((Kd + 4x)^2 - 16x^2)) / (4x) ) + C
-                    Bmax: is the maximum specific binding and in the CSM is given by the Relative displacement (Deltas among chemicalShifts).
-                    Kd: is the (equilibrium) dissociation constant in the same unit as the Series.
-                    The Kd represents the [ligand] required to get a half-maximum binding at equilibrium.
-                    C:  the chemical shift of the monomer (δA)
-                  '''
-    references = ''
-    maTex = r'$Y = B_{\mathrm{Max}}  \frac{(K_d + 4x - \sqrt{(K_d + 4x)^2 - 16x^2})}{4x} + C$'
-    Minimiser = _MonomerDimerMinimiser
-    isEnabled = False
-    targetSeriesAnalyses = [
-        sv.ChemicalShiftPerturbationAnalysis
-        ]
-
-
+@_assignEntryNumber
 class CooperativityBindingModel(BindingModelBC):
     """
     ChemicalShift Analysis: Cooperativity-Binding calculation model
@@ -717,9 +694,36 @@ class CooperativityBindingModel(BindingModelBC):
         return self._setGlobalTargetConcentrationToParams(df, params)
 
 
+
 ## ~~~~~~~~~~~~~ Disabled models ~~~~~~~~~~~~~ ##
 
+@_assignEntryNumber
+class MonomerDimerBindingModel(BindingModelBC):
+    """
+    ChemicalShift Analysis: Monomer-Dimer  fitting Curve calculation model
+    """
+    modelName = sv.MONOMERDIMER_BINDING_MODEL
+    modelInfo = 'Fit data to using the Monomer-Dimer model.'
+    description = '''Fitting model for one-site fraction bound in a saturation binding experiment. This model can be used when a large fraction of the ligand binds to the target.
+                    \nModel:
 
+                    Y = BMax * ( (Kd + 4x - sqrt((Kd + 4x)^2 - 16x^2)) / (4x) ) + C
+                    Bmax: is the maximum specific binding and in the CSM is given by the Relative displacement (Deltas among chemicalShifts).
+                    Kd: is the (equilibrium) dissociation constant in the same unit as the Series.
+                    The Kd represents the [ligand] required to get a half-maximum binding at equilibrium.
+                    C:  the chemical shift of the monomer (δA)
+                  '''
+    references = ''
+    maTex = r'$Y = B_{\mathrm{Max}}  \frac{(K_d + 4x - \sqrt{(K_d + 4x)^2 - 16x^2})}{4x} + C$'
+    Minimiser = _MonomerDimerMinimiser
+    isEnabled = False
+    targetSeriesAnalyses = [
+        sv.ChemicalShiftPerturbationAnalysis
+        ]
+
+
+
+@_assignEntryNumber
 class OneSiteBindingModel(BindingModelBC):
     """
     ChemicalShift Analysis: One Site-Binding Curve calculation model.
@@ -743,7 +747,7 @@ class OneSiteBindingModel(BindingModelBC):
     Minimiser = _Binding1SiteMinimiser
     isEnabled = False
 
-
+@_assignEntryNumber
 class TwoSiteBindingModel(BindingModelBC):
     """
     ChemicalShift Analysis: Two Site-Binding Curve calculation model
@@ -770,7 +774,7 @@ class TwoSiteBindingModel(BindingModelBC):
         """
         raise RuntimeError(sv.FMNOYERROR)
 
-
+@_assignEntryNumber
 class OneSiteWithAllostericBindingModel(BindingModelBC):
     """
     ChemicalShift Analysis: One Site-Binding Curve with allosteric modulator calculation model.

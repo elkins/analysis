@@ -16,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-08-30 12:01:53 +0100 (Fri, August 30, 2024) $"
-__version__ = "$Revision: 3.2.5 $"
+__dateModified__ = "$dateModified: 2024-11-08 14:15:07 +0000 (Fri, November 08, 2024) $"
+__version__ = "$Revision: 3.2.10 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -31,7 +31,7 @@ from lmfit.models import update_param_vals
 import numpy as np
 from ccpn.framework.lib.experimentAnalysis.fittingModels.relaxation.ExponentialDecayModels import _ExponentialBaseModel
 import ccpn.framework.lib.experimentAnalysis.SeriesAnalysisVariables as sv
-from ccpn.framework.lib.experimentAnalysis.fittingModels.FittingModelABC import MinimiserModel
+from ccpn.framework.lib.experimentAnalysis.fittingModels.FittingModelABC import MinimiserModel, _assignEntryNumber
 
 ## ----------       Lineshape Functions       ---------- ##
 
@@ -102,6 +102,7 @@ class _PlateauOnePhaseAssociationMinimiser(MinimiserModel):
 
 ## ------------- Exponential Growth Models --------------- ##
 
+@_assignEntryNumber
 class  InversionRecoveryModel(_ExponentialBaseModel):
     """
     InversionRecovery model class containing fitting equation and fitting information
