@@ -13,8 +13,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-09-04 15:23:37 +0100 (Wed, September 04, 2024) $"
-__version__ = "$Revision: 3.2.5 $"
+__dateModified__ = "$dateModified: 2024-11-08 16:39:17 +0000 (Fri, November 08, 2024) $"
+__version__ = "$Revision: 3.2.10 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -722,58 +722,7 @@ class GuiFittingPanel(GuiSettingPanel):
         models = [model for model in models if model.isGUIVisible]
         currentFittingModel = self.guiModule.backendHandler.currentFittingModel
         currentFittingModelName = currentFittingModel.modelName if currentFittingModel is not None else None
-        self.widgetDefinitions = od((
-            (guiNameSpaces.WidgetVarName_OptimiserSeparator,
-             {'label': guiNameSpaces.Label_OptimiserSeparator,
-              'type': LabeledHLine,
-              'kwds': {'text': guiNameSpaces.Label_OptimiserSeparator,
-                       'height': 30,
-                       'gridSpan': (1, 2),
-                       'colour': DividerColour,
-                       'tipText': guiNameSpaces.TipText_OptimiserSeparator}}),
-            (guiNameSpaces.WidgetVarName_OptimiserMethod,
-             {'label': guiNameSpaces.Label_OptimiserMethod,
-              'callBack': self._commonCallback,
-              'tipText': '',
-              'type': compoundWidget.PulldownListCompoundWidget,
-              'enabled': True,
-              'kwds': {'labelText': guiNameSpaces.Label_OptimiserMethod,
-                       'tipText': guiNameSpaces.TipText_OptimiserMethod,
-                       'texts': list(sv.MINIMISER_METHODS.keys()),
-                       'tipTexts': list(sv.MINIMISER_METHODS.values()),
-                       'fixedWidths': SettingsWidgetFixedWidths}}),
-            (guiNameSpaces.WidgetVarName_ErrorMethod,
-             {'label': guiNameSpaces.Label_ErrorMethod,
-              'type': compoundWidget.RadioButtonsCompoundWidget,
-              'postInit': None,
-              'callBack': self._commonCallback,
-              'tipText': guiNameSpaces.TipText_ErrorMethod,
-              'enabled': True,
-              'kwds': {'labelText': guiNameSpaces.Label_ErrorMethod,
-                       'fixedWidths': SettingsWidgetFixedWidths,
-                       'selectedText': sv.COVMATRIX,
-                       'tipText': guiNameSpaces.UncertaintyTipText,
-                       'compoundKwds': {'texts'  : list(guiNameSpaces.UncertaintyDefs.keys()),
-                                        'tipTexts'    :  list(guiNameSpaces.UncertaintyDefs.values()),
-                                        'direction'   : 'v',
-                                        'tipText'     : guiNameSpaces.TipText_ErrorMethod,
-                                        'hAlign'      : 'l',
-                                        }}}),
-            (guiNameSpaces.WidgetVarName_UncertaintySample,
-             {'label'   : guiNameSpaces.Label_UncertaintySample,
-              'type'    : compoundWidget.SpinBoxCompoundWidget,
-              'postInit': None,
-              'callBack': self._commonCallback,
-              'tipText' : guiNameSpaces.TipText_UncertaintySample,
-              'enabled' : True,
-              'kwds': {'labelText': guiNameSpaces.Label_UncertaintySample,
-                       'tipText': guiNameSpaces.TipText_UncertaintySample,
-                       'value': 1000,
-                       'step': 10,
-                       'minimum':1,
-                       'maximum':10000,
-                       'fixedWidths': SettingsWidgetFixedWidths}}),
-        ))
+        self.widgetDefinitions = od(())
         ## Set the models definitions
         extraLabels_ddFittingModels = [model.maTex for model in models]
         tipTexts_ddFittingModels = [model.fullDescription(model) for model in models]
@@ -829,9 +778,60 @@ class GuiFittingPanel(GuiSettingPanel):
              'compoundKwds': {'showBorder': True, }
              }),
                 ))
-
-
+        optimiserDict = od((
+            (guiNameSpaces.WidgetVarName_OptimiserSeparator,
+             {'label': guiNameSpaces.Label_OptimiserSeparator,
+              'type': LabeledHLine,
+              'kwds': {'text': guiNameSpaces.Label_OptimiserSeparator,
+                       'height': 30,
+                       'gridSpan': (1, 2),
+                       'colour': DividerColour,
+                       'tipText': guiNameSpaces.TipText_OptimiserSeparator}}),
+            (guiNameSpaces.WidgetVarName_OptimiserMethod,
+             {'label': guiNameSpaces.Label_OptimiserMethod,
+              'callBack': self._commonCallback,
+              'tipText': '',
+              'type': compoundWidget.PulldownListCompoundWidget,
+              'enabled': True,
+              'kwds': {'labelText': guiNameSpaces.Label_OptimiserMethod,
+                       'tipText': guiNameSpaces.TipText_OptimiserMethod,
+                       'texts': list(sv.MINIMISER_METHODS.keys()),
+                       'tipTexts': list(sv.MINIMISER_METHODS.values()),
+                       'fixedWidths': SettingsWidgetFixedWidths}}),
+            (guiNameSpaces.WidgetVarName_ErrorMethod,
+             {'label': guiNameSpaces.Label_ErrorMethod,
+              'type': compoundWidget.RadioButtonsCompoundWidget,
+              'postInit': None,
+              'callBack': self._uncertaintyChangedCallback,
+              'tipText': guiNameSpaces.TipText_ErrorMethod,
+              'enabled': True,
+              'kwds': {'labelText': guiNameSpaces.Label_ErrorMethod,
+                       'fixedWidths': SettingsWidgetFixedWidths,
+                       'selectedText': sv.COVMATRIX,
+                       'tipText': guiNameSpaces.UncertaintyTipText,
+                       'compoundKwds': {'texts'  : list(guiNameSpaces.UncertaintyDefs.keys()),
+                                        'tipTexts'    :  list(guiNameSpaces.UncertaintyDefs.values()),
+                                        'direction'   : 'v',
+                                        'tipText'     : guiNameSpaces.TipText_ErrorMethod,
+                                        'hAlign'      : 'l',
+                                        }}}),
+            (guiNameSpaces.WidgetVarName_UncertaintySample,
+             {'label'   : guiNameSpaces.Label_UncertaintySample,
+              'type'    : compoundWidget.SpinBoxCompoundWidget,
+              'postInit': None,
+              'callBack': self._commonCallback,
+              'tipText' : guiNameSpaces.TipText_UncertaintySample,
+              'enabled' : False,
+              'kwds': {'labelText': guiNameSpaces.Label_UncertaintySample,
+                       'tipText': guiNameSpaces.TipText_UncertaintySample,
+                       'value': 1000,
+                       'step': 10,
+                       'minimum':1,
+                       'maximum':10000,
+                       'fixedWidths': SettingsWidgetFixedWidths}}),
+        ))
         self.widgetDefinitions.update(settingsDict)
+        self.widgetDefinitions.update(optimiserDict)
 
         return self.widgetDefinitions
 
@@ -864,20 +864,24 @@ class GuiFittingPanel(GuiSettingPanel):
 
         self._commonCallback()
 
+    def _uncertaintyChangedCallback(self, *args, **kwargs):
+        """called only to enable/disable other widgets """
+        w = self.getWidget(guiNameSpaces.WidgetVarName_ErrorMethod)
+        sampleCountW = self.getWidget(guiNameSpaces.WidgetVarName_UncertaintySample)
+        sampleCountW.setEnabled(w.getByText() != sv.COVMATRIX)
+        self._commonCallback()
+
     def _userParamChanged(self, modelObj, newParams):
         getLogger().info(f'Updating User Params. {newParams}')
         self._updateUserParams(modelObj, newParams)
 
-
     @staticmethod
     def _updateUserParams(fittingModelCls, params):
-
         _minimiser = fittingModelCls.Minimiser
         userParamNames = _minimiser.getUserParamNames(_minimiser)
         for name, param in params.items():
             if name in userParamNames:
                 _minimiser._userParams[name] = param
-        print('_minimiser._userParams::::',_minimiser._userParams)
         return _minimiser._userParams
 
     def _commonCallback(self, *args):
