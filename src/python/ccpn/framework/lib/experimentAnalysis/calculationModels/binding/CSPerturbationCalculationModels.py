@@ -16,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-09-18 17:27:42 +0100 (Wed, September 18, 2024) $"
-__version__ = "$Revision: 3.2.5 $"
+__dateModified__ = "$dateModified: 2024-11-08 17:11:54 +0000 (Fri, November 08, 2024) $"
+__version__ = "$Revision: 3.2.10 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -47,13 +47,8 @@ def euclideanDistance_func(array1, array2, alphaFactors):
     Ref.: Eq.(9) from: M.P. Williamson Progress in Nuclear Magnetic Resonance Spectroscopy 73 (2013) 1–16
 
     """
-    deltas = []
-    for a, b, factor in zip(array1, array2, alphaFactors):
-        delta = a - b
-        delta *= factor
-        delta **= 2
-        deltas.append(delta)
-    return np.sqrt(np.mean(np.array(deltas)))
+    deltas = (array1 - array2) * alphaFactors
+    return np.sqrt(np.sum(deltas ** 2))
 
 class EuclideanCalculationModel(CalculationModel):
     """
@@ -125,7 +120,7 @@ class EuclideanCalculationModel(CalculationModel):
                         alphaFactors.append(self._alphaFactors.get(ic, 1))
                     values = np.array(list(dataPerDimensionDict.values()))
                     seriesValues4residue = values.T  ## take the series values in axis 1 and create a 2D array. e.g.:[[8.15 123.49][8.17 123.98]]
-                    deltaDeltas = EuclideanCalculationModel._calculateDeltaDeltas(seriesValues4residue, alphaFactors)
+                    deltaDeltas = EuclideanCalculationModel._calculateEuclideanDistances(seriesValues4residue, alphaFactors)
                     csmValue = np.mean(deltaDeltas[1:])  ## first item is excluded from as it is always 0 by definition.
                     nmrAtomNames = inputData._getAtomNamesFromGroupedByHeaders(groupDf)
                     # seriesSteps = groupDf[self.xSeriesStepHeader].unique() #cannot use unique! Could be series with same value!!
@@ -166,15 +161,15 @@ class EuclideanCalculationModel(CalculationModel):
         return outputFrame
 
     @staticmethod
-    def _calculateDeltaDeltas(data, alphaFactors):
+    def _calculateEuclideanDistances(data, alphaFactors):
         """
         :param data: 2D array containing A and B coordinates to measure.
         e.g.: for two HN peaks data will be a 2D array, e.g.: [[  8.15842 123.49895][  8.17385 123.98413]]
         :return: float
         """
-        deltaDeltas = []
+        dds = []
         origin = data[0] # first set of positions (any dimensionality)
         for coord in data:# the other set of positions (same dim as origin)
             dd = euclideanDistance_func(origin, coord, alphaFactors)
-            deltaDeltas.append(dd)
-        return deltaDeltas
+            dds.append(dd)
+        return dds
