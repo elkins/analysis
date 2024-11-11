@@ -13,7 +13,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-11-11 12:58:25 +0000 (Mon, November 11, 2024) $"
+__dateModified__ = "$dateModified: 2024-11-11 13:59:17 +0000 (Mon, November 11, 2024) $"
 __version__ = "$Revision: 3.2.10 $"
 #=========================================================================================
 # Created
@@ -732,7 +732,7 @@ class GuiCalculationPanel(GuiSettingPanel):
         maTex = modelObj.maTex
         pixmap = maTex2Pixmap(f'{maTex}', fontSize=12)
         label = Label(mainFrame, text='', icon=pixmap, grid=(0, 0), vAlign='c')
-        mainFrame.getLayout().setAlignment(QtCore.Qt.AlignCenter)
+        mainFrame.getLayout().setAlignment(QtCore.Qt.AlignLeft)
 
         self._commonCallback()
 TABPOS += 1
@@ -883,7 +883,7 @@ class GuiFittingPanel(GuiSettingPanel):
         maTex = modelObj.maTex
         pixmap = maTex2Pixmap(f'{maTex}',  fontSize=12)
         label = Label(mainFrame, text='', icon=pixmap, grid=(0, 0), vAlign='c')
-        mainFrame.getLayout().setAlignment(QtCore.Qt.AlignCenter)
+        mainFrame.getLayout().setAlignment(QtCore.Qt.AlignLeft)
         frameWidgetValues = self.getWidget(guiNameSpaces.WidgetVarName_ModelValues)
         mainFrame = frameWidgetValues.widgetArea
         frameWidgetValues.clear()
@@ -1145,17 +1145,17 @@ class AppearancePanel(GuiSettingPanel):
                        'selectItem': guiNameSpaces.BAR_belowBrush,
                        'fixedWidths': SettingsWidgetFixedWidths,
                        'compoundKwds': {'includeGradients': False}}}),
-            (guiNameSpaces.WidgetVarName_UntraceableColour,
-             {'label': guiNameSpaces.Label_UntraceableColour,
-              'callBack':  partial(self._updateMainPlotPanel, True),
-              'enabled': True,
-              'tipText': guiNameSpaces.TipText_UntraceableColour,
-              'type': compoundWidget.ColourSelectionCompoundWidget,
-              'kwds': {'labelText': guiNameSpaces.Label_UntraceableColour,
-                       'tipText': guiNameSpaces.TipText_UntraceableColour,
-                       'fixedWidths': SettingsWidgetFixedWidths,
-                       'selectItem': guiNameSpaces.BAR_untracBrush,
-                       'compoundKwds': {'includeGradients': False}}}),
+            # (guiNameSpaces.WidgetVarName_UntraceableColour,
+            #  {'label': guiNameSpaces.Label_UntraceableColour,
+            #   'callBack':  partial(self._updateMainPlotPanel, True),
+            #   'enabled': True,
+            #   'tipText': guiNameSpaces.TipText_UntraceableColour,
+            #   'type': compoundWidget.ColourSelectionCompoundWidget,
+            #   'kwds': {'labelText': guiNameSpaces.Label_UntraceableColour,
+            #            'tipText': guiNameSpaces.TipText_UntraceableColour,
+            #            'fixedWidths': SettingsWidgetFixedWidths,
+            #            'selectItem': guiNameSpaces.BAR_untracBrush,
+            #            'compoundKwds': {'includeGradients': False}}}),
             (guiNameSpaces.WidgetVarName_ThrColour,
              {'label': guiNameSpaces.Label_ThrColour,
               'enabled': True,

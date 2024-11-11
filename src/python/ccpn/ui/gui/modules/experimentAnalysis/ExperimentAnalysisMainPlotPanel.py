@@ -12,9 +12,9 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-08-23 19:21:56 +0100 (Fri, August 23, 2024) $"
-__version__ = "$Revision: 3.2.5 $"
+__modifiedBy__ = "$modifiedBy: Luca Mureddu $"
+__dateModified__ = "$dateModified: 2024-11-11 13:59:17 +0000 (Mon, November 11, 2024) $"
+__version__ = "$Revision: 3.2.10 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -345,7 +345,12 @@ class MainPlotPanel(GuiPanel):
     @property
     def _untraceableBrushColour(self):
         """Returns selected colour name"""
-        return self._appearancePanel.getWidget(guiNameSpaces.WidgetVarName_UntraceableColour).getText()
+        w = self._appearancePanel.getWidget(guiNameSpaces.WidgetVarName_UntraceableColour)
+        if w:
+            b = w.getText()
+        else:
+            b = 'black'
+        return b
 
     @_untraceableBrushColour.setter
     def _untraceableBrushColour(self, colourName):

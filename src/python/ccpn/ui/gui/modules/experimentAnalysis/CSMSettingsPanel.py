@@ -42,7 +42,7 @@ from ccpn.ui.gui.modules.experimentAnalysis.ExperimentAnalysisGuiSettingsPanel i
 
 
 SettingsWidgeMinimumWidths = (180, 180, 180)
-SettingsWidgetFixedWidths = (250, 300, 300)
+SettingsWidgetFixedWidths = (200, 350, 350)
 DividerColour = getColours()[DIVIDER]
 
 
@@ -85,22 +85,22 @@ class CSMCalculationPanel(GuiCalculationPanel):
                                          'minimum': 0.001, 'maximum': 1,
                                          'step': 0.01, 'decimals': 4,
                                          'fixedWidths': SettingsWidgetFixedWidths}}
-        untraceableWidgetDefinitions = od((
-                            (guiNameSpaces.WidgetVarName_UntraceablePeak,
-                             {'label': guiNameSpaces.Label_UntraceablePeak,
-                              'tipText': guiNameSpaces.TipText_UntraceablePeak,
-                              'enabled': True,
-                              'type': compoundWidget.DoubleSpinBoxCompoundWidget,
-                              'callBack': self._setCalculationOptionsToBackend,
-                              '_init': None,
-                              'kwds': {'labelText': guiNameSpaces.Label_UntraceablePeak,
-                                       'tipText': guiNameSpaces.TipText_UntraceablePeak,
-                                       'value': 1,
-                                       'fixedWidths': SettingsWidgetFixedWidths}}),
-                            ))
+        # untraceableWidgetDefinitions = od((
+        #                     (guiNameSpaces.WidgetVarName_UntraceablePeak,
+        #                      {'label': guiNameSpaces.Label_UntraceablePeak,
+        #                       'tipText': guiNameSpaces.TipText_UntraceablePeak,
+        #                       'enabled': False,
+        #                       'type': compoundWidget.DoubleSpinBoxCompoundWidget,
+        #                       'callBack': self._setCalculationOptionsToBackend,
+        #                       '_init': None,
+        #                       'kwds': {'labelText': guiNameSpaces.Label_UntraceablePeak,
+        #                                'tipText': guiNameSpaces.TipText_UntraceablePeak,
+        #                                'value': 1,
+        #                                'fixedWidths': SettingsWidgetFixedWidths}}),
+        #                     ))
         ## add the new items to the main dict
         self.widgetDefinitions.update(factorsWidgetDefinitions)
-        self.widgetDefinitions.update(untraceableWidgetDefinitions)
+        # self.widgetDefinitions.update(untraceableWidgetDefinitions)
         return self.widgetDefinitions
 
     def _calculationModePostInit(self, widget):
