@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-11-11 12:58:25 +0000 (Mon, November 11, 2024) $"
+__dateModified__ = "$dateModified: 2024-11-11 15:37:16 +0000 (Mon, November 11, 2024) $"
 __version__ = "$Revision: 3.2.10 $"
 #=========================================================================================
 # Created
@@ -37,18 +37,17 @@ import ccpn.framework.lib.experimentAnalysis.SeriesAnalysisVariables as sv
 import ccpn.framework.lib.experimentAnalysis.calculationModels._libraryFunctions as lf
 
 
-def euclideanDistance_func(array1, array2, alphaFactors):
+def _meanEuclideanDistance_func(array1, array2, alphaFactors):
     """
-    Calculate the  Euclidean Distance of two set of coordinates using scaling factors. Used in CSM DeltaDeltas
+    Calculate the mean Euclidean Distance of two set of coordinates using scaling factors. Used in CSM DeltaDeltas
     :param array1: (1d array), coordinate 1
     :param array2: (1d array), coordinate 2 of same shape of array1
     :param alphaFactors: the scaling factors.  same shape of array1 and 2.
     :return: float
     Ref.: Eq.(9) from: M.P. Williamson Progress in Nuclear Magnetic Resonance Spectroscopy 73 (2013) 1–16
-
     """
     deltas = (array1 - array2) * alphaFactors
-    return np.sqrt(np.sum(deltas ** 2))
+    return np.sqrt(np.mean(deltas ** 2))
 
 class EuclideanCalculationModel(CalculationModel):
     """
@@ -170,6 +169,6 @@ class EuclideanCalculationModel(CalculationModel):
         dds = []
         origin = data[0] # first set of positions (any dimensionality)
         for coord in data:# the other set of positions (same dim as origin)
-            dd = euclideanDistance_func(origin, coord, alphaFactors)
+            dd = _meanEuclideanDistance_func(origin, coord, alphaFactors)
             dds.append(dd)
         return dds
