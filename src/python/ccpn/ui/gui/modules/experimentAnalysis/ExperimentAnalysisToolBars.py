@@ -13,7 +13,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-11-11 16:19:33 +0000 (Mon, November 11, 2024) $"
+__dateModified__ = "$dateModified: 2024-11-11 16:34:28 +0000 (Mon, November 11, 2024) $"
 __version__ = "$Revision: 3.2.10 $"
 #=========================================================================================
 # Created
@@ -286,7 +286,7 @@ class MainPlotToolBar(ExperimentAnalysisPlotToolBar):
                 ('toolTip',  'Toggle the Rolling Average Line from the plot'),
                 ('icon', Icon('icons/rollingAverage-icon')),
                 ('callback', self._toggleRollingAverage),
-                ('enabled', False),
+                ('enabled', True),
                 ('checkable', True),
                 ('checked',False),
                 ))),
@@ -307,7 +307,19 @@ class MainPlotToolBar(ExperimentAnalysisPlotToolBar):
         self.parentPanel._toggleRollingAverage(self.sender().isChecked())
 
     def _isErrorBarChecked(self):
-        button = self.getButton(guiNameSpaces.ERRORBARITEM)
+        return self._isToolButtonChecked(guiNameSpaces.ERRORBARITEM)
+
+    def _isRollingAverageChecked(self):
+        return self._isToolButtonChecked(guiNameSpaces.ROLLINGLINEITEM)
+
+    def _isScatterOptionChecked(self):
+        return self._isToolButtonChecked(guiNameSpaces.SCATTERITEM)
+
+    def _isBarOptionChecked(self):
+        return self._isToolButtonChecked(guiNameSpaces.BARITEM)
+
+    def _isToolButtonChecked(self, name):
+        button = self.getButton(name)
         if button:
             return button.isChecked()
         return False
