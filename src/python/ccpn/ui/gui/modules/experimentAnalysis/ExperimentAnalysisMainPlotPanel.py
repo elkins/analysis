@@ -13,7 +13,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-11-11 13:59:17 +0000 (Mon, November 11, 2024) $"
+__dateModified__ = "$dateModified: 2024-11-11 16:19:33 +0000 (Mon, November 11, 2024) $"
 __version__ = "$Revision: 3.2.10 $"
 #=========================================================================================
 # Created
@@ -153,6 +153,7 @@ class MainPlotPanel(GuiPanel):
                     return
                 dataFrame =  self._filterBySecondaryStructure(dataFrame, chain)
         self._plotDataFrame(dataFrame)
+        self._toggleErrorBars(self.toolbar._isErrorBarChecked())
         if keepZoom:
             # restore the range as it was before the update
             self.mainPlotWidget._setViewRect(vr)
