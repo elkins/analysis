@@ -33,8 +33,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-09-27 10:12:57 +0100 (Fri, September 27, 2024) $"
-__version__ = "$Revision: 3.2.9.alpha $"
+__dateModified__ = "$dateModified: 2024-11-11 18:09:52 +0000 (Mon, November 11, 2024) $"
+__version__ = "$Revision: 3.2.10 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -93,7 +93,7 @@ outputPath = None
 ############################################################
 
 import ccpn.framework.lib.experimentAnalysis.SeriesAnalysisVariables as sv
-from ccpn.framework.lib.experimentAnalysis.ExperimentConstants import N15gyromagneticRatio, HgyromagneticRatio
+from ccpn.framework.lib.experimentAnalysis.experimentConstants import N15gyromagneticRatio, HgyromagneticRatio
 import ccpn.framework.lib.experimentAnalysis.calculationModels.relaxation.spectralDensityLib as sdl
 from ccpn.framework.lib.experimentAnalysis.calculationModels._libraryFunctions import calculateUncertaintiesError, peakErrorBySNRs
 from scipy import stats

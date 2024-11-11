@@ -18,8 +18,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-10-25 12:18:15 +0100 (Fri, October 25, 2024) $"
-__version__ = "$Revision: 3.2.9.alpha $"
+__dateModified__ = "$dateModified: 2024-11-11 18:09:52 +0000 (Mon, November 11, 2024) $"
+__version__ = "$Revision: 3.2.10 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -30,7 +30,7 @@ __date__ = "$Date: 2022-02-02 14:08:56 +0000 (Wed, February 02, 2022) $"
 #=========================================================================================
 
 import numpy as np
-import ccpn.framework.lib.experimentAnalysis.ExperimentConstants as constants
+import ccpn.framework.lib.experimentAnalysis.experimentConstants as constants
 from scipy import stats
 
 ############################################################
