@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-11-08 14:15:07 +0000 (Fri, November 08, 2024) $"
+__dateModified__ = "$dateModified: 2024-11-11 21:43:35 +0000 (Mon, November 11, 2024) $"
 __version__ = "$Revision: 3.2.10 $"
 #=========================================================================================
 # Created
@@ -310,9 +310,11 @@ class SeriesAnalysisABC(ABC):
         resultDataForCollection = resultData[resultData[sv.COLLECTIONPID] == collectionPid].copy()
 
         params = minimiser.guess(Ys, Xs)
+        params = fittingModel._preFittingAdditionalParamsSettings(dfForCollection, params)
+
         if minimiserMethod is not None:
             minimiser.setMethod(minimiserMethod)
-        result = minimiser.fit(Ys, params, x=Xs, method=minimiserMethod)
+        result = minimiser.fit(Ys, params, x=Xs, method=minimiserMethod, nan_policy='propagate',)
         finalParams = result.calculateStandardErrors(Xs, Ys, uncertaintiesMethod=uncertaintiesMethod,
                                                      samples=uncertaintiesSampleSize)
 
