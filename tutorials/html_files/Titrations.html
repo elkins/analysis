@@ -16,14 +16,14 @@
 <div class="tutorial">
 
     <h2>Quantitative Titrations</h2>
-    <div class="sections"><a href="#PracticalAspects">Practical Aspects</a> | <a href="#SlowFastExchange">Slow and Fast Exchange</a> | <a href="#CombiningShifts">Combining Chemical Shifts</a> | <a href="#ChemShiftChanges">Chemical Shift Changes</a> | <a href="#GlobalFitting">Global vs. Individual Fitting</a> | <a href="#ProteinLigandEquation">Protein Ligand Binding Equation</a> | <a href="#MonomerDimer">Monomer-Dimer Binding Equation</a> | <a href="#Langmuir">Langmuir/Michaelis-Menton Model</a> | <a href="#VariableConc">Variable Protein Concentration</a> | <a href="#MultipleSites">Protein-Ligand Binding with Multiple Binding Sites</a>
+    <div class="sections"><a href="#PracticalAspects">Practical Aspects</a> | <a href="#SlowFastExchange">Slow and Fast Exchange</a> | <a href="#CombiningShifts">Combining Chemical Shifts</a> | <a href="#ChemShiftChanges">Chemical Shift Changes</a> | <a href="#GlobalFitting">Global vs. Individual Fitting</a> | <a href="#TargetLigandEquation">Target-Ligand Binding Equation</a> | <a href="#MonomerDimer">Monomer-Dimer Binding Equation</a> | <a href="#Langmuir">Langmuir/Michaelis-Menton Model</a> | <a href="#VariableConc">Variable Target Concentration</a> | <a href="#MultipleSites">Protein-Ligand Binding with Multiple Binding Sites</a>
     </div>
 
     <p>When you do a titration from which you want to extract quantitative information (e.g. a binding constant) there are different ways of doing this on a practical level and also different types of system that you might be dealing with. Each of these will require different approaches and equations for fitting your data. We'll try and summarise some of these here and also provide derivations of equations which will help you understand which fitting equations you need to use when doing a titration.</p>
 
     <h3 id="PracticalAspects">Practical aspects</h3>
     <h4>Protein Concentration</h4>
-    <p>The easiest way to perform a titration is simply to take an NMR tube containing your protein of interest and gradually to add your ligand in increasing amounts. The problem with this approach is that as you add your ligand you are increasing the volume of your sample. The concentration of your protein will therefore change between the differen titration points. This makes the equations you need to use rather complicated.</p>
+    <p>The easiest way to perform a titration is simply to take an NMR tube containing your protein of interest and gradually to add your ligand in increasing amounts. The problem with this approach is that as you add your ligand you are increasing the volume of your sample. The concentration of your protein will therefore change between the different titration points. This makes the equations you need to use rather complicated.</p>
     <p>It is much better practice to make separate samples which all have the same protein concentration but varying ligand concentration. That is all very well if you have lots of protein and can make lots of samples, but what if you are limited in the amount of protein you have? In that case, it is good practice to start with two samples of equal volume containing equal concentrations of your protein and the concentration of your ligand at the two extremes of the range to be explored. You can then construct the intermediate points by successively exchanging volumes between the two samples. The concentration of the protein is thus kept constant.</p>
     <h4>Solvents</h4>
     <p>Another thing to remember is that you should make sure that your solvent composition is the same at each titration point. If you are working with a small molecule that isn't soluble in your protein buffer, then you need to make sure that the concentration of your small molecule solvent (e.g. DMSO) is the same at every titration point. Achieving this is again much easier if you have a separate sample at each point, or work with two samples that you mix. If you do not manage to keep the solvent composition identical across your titration, the chemical shift changes you observe could be due to the altered solvent environment rather than the addition of the ligand.</p>
@@ -48,56 +48,56 @@
     <p>By plotting residue vs. ∆δ<sub>comb</sub> you can see which parts of your protein undergo the most significant conformational changes upon ligand binding. CcpNmr Analysis enables you both to create the residue vs. ∆δ<sub>comb</sub> chart as a bar graph and to plot the values (in the form of different colours) directly onto your protein structure, if you have one. Usually you would expect the largest chemical shift changes to cluster around the ligand binding site, but be aware that allosteric changes could induce chemical shift changes elsewhere in the protein, too.</p>
 
     <h3 id="GlobalFitting">Global vs. Individual Fitting</h3>
-    <p><a href="https://doi.org/10.1007/s10858-022-00402-3">Hobbs et al. 2022</a> make some interesting observations and comments about how to fit titration data, e.g. whether to fit each peak or each nucleus individually, or whether to do a simultaneous global fit to all values. There are advantages to doing both individual and global fits. Fitting each residue individually and looking at a residue vs. K<sub>d</sub> graph, allows you to get an initial understanding of your data. (Do not confuse such a graph with your residue vs. ∆δ<sub>comb</sub> graph!) You may find that the K<sub>d</sub> varies significantly between different residues. In particular, you may find some residues where the fitted K<sub>d</sub> is much larger (= weaker binding) than most residues and that the chemical shifts for these residues vary in an almost linear manner. <a href="https://doi.org/10.1007/s10858-022-00402-3">Hobbs et al.</a> suggest that this "may arise from very weak secondary binding, or possibly from effects of the ligand on solvent structure, sensed by the protein as small and almost linear shift changes (<a href="http://dx.doi.org/10.1021/acsomega.6b00223">Bye et al. 2016</a>). [It] may also derive from small changes in pH during the titration." Similarly, you may find that there are a few residues with very small fitted K<sub>d</sub> values where the chemical shift essentially only changes upon the first addition of ligand. Neither of these phenomena represent genuine residue-specific binding. One option would be to exclude these values and average the remaining ones, but it is difficult to find non-arbitrary cut-off points for including/excluding residues in the calculation of the global K<sub>d</sub>. Instead, <a href="https://doi.org/10.1007/s10858-022-00402-3">Hobbs et al.</a> suggest doing a global fit, i.e. fitting all nuclei individually (i.e. not combining them via a Euclidean distance) and simultaneously. As yet a global fit is not implemented in CcpNmr Analysis, but we have plans to do this. A global fit reduces errors in the fit and also removes the need to exclude residues manually. (It might, however, make sense to exclude overlapped peaks from your analysis.)</p>
+    <p><a href="https://doi.org/10.1007/s10858-022-00402-3">Hobbs et al. 2022</a> make some interesting observations and comments about how to fit titration data, e.g. whether to fit each peak or each nucleus individually, or whether to do a simultaneous global fit to all values. There are advantages to doing both individual and global fits. Fitting each residue individually and looking at a residue vs. K<sub>d</sub> graph, allows you to get an initial understanding of your data. (Do not confuse such a graph with your residue vs. ∆δ<sub>comb</sub> graph!) You may find that the K<sub>d</sub> varies significantly between different residues. In particular, you may find some residues where the fitted K<sub>d</sub> is much larger (= weaker binding) than most residues and that the chemical shifts for these residues vary in an almost linear manner. <a href="https://doi.org/10.1007/s10858-022-00402-3">Hobbs et al.</a> suggest that this "may arise from very weak secondary binding, or possibly from effects of the ligand on solvent structure, sensed by the protein as small and almost linear shift changes (<a href="http://dx.doi.org/10.1021/acsomega.6b00223">Bye et al. 2016</a>). [It] may also derive from small changes in pH during the titration." Similarly, you may find that there are a few residues with very small fitted K<sub>d</sub> values where the chemical shift essentially only changes upon the first addition of ligand. Neither of these phenomena represent genuine residue-specific binding. One option would be to exclude these values and average the remaining ones, but it is difficult to find non-arbitrary cut-off points for including/excluding residues in the calculation of the global K<sub>d</sub>. Instead, <a href="https://doi.org/10.1007/s10858-022-00402-3">Hobbs et al.</a> suggest doing a global fit, i.e. fitting all nuclei individually (i.e. not combining them via a Euclidean distance) and simultaneously. A global fit reduces errors in the fit and also removes the need to exclude residues manually. (It might, however, make sense to exclude overlapped peaks from your analysis.)</p>
     <p><a href="https://doi.org/10.1007/s10858-022-00402-3">Hobbs et al.</a> make some further interesting observations about differential K<sub>d</sub> values across your protein. In particular, they identify proteins, where different residues in the protein appear to experience different binding strengths dependent upon ligand proximity. In one case, they suggest, this may indicate different binding affinities for different parts of the (flexible) ligand. So do read that paper if you find that you have systematic differences in binding affinities across your protein, as they may not be co-incidental.</p>
     <p>In conclusion, it is probably worth doing both global and residue-specific fits. The global fit will give you an overall K<sub>d</sub> value, but the residue-specific fits/K<sub>d</sub> values might also give you further information about the binding event.</p>
 
-    <h3 id="ProteinLigandEquation">Protein-Ligand Binding Equation (fast exchange)</h3>
-    <p>This equation and derivation will be for the reaction P + L &#8644; PL where P is the protein and L the ligand. Throughout the titration the concentration of the P stays constant and the concentration of L is varied. [P] is the concentration of P in the unbound state, [L] the concentration of L in the unbound state and [PL] the concentration of the protein-ligand complex. The total concentrations [P]<sub>T</sub> and [L]<sub>T</sub> for P and L, respectively, are thus given by</p>
-<p>$$\begin{align}[P]_{T} &= [P] + [PL] \\  [L]_{T} &= [L] + [PL] \end{align}$$</p>
+    <h3 id="TargetLigandEquation">Target-Ligand Binding Equation (fast exchange)</h3>
+    <p>This equation and derivation will be for the reaction T + L &#8644; TL where T is the target (usually a protein, though it could also be RNA or DNA) and L is the ligand (which could be a small molecule or a macromolecule such as a protein or RNA/DNA). Throughout the titration the concentration of the target T stays constant and the concentration of the ligand L is varied. [T] is the concentration of T in the unbound state, [L] the concentration of L in the unbound state and [TL] the concentration of the target-ligand complex. The total concentrations [T]<sub>T</sub> and [L]<sub>T</sub> for T and L, respectively, are thus given by</p>
+<p>$$\begin{align}[T]_{T} &= [T] + [TL] \\  [L]_{T} &= [L] + [TL] \end{align}$$</p>
     <p>The equilibrium dissociation constant is</p>
-<p>$$K_{d} = \frac{[P][L]}{[PL]}$$</p>
+<p>$$K_{d} = \frac{[T][L]}{[TL]}$$</p>
     <p>Therefore</p>
-<p>$$\begin{align} [P] &= \frac{K_{d}[PL]}{[L]} \\ &= \frac{K_{d}([P]_{T} − [P])}{[L]} \\ &= \frac{K_{d}([P]_{T} − [P])}{[L]_{T}−[PL]} \\ &= \frac{K_{d}([P]_{T} − [P])}{[L]_{T}−[P]_{T}+[P]}\end{align}$$</p>
+<p>$$\begin{align} [T] &= \frac{K_{d}[TL]}{[L]} \\ &= \frac{K_{d}([T]_{T} − [T])}{[L]} \\ &= \frac{K_{d}([T]_{T} − [T])}{[L]_{T}−[TL]} \\ &= \frac{K_{d}([T]_{T} − [T])}{[L]_{T}−[T]_{T}+[T]}\end{align}$$</p>
     <p>This becomes</p>
-<p>$$[P]([L]_{T} − [P]_{T} + [P]) = K_{d}([P]_{T} − [P])$$</p>
+<p>$$[T]([L]_{T} − [T]_{T} + [T]) = K_{d}([T]_{T} − [T])$$</p>
     <p>Multiplying this out, we get</p>
-<p>$$[P][L]_{T} − [P][P]_{T} + [P]^2 = K_{d}[P]_{T} − K_{d}[P]$$</p>
-    <p>Collecting all the terms on one side this gives us a quadratic equation in [P]:</p>
-<p>$$[P]^2 +([L]_{T}−[P]_{T}+K_{d})[P]−[P]_{T}K_{d} =0$$</p>
+<p>$$[T][L]_{T} − [T][T]_{T} + [T]^2 = K_{d}[T]_{T} − K_{d}[T]$$</p>
+    <p>Collecting all the terms on one side this gives us a quadratic equation in [T]:</p>
+<p>$$[T]^2 +([L]_{T}−[T]_{T}+K_{d})[T]−[T]_{T}K_{d} =0$$</p>
     <p>Therefore</p>
-<p>$$\begin{align} [P] &= \frac{−([L]_{T}−[P]_{T}+ K_{d})+\sqrt{([L]_{T}−[P]_{T}+K_{d})^2+4[P]_{T}K_{d}}}{2} \\ &= \frac{[P]_{T}-[L]_{T}- K_{d}+\sqrt{([L]_{T}−[P]_{T}+K_{d})^2+4[P]_{T}K_{d}}}{2} \\ &= \frac{[P]_{T}-[L]_{T}- K_{d}+\sqrt{([L]_{T}+[P]_{T}+K_{d})^2-4[P]_{T}[L]_{T}}}{2} \end{align}$$</p>
-    <p>Note that we cannot have the other root because it would give a negative [P].</p>
-    <p>Dividing both sides by -[P]<sub>T</sub> gives us</p>
-<p>$$-\frac{[P]}{[P]_{T}} = -\frac{1}{2}+\frac{[L]_{T}+K_{d}-\sqrt{([L]_{T}+[P]_{T}+K_{d})^2+4[P]_{T}[L]_{T}}}{2[P]_{T}}$$</p>
+<p>$$\begin{align} [T] &= \frac{−([L]_{T}−[T]_{T}+ K_{d})+\sqrt{([L]_{T}−[T]_{T}+K_{d})^2+4[T]_{T}K_{d}}}{2} \\ &= \frac{[T]_{T}-[L]_{T}- K_{d}+\sqrt{([L]_{T}−[T]_{T}+K_{d})^2+4[T]_{T}K_{d}}}{2} \\ &= \frac{[T]_{T}-[L]_{T}- K_{d}+\sqrt{([L]_{T}+[T]_{T}+K_{d})^2-4[T]_{T}[L]_{T}}}{2} \end{align}$$</p>
+    <p>Note that we cannot have the other root because it would give a negative [T].</p>
+    <p>Dividing both sides by -[T]<sub>T</sub> gives us</p>
+<p>$$-\frac{[T]}{[T]_{T}} = -\frac{1}{2}+\frac{[L]_{T}+K_{d}-\sqrt{([L]_{T}+[T]_{T}+K_{d})^2+4[T]_{T}[L]_{T}}}{2[T]_{T}}$$</p>
     <p>After adding 1 to both sides we then have</p>
-<p>$$\frac{[P]_{T}-[P]}{[P]_{T}} = \frac{[L]_{T}+[P]_{T}+K_{d}-\sqrt{([L]_{T}+[P]_{T}+K_{d})^2+4[P]_{T}[L]_{T}}}{2[P]_{T}}$$</p>
-    <p>The fraction of bound P is</p>
-<p>$$f_{bound} = \frac{[PL]}{[P]_{T}} = \frac{[P]_{T} − [P]}{[P]_{T}}$$</p>
-    <p>and the fraction of unbound P is</p>
+<p>$$\frac{[T]_{T}-[T]}{[T]_{T}} = \frac{[L]_{T}+[T]_{T}+K_{d}-\sqrt{([L]_{T}+[T]_{T}+K_{d})^2+4[T]_{T}[L]_{T}}}{2[T]_{T}}$$</p>
+    <p>The fraction of bound T is</p>
+<p>$$f_{bound} = \frac{[TL]}{[T]_{T}} = \frac{[T]_{T} − [T]}{[T]_{T}}$$</p>
+    <p>and the fraction of unbound T is</p>
 <p>$$f_{free} =1−f_{bound}$$</p>
-    <p>Let δ<sub>bound</sub> be the chemical shift of the bound P and δ<sub>free</sub> be the chemical shift of the unbound P.</p>
+    <p>Let δ<sub>bound</sub> be the chemical shift of the bound T and δ<sub>free</sub> be the chemical shift of the unbound T.</p>
     <p>For fast exchange the observed chemical shift is</p>
-<p>$$\begin{align} δ_{obs} &= f_{bound}δ_{bound} + f_{free}δ_{free} \\ &= f_{bound}δ_{bound} + (1 − f_{bound})δ_{free} \\ &= f_{bound}δ_{bound} - f_{bound}δ_{free} + δ_{free} \\ &= δ_{free} + (δ_{bound} − δ_{free})f_{bound} \\ &= δ_{free} + (δ_{bound} − δ_{free})\left( \frac{[P]_{T}-[P]}{[P]_{T}}\right) \\&= δ_{free} + (δ_{bound} − δ_{free})\left( \frac{[L]_{T}+[P]_{T}+K_{d}-\sqrt{([L]_{T}+[P]_{T}+K_{d})^2+4[P]_{T}[L]_{T}}}{2[P]_{T}} \right)\end{align}$$</p>
+<p>$$\begin{align} δ_{obs} &= f_{bound}δ_{bound} + f_{free}δ_{free} \\ &= f_{bound}δ_{bound} + (1 − f_{bound})δ_{free} \\ &= f_{bound}δ_{bound} - f_{bound}δ_{free} + δ_{free} \\ &= δ_{free} + (δ_{bound} − δ_{free})f_{bound} \\ &= δ_{free} + (δ_{bound} − δ_{free})\left( \frac{[T]_{T}-[T]}{[T]_{T}}\right) \\&= δ_{free} + (δ_{bound} − δ_{free})\left( \frac{[L]_{T}+[T]_{T}+K_{d}-\sqrt{([L]_{T}+[T]_{T}+K_{d})^2+4[T]_{T}[L]_{T}}}{2[T]_{T}} \right)\end{align}$$</p>
     <p>We normally know what δ<sub>free</sub> is and so we introduce</p>
 <p>$$∆δ_{obs} = δ_{obs} − δ_{free}$$</p>
     <p>and</p>
 <p>$$∆δ_{max} = δ_{bound} − δ_{free}$$</p>
     <p>therefore</p>
-<p>$$∆δ_{obs} = ∆δ_{max}\left( \frac{[L]_{T}+[P]_{T}+K_{d}-\sqrt{([L]_{T}+[P]_{T}+K_{d})^2+4[P]_{T}[L]_{T}}}{2[P]_{T}} \right)$$</p>
+<p>$$∆δ_{obs} = ∆δ_{max}\left( \frac{[L]_{T}+[T]_{T}+K_{d}-\sqrt{([L]_{T}+[T]_{T}+K_{d})^2+4[T]_{T}[L]_{T}}}{2[T]_{T}} \right)$$</p>
     <p>This is equation (6) in <a href="http://dx.doi.org/10.1016/j.pnmrs.2013.02.001">Williamson 2013</a> and the derivation above is the "little [bit of] algebra" mentioned.</p>
-    <p>We know [P]<sub>T</sub> and [L]<sub>T</sub>. Sometimes we know δ<sub>bound</sub> in which case the only thing left to fit is K<sub>d</sub>. Sometimes we do not know δ<sub>bound</sub> in which case we have to fit that as well (so equivalently ∆δ<sub>max</sub>).</p>
+    <p>We know [T]<sub>T</sub> and [L]<sub>T</sub>. Sometimes we know δ<sub>bound</sub> in which case the only thing left to fit is K<sub>d</sub>. Sometimes we do not know δ<sub>bound</sub> in which case we have to fit that as well (so equivalently ∆δ<sub>max</sub>).</p>
     <p>Note that in Version 2 of Analysis, this equation was further modified by setting</p>
-<p>$$\begin{align}A &= \frac{∆δ_{max}}{2} \\ B &= 1 + \frac{K_{d}}{[P]_{T}} \\ x &= \frac{[L]_{T}}{[P]_{T}} \\ y &= ∆δ_{obs} \end{align}$$</p>
+<p>$$\begin{align}A &= \frac{∆δ_{max}}{2} \\ B &= 1 + \frac{K_{d}}{[T]_{T}} \\ x &= \frac{[L]_{T}}{[T]_{T}} \\ y &= ∆δ_{obs} \end{align}$$</p>
     <p>Then the equation above becomes</p>
 <p>$$y=A \left(B+x−\sqrt{(B+x)^2−4x}\right)$$</p>
-    <p>which is the equation used in CcpNmr Analysis Version 2. We measure chemical shifts at various values of [L]<sub>T</sub>. We fit both A and B.</p>
+    <p>which is the equation used in CcpNmr Analysis Version 2. Since you measure chemical shifts at various values of [L]<sub>T</sub>, you then fit both A and B.</p>
     <p>Note that</p>
-<p>$$K_{d} =[P]_{T}(B−1)$$</p>
-    <p>which means (as mentioned above) that this fitting only makes sense if the total concentration of the protein [P]<sub>T</sub> is kept constant throughout the experiments. If it varies then y has two dependent variables (in effect, [P]<sub>T</sub> and [L]<sub>T</sub>). This would require the <a href="#VariableConc">Variable Concentration Fitting</a>.</p>
+<p>$$K_{d} =[T]_{T}(B−1)$$</p>
+    <p>which means (as mentioned above) that this fitting only makes sense if the total concentration of the target [T]<sub>T</sub> is kept constant throughout the experiments. If it varies then y has two dependent variables (in effect, [T]<sub>T</sub> and [L]<sub>T</sub>). This would require the <a href="#VariableConc">Variable Concentration Fitting</a>.</p>
 
     <h3 id="MonomerDimer">Monomer-Dimer Binding Equations (fast exchange)</h3>
-    <p>This equation and derivation are for the reaction A + A &#8644; AA where A is a protein that dimerises. [A] is the concentration of the monomer and [AA] the concentration of the dimer. The total concentration [A]<sub>T</sub> of A is thus given by</p>
+    <p>This equation and derivation are for the reaction A + A &#8644; AA where A is a target that dimerises. [A] is the concentration of the monomer and [AA] the concentration of the dimer. The total concentration [A]<sub>T</sub> of A is thus given by</p>
 <p>$$[A]_{T} = [A] + 2[AA] $$</p>
     <p>The equilibrium dissociation constant is</p>
 <p>$$K_{d} = \frac{[A]^2}{[AA]} $$</p>
@@ -130,23 +130,23 @@
 
     <h3 id="Langmuir">Langmuir/Michaelis-Menton Model</h3>
     <p>Many will be familiar with the Langmuir/Michaelis-Menton approximation typically used in the context of enzyme kinetics. Here the ligand is present in large excess, thus</p>
-<p>$$[L] >> [PL] $$</p>
+<p>$$[L] >> [TL] $$</p>
     <p>Therefore we can make the following approximation</p>
 <p>$$[L] \approx [L]_{T} $$</p>
     <p>The algebra above can therefore be simplified in the following way:</p>
-<p>$$\begin{align} [P] &= \frac{K_{d}[PL]}{[L]} \\ &= \frac{K_{d}([P]_{T}-[P])}{[L]} \\ &\approx \frac{K_{d}([P]_{T}-[P])}{[L]_{T}} \end{align}$$</p>
+<p>$$\begin{align} [T] &= \frac{K_{d}[TL]}{[L]} \\ &= \frac{K_{d}([T]_{T}-[T])}{[L]} \\ &\approx \frac{K_{d}([T]_{T}-[T])}{[L]_{T}} \end{align}$$</p>
     <p>Therefore</p>
-    <p>$$[P][L]_{T} = K_{d}[P]_{T} - K_{d}[P]$$</p>
+    <p>$$[T][L]_{T} = K_{d}[T]_{T} - K_{d}[T]$$</p>
     <p>and</p>
-    <p>$$[P]([L]_{T}+K_{d}) = K_{d}[P]_{T}$$</p>
+    <p>$$[T]([L]_{T}+K_{d}) = K_{d}[T]_{T}$$</p>
     <p>giving us</p>
-<p>$$[P] = \frac{K_{d}[P]_{T}}{[L]_{T}+K_{d}} $$</p>
-    <p>which is a considerable simplification compared to the quadratic equation when we do not use the Langmuir/Michaelis-Mneton approximation. Now let's rearrange to have everything in terms of ([P]<sub>T</sub> - [P])/[P]<sub>T</sub>:</p>
-<p>$$-\frac{[P]}{[P]_{T}} = -\frac{K_{d}}{[L]_{T}+K_{d}}$$</p>
+<p>$$[T] = \frac{K_{d}[T]_{T}}{[L]_{T}+K_{d}} $$</p>
+    <p>which is a considerable simplification compared to the quadratic equation when we do not use the Langmuir/Michaelis-Mneton approximation. Now let's rearrange to have everything in terms of ([T]<sub>T</sub> - [T])/[T]<sub>T</sub>:</p>
+<p>$$-\frac{[T]}{[T]_{T}} = -\frac{K_{d}}{[L]_{T}+K_{d}}$$</p>
     <p>Adding 1 to each side gives</p>
-<p>$$\frac{[P]_{T}}{[P]_{T}} - \frac{[P]}{[P]_{T}} = \frac{[L]_{T}+K_{d}}{[L]_{T}+K_{d}} - \frac{K_{d}}{[L]_{T}+K_{d}} $$</p>
+<p>$$\frac{[T]_{T}}{[T]_{T}} - \frac{[T]}{[T]_{T}} = \frac{[L]_{T}+K_{d}}{[L]_{T}+K_{d}} - \frac{K_{d}}{[L]_{T}+K_{d}} $$</p>
     <p>And finally </p>
-<p>$$\frac{[P]_{T}-[P]}{[P]_{T}} = \frac{[L]_{T}}{[L]_{T} + K_{d}}$$</p>
+<p>$$\frac{[T]_{T}-[T]}{[T]_{T}} = \frac{[L]_{T}}{[L]_{T} + K_{d}}$$</p>
     <p>Using the definitions above we can change this to</p>
 <p>$$∆δ_{obs} = ∆δ_{max} \left(\frac{[L]_{T}}{[L]_{T} + K_{d}}\right)$$</p>
 <p>If we set</p>
@@ -154,17 +154,17 @@
     <p>Then the equation above becomes</p>
 <p>$$ y =A \left(\frac{x}{x + K_{d}}\right) $$</p>
     <p>which is the familiar Langmuir/Michaelis-Menton equation also provided in CcpNmr Analysis.</p>
-    <p><span class="action">Please note that in an NMR titration you are usually unlikely to have the situation where [L] >> [PL] and thus you wouldn't generally reckon to use this equation (if you do and the approximation does not hold, then you will get an incorrect value for your K<sub>d</sub>).</span></p>
+    <p><span class="action">Please note that in an NMR titration you are highly unlikely to have the situation where [L] >> [TL] and thus you wouldn't generally reckon to use this equation (if you do and the approximation does not hold, then you will get an incorrect value for your K<sub>d</sub>).</span></p>
 
-    <h3 id="VariableConc">Variable Protein Concentration</h3>
-    <p>If we simply add the ligand step-wise to a single sample of protein, the volume will gradually increase, leading a reduction of the total protein concentration, [P]<sub>T</sub> with each titration point. To account for this, we can epxress the volume in terms of the ligand concentration:</p>
+    <h3 id="VariableConc">Variable Target Concentration</h3>
+    <p>If we simply add the ligand step-wise to a single sample of target, the volume will gradually increase, leading a reduction of the total target concentration, [T]<sub>T</sub> with each titration point. To account for this, we can epxress the volume in terms of the ligand concentration:</p>
     <p>$$v_{t} = v_{0} \times \frac{[L]_{S}}{[L]_{S}-[L]_{T}} $$</p>
     <p>where [L]<sub>S</sub> is the ligand stock concentration. This can be rearranged as follows:</p>
     <p>$$\frac{v_{0}}{v_{t}} = \frac{[L]_{S}-[L]_{T}}{[L]_{S}} = 1- \frac{[L]_{T}}{[L]_{S}}$$</p>
-    <p>The total protein concentration, [P]<sub>T</sub> therefore becomes</p>
-    <p>$$[P]_T = [P]_{0} \times \frac{v_{0}}{v_{t}} = [P]_{0}\left(1-\frac{[L]_{T}}{[L]_{S}} \right)$$</p>
-    <p>where [P]<sub>0</sub> is the initial protein concentration. Substituting this into the protein-ligand binding equation without volume change above this gives us:</p>
-    <p>$$∆δ_{obs} = ∆δ_{max}\left( \frac{[L]_{T}+[P]_{0}(1-\frac{[L]_{T}}{[L]_{S}})+K_{d}-\sqrt{([L]_{T}+[P]_{0}(1-\frac{[L]_{T}}{[L]_{S}})+K_{d})^2+4[P]_{0}(1-\frac{[L]_{T}}{[L]_{S}})[L]_{T}}}{2[P]_{0}(1-\frac{[L]_{T}}{[L]_{S}})} \right)$$</p>
+    <p>The total target concentration, [T]<sub>T</sub> therefore becomes</p>
+    <p>$$[T]_T = [T]_{0} \times \frac{v_{0}}{v_{t}} = [T]_{0}\left(1-\frac{[L]_{T}}{[L]_{S}} \right)$$</p>
+    <p>where [T]<sub>0</sub> is the initial target concentration. Substituting this into the target-ligand binding equation without volume change above this gives us:</p>
+    <p>$$∆δ_{obs} = ∆δ_{max}\left( \frac{[L]_{T}+[T]_{0}(1-\frac{[L]_{T}}{[L]_{S}})+K_{d}-\sqrt{([L]_{T}+[T]_{0}(1-\frac{[L]_{T}}{[L]_{S}})+K_{d})^2+4[T]_{0}(1-\frac{[L]_{T}}{[L]_{S}})[L]_{T}}}{2[T]_{0}(1-\frac{[L]_{T}}{[L]_{S}})} \right)$$</p>
 
     <h3 id="MultipleSites">Protein-Ligand Binding with multiple sites</h3>
     <p><i>Not yet implemented.</i></p>
