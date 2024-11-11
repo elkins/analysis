@@ -16,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-10-04 07:50:07 +0100 (Fri, October 04, 2024) $"
-__version__ = "$Revision: 3.2.9.alpha $"
+__dateModified__ = "$dateModified: 2024-11-11 21:53:28 +0000 (Mon, November 11, 2024) $"
+__version__ = "$Revision: 3.2.10 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -157,8 +157,9 @@ class _RefitSelectedSeriesPopup(CcpnDialogMainWidget):
     def _populate(self):
         ## add Fitting  models
         currentModelName = self._getCurrentModelName()
-        models = self._backendHandler.fittingModels
-        modelNames = list(models.keys())
+        models = list(self._backendHandler.fittingModels.values())
+        models = [model for model in models if model.isGUIVisible and model.isEnabled]
+        modelNames = [model.modelName for model in models]
         self._fittingModelPullDown.setData(modelNames)
         ## do initial selection given the current knowledge
         with self._fittingModelPullDown.blockWidgetSignals():
