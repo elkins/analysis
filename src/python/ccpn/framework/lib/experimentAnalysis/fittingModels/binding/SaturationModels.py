@@ -15,7 +15,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-11-08 14:15:07 +0000 (Fri, November 08, 2024) $"
+__dateModified__ = "$dateModified: 2024-11-11 13:20:51 +0000 (Mon, November 11, 2024) $"
 __version__ = "$Revision: 3.2.10 $"
 #=========================================================================================
 # Created
@@ -186,9 +186,9 @@ def monomerDimerBinding(x, Kd, BMax, dA):
 
     return delta_obs
 
-def cooperativity_func(x, Kd, BMax, Hs):
+def cooperative_func(x, Kd, BMax, Hs):
     """
-    The cooperativity equation for a saturation binding experiment.
+    The cooperative equation for a saturation binding experiment.
 
     Y = Bmax*X^Hs/(Kd^Hs + X^Hs)
 
@@ -215,9 +215,9 @@ def cooperativity_func(x, Kd, BMax, Hs):
 
 
 
-def cooperativityWithFxedTargetCconcentration(x, Kd, BMax, T, Hs):
+def cooperativeWithFxedTargetCconcentration(x, Kd, BMax, T, Hs):
     """
-    The cooperativity equation for a saturation binding experiment with a fixed target concentration.
+    The cooperative equation for a saturation binding experiment with a fixed target concentration.
     Incorporates the Hill coefficient for cooperativity.
 
     Y = BMax * ((T + x^Hs + Kd^Hs) - sqrt((T + x^Hs + Kd^Hs)^2 - 4 * T * x^Hs)) / (2 * T)
@@ -303,12 +303,12 @@ class _Binding1SiteAllostericMinimiser(MinimiserModel):
     FITTING_FUNC = None
     MODELNAME = '1SiteAllosteric_Model'
 
-class _BindingCooperativityMinimiser(MinimiserModel):
-    """A model based on the Binding with Cooperativity  Fitting equation.
+class _BindingCooperativeMinimiser(MinimiserModel):
+    """A model based on the Binding with Cooperative  Fitting equation.
     """
 
-    FITTING_FUNC = cooperativityWithFxedTargetCconcentration
-    MODELNAME = 'Cooperativity_binding_Model'
+    FITTING_FUNC = cooperativeWithFxedTargetCconcentration
+    MODELNAME = 'Cooperative_binding_Model'
 
     KD = sv.KD # They must be exactly as they are defined in the FITTING_FUNC arguments! This was too hard to change!
     BMAX = sv.BMAX
@@ -324,9 +324,9 @@ class _BindingCooperativityMinimiser(MinimiserModel):
 
     def __init__(self, independent_vars=['x'], prefix='', nan_policy=sv.PROPAGATE_MODE, **kwargs):
         kwargs.update({'prefix': prefix, 'nan_policy': nan_policy, 'independent_vars': independent_vars})
-        super().__init__(_BindingCooperativityMinimiser.FITTING_FUNC, **kwargs)
+        super().__init__(_BindingCooperativeMinimiser.FITTING_FUNC, **kwargs)
         self.name = self.MODELNAME
-        self.params = self.make_params(**_BindingCooperativityMinimiser.defaultParams)
+        self.params = self.make_params(**_BindingCooperativeMinimiser.defaultParams)
 
     def guess(self, data, x, **kws):
         """
@@ -658,12 +658,12 @@ class FractionBindingWithVariableTargetConcentrationModel(BindingModelBC):
         return self._setGlobalTargetConcentrationToParams(df, params)
 
 @_assignEntryNumber
-class CooperativityBindingModel(BindingModelBC):
+class CooperativeBindingModel(BindingModelBC):
     """
-    ChemicalShift Analysis: Cooperativity-Binding calculation model
+    ChemicalShift Analysis: Cooperative-Binding calculation model
     """
-    modelName = sv.COOPERATIVITY_BINDING_MODEL
-    modelInfo = 'Fit data to using the  Cooperativity Binding  model in a saturation binding experiment analysis.'
+    modelName = sv.COOPERATIVE_BINDING_MODEL
+    modelInfo = 'Fit data to using the Cooperative Binding model in a saturation binding experiment analysis.'
     description = '''
                     \nModel:
                     Y = BMax * ((T + x^Hs + Kd^Hs) - sqrt((T + x^Hs + Kd^Hs)^2 - 4 * T * x^Hs)) / (2 * T)
@@ -682,7 +682,7 @@ class CooperativityBindingModel(BindingModelBC):
                  '''
     maTex = r'$Y = B_{max} \frac{(T + x^{H_s} + K_d^{H_s} - \sqrt{(T + x^{H_s} + K_d^{H_s})^2 - 4 T x^{H_s}}}{2 T}$'
 
-    Minimiser = _BindingCooperativityMinimiser
+    Minimiser = _BindingCooperativeMinimiser
     isEnabled = True
     targetSeriesAnalyses = [
         sv.ChemicalShiftPerturbationAnalysis

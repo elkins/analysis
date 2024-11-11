@@ -17,7 +17,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-11-08 13:25:22 +0000 (Fri, November 08, 2024) $"
+__dateModified__ = "$dateModified: 2024-11-11 13:20:51 +0000 (Mon, November 11, 2024) $"
 __version__ = "$Revision: 3.2.10 $"
 #=========================================================================================
 # Created
@@ -373,7 +373,7 @@ MONOMERDIMER_BINDING_MODEL = 'Monomer-Dimer  Binding'
 FRACTION_BINDING_WITH_FIXED_TARGET_MODEL =  'Fraction Binding with Fixed Target Concentration'
 FRACTION_BINDING_WITH_VARIABLE_TARGET_MODEL = 'Fraction Binding with Variable Target Concentration'
 
-COOPERATIVITY_BINDING_MODEL = 'Cooperativity Binding'
+COOPERATIVE_BINDING_MODEL = 'Cooperative Binding'
 FMNOYERROR = 'Fitting Model not implemented yet'
 #### residues names
 EXCLUDEDRESIDUETYPES = 'ExcludedResidueTypes'
