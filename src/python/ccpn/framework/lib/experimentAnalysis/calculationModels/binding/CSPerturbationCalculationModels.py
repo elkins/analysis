@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-11-08 17:11:54 +0000 (Fri, November 08, 2024) $"
+__dateModified__ = "$dateModified: 2024-11-11 12:58:25 +0000 (Mon, November 11, 2024) $"
 __version__ = "$Revision: 3.2.10 $"
 #=========================================================================================
 # Created
@@ -59,7 +59,7 @@ class EuclideanCalculationModel(CalculationModel):
                                             sv.ChemicalShiftPerturbationAnalysis
                                             ]
     modelInfo        = 'Calculate The DeltaDelta shifts for a series using the average Euclidean Distance.'
-    # maTex       = r'$\sqrt{\frac{1}{N}\sum_{i=0}^N (\alpha_i*\delta_i)^2}$'
+    maTex       = r'$\sqrt{\frac{1}{N}\sum_{i=0}^N (\alpha_i*\delta_i)^2}$'
     description = f'''Model:
                     d = √ 1/N * ∑(𝝰_i * δ_i)^2
                     {sv.uALPHA}: the alpha factor for each atom of interest

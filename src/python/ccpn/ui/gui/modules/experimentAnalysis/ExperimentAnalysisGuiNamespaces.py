@@ -13,8 +13,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-09-02 16:48:00 +0100 (Mon, September 02, 2024) $"
-__version__ = "$Revision: 3.2.5 $"
+__dateModified__ = "$dateModified: 2024-11-11 12:58:25 +0000 (Mon, November 11, 2024) $"
+__version__ = "$Revision: 3.2.10 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -265,6 +265,10 @@ TipText_UncertaintySample = 'Number of iterations to perform when resampling dat
 WidgetVarName_ModelEq = 'ModelEquation'
 Label_ModelEq = 'Model Equation'
 TipText_ModelEq = 'The fitted model equation'
+
+WidgetVarName_CalcModelEq = 'CalcModelEquation'
+Label_CalcModelEq = 'Calculation Model Equation'
+TipText_CalcModelEq = 'The Calculation model equation'
 
 WidgetVarName_ModelValues = 'ModelValues'
 Label_ModelValues = 'Initial Values'
