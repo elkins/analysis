@@ -20,9 +20,9 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-10-25 12:56:59 +0100 (Fri, October 25, 2024) $"
-__version__ = "$Revision: 3.2.9.alpha $"
+__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
+__dateModified__ = "$dateModified: 2024-11-12 13:22:30 +0000 (Tue, November 12, 2024) $"
+__version__ = "$Revision: 3.2.10 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -341,12 +341,11 @@ def flatten(items):
     ref: This solution is modified from a recipe in Beazley, D. and B. Jones. Recipe 4.14, Python Cookbook 3rd
          Ed., O'Reilly Media Inc. Sebastopol, CA: 2013.
     """
-    for x in items:
-        if isinstance(x, Iterable) and not isinstance(x, (str, bytes)):
-            for sub_x in flatten(x):
-                yield sub_x
-        else:
-            yield x
+    if isinstance(items, Iterable) and not isinstance(items, (str, bytes)):
+        for itm in items:
+            yield from flatten(itm)
+    else:
+        yield items
 
 
 def isClose(a, b, relTolerance=1e-05, absTolerance=1e-08):
@@ -498,29 +497,27 @@ def sortByPriorityList(values, priority, initialSort=True, initialSortReverse=Fa
     return sorted(values, key=priority_getter)
 
 
-def makeIterableList(inList=None):
+def makeIterableList(inList=None) -> list:
     """
     Take a nested collection of (tuples, lists or sets) and concatenate into a single list.
     Also changes a single item into a list.
-    Removes any Nones from the list
+    Removes any Nones from the list.
     :param inList: list of tuples, lists, sets or single items
     :return: a single list
     """
     # if isinstance(inList, Iterable) and not isinstance(inList, str):
-    if isinstance(inList, (tuple, list, set)):
-        return [y for x in inList for y in makeIterableList(x) if inList]
-    else:
-        if inList is not None:
-            return [inList]
-        else:
-            return []
+    if isinstance(inList, (tuple, list, set, OrderedSet)):
+        return [y for x in inList for y in makeIterableList(x) if inList is not None]
+    elif inList is not None:
+        return [inList]
+    return []
 
 
-def flattenLists(lists):
+def flattenLists(lists) -> list:
     """
     Take a list of lists and concatenate into a single list.
     Remove any Nones from the list
-    :param lists: a list of lists
+    :param lists: a list of lists;
     :return: list.  a single list
     """
     return makeIterableList(lists)
@@ -566,6 +563,7 @@ def modifyByFraction(value, fraction):
     new_value = value * (1 + fraction)  # Use fraction directly for both add and subtract
 
     return new_value
+
 
 def _add(x, y):
     if y > 0:
@@ -981,9 +979,23 @@ def consume(iterator, n=None):
         next(islice(iterator, n, n), None)
 
 
+#=========================================================================================
+# main
+#=========================================================================================
+
 def main():
     # make sure that zeroes are still included
-    print(makeIterableList(((0, 1, 2, [[[], [None, 0]]], None, (0, {3, 4, 5, 5, None, 0}, 4, 5)))))
+    # BUT, in sets, 0==False, and 1==True :| set includes whichever is included first
+    ll = ((0, 1, 2, [], False,
+           [[[False], [], (), [None, 0]]], None,
+           (0, {3, 4, 5, 5, 0, False}, OrderedSet((7, 6, True, 1, 0)),
+            4, 5)))
+    print(makeIterableList(ll))
+    print(list(filter(lambda val: val is not None, flatten(ll))))
+    print(makeIterableList(42))
+    print(makeIterableList([42]))
+    print(list(filter(lambda val: val is not None, flatten([42]))))
+    print(list(filter(lambda val: val is not None, flatten(42))))
 
 
 if __name__ == '__main__':
