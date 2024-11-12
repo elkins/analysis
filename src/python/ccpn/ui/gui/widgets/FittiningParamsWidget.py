@@ -18,7 +18,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-11-12 13:22:30 +0000 (Tue, November 12, 2024) $"
+__dateModified__ = "$dateModified: 2024-11-12 13:25:38 +0000 (Tue, November 12, 2024) $"
 __version__ = "$Revision: 3.2.10 $"
 #=========================================================================================
 # Created
@@ -174,7 +174,7 @@ class _ParamTableModel(_TableModel):
                 # this is required to disable the bbox calculation for the default QT functionality
                 return QtCore.QSize(16, 24)
 
-        except Exception as es:
+        except Exception:
             pass
 
         return None
@@ -334,7 +334,8 @@ class FittingParamWrapper(object):
         df = df.sort_values(by=NAME, key=key).reset_index(drop=True)
         return df
 
-    def getParamsFromDataFrame(self, df):
+    @staticmethod
+    def getParamsFromDataFrame(df):
         params = lmfit.Parameters()
         for ix, row in df.iterrows():
             name = row[NAME]
