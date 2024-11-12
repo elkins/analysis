@@ -18,8 +18,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-06-21 19:48:44 +0100 (Fri, June 21, 2024) $"
-__version__ = "$Revision: 3.2.4 $"
+__dateModified__ = "$dateModified: 2024-11-12 16:04:13 +0000 (Tue, November 12, 2024) $"
+__version__ = "$Revision: 3.2.10 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -81,7 +81,7 @@ _INTO_CSL = 'into'
 #=========================================================================================
 
 class ChemicalShiftTableModule(CcpnTableModule):
-    """This class implements the module by wrapping a ChemicalShift instance
+    """This class implements the module by wrapping a ChemicalShift instance.
     """
     className = 'ChemicalShiftTableModule'
     includeSettingsWidget = True
@@ -92,7 +92,7 @@ class ChemicalShiftTableModule(CcpnTableModule):
 
     def __init__(self, mainWindow=None, name='Chemical Shift Table',
                  chemicalShiftList=None, selectFirstItem=False):
-        """Initialise the Module widgets
+        """Initialise the Module widgets.
         """
         super().__init__(mainWindow=mainWindow, name=name)
 
@@ -113,7 +113,7 @@ class ChemicalShiftTableModule(CcpnTableModule):
             self._modulePulldown.selectFirstItem()
 
     def _setWidgets(self):
-        """Set up the widgets for the module
+        """Set up the widgets for the module.
         """
         # Put all the NmrTable settings in a widget, as there will be more added in the PickAndAssign, and
         # backBoneAssignment modules
@@ -171,7 +171,7 @@ class ChemicalShiftTableModule(CcpnTableModule):
                                                    hiddenColumns=_hidden)
 
     def selectTable(self, table=None):
-        """Manually select a table from the pullDown
+        """Manually select a table from the pull-down.
         """
         if table is None:
             self._modulePulldown.selectFirstItem()
@@ -183,7 +183,7 @@ class ChemicalShiftTableModule(CcpnTableModule):
                 self._modulePulldown.select(table.pid)
 
     def _selectionPulldownCallback(self, item):
-        """Notifier Callback for selecting table from the pull down menu
+        """Notifier Callback for selecting table from the pull-down menu.
         """
         self._table = self._modulePulldown.getSelectedObject()
         self._tableWidget._table = self._table
@@ -194,7 +194,7 @@ class ChemicalShiftTableModule(CcpnTableModule):
             self._tableWidget.populateEmptyTable()
 
     def _closeModule(self):
-        """CCPN-INTERNAL: used to close the module
+        """CCPN-INTERNAL: used to close the module.
         """
         if self._modulePulldown:
             self._modulePulldown.unRegister()
@@ -218,8 +218,8 @@ _HIDDENCOLUMNS = 'hiddenColumns'
 
 
 class _NewChemicalShiftTable(_ProjectTableABC):
-    """New chemicalShiftTable based on faster QTableView
-    Actually more like the original table but with pandas dataFrame
+    """New chemicalShiftTable based on faster QTableView.
+    Actually more like the original table but with pandas dataFrame.
     """
     className = 'ChemicalShiftTable'
     attributeName = 'chemicalShiftLists'
@@ -311,17 +311,15 @@ class _NewChemicalShiftTable(_ProjectTableABC):
 
         self.headerColumnMenu.setInternalColumns([self.columnHeaders[col] for col in self._internalColumns])
         self.headerColumnMenu.setDefaultColumns([self.columnHeaders[col] for col in self.defaultHidden])
-        # Initialise the notifier for processing dropped items
-        self._postInitTableCommonWidgets()
 
     def setClassDefaultColumns(self, texts):
         """Set a list of default column-headers that are hidden when first shown.
         """
         self.headerColumnMenu.saveColumns(texts)
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Widget callbacks
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     @staticmethod
     def _getValidChemicalShift4Callback(objs):
@@ -338,7 +336,7 @@ class _NewChemicalShiftTable(_ProjectTableABC):
         return cShift
 
     def actionCallback(self, selection, lastItem):
-        """Notifier DoubleClick action on item in table. Mark a chemicalShift based on attached nmrAtom
+        """Notifier DoubleClick action on item in table. Mark a chemicalShift based on attached nmrAtom.
         """
 
         try:
@@ -356,7 +354,7 @@ class _NewChemicalShiftTable(_ProjectTableABC):
             markNmrAtoms(self.mainWindow, [cShift.nmrAtom])
 
     def selectionCallback(self, selected, deselected, selection, lastItem):
-        """Notifier Callback for selecting rows in the table
+        """Notifier Callback for selecting rows in the table.
         """
         try:
             if not (objs := list(selection[self._OBJECT])):
@@ -382,12 +380,12 @@ class _NewChemicalShiftTable(_ProjectTableABC):
             self.current.nmrAtoms = []
             self.current.nmrResidues = []
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Create table and row methods
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     def _newRowFromUniqueId(self, cslDf, obj, uniqueId):
-        """Create a new row to insert into the dataFrame or replace row
+        """Create a new row to insert into the dataFrame or replace row.
         """
         _row = cslDf.loc[uniqueId]
         # make the new row
@@ -413,8 +411,8 @@ class _NewChemicalShiftTable(_ProjectTableABC):
 
     @staticmethod
     def _derivedFromObject(obj):
-        """Get a tuple of derived values from obj
-        Not very generic yet - column class now seems redundant
+        """Get a tuple of derived values from obj.
+        Not very generic yet - column class now seems redundant.
         """
         _allPeaks = obj.allAssignedPeaks
         totalPeakCount = len(_allPeaks)
@@ -519,14 +517,14 @@ class _NewChemicalShiftTable(_ProjectTableABC):
             self.populateEmptyTable()
 
     def _updateCellCallback(self, data):
-        """Notifier callback for updating the table
+        """Notifier callback for updating the table.
         :param data:
         """
         # print(f'>>> _updateCellCallback  {self}')
         pass
 
     def _updateRowCallback(self, data):
-        """Notifier callback for updating the table for change in chemicalShifts
+        """Notifier callback for updating the table for change in chemicalShifts.
         :param data: notifier content
         """
         # print(f'>>> _updateRowCallback  {self}')
@@ -610,7 +608,7 @@ class _NewChemicalShiftTable(_ProjectTableABC):
         pass
 
     def _selectCurrentCallBack(self, data):
-        """Callback from a notifier to highlight the current objects
+        """Callback from a notifier to highlight the current objects.
         :param data:
         """
         if self._tableBlockingLevel:
@@ -620,7 +618,7 @@ class _NewChemicalShiftTable(_ProjectTableABC):
         self._selectOnTableCurrent(objs)
 
     def _selectOnTableCurrent(self, objs):
-        """Highlight the list of objects on the table
+        """Highlight the list of objects on the table.
         :param objs:
         """
         self.highlightObjects(objs)
@@ -636,12 +634,12 @@ class _NewChemicalShiftTable(_ProjectTableABC):
         else:
             self.populateEmptyTable()
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Table context menu
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     def addTableMenuOptions(self, menu):
-        """Add options to the right-mouse menu
+        """Add options to the right-mouse menu.
         """
         super().addTableMenuOptions(menu)
 
@@ -666,7 +664,7 @@ class _NewChemicalShiftTable(_ProjectTableABC):
         self._navigateMenu = menu.addMenu(_NAVIGATE_CST)
 
     def setTableMenuOptions(self, menu):
-        """Update options in the right-mouse menu
+        """Update options in the right-mouse menu.
         """
         super().setTableMenuOptions(menu)
 
@@ -699,24 +697,24 @@ class _NewChemicalShiftTable(_ProjectTableABC):
             self._removeAssignmentsMenuAction.setEnabled(False)
             self._removeAssignmentsDeleteMenuAction.setEnabled(False)
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Properties
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     pass
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Class methods
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     pass
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Table Implementation
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     def _mergeNmrAtoms(self):
-        """Merge the nmrAtoms in the selection into the nmrAtom that has been right-clicked
+        """Merge the nmrAtoms in the selection into the nmrAtom that has been right-clicked.
         """
         selection = self.getSelectedObjects()
         data = self.getRightMouseItem()
@@ -747,7 +745,7 @@ class _NewChemicalShiftTable(_ProjectTableABC):
                     currentNmrAtom.mergeNmrAtoms(matching)
 
     def _editNmrAtom(self):
-        """Show the edit nmrAtom popup for the clicked nmrAtom
+        """Show the edit nmrAtom popup for the clicked nmrAtom.
         """
         if (data := self.getRightMouseItem()) is not None and not data.empty:
             cShift = data.get(DATAFRAME_OBJECT)
@@ -813,7 +811,7 @@ class _NewChemicalShiftTable(_ProjectTableABC):
                         f'for nmrAtom {chemicalShift.nmrAtom.name}.')
 
     def _removeAssignments(self, delete=False):
-        """Remove assignments from the selection and delete as required
+        """Remove assignments from the selection and delete as required.
         """
         selection = self.getSelectedObjects()
         data = self.getRightMouseItem()
@@ -861,19 +859,19 @@ _EDITOR_GETTER = ('get', 'value', 'text', 'getFile')
 
 
 class _CSLTableDelegate(QtWidgets.QStyledItemDelegate):
-    """handle the setting of data when editing the table
+    """Handle the setting of data when editing the table.
     """
     _objectColumn = '_object'
 
     def __init__(self, parent):
-        """Initialise the delegate
+        """Initialise the delegate.
         :param parent: link to the handling table
         """
         QtWidgets.QStyledItemDelegate.__init__(self, parent)
         self._parent = parent
 
     def setEditorData(self, widget, index) -> None:
-        """populate the editor widget when the cell is edited
+        """Populate the editor widget when the cell is edited.
         """
         model = index.model()
         value = model.data(index, EDIT_ROLE)
@@ -894,7 +892,7 @@ class _CSLTableDelegate(QtWidgets.QStyledItemDelegate):
             raise Exception(f'Widget {widget} does not expose a set method; required for table editing')
 
     def setModelData(self, widget, mode, index):
-        """Set the object to the new value
+        """Set the object to the new value.
         :param widget - typically a lineedit handling the editing of the cell
         :param mode - editing mode
         :param index - QModelIndex of the cell
@@ -934,7 +932,7 @@ class _CSLTableDelegate(QtWidgets.QStyledItemDelegate):
 #=========================================================================================
 
 def main():
-    """Show the chemicalShiftTable module
+    """Show the chemicalShiftTable module.
     """
     from ccpn.ui.gui.widgets.Application import newTestApplication
     from ccpn.framework.Application import getApplication
@@ -953,6 +951,4 @@ def main():
 
 
 if __name__ == '__main__':
-    """Call the test function
-    """
     main()

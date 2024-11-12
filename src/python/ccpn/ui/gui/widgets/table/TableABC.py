@@ -372,7 +372,7 @@ class TableABC(QtWidgets.QTableView):
                     margin-left : 2px;
                     margin-right : 2px;''')
 
-    def _postInitTableCommonWidgets(self):
+    def _postInit(self):
         from ccpn.ui.gui.widgets.DropBase import DropBase
         from ccpn.ui.gui.lib.GuiNotifier import GuiNotifier
         from ccpn.ui.gui.widgets.ScrollBarVisibilityWatcher import ScrollBarVisibilityWatcher

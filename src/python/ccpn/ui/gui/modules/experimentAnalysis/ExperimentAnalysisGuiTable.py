@@ -13,8 +13,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-09-13 15:20:23 +0100 (Fri, September 13, 2024) $"
-__version__ = "$Revision: 3.2.7 $"
+__dateModified__ = "$dateModified: 2024-11-12 16:04:14 +0000 (Tue, November 12, 2024) $"
+__version__ = "$Revision: 3.2.10 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -39,8 +39,6 @@ import ccpn.ui.gui.modules.experimentAnalysis.ExperimentAnalysisGuiNamespaces as
 import ccpn.framework.lib.experimentAnalysis.SeriesAnalysisVariables as seriesVariables
 from ccpn.ui.gui.widgets.table.Table import Table
 from ccpn.ui.gui.widgets.MessageDialog import showWarning
-
-
 
 
 class _NavigateTrigger(DataEnum):
@@ -110,20 +108,20 @@ class _ExperimentalAnalysisTableABC(Table):
         self.moduleParent = guiModule
         self._selectionHeader = sv.COLLECTIONPID
 
+    def _postInit(self):
+        super()._postInit()
         # Initialise the notifier for processing dropped items
-        self._postInitTableCommonWidgets()
         self._navigateTrigger = _NavigateTrigger.SINGLECLICK  # Default Behaviour
         navigateTriggerName = self.guiModule.getSettings(grouped=False).get(guiNameSpaces.WidgetVarName_NavigateToOpt)
         self.setNavigateToPeakTrigger(navigateTriggerName)
         self._selectCurrentCONotifier = Notifier(self.current, [Notifier.CURRENT], targetName='collections',
                                                  callback=self._currentCollectionCallback, onceOnly=True)
-
         self.sortingChanged.connect(self._tableSortingChangedCallback)
         self.tableChanged.connect(self._tableChangedCallback)
 
-    # =========================================================================================
+    #-----------------------------------------------------------------------------------------
     # dataFrame
-    # =========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     def _tableSortingChangedCallback(self, *args):
         """   Fire a notifier for other widgets to refresh their ordering (if needed). """
@@ -154,9 +152,9 @@ class _ExperimentalAnalysisTableABC(Table):
             self._hideExcludedColumns()
             self._setExclusionColours()
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Selection/action callbacks
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     def selectionCallback(self, selected, deselected, selection, lastItem):
         """Set the current collection and navigate to SpectrumDisplay if the trigger is enabled as singleClick. """
@@ -192,9 +190,9 @@ class _ExperimentalAnalysisTableABC(Table):
                 self._navigateTrigger = enumTrigger
                 return
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Handle drop events
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     def _processDroppedItems(self, data):
         """
@@ -204,9 +202,9 @@ class _ExperimentalAnalysisTableABC(Table):
         # self._handleDroppedItems(pids, KlassTable, self.moduleParent._modulePulldown)
         getLogger().warning('Drop not yet implemented for this module.')
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Table context menu
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     def _raiseTableContextMenu(self, pos):
         """
@@ -242,11 +240,13 @@ class _ExperimentalAnalysisTableABC(Table):
         from ccpn.ui.gui.popups._RefitSeriesPopup import RefitIndividualPopup, RefitGloballyPopup
 
         collections = self.getSelectedCollections()
-        if len(collections)>0:
+        if len(collections) > 0:
             if globally:
-                popup = RefitGloballyPopup(self, seriesAnalysisModule=self.guiModule, globalFit=False, collectionsData=self.getSelectedData())
+                popup = RefitGloballyPopup(self, seriesAnalysisModule=self.guiModule, globalFit=False,
+                                           collectionsData=self.getSelectedData())
             else:
-                popup = RefitIndividualPopup(self, seriesAnalysisModule=self.guiModule, globalFit=False, collectionsData=self.getSelectedData())
+                popup = RefitIndividualPopup(self, seriesAnalysisModule=self.guiModule, globalFit=False,
+                                             collectionsData=self.getSelectedData())
             popup.show()
             popup.raise_()
         else:
@@ -269,7 +269,7 @@ class _ExperimentalAnalysisTableABC(Table):
             exclusionHandler = self.guiModule.backendHandler.exclusionHandler
             outputData = self.guiModule.backendHandler.resultDataTable
             excludedNmrResidues = exclusionHandler.getExcludedNmrResidues(dataTable=outputData)
-            newExclusion = set(excludedNmrResidues+nmrResidues)
+            newExclusion = set(excludedNmrResidues + nmrResidues)
             exclusionHandler.setExcludedNmrResidues(newExclusion, dataTable=outputData)
             self.guiModule.updateAll()
 
@@ -361,7 +361,6 @@ class _ExperimentalAnalysisTableABC(Table):
                         continue
                     for columnIndex, value in enumerate(self.headerColumnMenu.columnTexts):
                         self.setForeground(i, columnIndex, hexColour)
-
 
     def _setBlankModelColumns(self):
         # if a blank model: toggle the columns from table (no point in showing empty columns)

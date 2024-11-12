@@ -16,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-09-13 20:32:52 +0100 (Fri, September 13, 2024) $"
-__version__ = "$Revision: 3.2.7 $"
+__dateModified__ = "$dateModified: 2024-11-12 16:04:13 +0000 (Tue, November 12, 2024) $"
+__version__ = "$Revision: 3.2.10 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -42,13 +42,27 @@ from ccpn.util.Logging import getLogger
 
 _TABLES = 'tables'
 _HIDDENCOLUMNS = 'hiddenColumns'
+_DEBUG = False
 
 
 #=========================================================================================
 # _CoreTableWidgetABC
 #=========================================================================================
 
-class _CoreTableWidgetABC(_ProjectTableABC):
+class _CoreTableWidgetMeta(type(_ProjectTableABC)):
+    """Metaclass implementing a post-initialise hook, ALWAYS called after __init__ has finished
+    """
+
+    def __call__(self, *args, **kwargs):
+        if _DEBUG: getLogger().debug2(f'--> pre-create table-widget {self}')
+        instance = super().__call__(*args, **kwargs)
+        # call the post-__init__ hook
+        instance._postInit()
+        if _DEBUG: getLogger().debug2(f'--> post-create table-widget {self}')
+        return instance
+
+
+class _CoreTableWidgetABC(_ProjectTableABC, metaclass=_CoreTableWidgetMeta):
     """Class to present a table for core objects
     """
     defaultHidden = None
@@ -75,17 +89,15 @@ class _CoreTableWidgetABC(_ProjectTableABC):
 
         self.headerColumnMenu.setInternalColumns(self._internalColumns)
         self.headerColumnMenu.setDefaultColumns(self.defaultHidden)
-        # Initialise the notifier for processing dropped items
-        self._postInitTableCommonWidgets()
 
     def setClassDefaultColumns(self, texts):
         """Set a list of default column-headers that are hidden when first shown.
         """
         self.headerColumnMenu.saveColumns(texts)
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Properties
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     @property
     def _sourceObjects(self):
@@ -111,9 +123,9 @@ class _CoreTableWidgetABC(_ProjectTableABC):
         # MUST BE SUBCLASSED
         raise NotImplementedError(f'Code error: {self.__class__.__name__}._sourceCurrent not implemented')
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Selection/Action callbacks
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     def selectionCallback(self, selected, deselected, selection, lastItem):
         """set as current the selected core-objects on the table
@@ -125,9 +137,9 @@ class _CoreTableWidgetABC(_ProjectTableABC):
         except Exception as es:
             getLogger().debug2(f'{self.__class__.__name__}.selectionCallback: No selection\n{es}')
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Create table and row methods
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     def _newRowFromUniqueId(self, df, obj, uniqueId):
         """Create a new row to insert into the dataFrame or replace row
@@ -344,17 +356,17 @@ class _CoreTableWidgetABC(_ProjectTableABC):
         """
         self.highlightObjects(objs)
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Table context menu
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Table functions
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Updates
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     def _updateAllModule(self, data=None):
         """Updates the table and the settings widgets
@@ -375,10 +387,11 @@ class _CoreTableWidgetABC(_ProjectTableABC):
         """
         self._update()
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # object properties
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
+    ...
 
 #=========================================================================================
 # _CoreTableFrameABC
@@ -466,9 +479,9 @@ class _CoreTableFrameABC(Frame):
         self._activePulldownClass = coreClass
         self._activeCheckbox = checkBox
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Properties
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     @property
     def _tableCurrent(self):
@@ -494,9 +507,9 @@ class _CoreTableFrameABC(Frame):
         """
         return self._tableWidget
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Implementation
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     def selectTable(self, table=None):
         """Manually select a table from the pullDown
@@ -529,9 +542,9 @@ class _CoreTableFrameABC(Frame):
         self._modulePulldown.unRegister()
         self._tableWidget._close()
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Process dropped items
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     def _processDroppedItems(self, data):
         """CallBack for Drop events
@@ -567,9 +580,9 @@ class _CoreTableFrameABC(Frame):
             if showYesNo(title, msg):
                 _openItemObject(self.mainWindow, others)
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Widget/Notifier Callbacks
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     def _selectionPulldownCallback(self, item):
         """Notifier Callback for selecting object from the pull down menu

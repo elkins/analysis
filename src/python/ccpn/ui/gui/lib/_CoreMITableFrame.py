@@ -16,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-06-21 19:48:43 +0100 (Fri, June 21, 2024) $"
-__version__ = "$Revision: 3.2.4 $"
+__dateModified__ = "$dateModified: 2024-11-12 16:04:13 +0000 (Tue, November 12, 2024) $"
+__version__ = "$Revision: 3.2.10 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -38,13 +38,28 @@ from ccpn.ui.gui.widgets.table.MIProjectTable import _MIProjectTableABC
 
 _TABLES = 'tables'
 _HIDDENCOLUMNS = 'hiddenColumns'
+_DEBUG = False
+
 
 #=========================================================================================
-# _CoreTableWidgetABC
+# _CoreMITableWidgetABC
 #=========================================================================================
 
-class _CoreMITableWidgetABC(_MIProjectTableABC):
-    """Class to present a table for core objects
+class _CoreMITableWidgetMeta(type(_MIProjectTableABC)):
+    """Metaclass implementing a post-initialise hook, ALWAYS called after __init__ has finished
+    """
+
+    def __call__(self, *args, **kwargs):
+        if _DEBUG: getLogger().debug2(f'--> pre-create table-widget {self}')
+        instance = super().__call__(*args, **kwargs)
+        # call the post-__init__ hook
+        instance._postInit()
+        if _DEBUG: getLogger().debug2(f'--> post-create table-widget {self}')
+        return instance
+
+
+class _CoreMITableWidgetABC(_MIProjectTableABC, metaclass=_CoreMITableWidgetMeta):
+    """Class to present a multi-index table for core objects
     """
     defaultHidden = None
     _internalColumns = None
@@ -74,17 +89,15 @@ class _CoreMITableWidgetABC(_MIProjectTableABC):
 
         self.headerColumnMenu.setInternalColumns(self._internalColumns)
         self.headerColumnMenu.setDefaultColumns(self.defaultHidden)
-        # Initialise the notifier for processing dropped items
-        self._postInitTableCommonWidgets()
 
     def setClassDefaultColumns(self, texts):
         """set a list of default column-headers that are hidden when first shown.
         """
         self.headerColumnMenu.saveColumns(texts)
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Properties
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     @property
     def _sourceObjects(self):
@@ -110,9 +123,9 @@ class _CoreMITableWidgetABC(_MIProjectTableABC):
         # MUST BE SUBCLASSED
         raise NotImplementedError(f'Code error: {self.__class__.__name__}._sourceCurrent not implemented')
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Selection/Action callbacks
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     def selectionCallback(self, selected, deselected, selection, lastItem):
         """set as current the selected core-objects on the table
@@ -124,9 +137,9 @@ class _CoreMITableWidgetABC(_MIProjectTableABC):
         except Exception as es:
             getLogger().debug2(f'{self.__class__.__name__}.selectionCallback: No selection\n{es}')
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Create table and row methods
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     def _newRowFromUniqueId(self, df, obj, uniqueId):
         """Create a new row to insert into the dataFrame or replace row
@@ -343,17 +356,17 @@ class _CoreMITableWidgetABC(_MIProjectTableABC):
         """
         self.highlightObjects(objs)
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Table context menu
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Table functions
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Updates
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     def _updateAllModule(self, data=None):
         """Updates the table and the settings widgets
@@ -374,12 +387,15 @@ class _CoreMITableWidgetABC(_MIProjectTableABC):
         """
         self._update()
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # object properties
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
+
+    ...
 
 #=========================================================================================
-# _CoreTableFrameABC
+# _CoreMITableFrameABC
 #=========================================================================================
 
-# NOTE:ED - class shouldn't be needed
+# class shouldn't be needed
+...
