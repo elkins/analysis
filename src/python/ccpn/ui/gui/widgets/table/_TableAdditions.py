@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-11-12 13:22:30 +0000 (Tue, November 12, 2024) $"
+__dateModified__ = "$dateModified: 2024-11-12 15:28:27 +0000 (Tue, November 12, 2024) $"
 __version__ = "$Revision: 3.2.10 $"
 #=========================================================================================
 # Created
@@ -144,7 +144,7 @@ class TableMenuABC(ABC):
     ...
 
 
-class TableHeaderABC(ABC):
+class TableHeaderMenuABC(ABC):
     """Class to handle adding options to a right-mouse menu.
     """
     name: typing.Optional[str] = None
@@ -228,7 +228,7 @@ class TableHeaderABC(ABC):
 _COPYCELL_OPTION = 'Copy clicked cell value'
 
 
-class TableCopyCell(TableMenuABC):
+class TableMenuCopyCell(TableMenuABC):
     """Class to handle copy-cell option on a menu
     """
     name = "CopyCell"
@@ -306,7 +306,7 @@ _TABLES = 'tables'
 _HIDDENCOLUMNS = 'hiddenColumns'
 
 
-class TableHeaderColumns(TableHeaderABC):
+class TableHeaderMenuColumns(TableHeaderMenuABC):
     """Class to handle column-settings on a header-menu
     """
     name = "Columns"
@@ -316,7 +316,7 @@ class TableHeaderColumns(TableHeaderABC):
     _menuItemVisible = True
 
     def __init__(self, *args, **kwds):
-        super(TableHeaderColumns, self).__init__(*args, **kwds)
+        super().__init__(*args, **kwds)
 
         # initialise the hidden/internal columns
         self._defaultHiddenColumns = set()
@@ -545,7 +545,7 @@ _EXPORT_OPTION_VISIBLE = 'Export Visible Table'
 _EXPORT_OPTION_ALL = 'Export All Columns'
 
 
-class TableExport(TableMenuABC):
+class TableMenuExport(TableMenuABC):
     """Class to handle export options on a menu.
     """
     name = "Export"
@@ -691,7 +691,7 @@ _DELETE_OPTION = 'Delete Selection'
 _CLEAR_OPTION = 'Clear Selection'
 
 
-class TableDelete(TableMenuABC):
+class TableMenuDelete(TableMenuABC):
     """Class to handle delete options on a menu.
     """
     name = "Delete"
@@ -744,7 +744,7 @@ class TableDelete(TableMenuABC):
 _SEARCH_OPTION = 'Filter...'
 
 
-class TableSearchMenu(TableMenuABC):
+class TableMenuSearch(TableMenuABC):
     """Class to handle search options from a right-mouse menu.
     """
     tableAboutToBeSearched = QtCore.pyqtSignal(list)

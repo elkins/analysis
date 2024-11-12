@@ -39,8 +39,9 @@ from ccpn.ui.gui.widgets.Frame import ScrollableFrame
 from ccpn.ui.gui.widgets.Menu import Menu
 from ccpn.ui.gui.widgets.table._TableModel import _TableModel
 from ccpn.ui.gui.widgets.table._TableCommon import INDEX_ROLE
-from ccpn.ui.gui.widgets.table._TableAdditions import TableHeaderColumns, \
-    TableCopyCell, TableExport, TableSearchMenu, TableDelete, TableMenuABC, TableHeaderABC
+from ccpn.ui.gui.widgets.table._TableAdditions import (TableHeaderMenuColumns, TableMenuCopyCell, TableMenuExport,
+                                                       TableMenuSearch, TableMenuDelete, TableMenuABC,
+                                                       TableHeaderMenuABC)
 from ccpn.ui.gui.widgets.table._TableDelegates import _TableDelegateABC
 from ccpn.util.OrderedSet import OrderedSet
 from ccpn.util.Logging import getLogger
@@ -282,11 +283,12 @@ class TableABC(QtWidgets.QTableView):
         """Add the required menus to the table
         """
         # create the individual table-menu and table-header-menu options
-        self.searchMenu = TableSearchMenu(self, enableSearch if enableSearch != NOTHING else self._enableSearch)
-        self.copyCellMenu = TableCopyCell(self, enableCopyCell if enableCopyCell != NOTHING else self._enableCopyCell)
-        self.deleteMenu = TableDelete(self, enableDelete if enableDelete != NOTHING else self._enableDelete)
-        self.exportMenu = TableExport(self, enableExport if enableExport != NOTHING else self._enableExport)
-        self.headerColumnMenu = TableHeaderColumns(self, True)
+        self.searchMenu = TableMenuSearch(self, enableSearch if enableSearch is not NOTHING else self._enableSearch)
+        self.copyCellMenu = TableMenuCopyCell(self,
+                                              enableCopyCell if enableCopyCell is not NOTHING else self._enableCopyCell)
+        self.deleteMenu = TableMenuDelete(self, enableDelete if enableDelete is not NOTHING else self._enableDelete)
+        self.exportMenu = TableMenuExport(self, enableExport if enableExport is not NOTHING else self._enableExport)
+        self.headerColumnMenu = TableHeaderMenuColumns(self, True)
 
         # add options to the table-menu and table-header-menu
         self.tableMenuOptions = [self.searchMenu,
@@ -500,9 +502,9 @@ class TableABC(QtWidgets.QTableView):
             QtWidgets.QApplication.instance().sigPaletteChanged.disconnect(self._signalTarget)
         super().close()
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Properties
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     @property
     def _df(self):
@@ -536,9 +538,9 @@ class TableABC(QtWidgets.QTableView):
             # keep the model in-sync with the view
             self.model()._defaultEditable = value
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Selection callbacks
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     def setSelectionCallback(self, selectionCallback):
         """Set the selection-callback for the table.
@@ -601,9 +603,9 @@ class TableABC(QtWidgets.QTableView):
                 else:
                     self._selectionCallback(new, old, sel, last)
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Action callbacks
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     def setActionCallback(self, actionCallback):
         """Set the action-callback for the table.
@@ -663,9 +665,9 @@ class TableABC(QtWidgets.QTableView):
                 else:
                     self._actionCallback(sel, last)
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Selection/Action methods
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     def selectionCallback(self, selected, deselected, selection, lastItem):
         """Handle item selection has changed in table - call user callback
@@ -754,9 +756,9 @@ class TableABC(QtWidgets.QTableView):
             # simulate event clicked in the empty space, with last selection
             self._selectionConnect([], deselection)
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # keyboard and mouse handling - modified to allow double-click to keep current selection
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     @staticmethod
     def _keyModifierPressed():
@@ -879,9 +881,9 @@ class TableABC(QtWidgets.QTableView):
                     self.scrollTo(selection[0], self.EnsureVisible)  # doesn't dance around so much
                     return
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Block table signals
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     def _blockTableEvents(self, blanking=True, disableScroll=False, tableState=None):
         """Block all updates/signals/notifiers in the table.
@@ -946,9 +948,9 @@ class TableABC(QtWidgets.QTableView):
         finally:
             self._unblockTableEvents(blanking, disableScroll=disableScroll, tableState=tableState)
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Other methods
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     def rowCount(self):
         """Return the number of rows in the table
@@ -1171,9 +1173,9 @@ class TableABC(QtWidgets.QTableView):
     #     # clear the span information held in the header
     #     self.model().clearSpans()
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Table context menu
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     @property
     def tableMenuOptions(self):
@@ -1184,7 +1186,7 @@ class TableABC(QtWidgets.QTableView):
     @tableMenuOptions.setter
     def tableMenuOptions(self, value):
         for tt in value:
-            if not isinstance(tt, (TableMenuABC, TableHeaderABC)):
+            if not isinstance(tt, (TableMenuABC, TableHeaderMenuABC)):
                 raise RuntimeError(f'{self.__class__.__name__}.tableMenuOptions are incorrect.')
 
         self._tableMenuOptions = value
@@ -1267,9 +1269,9 @@ class TableABC(QtWidgets.QTableView):
         """
         self.searchMenu and self.searchMenu.showSearchSettings()
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Header context menu
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     def setHeaderMenu(self) -> Menu:
         """Set up the context menu for the table header
@@ -1290,7 +1292,7 @@ class TableABC(QtWidgets.QTableView):
         """
         # NOTE:ED - call additional setHeaderMenu here to add options to the header menu
         for tableOption in self._tableMenuOptions:
-            if isinstance(tableOption, TableHeaderABC):
+            if isinstance(tableOption, TableHeaderMenuABC):
                 # add the specific options to the menu
                 tableOption.addMenuOptions(menu)
 
@@ -1317,7 +1319,7 @@ class TableABC(QtWidgets.QTableView):
 
         # NOTE:ED - call additional setHeaderMenuOptions here to add enable/disable/hide options in the header menu
         for tableOption in self._tableMenuOptions:
-            if isinstance(tableOption, TableHeaderABC):
+            if isinstance(tableOption, TableHeaderMenuABC):
                 # enable/disable/hide the specific options in the menu
                 tableOption.setMenuOptions(menu)
 
@@ -1335,9 +1337,9 @@ class TableABC(QtWidgets.QTableView):
         if not width:
             self.resizeColumnToContents(column)
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Table functions
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     def setSearchEnabled(self, value):
         """Enable/disable the search option in the right-mouse menu.
@@ -1378,3 +1380,9 @@ class TableABC(QtWidgets.QTableView):
             raise TypeError(f'{self.__class__.__name__}.setCopyCellEnabled: value must be True/False')
 
         self.copyCellMenu.enabled = value
+
+    #-----------------------------------------------------------------------------------------
+    # Table hidden-column functions
+    #-----------------------------------------------------------------------------------------
+
+    ...
