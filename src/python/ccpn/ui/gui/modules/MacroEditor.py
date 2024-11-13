@@ -12,9 +12,9 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-10-03 12:47:18 +0100 (Thu, October 03, 2024) $"
-__version__ = "$Revision: 3.2.7 $"
+__modifiedBy__ = "$modifiedBy: Luca Mureddu $"
+__dateModified__ = "$dateModified: 2024-11-13 13:22:52 +0000 (Wed, November 13, 2024) $"
+__version__ = "$Revision: 3.2.10 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -204,7 +204,6 @@ class MacroEditor(CcpnModule):
         hGrid += 1
         # macro editing area
         self.textEditor = PyCodeEditor(self.mainWidget, application=self.application, grid=(hGrid, 0), acceptDrops=True, gridSpan=(1, 2))
-        self.searchReplacePanel = self.textEditor.panels.get('SearchAndReplacePanel')
         self.fileWatcher = self.textEditor.modes.get('FileWatcherMode')
         if self.fileWatcher:
             self.fileWatcher.on_state_changed(False)
@@ -482,21 +481,6 @@ class MacroEditor(CcpnModule):
                 ('enabled', True)
                 ))),
             (),
-            ('Find', od((
-                ('text', 'Find'),
-                ('toolTip', ''),
-                ('icon', Icon('icons/find')),
-                ('callback', self._showFindWidgets),
-                ('enabled', True)
-                ))),
-            ('Replace', od((
-                ('text', 'Find and Replace'),
-                ('toolTip', 'Find and Replace'),
-                ('icon', Icon('icons/find-replace')),
-                ('callback', self._showFindReplaceWidgets),
-                ('enabled', True)
-                ))),
-            (),
             ('Undo', od((
                 ('text', 'Undo'),
                 ('toolTip', ''),
@@ -537,14 +521,6 @@ class MacroEditor(CcpnModule):
                 ))),
             )
         return toolBarDefs
-
-    def _showFindWidgets(self):
-        if self.searchReplacePanel:
-            self.searchReplacePanel.on_search()
-
-    def _showFindReplaceWidgets(self):
-        if self.searchReplacePanel:
-            self.searchReplacePanel.on_search_and_replace()
 
     def _setToolBar(self):
         for v in self._getToolBarDefs():

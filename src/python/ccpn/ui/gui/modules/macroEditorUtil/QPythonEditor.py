@@ -1,9 +1,10 @@
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2023"
-__credits__ = ("Ed Brooksbank, Joanna Fox, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
-               "Timothy J Ragan, Brian O Smith, Gary S Thompson & Geerten W Vuister")
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
+               "Timothy J Ragan, Brian O Smith, Daniel Thompson",
+               "Gary S Thompson & Geerten W Vuister")
 __licence__ = ("CCPN licence. See https://ccpn.ac.uk/software/licensing/")
 __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, L.G., & Vuister, G.W.",
                  "CcpNmr AnalysisAssign: a flexible platform for integrated NMR analysis",
@@ -12,8 +13,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2023-07-19 14:32:43 +0100 (Wed, July 19, 2023) $"
-__version__ = "$Revision: 3.2.0 $"
+__dateModified__ = "$dateModified: 2024-11-13 13:22:52 +0000 (Wed, November 13, 2024) $"
+__version__ = "$Revision: 3.2.10 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -23,41 +24,87 @@ __date__ = "$Date: 2020-05-15 09:30:25 +0000 (Fri, May 15, 2020) $"
 # Start of code
 #=========================================================================================
 
+import sys
 from PyQt5 import QtGui, QtWidgets
 from PyQt5 import QtPrintSupport
 from ccpn.ui.gui.widgets.Base import Base
 from ccpn.ui.gui.widgets.FileDialog import MacrosFileDialog
-from pyqode.python.widgets import PyCodeEdit
+from pyqode.python.widgets import PyCodeEditBase
+from pyqode.core.api import ColorScheme
+# from pyqode.python.widgets import PyCodeEdit # DO NOT  USE/IMPORT THIS - There is a bug in the SearchAndReplace panel that prevents to use the PyCharm Debugger.
+from pyqode.python import modes as pymodes
+from pyqode.python import panels as pypanels
 from ccpn.ui.gui.modules.macroEditorUtil import MacroEditorServer
 from ccpn.ui.gui.modules.macroEditorUtil import MacroEditorNativeServer
-from pyqode.python import panels as pypanels
+from pyqode.core import modes
+from pyqode.core import panels
 from pyqode.core import api
-from pyqode.python.modes.calltips import CalltipsMode
+from pyqode.python.folding import PythonFoldDetector
 from ccpn.ui.gui.modules.macroEditorUtil.workers import CcpnQuickDocPanel, CcpnCalltipsMode
 from pyqode.core.modes.code_completion import CodeCompletionMode
 from ccpn.util.Logging import getLogger
 from ccpn.ui.gui.modules.macroEditorUtil.CompletionProviders import CcpnNameSpacesProvider
 from pyqode.core.cache import Cache
-
+from pyqode.python.backend.workers import defined_names
 
 marginColour = QtGui.QColor('lightgrey')
 marginPosition = 100
 SEL_BACKGROUND_COLOUR = (255, 219, 179)
-#########################################################################################
-################################  Editor Widget  ########################################
-#########################################################################################
 
-class PyCodeEditor(PyCodeEdit, Base):
+class PyCodeEditor(PyCodeEditBase, Base):
 
     useNativeCompletion = False # use the original completion without Ccpn Namespace
+    mimetypes = ['text/x-python']
 
-    def __init__(self, parent=None, application=None, **kwds):
+    def __init__(self, parent=None, application=None, interpreter=sys.executable, **kwds):
 
         if self.useNativeCompletion:
             serverScript = MacroEditorNativeServer.__file__
         else:
             serverScript = MacroEditorServer.__file__
-        super().__init__(parent,  server_script=serverScript)
+
+        super().__init__(parent, create_default_actions=True)
+
+        self.modes.append(modes.SmartBackSpaceMode())
+        # install those modes first as they are required by other modes/panels
+        self.modes.append(modes.OutlineMode(defined_names))
+
+        # panels
+        # Do Not add  the SearchAndReplace Panel. There is a bug in it that prevents to use the PyCharm Debugger.
+        # self.panels.append(panels.FoldingPanel()) There is  a bug in this panel creating lots of warning as you type.
+        self.panels.append(panels.LineNumberPanel())
+        self.panels.append(panels.CheckerPanel())
+        self.panels.append(panels.GlobalCheckerPanel(),  panels.GlobalCheckerPanel.Position.RIGHT)
+        self.add_separator()
+        # modes
+        # generic
+
+        self.modes.append(modes.ExtendedSelectionMode())
+        self.modes.append(modes.CaseConverterMode())
+        self.modes.append(modes.CaretLineHighlighterMode())
+        self.modes.append(modes.FileWatcherMode())
+        self.modes.append(modes.RightMarginMode())
+        self.modes.append(modes.ZoomMode())
+        self.modes.append(modes.SymbolMatcherMode())
+        self.modes.append(modes.CodeCompletionMode())
+        self.modes.append(modes.OccurrencesHighlighterMode())
+        self.modes.append(modes.SmartBackSpaceMode())
+        # python specifics
+        self.modes.append(pymodes.PyAutoIndentMode())
+        self.modes.append(pymodes.PyAutoCompleteMode())
+        self.modes.append(pymodes.PyFlakesChecker())
+        self.modes.append(pymodes.PEP8CheckerMode())
+        self.modes.append(pymodes.CalltipsMode())
+        self.modes.append(pymodes.PyIndenterMode())
+        self.modes.append(pymodes.GoToAssignmentsMode())
+        self.modes.append(pymodes.CommentsMode())
+        self.modes.append(pymodes.PythonSH(self.document(), color_scheme=ColorScheme('qt')))
+        self.syntax_highlighter.fold_detector = PythonFoldDetector()
+        self.panels.append(pypanels.QuickDocPanel(), api.Panel.Position.BOTTOM)
+        self.panels.append(panels.EncodingPanel(), api.Panel.Position.TOP)
+        self.panels.append(panels.ReadOnlyPanel(), api.Panel.Position.TOP)
+        self.setLineWrapMode(self.NoWrap)
+
         Base._init(self, **kwds)
         self.rightMarginMode = self.modes.get('RightMarginMode')
         if self.rightMarginMode:
@@ -68,16 +115,20 @@ class PyCodeEditor(PyCodeEdit, Base):
         self.completionMode = self.modes.get(CodeCompletionMode.__name__)
         self.maxCompletionWaiting = 1 # seconds before aborting a completion request (avoid long waiting)
         if self.application and not self.useNativeCompletion:
-            self.backend.stop()
+            # self.backend.stop()
             self.completionMode.request_completion = self._requestCompletion
             self.completionMode._insert_completion = self._insertCompletion
+        else:
+            self.backend.start(serverScript, interpreter, args=None, reuse=False)
 
-        self.panels.remove(pypanels.QuickDocPanel)
+        # Add Custom Ccpn Panel/models
         self.docPanel = CcpnQuickDocPanel()
         self.panels.append(self.docPanel, api.Panel.Position.BOTTOM)
-        self.modes.remove(CalltipsMode)
         self.modes.append(CcpnCalltipsMode())
-        # self.docPanel.setVisible(True)
+
+        # TODO add signal to detect a colourScheme change and modify the palette
+        # QtWidgets.QApplication.instance()._sigPaletteChanged.connect(self._checkPalette)
+
 
     def _init_style(self):
         """ Refactor to keep consistent with Ccpn style """
@@ -89,7 +140,6 @@ class PyCodeEditor(PyCodeEdit, Base):
         self._sel_foreground = app.palette().highlightedText().color()
         self._font_size = 10
         self.font_name = ""
-
 
     def _requestCompletion(self, *args, **kwargs):
         """
@@ -156,7 +206,6 @@ class PyCodeEditor(PyCodeEdit, Base):
             printer = QtPrintSupport.QPrinter(QtPrintSupport.QPrinter.HighResolution)
             printer.setPageSize(QtPrintSupport.QPrinter.A4)
             printer.setColorMode(QtPrintSupport.QPrinter.Color)
-            printer.setOutputFormat(QtPrintSupport.QPrinter.PdfFormat)
             printer.setOutputFileName(filename)
             self.document().print_(printer)
 
