@@ -18,8 +18,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-11-11 18:09:52 +0000 (Mon, November 11, 2024) $"
-__version__ = "$Revision: 3.2.10 $"
+__dateModified__ = "$dateModified: 2024-11-14 18:17:44 +0000 (Thu, November 14, 2024) $"
+__version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -198,8 +198,8 @@ def estimateOverallCorrelationTimeFromR1R2(r1, r2, spectrometerFrequency):
     t2 = 1/r2
     omegaN = calculateOmegaN(spectrometerFrequency, scalingFactor=1e6)
     part1 = 1/(2*omegaN)
-    part2 = np.sqrt(((6*t1)/t2)-7)
-
+    inner = ((6*t1)/t2)-7
+    part2 = np.sqrt(abs(inner))
     return part1 * part2
 
 def calculateOmegaH(spectrometerFrequency, scalingFactor=1e6):
