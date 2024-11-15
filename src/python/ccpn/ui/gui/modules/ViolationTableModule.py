@@ -441,8 +441,6 @@ class _ViolationTableWidget(Table):
                          grid=(3, 0), gridSpan=(1, 6), showVerticalHeader=showVerticalHeader,
                          )
         self.moduleParent = moduleParent
-        self.headerColumnMenu.setInternalColumns(self._internalColumns)
-        self.headerColumnMenu.setDefaultColumns(self.defaultHidden)
 
     def _postInit(self):
         super()._postInit()

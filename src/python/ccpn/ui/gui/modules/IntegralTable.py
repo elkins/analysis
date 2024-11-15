@@ -15,8 +15,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-06-20 16:42:22 +0100 (Thu, June 20, 2024) $"
-__version__ = "$Revision: 3.2.3 $"
+__dateModified__ = "$dateModified: 2024-11-15 19:34:28 +0000 (Fri, November 15, 2024) $"
+__version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -83,14 +83,15 @@ class IntegralTableModule(CcpnTableModule):
         self._settings = None
         if self.activePulldownClass:
             # add to settings widget - see sequenceGraph for more detailed example
-            settingsDict = OrderedDict(((LINKTOPULLDOWNCLASS, {'label'   : 'Link to current %s' % self.activePulldownClass.className,
-                                                               'tipText' : 'Set/update current %s when selecting from pulldown' % self.activePulldownClass.className,
-                                                               'callBack': None,
-                                                               'enabled' : True,
-                                                               'checked' : False,
-                                                               '_init'   : None,
-                                                               }),
-                                        ))
+            settingsDict = OrderedDict(
+                    ((LINKTOPULLDOWNCLASS, {'label'   : 'Link to current %s' % self.activePulldownClass.className,
+                                            'tipText' : 'Set/update current %s when selecting from pulldown' % self.activePulldownClass.className,
+                                            'callBack': None,
+                                            'enabled' : True,
+                                            'checked' : False,
+                                            '_init'   : None,
+                                            }),
+                     ))
             self._settings = ModuleSettingsWidget(parent=settingsWidget, mainWindow=self.mainWindow,
                                                   settingsDict=settingsDict,
                                                   grid=(0, 0))
@@ -145,6 +146,7 @@ class IntegralTableModule(CcpnTableModule):
             self._setCurrentPulldown.unRegister()
         super()._closeModule()
 
+
 #=========================================================================================
 # _NewIntegralTableWidget
 #=========================================================================================
@@ -152,6 +154,7 @@ class IntegralTableModule(CcpnTableModule):
 class _NewIntegralTableWidget(_CoreTableWidgetABC):
     """Class to present an integralList Table
     """
+    className = '_NewIntegralTableWidget'
     attributeName = 'integralLists'
 
     defaultHidden = ['Pid', 'Spectrum', 'IntegralList', 'Id']
@@ -259,7 +262,8 @@ class _NewIntegralTableWidget(_CoreTableWidgetABC):
             ('Bias', lambda il: il.bias, '', None, None),
             ('FigureOfMerit', lambda il: il.figureOfMerit, figureOfMeritTipText,
              lambda il, value: self._setFigureOfMerit(il, value), None),
-            ('Baseline', lambda il: il.baseline, 'Baseline for the integral area', lambda il, value: self._setBaseline(il, value), None),
+            ('Baseline', lambda il: il.baseline, 'Baseline for the integral area',
+             lambda il, value: self._setBaseline(il, value), None),
             ('Slopes', lambda il: il.slopes, '', None, None),
             # ('Annotation', lambda il: il.annotation, '', None, None),
             ('Comment', lambda il: self._getCommentText(il), commentsTipText,

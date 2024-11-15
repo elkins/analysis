@@ -12,12 +12,10 @@ __copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024
 __credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
                "Timothy J Ragan, Brian O Smith, Daniel Thompson",
                "Gary S Thompson & Geerten W Vuister")
-__licence__ = ("CCPN licence. See http://www.ccpn.ac.uk/v3-software/downloads/license",
-               )
+__licence__ = ("CCPN licence. See https://ccpn.ac.uk/software/licensing/")
 __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, L.G., & Vuister, G.W.",
                  "CcpNmr AnalysisAssign: a flexible platform for integrated NMR analysis",
-                 "J.Biomol.Nmr (2016), 66, 111-124, http://doi.org/10.1007/s10858-016-0060-y"
-                )
+                 "J.Biomol.Nmr (2016), 66, 111-124, https://doi.org/10.1007/s10858-016-0060-y")
 #=========================================================================================
 # Last code modification
 #=========================================================================================
@@ -59,6 +57,7 @@ from traitlets import List as _List
 from traitlets import Set as _Set
 from traitlets import Dict as _Dict
 from traitlets import Tuple as _Tuple
+from traitlets import Union as _Union
 
 from ccpn.util.traits.TraitJsonHandlerBase import TraitJsonHandlerBase, RecursiveDictHandlerABC, \
     RecursiveListHandlerABC
@@ -68,6 +67,7 @@ from ccpn.util.Logging import getLogger
 
 from ccpn.framework.Application import getApplication
 
+
 class _Ordered(object):
     """A class that maintains and sets trait-order
     """
@@ -76,6 +76,14 @@ class _Ordered(object):
     def __init__(self):
         self._traitOrder = _Ordered._globalTraitOrder
         _Ordered._globalTraitOrder += 1
+
+
+class Union(_Union, _Ordered):
+    def __init__(self, *args, **kwargs):
+        if not 'default_value' in kwargs:
+            raise ValueError('%s Traitlet without explicit default_value' % self.__class__.__name__)
+        _Union.__init__(self, *args, **kwargs)
+        _Ordered.__init__(self)
 
 
 class Any(_Any, _Ordered):
@@ -170,6 +178,8 @@ class CList(List, _Ordered):
 class RecursiveList(List):
     """A list trait that implements recursion of any of the values that are a CcpNmrJson (sub)type
     """
+
+
     # trait-specific json handler
     class jsonHandler(RecursiveListHandlerABC):
         klass = list
@@ -189,6 +199,8 @@ class Set(_Set, _Ordered):
 class RecursiveSet(Set):
     """A Set trait that implements recursion of any of the values that are a CcpNmrJson (sub)type
     """
+
+
     # trait-specific json handler
     class jsonHandler(RecursiveListHandlerABC):
         klass = set
@@ -228,6 +240,8 @@ class CTuple(Tuple):
 class RecursiveTuple(Tuple):
     """A tuple trait that implements recursion of any of the values that are a CcpNmrJson (sub)type
     """
+
+
     # trait-specific json handler
     class jsonHandler(RecursiveListHandlerABC):
         klass = tuple
@@ -248,6 +262,8 @@ class RecursiveDict(Dict):
     """A dict trait that implements recursion of any of the values that are a CcpNmrJson (sub)type
     Recursion is active by default, unless tagged with .tag(recursion=False)
     """
+
+
     # trait-specific json handler
     class jsonHandler(RecursiveDictHandlerABC):
         klass = dict
@@ -279,10 +295,13 @@ class Adict(TraitType, _Ordered):
         else:
             self.error(obj, value)
 
+
     # trait-specific json handler
     class jsonHandler(RecursiveDictHandlerABC):
         klass = AttributeDict
         recursion = False
+
+
 # end class
 
 
@@ -291,10 +310,14 @@ class RecursiveAdict(Adict):
     dicts or (key,value) iterables are automatically cast into AttributeDict
     Recursion is active
     """
+
+
     # trait-specific json handler
     class jsonHandler(RecursiveDictHandlerABC):
         klass = AttributeDict
         recursion = True
+
+
 # end class
 
 
@@ -322,10 +345,13 @@ class Odict(TraitType, _Ordered):
         else:
             self.error(obj, value)
 
+
     # trait-specific json handler
     class jsonHandler(RecursiveDictHandlerABC):
         klass = OrderedDict
         recursion = False
+
+
 # end class
 
 
@@ -334,10 +360,14 @@ class RecursiveOdict(Odict):
     dicts are automatically cast into OrderedDict
     Recursion is active
     """
+
+
     # trait-specific json handler
     class jsonHandler(RecursiveDictHandlerABC):
         klass = OrderedDict
         recursion = True
+
+
 # end class
 
 
@@ -347,6 +377,7 @@ class Immutable(Any, _Ordered):
     def __init__(self, value):
         TraitType.__init__(self, default_value=value, read_only=True)
         _Ordered.__init__(self)
+
 
     # trait-specific json handler
     class jsonHandler(TraitJsonHandlerBase):
@@ -360,6 +391,8 @@ class Immutable(Any, _Ordered):
             # force set value
             obj.setTraitValue(trait, value, force=True)
     # end class
+
+
 #end class
 
 
@@ -389,6 +422,7 @@ class CPath(TraitType, _Ordered):
 
         return value
 
+
     # trait-specific json handler
     class jsonHandler(TraitJsonHandlerBase):
         """Serialise Path to be json compatible.
@@ -407,6 +441,8 @@ class CPath(TraitType, _Ordered):
                 value = Path(value)
             setattr(obj, trait, value)
     # end class
+
+
 # end class
 
 
@@ -457,6 +493,7 @@ class CString(TraitType, _Ordered):
 
         return value
 
+
     # trait-specific json handler
     class jsonHandler(TraitJsonHandlerBase):
         """json compatible;
@@ -471,6 +508,8 @@ class CString(TraitType, _Ordered):
         #     "uses value to generate and set the new (or modified) obj"
         #     value = CString.fromBytes
         #     setattr(obj, trait, value)
+
+
 # end class
 
 
@@ -480,7 +519,7 @@ class V3Object(TraitType, _Ordered):
     default_value = None
     info_text = "A V3-Object"
 
-    def __init__(self, default_value = None, allow_none=True, **kwargs):
+    def __init__(self, default_value=None, allow_none=True, **kwargs):
         TraitType.__init__(self, default_value=default_value, allow_none=allow_none, **kwargs)
         _Ordered.__init__(self)
         if default_value is not None:
@@ -499,10 +538,12 @@ class V3Object(TraitType, _Ordered):
 
         return value
 
+
     # trait-specific json handler
     class jsonHandler(TraitJsonHandlerBase):
         """json compatible;
         """
+
         def encode(self, obj, trait):
             "returns a json serialisable object"
             value = getattr(obj, trait)
@@ -520,6 +561,8 @@ class V3Object(TraitType, _Ordered):
                 if (result := _app.get(value)) is None:
                     getLogger().debug('Error decoding %r; set to None' % value)
             setattr(obj, trait, result)
+
+
 # end class
 
 
@@ -529,7 +572,7 @@ class V3ObjectList(List):
     default_value = []
     info_text = "A V3-ObjectList"
 
-    def __init__(self, default_value = [], **kwargs):
+    def __init__(self, default_value=[], **kwargs):
         List.__init__(self, default_value=default_value, allow_none=False, **kwargs)
         if default_value is not None:
             self.default_value = default_value
@@ -548,10 +591,12 @@ class V3ObjectList(List):
 
             return value
 
+
     # trait-specific json handler
     class jsonHandler(TraitJsonHandlerBase):
         """json compatible;
         """
+
         def encode(self, obj, trait):
             "returns a json serialisable object"
             value = getattr(obj, trait)

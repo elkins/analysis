@@ -16,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-10-02 16:39:51 +0100 (Wed, October 02, 2024) $"
-__version__ = "$Revision: 3.2.7 $"
+__dateModified__ = "$dateModified: 2024-11-15 19:34:29 +0000 (Fri, November 15, 2024) $"
+__version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -205,12 +205,12 @@ class _RestraintAITableFilter(_TableFilterABC):
 
     @property
     def columns(self):
-        """Return the full list of columns
+        """Return the full list of columns.
         """
         return list(self.df.columns)
 
     def visibleColumns(self, columnIndex=None):
-        """Return the list of visible columns
+        """Return the list of visible columns.
         """
         headerMenu = self._parent.headerColumnMenu
 

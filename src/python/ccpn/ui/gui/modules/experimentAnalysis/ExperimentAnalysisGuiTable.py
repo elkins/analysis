@@ -13,8 +13,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-11-12 16:04:14 +0000 (Tue, November 12, 2024) $"
-__version__ = "$Revision: 3.2.10 $"
+__dateModified__ = "$dateModified: 2024-11-15 19:34:29 +0000 (Fri, November 15, 2024) $"
+__version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -100,10 +100,10 @@ class _ExperimentalAnalysisTableABC(Table):
                                sv.REDCHI, sv.AIC, sv.BIC,
                                sv.MODEL_NAME, sv.NMRRESIDUECODETYPE]
         self._internalColumns = [sv.INDEX]
-        errCols = [tt for tt in self.headerColumnMenu.columnTexts if sv._ERR in tt]
+        errCols = [tt for tt in self.columns if sv._ERR in tt]
         self._hiddenColumns += errCols
-        self.headerColumnMenu.setDefaultColumns(self._hiddenColumns)
-        self.headerColumnMenu.setInternalColumns(self._internalColumns)
+        self.setDefaultColumns(self._hiddenColumns)
+        # self.headerColumnMenu.setInternalColumns(self._internalColumns)
         self.guiModule = guiModule
         self.moduleParent = guiModule
         self._selectionHeader = sv.COLLECTIONPID
@@ -140,14 +140,14 @@ class _ExperimentalAnalysisTableABC(Table):
         selectedRows = self.getSelectedData()
         self._dataFrame = dataFrame
         self.build(dataFrame)
-        if self._selectionHeader in self.headerColumnMenu.columnTexts and len(selectedRows) > 0:
+        if self._selectionHeader in self.columns and len(selectedRows) > 0:
             selPids = selectedRows[sv.COLLECTIONPID].values
             self.selectRowsByValues(selPids, sv.COLLECTIONPID, scrollToSelection=True, doCallback=True)
 
     def build(self, dataFrame):
         if dataFrame is not None:
             self.updateDf(df=dataFrame)
-            self.headerColumnMenu.setDefaultColumns(self._hiddenColumns)
+            self.setDefaultColumns(self._hiddenColumns)
             self._setBlankModelColumns()
             self._hideExcludedColumns()
             self._setExclusionColours()
@@ -323,7 +323,7 @@ class _ExperimentalAnalysisTableABC(Table):
     def _hideExcludedColumns(self):
         """Remove columns from table which contains the prefix excluded_ """
         headers = []
-        columnTexts = self.headerColumnMenu.columnTexts
+        columnTexts = self.columns
         for columnText in columnTexts:
             columnText = str(columnText)
             if columnText.startswith(sv.EXCLUDED_):
@@ -348,7 +348,7 @@ class _ExperimentalAnalysisTableABC(Table):
             return
 
         model = self.model()
-        columnTextIx = self.headerColumnMenu.columnTexts.index(headerName)
+        columnTextIx = self.columns.index(headerName)
         for i in model._sortIndex:
             cell = model.index(i, columnTextIx)
             if cell is None:
@@ -359,7 +359,7 @@ class _ExperimentalAnalysisTableABC(Table):
                     rowIndex = model.index(i, 0)
                     if rowIndex is None:
                         continue
-                    for columnIndex, value in enumerate(self.headerColumnMenu.columnTexts):
+                    for columnIndex, value in enumerate(self.columns):
                         self.setForeground(i, columnIndex, hexColour)
 
     def _setBlankModelColumns(self):
@@ -380,11 +380,11 @@ class _ExperimentalAnalysisTableABC(Table):
                 self._toggleCalculationErrorsHeaders(False)
 
     def _setVisibleColumns(self, headers, setVisible):
+        cols = self.columns
         for header in headers:
-            if setVisible:
-                self.headerColumnMenu._showColumnName(str(header))
-            else:
-                self.headerColumnMenu._hideColumnName(str(header))
+            if header not in cols:
+                continue
+            self.setColumnHidden(cols.index(str(header)), not setVisible)
 
     ## Convient Methods to toggle groups of header: toggle---Header
     ## TableGrouppingHeaders = [_Assignments, _SeriesSteps, _Calculation, _Fitting, _Stats, _Errors]
@@ -396,7 +396,7 @@ class _ExperimentalAnalysisTableABC(Table):
         # need to include also the headers which are duplicates and include an _ (underscore at the end)
         extraHeaders = []
         for header in headers:
-            for columnHeader in self.headerColumnMenu.columnTexts:
+            for columnHeader in self.columns:
                 if str(columnHeader).startswith(str(header)) and sv.SEP in columnHeader:
                     extraHeaders.append(columnHeader)
         headers += extraHeaders
@@ -409,7 +409,7 @@ class _ExperimentalAnalysisTableABC(Table):
 
     def _toggleErrorsHeaders(self, setVisible=True):
         """ Show/Hide the Fitting/Calculation error columns"""
-        headers = [tt for tt in self.headerColumnMenu.columnTexts if sv._ERR in tt]
+        headers = [tt for tt in self.columns if sv._ERR in tt]
         self._setVisibleColumns(headers, setVisible)
 
     def _toggleCalculationErrorsHeaders(self, setVisible=True):

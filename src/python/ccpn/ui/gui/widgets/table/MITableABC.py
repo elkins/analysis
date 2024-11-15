@@ -16,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-10-16 18:41:24 +0100 (Wed, October 16, 2024) $"
-__version__ = "$Revision: 3.2.7 $"
+__dateModified__ = "$dateModified: 2024-11-15 19:34:30 +0000 (Fri, November 15, 2024) $"
+__version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -125,13 +125,15 @@ class MITableABC(TableABC):
         super().__init__(parent, df=df,
                          multiSelect=multiSelect, selectRows=selectRows,
                          showHorizontalHeader=False, showVerticalHeader=False,  # disable for the new headers
-                         borderWidth=borderWidth, cellPadding=cellPadding, focusBorderWidth=focusBorderWidth, gridColour=gridColour,
+                         borderWidth=borderWidth, cellPadding=cellPadding, focusBorderWidth=focusBorderWidth,
+                         gridColour=gridColour,
                          _resize=_resize, setWidthToColumns=setWidthToColumns, setHeightToRows=setHeightToRows,
                          setOnHeaderOnly=setOnHeaderOnly, showGrid=showGrid, wordWrap=wordWrap,
                          alternatingRows=alternatingRows,
                          selectionCallback=selectionCallback, selectionCallbackEnabled=selectionCallbackEnabled,
                          actionCallback=actionCallback, actionCallbackEnabled=actionCallbackEnabled,
-                         enableExport=enableExport, enableDelete=enableDelete, enableSearch=enableSearch, enableCopyCell=enableCopyCell,
+                         enableExport=enableExport, enableDelete=enableDelete, enableSearch=enableSearch,
+                         enableCopyCell=enableCopyCell,
                          tableMenuEnabled=tableMenuEnabled, toolTipsEnabled=toolTipsEnabled,
                          )
         # the last-section must match the new headers
@@ -156,7 +158,8 @@ class MITableABC(TableABC):
         # connection to _tableSelectionChanged signal - change header selection to match without other signals
         self._tableSelectionChanged.connect(self._updateHeaderSelection)
 
-    def updateDf(self, df, resize=True, setHeightToRows=False, setWidthToColumns=False, setOnHeaderOnly=False, newModel=False):
+    def updateDf(self, df, resize=True, setHeightToRows=False, setWidthToColumns=False, setOnHeaderOnly=False,
+                 newModel=False):
         """Initialise the dataFrame
         """
         if not isinstance(df, (type(None), pd.DataFrame)):
@@ -192,8 +195,8 @@ class MITableABC(TableABC):
 
         return model
 
-    def postUpdateDf(self):
-        ...
+    # def postUpdateDf(self):
+    #     ...
 
     def setModel(self, model: QtCore.QAbstractItemModel) -> None:
         super().setModel(model)
@@ -359,8 +362,10 @@ class MITableABC(TableABC):
         """Initialise the headers
         """
         # Create headers - was parent->self
-        self._columnHeader = _HorizontalMITableHeaderView(parent=self, table=self, df=df, dividerColour=self._dividerColour)
-        self._indexHeader = _VerticalMITableHeaderView(parent=self, table=self, df=df, dividerColour=self._dividerColour)
+        self._columnHeader = _HorizontalMITableHeaderView(parent=self, table=self, df=df,
+                                                          dividerColour=self._dividerColour)
+        self._indexHeader = _VerticalMITableHeaderView(parent=self, table=self, df=df,
+                                                       dividerColour=self._dividerColour)
 
         # Link scrollbars
         # Scrolling in data table also scrolls the headers

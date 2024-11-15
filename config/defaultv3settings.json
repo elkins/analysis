@@ -316,7 +316,48 @@
         }
     },
     "tables"           : {
+        "_NewPeakTableWidget": {
+            "columnHeader": null,
+            "hiddenColumns": null
+        },
+        "_NewIntegralTableWidget": {
+            "columnHeader": null,
+            "hiddenColumns": null
+        },
+        "_NewMultipletTableWidget": {
+            "columnHeader": null,
+            "hiddenColumns": null
+        },
+        "MultipletPeakTable": {
+            "columnHeader": null,
+            "hiddenColumns": null
+        },
+        "ChemicalShiftTable": {
+            "columnHeader": null,
+            "hiddenColumns": null
+        },
         "_NewRestraintTableWidget": {
+            "columnHeader": null,
+            "hiddenColumns": null
+        },
+        "_NewRestraintAITableWidget": {
+            "columnHeader": null,
+            "hiddenColumns": null
+        },
+        "_NewResidueTableWidget": {
+            "columnHeader": null,
+            "hiddenColumns": null
+        },
+        "_NewNmrResidueTableWidget": {
+            "columnHeader": null,
+            "hiddenColumns": null
+        },
+        "_NewStructureTableWidget": {
+            "columnHeader": null,
+            "hiddenColumns": null
+        },
+        "_ProjectTableABC": {
+            "columnHeader": null,
             "hiddenColumns": null
         }
     },

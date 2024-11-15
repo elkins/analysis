@@ -16,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-11-12 15:28:27 +0000 (Tue, November 12, 2024) $"
-__version__ = "$Revision: 3.2.10 $"
+__dateModified__ = "$dateModified: 2024-11-15 19:34:31 +0000 (Fri, November 15, 2024) $"
+__version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -35,7 +35,6 @@ import typing
 import pandas as pd
 
 from ccpn.framework.Application import getApplication
-from ccpn.ui.gui.widgets.ColumnViewSettings import ColumnViewSettingsPopup
 from ccpn.ui.gui.widgets import MessageDialog
 from ccpn.ui.gui.widgets.SearchWidget import _SimplerDFTableFilter, _TableFilterABC
 from ccpn.ui.gui.widgets.FileDialog import TablesFileDialog
@@ -43,10 +42,12 @@ from ccpn.util.Path import aPath
 from ccpn.util.Logging import getLogger
 from ccpn.util.Common import copyToClipboard, NOTHING
 from ccpn.util.OrderedSet import OrderedSet
+from ccpn.util.decorators import deprecated
 
 
 menuItem = namedtuple('menuItem', 'name toolTip')
 TableFilterType = typing.Type[_TableFilterABC]
+
 
 #=========================================================================================
 # ABCs
@@ -63,7 +64,7 @@ class TableMenuABC(ABC):
     # add internal labels here
 
     def __init__(self, parent: QtWidgets.QTableView, enabled: bool = NOTHING):
-        """Initialise the menu object to the parent table.
+        """Initialise the menu object to the parent-table.
 
         :param parent: QTableView object
         :param enabled: bool
@@ -87,7 +88,7 @@ class TableMenuABC(ABC):
 
     @abstractmethod
     def setMenuOptions(self, menu: QtWidgets.QMenu):
-        """Update search options in the right-mouse menu
+        """Update options in the right-mouse menu.
         """
         # MUST BE SUBCLASSED
         raise NotImplementedError("Code error: function not implemented")
@@ -98,13 +99,13 @@ class TableMenuABC(ABC):
 
     @property
     def isEnabled(self) -> bool:
-        """Return True if the options are enabled in the table menu
+        """Return True if the options are enabled in the table-menu.
         """
         return self._enabled
 
     @property
     def enabled(self) -> bool:
-        """Return True if the options are enabled in the table menu
+        """Return True if the options are enabled in the table-menu.
         """
         return self._enabled
 
@@ -179,7 +180,7 @@ class TableHeaderMenuABC(ABC):
 
     @abstractmethod
     def setMenuOptions(self, menu):
-        """Update search options in the right-mouse menu
+        """Update search options in the right-mouse menu.
         """
         # MUST BE SUBCLASSED
         raise NotImplementedError("Code error: function not implemented")
@@ -229,17 +230,17 @@ _COPYCELL_OPTION = 'Copy clicked cell value'
 
 
 class TableMenuCopyCell(TableMenuABC):
-    """Class to handle copy-cell option on a menu
+    """Class to handle copy-cell option on a menu.
     """
     name = "CopyCell"
 
     def addMenuOptions(self, menu: QtWidgets.QMenu):
-        """Add copy-cell option to the right-mouse menu
+        """Add copy-cell option to the right-mouse menu.
         """
         self._copySelectedCellAction = menu.addAction(_COPYCELL_OPTION, self._copySelectedCell)
 
     def setMenuOptions(self, menu: QtWidgets.QMenu):
-        """Update copy-cell option in the right-mouse menu
+        """Update copy-cell option in the right-mouse menu.
         """
         # disable the copyCell options if not available
         if (actions := [act for act in menu.actions() if act.text() == _COPYCELL_OPTION]):
@@ -251,13 +252,13 @@ class TableMenuCopyCell(TableMenuABC):
 
     @property
     def isEnabled(self) -> bool:
-        """Return True if the options are enabled in the table menu
+        """Return True if the options are enabled in the table-menu.
         """
         return self._enabled
 
     @property
     def enabled(self) -> bool:
-        """Return True if the options are enabled in the table menu
+        """Return True if the options are enabled in the table-menu.
         """
         return self._enabled
 
@@ -283,7 +284,7 @@ class TableMenuCopyCell(TableMenuABC):
     #-----------------------------------------------------------------------------------------
 
     def _copySelectedCell(self):
-        """Copy the current cell-value to the clipboard
+        """Copy the current cell-value to the clipboard.
         """
         idx = self._parent.currentIndex()
         if idx is not None and (data := idx.data()) is not None:
@@ -292,7 +293,7 @@ class TableMenuCopyCell(TableMenuABC):
 
 
 #=========================================================================================
-# Table Header Menu
+# Table Header Menu - Columns
 #=========================================================================================
 
 _COLUMN_SETTINGS = menuItem('Column Settings...', 'Show/hide columns')
@@ -304,39 +305,41 @@ _COLUMN_SETTINGS = menuItem('Column Settings...', 'Show/hide columns')
 #                                           'new tables will open with the default state for this table.')
 _TABLES = 'tables'
 _HIDDENCOLUMNS = 'hiddenColumns'
+_COLUMNHEADER = 'columnHeader'
 
 
 class TableHeaderMenuColumns(TableHeaderMenuABC):
-    """Class to handle column-settings on a header-menu
+    """Class to handle column-settings on a header-menu.
     """
     name = "Columns"
     _parent = None
-    _defaultHiddenColumns = None
-    _internalColumns = None
+    # _defaultHiddenColumns = None
+    # _internalColumns = None
     _menuItemVisible = True
 
     def __init__(self, *args, **kwds):
         super().__init__(*args, **kwds)
 
-        # initialise the hidden/internal columns
-        self._defaultHiddenColumns = set()
-        self._internalColumns = set()
+        # # initialise the hidden/internal columns
+        # self._defaultHiddenColumns = set()
+        # self._internalColumns = set()
 
     def addMenuOptions(self, menu):
-        """Add table-header items to the right-mouse menu
+        """Add table-header items to the right-mouse menu.
         """
         menu.addSeparator()
         self._columnSettingsAction = menu.addAction(_COLUMN_SETTINGS.name, self._showColumnsPopup)
+        self._columnSettingsAction.setToolTip(_COLUMN_SETTINGS.toolTip)
+        # NOTE:ED - these have all moved and should be on the tableView anyway :|
         # self._saveAction = menu.addAction(_SAVE.name, self._saveCurrentColumns)
         # self._restoreAction = menu.addAction(_RESTORE.name, self.restoreColumns)
         # self._resetAction = menu.addAction(_RESET.name, self.resetColumns)
-        self._columnSettingsAction.setToolTip(_COLUMN_SETTINGS.toolTip)
         # self._saveAction.setToolTip(_SAVE.toolTip)
         # self._restoreAction.setToolTip(_RESTORE.toolTip)
         # self._resetAction.setToolTip(_RESET.toolTip)
 
     def setMenuOptions(self, menu):
-        """Update the state of options in the right-mouse menu
+        """Update the state of options in the right-mouse menu.
         """
         for itm in {self._columnSettingsAction}:  # , self._saveAction, self._restoreAction, self._resetAction}:
             itm.setEnabled(self._enabled)
@@ -348,24 +351,24 @@ class TableHeaderMenuColumns(TableHeaderMenuABC):
 
     # pass methods through to the QTableView/QHeaderView
 
-    @property
-    def hiddenColumns(self):
-        """Set/clear the hidden columns
-        """
-        header = list(self._parent._df.columns)
-        # hide _internalColumns
-        return [col for cc, col in enumerate(header)
-                if self._parent.isColumnHidden(cc) and col not in self._internalColumns]
-
-    @hiddenColumns.setter
-    def hiddenColumns(self, columns):
-        header = list(self._parent._df.columns)
-        for cc, col in enumerate(header):
-            if col in columns or col in self._internalColumns:
-                # _internalColumns are always hidden
-                self.hideColumn(cc)
-            else:
-                self.showColumn(cc)
+    # @property
+    # def hiddenColumns(self):
+    #     """Set/clear the hidden-columns.
+    #     """
+    #     header = list(self._parent._df.columns)
+    #     # hide _internalColumns
+    #     return [col for cc, col in enumerate(header)
+    #             if self._parent.isColumnHidden(cc) and col not in self._internalColumns]
+    #
+    # @hiddenColumns.setter
+    # def hiddenColumns(self, columns):
+    #     header = list(self._parent._df.columns)
+    #     for cc, col in enumerate(header):
+    #         if col in columns or col in self._internalColumns:
+    #             # _internalColumns are always hidden
+    #             self.hideColumn(cc)
+    #         else:
+    #             self.showColumn(cc)
 
     #-----------------------------------------------------------------------------------------
     # Class methods
@@ -389,85 +392,93 @@ class TableHeaderMenuColumns(TableHeaderMenuABC):
     # Implementation
     #-----------------------------------------------------------------------------------------
 
+    @deprecated
     def setInternalColumns(self, texts):
         """set a list of internal column-headers that are always hidden.
         """
-        self._internalColumns = set(texts or [])
-        self.refreshHiddenColumns()
+        # self._internalColumns = set(texts or [])
+        # self.refreshHiddenColumns()
 
+    @deprecated
     def setDefaultColumns(self, texts):
         """set a list of default column-headers that are hidden when first shown.
         """
-        self._defaultHiddenColumns = set(texts or [])
-        self.resetToDefaultHiddenColumns()
+        # self._defaultHiddenColumns = set(texts or [])
+        # self.resetToDefaultHiddenColumns()
 
-    def _hideInternalColumns(self):
-        """Hide all columns in the _internal list.
-        Shouldn't need to be called.
-        """
-        for i, columnName in enumerate(self.columnTexts):
-            # remember to hide the special column
-            if columnName in self._internalColumns:
-                self.hideColumn(i)
+    # def _hideInternalColumns(self):
+    #     """Hide all columns in the _internal list.
+    #     Shouldn't need to be called.
+    #     """
+    #     for i, columnName in enumerate(self.columnTexts):
+    #         # remember to hide the special column
+    #         if columnName in self._internalColumns:
+    #             self.hideColumn(i)
+    #
+    # @property
+    # def columnTexts(self):
+    #     """Return a list of column texts.
+    #     """
+    #     try:
+    #         return list(self._parent._df.columns)
+    #     except Exception:
+    #         return []
+    #
+    # def refreshHiddenColumns(self):
+    #     """Refresh the visible columns.
+    #     To be used after the _internalColumns have been changed.
+    #     """
+    #     hiCols = set(self.hiddenColumns) | self._internalColumns
+    #     # show the columns in the list
+    #     for col, colName in enumerate(self.columnTexts):
+    #         # always hide the internal columns
+    #         if colName in hiCols:
+    #             self._hideColumnName(colName)
+    #         else:
+    #             self._showColumnName(colName)
 
-    @property
-    def columnTexts(self):
-        """Return a list of column texts.
-        """
-        try:
-            return list(self._parent._df.columns)
-        except Exception:
-            return []
-
-    def refreshHiddenColumns(self):
-        """Refresh the visible columns.
-        To be used after the _internalColumns have been changed
-        """
-        hiCols = set(self.hiddenColumns) | self._internalColumns
-        # show the columns in the list
-        for col, colName in enumerate(self.columnTexts):
-            # always hide the internal columns
-            if colName in hiCols:
-                self._hideColumnName(colName)
-            else:
-                self._showColumnName(colName)
-
+    @deprecated
     def resetToDefaultHiddenColumns(self):
         """Reset the hidden columns to default hidden-columns.
         """
-        hiCols = self._internalColumns | self._defaultHiddenColumns
-        # show the columns in the list
-        for col, colName in enumerate(self.columnTexts):
-            # always hide the internal columns
-            if colName in hiCols:
-                self._hideColumnName(colName)
-            else:
-                self._showColumnName(colName)
 
-    def _showColumnName(self, name):
-        if name not in self.columnTexts:
-            return
-        if 0 <= (i := self.columnTexts.index(name)):
-            self.showColumn(i)
+    #     hiCols = self._internalColumns | self._defaultHiddenColumns
+    #     # show the columns in the list
+    #     for col, colName in enumerate(self.columnTexts):
+    #         # always hide the internal columns
+    #         if colName in hiCols:
+    #             self._hideColumnName(colName)
+    #         else:
+    #             self._showColumnName(colName)
+    #
+    # def _showColumnName(self, name):
+    #     if name not in self.columnTexts:
+    #         return
+    #     if 0 <= (i := self.columnTexts.index(name)):
+    #         self.showColumn(i)
+    #
+    # def _hideColumnName(self, name):
+    #     if name not in self.columnTexts:
+    #         return
+    #     if 0 <= (i := self.columnTexts.index(name)):
+    #         self.hideColumn(i)
+    #
+    # def isColumnInternal(self, column: int) -> bool:
+    #     """Return True if the column is internal and not for external viewing.
+    #     """
+    #     if 0 <= column < len(self.columnTexts):
+    #         return self.columnTexts[column] in self._internalColumns
+    #     return False
+    #
+    # @property
+    # def _allHiddenColumns(self) -> list:
+    #     """Return a list of all the hidden/internal columns.
+    #     """
+    #     return [col for col in self.columnTexts if col in (set(self.hiddenColumns) | self._internalColumns)]
 
-    def _hideColumnName(self, name):
-        if name not in self.columnTexts:
-            return
-        if 0 <= (i := self.columnTexts.index(name)):
-            self.hideColumn(i)
-
-    def isColumnInternal(self, column) -> bool:
-        """Return True if the column is internal and not for external viewing.
-        """
-        if 0 <= column < len(self.columnTexts):
-            return self.columnTexts[column] in self._internalColumns
-        return False
-
-    @property
-    def _allHiddenColumns(self) -> list:
-        """Return a list of all the hidden/internal columns.
-        """
-        return [col for col in self.columnTexts if col in (set(self.hiddenColumns) | self._internalColumns)]
+    # def isColumnHidden(self, column: int) -> bool:
+    #     """Return True if the column is hidden.
+    #     """
 
     #-----------------------------------------------------------------------------------------
     # Menu callbacks
@@ -476,65 +487,97 @@ class TableHeaderMenuColumns(TableHeaderMenuABC):
     def _showColumnsPopup(self):
         """Show the columns popup-menu.
         """
-        settingsPopup = ColumnViewSettingsPopup(parent=self._parent, table=self,
-                                                dataFrameObject=self._parent._df,
-                                                # NOTE:ED - need to remove dataFrameObject :|
-                                                hiddenColumns=self.hiddenColumns,
-                                                )
-        settingsPopup.exec_()  # pass exclusive control to the menu and return hidden-columns
+        # to avoid circular imports
+        from ccpn.ui.gui.widgets.ColumnViewSettings import ColumnViewSettingsPopup as Popup
 
-    def _saveCurrentColumns(self):
-        """Save the current hidden-columns to preferences.
-        """
-        self.saveColumns(self.hiddenColumns)
+        settingsPopup = Popup(parent=self._parent, tableHandler=self,
+                              dataFrameObject=self._parent._df,
+                              # NOTE:ED - need to remove dataFrameObject :|
+                              )
+        settingsPopup.exec_()  # pass exclusive control to the menu
 
+    # def _saveCurrentColumns(self):
+    #     """Save the current hidden-columns to preferences.
+    #     """
+    #     self.saveColumns(self.hiddenColumns)
+    #
+    @deprecated
     def saveColumns(self, texts: list | None = None):
         """Reset the hidden-columns for the default state.
         If texts is None, will defer to the default hidden columns defined in the table-class.
         Update the table to the default state.
         """
-        tableName = self._parent.__class__.__name__
-        if not (app := getApplication()):
-            getLogger().debug2(f'Cannot save default hidden-columns {tableName}')
-            return
-        # store in preferences
-        tables = app.preferences.setdefault(_TABLES, {})
-        table = tables.setdefault(tableName, {})
-        table[_HIDDENCOLUMNS] = texts
 
-    def resetColumns(self):
-        """Clear the state in preferences and reset the curent columns.
-        """
-        self.saveColumns()
-        self.restoreColumns()
-
+    #     tableName = self._parent.className
+    #     if not (app := getApplication()):
+    #         getLogger().debug2(f'Cannot save default hidden-columns {tableName}')
+    #         return
+    #     # store in preferences
+    #     tables = app.preferences.setdefault(_TABLES, {})
+    #     table = tables.setdefault(tableName, {})
+    #     table[_HIDDENCOLUMNS] = texts
+    #
+    # def resetColumns(self):
+    #     """Clear the state in preferences and reset the curent columns.
+    #     """
+    #     self.saveColumns()
+    #     self.restoreColumns()
+    #
+    @deprecated
     def restoreColumns(self):
         """Restore the hidden-columns from the currently saved class-state.
         """
-        tableName = self._parent.__class__.__name__
-        if not (app := getApplication()):
-            getLogger().debug2(f'Cannot restore hidden-columns {tableName}')
-            return
-        try:
-            if (hidden := app.preferences[_TABLES][tableName][_HIDDENCOLUMNS]) is not None:
-                getLogger().debug2(f'Restoring default hidden-columns {hidden}')
-                self.hiddenColumns = hidden
-                return
-        except Exception:
-            getLogger().debug2(f'No saved state')
-        self.resetToDefaultHiddenColumns()
+    #     tableName = self._parent.__class__.__name__
+    #     if not (app := getApplication()):
+    #         getLogger().debug2(f'Cannot restore hidden-columns {tableName}')
+    #         return
+    #     try:
+    #         if (hidden := app.preferences[_TABLES][tableName][_HIDDENCOLUMNS]) is not None:
+    #             getLogger().debug2(f'Restoring default hidden-columns {hidden}')
+    #             self.hiddenColumns = hidden
+    #             return
+    #     except Exception:
+    #         getLogger().debug2(f'No saved state')
+    #     self.resetToDefaultHiddenColumns()
+    #
+    # def getSavedColumns(self) -> list | None:
+    #     """Fetch the default hidden-columns.
+    #     """
+    #     tableName = self._parent.__class__.__name__
+    #     if not (app := getApplication()):
+    #         getLogger().debug2(f'Cannot fetch hidden-columns {tableName}')
+    #         return
+    #     try:
+    #         return app.preferences[_TABLES][tableName][_HIDDENCOLUMNS]
+    #     except Exception:
+    #         getLogger().debug2(f'No saved default hidden-columns')
 
-    def getSavedColumns(self) -> list | None:
-        """Fetch the default hidden-columns.
+
+#=========================================================================================
+# Table Header Menu - CoreColumns
+#=========================================================================================
+
+class TableHeaderMenuCoreColumns(TableHeaderMenuColumns):
+    """Class to handle column-settings on a header-menu.
+    Extra functionality to allow save/restore/reset state from preferences.
+    """
+    name = "CoreColumns"
+
+    #-----------------------------------------------------------------------------------------
+    # Menu callbacks
+    #-----------------------------------------------------------------------------------------
+
+    def _showColumnsPopup(self):
+        """Show the columns popup-menu.
         """
-        tableName = self._parent.__class__.__name__
-        if not (app := getApplication()):
-            getLogger().debug2(f'Cannot fetch hidden-columns {tableName}')
-            return
-        try:
-            return app.preferences[_TABLES][tableName][_HIDDENCOLUMNS]
-        except Exception:
-            getLogger().debug2(f'No saved default hidden-columns')
+        # to avoid circular imports
+        from ccpn.ui.gui.widgets.ColumnViewSettings import ColumnViewCoreSettingsPopup as Popup
+
+        settingsPopup = Popup(parent=self._parent, tableHandler=self,
+                              dataFrameObject=self._parent._df,
+                              # NOTE:ED - need to remove dataFrameObject :|
+                              )
+        settingsPopup.exec_()  # pass exclusive control to the menu
 
 
 #=========================================================================================
@@ -774,7 +817,7 @@ class TableMenuSearch(TableMenuABC):
 
     @property
     def searchWidget(self) -> _TableFilterABC | None:
-        """Return the search-widget
+        """Return the search-widget.
         """
         return self._searchWidget
 
@@ -816,8 +859,8 @@ class TableMenuSearch(TableMenuABC):
     #-----------------------------------------------------------------------------------------
 
     def _attachSearchWidget(self) -> _TableFilterABC:
-        """Attach the search widget to the bottom of the table widget
-        Search widget is applied to QTableView object
+        """Attach the search widget to the bottom of the table widget.
+        Search widget is applied to QTableView object.
         """
         try:
             parent = self._parent
@@ -906,6 +949,6 @@ class TableMenuSearch(TableMenuABC):
         # self.update()
 
     def refreshFilter(self):
-        """Refresh the search-widget if the contents of the table have changed
+        """Refresh the search-widget if the contents of the table have changed.
         """
         self._searchWidget and self._searchWidget.refreshFilter()

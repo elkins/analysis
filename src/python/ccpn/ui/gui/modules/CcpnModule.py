@@ -1479,15 +1479,15 @@ class CcpnTableModule(CcpnModule):
         If undefined, returns None.
         """
         with contextlib.suppress(Exception):
-            return self._tableWidget.headerColumnMenu.hiddenColumns
+            return self._tableWidget.hiddenColumns
 
-    def _setHiddenColumns(self, value: list[str] | None = None):
+    def _restoreHiddenColumns(self, value: list[str] | None = None):
         """Set the hidden-columns for the primary table-widget.
         """
         if value is not None:
             if not isinstance(value, list):
                 raise TypeError(f'{self.__class__.__name__}.hiddenColumns must be list[str] of None')
-        self._tableWidget.headerColumnMenu.hiddenColumns = value
+        self._tableWidget.setHiddenColumns(value)
 
     def _setClassDefaultHidden(self, hiddenColumns: list[str] | None):
         """Copy the hidden-columns to the class; to be set when the next table is opened.
@@ -1513,15 +1513,16 @@ class CcpnTableModule(CcpnModule):
                 wState['_hiddenColumns'] = self._hiddenColumns
                 self._setClassDefaultHidden(self._hiddenColumns)
             except Exception as es:
-                getLogger().debug(f'Table Columns for {self.moduleName} unsaved: {es}')
+                getLogger().debug(f'{self.__class__.__name__}: Table Columns for '
+                                  f'{self.moduleName} unsaved: {es}')
 
     def _restoreColumns(self, hiddenColumns: list[str] | None):
         """Restore the hidden columns from the widgetState dict.
         """
         try:
-            self._setHiddenColumns(hiddenColumns)
+            self._restoreHiddenColumns(hiddenColumns)
         except AssertionError as es:
-            getLogger().debug(f'Could not restore table columns: {es}')
+            getLogger().debug(f'{self.__class__.__name__}: Could not restore table-columns: {es}')
 
     def restoreWidgetsState(self, **widgetsState):
         """Subclassed version for tables
@@ -1531,7 +1532,7 @@ class CcpnTableModule(CcpnModule):
             if (hColumns := widgetsState.get('_hiddenColumns', None)) is not None:
                 self._restoreColumns(hColumns)
         except Exception as es:
-            print(es)
+            getLogger().debug(f'{self.__class__.__name__}: Could not restore widget-state: {es}')
 
     def _closeModule(self):
         """

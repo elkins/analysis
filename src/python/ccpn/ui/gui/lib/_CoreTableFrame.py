@@ -16,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-11-12 16:04:13 +0000 (Tue, November 12, 2024) $"
-__version__ = "$Revision: 3.2.10 $"
+__dateModified__ = "$dateModified: 2024-11-15 19:34:27 +0000 (Fri, November 15, 2024) $"
+__version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -28,9 +28,8 @@ __date__ = "$Date: 2022-04-29 16:52:01 +0100 (Fri, April 29, 2022) $"
 #=========================================================================================
 
 import pandas as pd
-from collections import OrderedDict
 from PyQt5 import QtWidgets, QtCore
-from ccpn.framework.Application import getApplication
+from collections import OrderedDict
 from ccpn.core.lib.DataFrameObject import DataFrameObject
 from ccpn.core.lib.Notifiers import Notifier
 from ccpn.ui.gui.widgets.Spacer import Spacer
@@ -40,8 +39,6 @@ from ccpn.ui.gui.widgets.Font import getFontHeight
 from ccpn.util.Logging import getLogger
 
 
-_TABLES = 'tables'
-_HIDDENCOLUMNS = 'hiddenColumns'
 _DEBUG = False
 
 
@@ -65,9 +62,6 @@ class _CoreTableWidgetMeta(type(_ProjectTableABC)):
 class _CoreTableWidgetABC(_ProjectTableABC, metaclass=_CoreTableWidgetMeta):
     """Class to present a table for core objects
     """
-    defaultHidden = None
-    _internalColumns = None
-
     # define overriding attributes here for subclassing - not setting will default to these
     _enableSearch = True
     _enableDelete = True
@@ -76,7 +70,6 @@ class _CoreTableWidgetABC(_ProjectTableABC, metaclass=_CoreTableWidgetMeta):
 
     def __init__(self, parent, *,
                  showHorizontalHeader=True, showVerticalHeader=False,
-                 hiddenColumns=None,
                  **kwds):
         """Initialise the widgets for the module.
         """
@@ -86,9 +79,6 @@ class _CoreTableWidgetABC(_ProjectTableABC, metaclass=_CoreTableWidgetMeta):
                          showVerticalHeader=showVerticalHeader,
                          setLayout=True,
                          **kwds)
-
-        self.headerColumnMenu.setInternalColumns(self._internalColumns)
-        self.headerColumnMenu.setDefaultColumns(self.defaultHidden)
 
     def setClassDefaultColumns(self, texts):
         """Set a list of default column-headers that are hidden when first shown.
@@ -344,12 +334,6 @@ class _CoreTableWidgetABC(_ProjectTableABC, metaclass=_CoreTableWidgetMeta):
         objs = data['value']
         self._selectOnTableCurrent(objs)
 
-    def _selectionChangedCallback(self, selected, deselected):
-        """Handle item selection as changed in table - call user callback
-        Includes checking for clicking below last row
-        """
-        self._changeTableSelection(None)
-
     def _selectOnTableCurrent(self, objs):
         """Highlight the list of objects on the table
         :param objs:
@@ -393,12 +377,14 @@ class _CoreTableWidgetABC(_ProjectTableABC, metaclass=_CoreTableWidgetMeta):
 
     ...
 
+
 #=========================================================================================
 # _CoreTableFrameABC
 #=========================================================================================
 
 class _CoreTableFrameABC(Frame):
-    """Frame containing the pulldown and the table widget
+    """Frame containing the pulldown and the table widget.
+    There is no subclassed _CoreMITableFrameABC, separate class not required.
     """
     _TableKlass = _CoreTableWidgetABC
     _PulldownKlass = None
@@ -427,6 +413,8 @@ class _CoreTableFrameABC(Frame):
         elif selectFirstItem:
             # self._modulePulldown.selectFirstItem()
             # ensures that the module and contained widgets are initialised before selecting the first item
+            # NOTE:ED - should NOT use the pulldown-callback to active
+            #   - should call a method :| callbacks should be disabled on initialise
             QtCore.QTimer.singleShot(0, self._modulePulldown.selectFirstItem)
 
     def _setWidgets(self, container=None):

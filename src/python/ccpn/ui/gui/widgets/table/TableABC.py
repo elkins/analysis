@@ -32,7 +32,7 @@ from PyQt5 import QtWidgets, QtCore, QtGui
 from dataclasses import dataclass
 from contextlib import contextmanager, suppress
 import typing
-from functools import partial
+from functools import partial, singledispatchmethod
 
 from ccpn.ui.gui.widgets.Font import setWidgetFont, TABLEFONT, getFontHeight
 from ccpn.ui.gui.widgets.Frame import ScrollableFrame
@@ -97,6 +97,8 @@ class TableABC(QtWidgets.QTableView):
     # QTableView::item - color: %(GUITABLE_ITEM_FOREGROUND)s;
     # QTableView::item:selected - color: %(GUITABLE_SELECTED_FOREGROUND)s;
     # cell uses alternate-background-role for unselected-focused cell
+
+    # set up the pointers to the standard table-/table-header menus
     _tableMenuOptions = None
     searchMenu = None
     copyCellMenu = None
@@ -109,6 +111,11 @@ class TableABC(QtWidgets.QTableView):
     _enableDelete = False
     _enableExport = False
     _enableCopyCell = False
+
+    # hidden-column defaults
+    defaultHidden = None
+    _internalColumns = None  # internal columns are always hidden
+    TableHeaderMenuKlass = TableHeaderMenuColumns
 
     _columnDefs = None
     _enableSelectionCallback = False
@@ -280,7 +287,7 @@ class TableABC(QtWidgets.QTableView):
         self.setStyleSheet(self.styleSheet % self._colours)
 
     def _setMenuProperties(self, enableCopyCell, enableDelete, enableExport, enableSearch):
-        """Add the required menus to the table
+        """Add the required menus to the table.
         """
         # create the individual table-menu and table-header-menu options
         self.searchMenu = TableMenuSearch(self, enableSearch if enableSearch is not NOTHING else self._enableSearch)
@@ -288,7 +295,7 @@ class TableABC(QtWidgets.QTableView):
                                               enableCopyCell if enableCopyCell is not NOTHING else self._enableCopyCell)
         self.deleteMenu = TableMenuDelete(self, enableDelete if enableDelete is not NOTHING else self._enableDelete)
         self.exportMenu = TableMenuExport(self, enableExport if enableExport is not NOTHING else self._enableExport)
-        self.headerColumnMenu = TableHeaderMenuColumns(self, True)
+        self.headerColumnMenu = self.TableHeaderMenuKlass(self, True)
 
         # add options to the table-menu and table-header-menu
         self.tableMenuOptions = [self.searchMenu,
@@ -299,7 +306,7 @@ class TableABC(QtWidgets.QTableView):
 
     def updateDf(self, df, resize=True, setHeightToRows=False, setWidthToColumns=False, setOnHeaderOnly=False,
                  newModel=False):
-        """Initialise the dataFrame
+        """Initialise the dataFrame.
         """
         if not isinstance(df, (type(None), pd.DataFrame)):
             raise ValueError(f'data is not of type pd.DataFrame - {type(df)}')
@@ -342,8 +349,17 @@ class TableABC(QtWidgets.QTableView):
     def postUpdateDf(self):
         """Actions to be performed after the dataFrame has been updated for the table
         """
-        # update the visible columns
-        self.headerColumnMenu.restoreColumns()
+        # update the search filter
+        self.searchMenu.refreshFilter()
+        self.resetHiddenColumns()
+
+    def resetHiddenColumns(self):
+        """Reset the visibility to original default and internal-columns.
+        """
+        hiCols = set(self.defaultHidden or []) | set(self._internalColumns or [])
+        # update the hidden-columns, always hiding _internalColumns
+        for col, colName in enumerate(self._df.columns):
+            self.setColumnHidden(col, colName in hiCols)
 
     def setModel(self, model: QtCore.QAbstractItemModel) -> None:
         """Set the model for the view
@@ -474,7 +490,8 @@ class TableABC(QtWidgets.QTableView):
 
             sortColumnName = None
             if model._sortColumn is not None:
-                sortColumnName = self.headerColumnMenu.columnTexts[model._sortColumn]
+                # sortColumnName = self.headerColumnMenu.columnTexts[model._sortColumn]
+                sortColumnName = self.columns[model._sortColumn]
             self.sortingChanged.emit({
                 'sortColumnName' : sortColumnName,
                 'sortColumnIndex': model._sortColumn,
@@ -723,7 +740,7 @@ class TableABC(QtWidgets.QTableView):
             selectionModel = self.selectionModel()
             model = self.model()
             selectionModel.clearSelection()
-            columnTextIx = self.headerColumnMenu.columnTexts.index(headerName)
+            columnTextIx = self.columns.index(headerName)
             for i in model._sortIndex:
                 cell = model.index(i, columnTextIx)
                 if cell is None:
@@ -1100,8 +1117,8 @@ class TableABC(QtWidgets.QTableView):
                     startRow = row
 
         self.clearSpans()
-        self._horizontalDividers = []
-        self._verticalDividers = []
+        # self._sectionDividers = []
+        # self._sectionDividers = []
 
         if self._df is None or self._df.empty:
             return
@@ -1146,8 +1163,8 @@ class TableABC(QtWidgets.QTableView):
                     startCol = col
 
         self.clearSpans()
-        self._horizontalDividers = []
-        self._verticalDividers = []
+        # self._sectionDividers = []
+        # self._sectionDividers = []
 
         if self._df is None or self._df.empty:
             return
@@ -1179,7 +1196,7 @@ class TableABC(QtWidgets.QTableView):
 
     @property
     def tableMenuOptions(self):
-        """Return the list of table options attached to the table
+        """Return the list of table options attached to the table.
         """
         return self._tableMenuOptions
 
@@ -1192,7 +1209,7 @@ class TableABC(QtWidgets.QTableView):
         self._tableMenuOptions = value
 
     def setTableMenu(self, tableMenuEnabled=NOTHING) -> typing.Optional[Menu]:
-        """Set up the context menu for the main table
+        """Set up the context menu for the main table.
         """
         if tableMenuEnabled is not NOTHING:
             self._tableMenuEnabled = bool(tableMenuEnabled)
@@ -1231,7 +1248,7 @@ class TableABC(QtWidgets.QTableView):
                 del self._toolTipsEnabled
 
     def addTableMenuOptions(self, menu):
-        """Add options to the right-mouse menu
+        """Add options to the right-mouse menu.
         """
         # NOTE:ED - call additional addMenuOptions here to add options to the table menu
         for tableOption in self._tableMenuOptions:
@@ -1240,13 +1257,13 @@ class TableABC(QtWidgets.QTableView):
                 tableOption.addMenuOptions(menu)
 
     def setTableMenuOptions(self, menu):
-        """Update options in the right-mouse menu
+        """Update options in the right-mouse menu.
         """
         # Subclass to add extra options
         pass
 
     def _raiseTableContextMenu(self, pos):
-        """Create a new menu and popup at cursor position
+        """Create a new menu and popup at cursor-position.
         """
         if not (menu := self._thisTableMenu):
             getLogger().debug('menu is not defined')
@@ -1326,10 +1343,10 @@ class TableABC(QtWidgets.QTableView):
         if len(menu.actions()):
             menu.exec_(self.mapToGlobal(pos))
 
-    def isColumnInternal(self, column: int):
-        """Return True if the column is internal and not for external viewing
-        """
-        return self.headerColumnMenu.isColumnInternal(column)
+    # def isColumnInternal(self, column: int):
+    #     """Return True if the column is internal and not for external viewing
+    #     """
+    #     return self.headerColumnMenu.isColumnInternal(column)
 
     def showColumn(self, column: int) -> None:
         width = self.columnWidth(column)
@@ -1385,4 +1402,77 @@ class TableABC(QtWidgets.QTableView):
     # Table hidden-column functions
     #-----------------------------------------------------------------------------------------
 
-    ...
+    @property
+    def columns(self) -> list[str]:
+        """Return a list of all the column-names.
+        """
+        return list(self._df.columns)
+
+    @property
+    def hiddenColumns(self) -> list[str]:
+        """Set/clear the hidden-columns.
+        """
+        header = list(self._df.columns)
+        internal = set(self._internalColumns or [])
+        # hide _internalColumns
+        return [col for cc, col in enumerate(header) if self.isColumnHidden(cc) and col not in internal]
+
+    def setHiddenColumns(self, columns):
+        header = list(self._df.columns)
+        internal = set(self._internalColumns or [])
+        if any(col not in header for col in columns):
+            raise ValueError(f'{self.__class__.__name__}.setHiddenColumns: columns contains bad column-names')
+        # show/hide the columns - _internalColumns are always hidden
+        for cc, col in enumerate(header):
+            self.setColumnHidden(cc, col in set(columns) | internal)
+
+    @property
+    def _allHiddenColumns(self) -> list:
+        """Return a list of all the hidden/internal columns.
+        """
+        return [col for col in list(self._df.columns)
+                if col in (set(self.hiddenColumns) | set(self._internalColumns or []))]
+
+    @singledispatchmethod
+    def isColumnInternal(self, column) -> bool:
+        """Return True if the column is internal and not for external viewing.
+        """
+        raise TypeError(f'{self.__class__.__name__}.isColumnInternal: column must be int|str')
+
+    @isColumnInternal.register(int)
+    def _isColumnInternal(self, column: int) -> bool:
+        """Column is referenced by column-number.
+        """
+        if 0 <= column < len(self.columns):
+            return self.columns[column] in set(self._internalColumns or [])
+        raise ValueError(f'{self.__class__.__name__}.isColumnInternal: Invalid column {column}')
+
+    @isColumnInternal.register(str)
+    def _isColumnInternal(self, column: str) -> bool:
+        """Column is referenced by column-name.
+        """
+        if column in self.columns:
+            return column in set(self._internalColumns or [])
+        raise ValueError(f'{self.__class__.__name__}.isColumnInternal: Invalid column-name {column}')
+
+    def setInternalColumns(self, texts):
+        """Set a list of internal column-headers that are always hidden.
+        """
+        header = list(self._df.columns)
+        internal = self._internalColumns = set(texts or [])
+        for col, colName in enumerate(header):
+            # hide the new internal columns
+            # original internal columns will still be hidden
+            if colName in internal:
+                self.hideColumn(col)
+
+    def setDefaultColumns(self, texts):
+        """Set a list of default column-headers that are always hidden.
+        """
+        header = list(self._df.columns)
+        hidden = self.defaultHidden = set(texts or [])
+        for col, colName in enumerate(header):
+            # hide the new internal columns
+            # original default-columns will still be hidden
+            if colName in hidden:
+                self.hideColumn(col)

@@ -18,8 +18,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-11-12 16:04:13 +0000 (Tue, November 12, 2024) $"
-__version__ = "$Revision: 3.2.10 $"
+__dateModified__ = "$dateModified: 2024-11-15 19:34:28 +0000 (Fri, November 15, 2024) $"
+__version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -61,7 +61,6 @@ from ccpn.util.Logging import getLogger
 
 
 logger = getLogger()
-
 LINKTOPULLDOWNCLASS = 'linkToPulldownClass'
 
 #=========================================================================================
@@ -215,6 +214,26 @@ OBJECT_PARENT = 1
 MODULEIDS = {}
 _TABLES = 'tables'
 _HIDDENCOLUMNS = 'hiddenColumns'
+# column-header mappings from dataFrame to visible-table
+_COLUMNHEADERS = {CS_UNIQUEID           : 'ID',
+                  CS_ISDELETED          : 'isDeleted',  # should never be visible
+                  CS_PID                : 'ChemicalShift',
+                  CS_VALUE              : 'Value\n(ppm)',
+                  CS_VALUEERROR         : 'Value Error\n(ppm)',
+                  CS_FIGUREOFMERIT      : 'Figure of Merit',
+                  CS_NMRATOM            : 'NmrAtom',
+                  CS_CHAINCODE          : 'ChainCode',
+                  CS_SEQUENCECODE       : 'SequenceCode',
+                  CS_RESIDUETYPE        : 'ResidueType',
+                  CS_ATOMNAME           : 'AtomName',
+                  CS_STATE              : 'State',
+                  CS_ORPHAN             : 'Orphaned',
+                  CS_ALLPEAKS           : 'Assigned\nPeaks',
+                  CS_SHIFTLISTPEAKSCOUNT: 'Peak Count',
+                  CS_ALLPEAKSCOUNT      : 'Total\nPeak Count',
+                  CS_COMMENT            : 'Comment',
+                  CS_OBJECT             : '_object'
+                  }
 
 
 class _NewChemicalShiftTable(_ProjectTableABC):
@@ -227,30 +246,32 @@ class _NewChemicalShiftTable(_ProjectTableABC):
     OBJECTCOLUMN = CS_OBJECT  # column holding active objects (uniqueId/ChemicalShift for this table?)
     INDEXCOLUMN = CS_UNIQUEID  # column holding the index
 
-    defaultHidden = [CS_UNIQUEID, CS_ISDELETED, CS_PID, CS_FIGUREOFMERIT, CS_ALLPEAKS, CS_CHAINCODE,
-                     CS_SEQUENCECODE, CS_STATE, CS_ORPHAN]
-    _internalColumns = [CS_ISDELETED, CS_OBJECT]  # columns that are always hidden
+    _defaultHidden_ = (CS_UNIQUEID, CS_ISDELETED, CS_PID, CS_FIGUREOFMERIT, CS_ALLPEAKS, CS_CHAINCODE,
+                       CS_SEQUENCECODE, CS_STATE, CS_ORPHAN)
+    _internalColumns_ = (CS_ISDELETED, CS_OBJECT)  # columns that are always hidden
 
     # define self._columns here
-    columnHeaders = {CS_UNIQUEID           : 'ID',
-                     CS_ISDELETED          : 'isDeleted',  # should never be visible
-                     CS_PID                : 'ChemicalShift',
-                     CS_VALUE              : 'Value\n(ppm)',
-                     CS_VALUEERROR         : 'Value Error\n(ppm)',
-                     CS_FIGUREOFMERIT      : 'Figure of Merit',
-                     CS_NMRATOM            : 'NmrAtom',
-                     CS_CHAINCODE          : 'ChainCode',
-                     CS_SEQUENCECODE       : 'SequenceCode',
-                     CS_RESIDUETYPE        : 'ResidueType',
-                     CS_ATOMNAME           : 'AtomName',
-                     CS_STATE              : 'State',
-                     CS_ORPHAN             : 'Orphaned',
-                     CS_ALLPEAKS           : 'Assigned\nPeaks',
-                     CS_SHIFTLISTPEAKSCOUNT: 'Peak Count',
-                     CS_ALLPEAKSCOUNT      : 'Total\nPeak Count',
-                     CS_COMMENT            : 'Comment',
-                     CS_OBJECT             : '_object'
-                     }
+    # columnHeaders = {CS_UNIQUEID           : 'ID',
+    #                  CS_ISDELETED          : 'isDeleted',  # should never be visible
+    #                  CS_PID                : 'ChemicalShift',
+    #                  CS_VALUE              : 'Value\n(ppm)',
+    #                  CS_VALUEERROR         : 'Value Error\n(ppm)',
+    #                  CS_FIGUREOFMERIT      : 'Figure of Merit',
+    #                  CS_NMRATOM            : 'NmrAtom',
+    #                  CS_CHAINCODE          : 'ChainCode',
+    #                  CS_SEQUENCECODE       : 'SequenceCode',
+    #                  CS_RESIDUETYPE        : 'ResidueType',
+    #                  CS_ATOMNAME           : 'AtomName',
+    #                  CS_STATE              : 'State',
+    #                  CS_ORPHAN             : 'Orphaned',
+    #                  CS_ALLPEAKS           : 'Assigned\nPeaks',
+    #                  CS_SHIFTLISTPEAKSCOUNT: 'Peak Count',
+    #                  CS_ALLPEAKSCOUNT      : 'Total\nPeak Count',
+    #                  CS_COMMENT            : 'Comment',
+    #                  CS_OBJECT             : '_object'
+    #                  }
+    defaultHidden = [_COLUMNHEADERS[col] for col in _defaultHidden_]
+    _internalColumns = [_COLUMNHEADERS[col] for col in _internalColumns_]
 
     tipTexts = ('Unique identifier for the chemicalShift',
                 'isDeleted',  # should never be visible
@@ -292,13 +313,11 @@ class _NewChemicalShiftTable(_ProjectTableABC):
     # set the queue handling parameters
     _maximumQueueLength = 25
 
-    def __init__(self, parent=None, mainWindow=None, moduleParent=None,
-                 actionCallback=None, selectionCallback=None,
-                 chemicalShiftList=None, hiddenColumns=None,
-                 enableExport=True, enableDelete=True, enableSearch=False, enableCopyCell=False,
-                 **kwds):
+    def __init__(self, parent=None, mainWindow=None, moduleParent=None, **kwds):
         """Initialise the widgets for the module.
         """
+        for key in ('multiSelect', 'showVerticalHeader', 'setLayout'):
+            kwds.pop(key, None)
         # create the table; objects are added later via the displayTableForNmrChain method
         super().__init__(parent=parent,
                          mainWindow=mainWindow,
@@ -308,9 +327,8 @@ class _NewChemicalShiftTable(_ProjectTableABC):
                          setLayout=True,
                          **kwds
                          )
-
-        self.headerColumnMenu.setInternalColumns([self.columnHeaders[col] for col in self._internalColumns])
-        self.headerColumnMenu.setDefaultColumns([self.columnHeaders[col] for col in self.defaultHidden])
+        # self.headerColumnMenu.setInternalColumns([self.columnHeaders[col] for col in self._internalColumns])
+        # self.headerColumnMenu.setDefaultColumns([self.columnHeaders[col] for col in self.defaultHidden])
 
     def setClassDefaultColumns(self, texts):
         """Set a list of default column-headers that are hidden when first shown.
@@ -440,7 +458,7 @@ class _NewChemicalShiftTable(_ProjectTableABC):
         """
         # create the column objects
         _cols = [
-            (self.columnHeaders[col], lambda row: _getValueByHeader(row, col), self.tipTexts[ii], None, None)
+            (_COLUMNHEADERS[col], lambda row: _getValueByHeader(row, col), self.tipTexts[ii], None, None)
             for ii, col in enumerate(CS_TABLECOLUMNS)
             ]
 
@@ -489,10 +507,10 @@ class _NewChemicalShiftTable(_ProjectTableABC):
                 df[CS_OBJECT] = []
 
         else:
-            df = pd.DataFrame(columns=[self.columnHeaders[val] for val in CS_TABLECOLUMNS])
+            df = pd.DataFrame(columns=[_COLUMNHEADERS[val] for val in CS_TABLECOLUMNS])
 
         # update the columns to the visible headings
-        df.columns = [self.columnHeaders[val] for val in CS_TABLECOLUMNS]
+        df.columns = [_COLUMNHEADERS[val] for val in CS_TABLECOLUMNS]
 
         # set the table from the dataFrame
         _dfObject = DataFrameObject(dataFrame=df,

@@ -16,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-11-01 19:40:51 +0000 (Fri, November 01, 2024) $"
-__version__ = "$Revision: 3.2.9 $"
+__dateModified__ = "$dateModified: 2024-11-15 19:34:29 +0000 (Fri, November 15, 2024) $"
+__version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -66,10 +66,10 @@ from ccpn.util.Common import flattenLists
 from ccpn.util.Logging import getLogger
 from ccpn.util.Path import joinPath
 from ccpn.util.OrderedSet import OrderedSet
+from ccpn.ui.gui.widgets.table._TableCommon import ColumnGroup, ColumnItem
 from ccpn.ui.gui.widgets.table._MITableModel import _MITableModel
 from ccpn.ui.gui.widgets.table._MITableDelegates import _ExpandVerticalCellDelegate
 from ccpn.framework.Application import getProject
-from ccpnmodel.ccpncore.memops.metamodel.Constants import dataObjClassName
 
 
 SELECT = '< Select >'
@@ -154,7 +154,7 @@ class _MultiSort(_MITableModel):
 
 
 #=========================================================================================
-# _NewRestraintTableWidget - delegates/proxies/column handlers
+# _NewRestraintAITableWidget - delegates/proxies/column handlers
 #=========================================================================================
 
 def _getContributions(restraint):
@@ -175,7 +175,6 @@ def _checkRestraintFloat(offset, value, row, col):
             return f'{value:.3f}' if (1e-6 < value < 1e6) or value == 0.0 else f'{value:.3e}'
         except Exception:
             return str(value)
-
     return '-'
 
 
@@ -185,23 +184,18 @@ def _checkRestraintInt(offset, value, row, col):
     """
     if row[(row.index[col][0], HeaderRestraint)] not in [None, '', '-']:
         return int(value)
-
     return '-'
 
 
 #=========================================================================================
-# _NewRestraintTableWidget - _MultiIndex table
+# _NewRestraintAITableWidget - _MultiIndex table
 #=========================================================================================
 
-from ccpn.ui.gui.widgets.table._TableCommon import ColumnGroup, ColumnItem
-from ccpn.util.DataEnum import DataEnum
-from dataclasses import dataclass
 
-
-class _NewRestraintTableWidget(_CoreMITableWidgetABC):
+class _NewRestraintAITableWidget(_CoreMITableWidgetABC):
     """Class to present a peak-driven Restraint Analysis Inspector Table
     """
-    className = '_NewRestraintTableWidget'
+    className = '_NewRestraintAITableWidget'
     # current class-type for the _object column, although this will also need to allow collections
     attributeName = 'peakLists'
 
@@ -223,14 +217,6 @@ class _NewRestraintTableWidget(_CoreMITableWidgetABC):
                              'Count > 0.3',
                              ]
 
-    columnFormat = ColumnGroup(ColumnItem(name=HeaderIndex),
-                               ColumnItem(name=HeaderRow),
-                               ColumnItem(name=HeaderObject),
-                               ColumnGroup(ColumnItem(name=HeaderObject),
-                                           ColumnItem(name=HeaderObject),
-                                           name='restraint-group'),
-                               movable=False, name='objects', groupId='indexing')
-
     # define the functions applied to the columns
     _subgroupColumns = [(HeaderRestraint, lambda val: str(val or '')),
                         (HeaderAtoms, lambda val: str(val or '')),
@@ -246,13 +232,12 @@ class _NewRestraintTableWidget(_CoreMITableWidgetABC):
                         (HeaderCount2, partial(_checkRestraintInt, 9)),
                         ]
 
-    # define self._columns here - these are wrong
+    # define self._columns here - these are wrong :(
     columnHeaders = {'#'      : '#',
                      'Pid'    : 'Pid',
                      '_object': '_object',
                      'Comment': 'Comment',
                      }
-
     tipTexts = ('Peak serial number',
                 'Pid of the Peak',
                 'Object',
@@ -260,6 +245,7 @@ class _NewRestraintTableWidget(_CoreMITableWidgetABC):
                 )
 
     # define the notifiers that are required for the specific table-type
+    # this table is more specialised and may require peaks and collections
     tableClass = PeakList
     rowClass = Peak
     cellClass = None
@@ -291,6 +277,7 @@ class _NewRestraintTableWidget(_CoreMITableWidgetABC):
     enableMultiColumnSort = True
     # subgroups are always max->min
     applySortToGroups = False
+    resources = None
 
     def __init__(self, parent, *args, **kwds):
         """Initialise the table
@@ -311,9 +298,9 @@ class _NewRestraintTableWidget(_CoreMITableWidgetABC):
         # requires a special filter based in the table displayRole
         self.searchMenu.setFilterKlass(_RestraintAITableFilter)
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Properties
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     @property
     def _sourceObjects(self):
@@ -381,9 +368,9 @@ class _NewRestraintTableWidget(_CoreMITableWidgetABC):
         """
         return self.resources._outTableWidget
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Widget callbacks
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     def selectionCallback(self, selected, deselected, selection, lastItem):
         """Handle item selection has changed in table - call user callback
@@ -448,9 +435,9 @@ class _NewRestraintTableWidget(_CoreMITableWidgetABC):
         else:
             getLogger().warning('Impossible to navigate to peak position. Set spectrumDisplays first')
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Create table and row methods
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     def _updateTableCallback(self, data):
         """Respond to table notifier.
@@ -462,9 +449,9 @@ class _NewRestraintTableWidget(_CoreMITableWidgetABC):
 
         self._update()
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Table context menu
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     def addTableMenuOptions(self, menu):
         self.restraintMenu = _RestraintOptions(self, True)
@@ -472,91 +459,24 @@ class _NewRestraintTableWidget(_CoreMITableWidgetABC):
 
         super().addTableMenuOptions(menu)
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Table functions
-    #=========================================================================================
-
-    def _getTableColumns(self, source=None):
-        """Add default columns plus the ones according to peakList.spectrum dimension
-        format of column = ( Header Name, value, tipText, editOption)
-        editOption allows the user to modify the value content by doubleclick
-        """
-
-        # NOTE:ED - don't think this is being used :|
-
-        _restraintColumns = [((HeaderRestraint, HeaderRestraint), lambda rt: ''),
-                             ((HeaderAtoms, HeaderAtoms), lambda rt: ''),
-                             ((HeaderViolation, HeaderViolation), lambda rt: ''),
-                             ((HeaderTarget, HeaderTarget), lambda rt: 0.0),
-                             ((HeaderLowerLimit, HeaderLowerLimit), lambda rt: 0.0),
-                             ((HeaderUpperLimit, HeaderUpperLimit), lambda rt: 0.0),
-                             ((HeaderMin, HeaderMin), lambda rt: 0.0),
-                             ((HeaderMax, HeaderMax), lambda rt: 0.0),
-                             ((HeaderMean, HeaderMean), lambda rt: 0.0),
-                             ((HeaderStd, HeaderStd), lambda rt: 0.0),
-                             ((HeaderCount1, HeaderCount1), lambda rt: 0.0),
-                             ((HeaderCount2, HeaderCount2), lambda rt: 0.0),
-                             ]
-
-        # define self._columns here
-        # create the column objects
-        _cols = [
-            ((HeaderIndex, HeaderIndex), lambda row: _getValueByHeader(row, HeaderIndex), 'TipTex1', None, None),
-            ((HeaderMatch, HeaderMatch), lambda row: _getValueByHeader(row, HeaderMatch), 'TipTex2', None, None),
-            ((HeaderObject, HeaderObject), lambda row: _getValueByHeader(row, HeaderObject), 'TipTex3', None, None),
-            ]
-
-        # cSetLists = self._restraintTables
-        # outTables = self._outputTables
-
-        # column-headers
-        cSetLists = list(filter(None, (cs.comparisonSet for cs in self.resources.comparisonSets)))
-
-        if violationResults := [cSet for cSet in cSetLists if cSet.getTreeTables(depth=2, selected=True)]:
-            for cSet in cSetLists:
-                if cSet in violationResults:
-                    # _right = violationResults[resList]
-                    name = cSet.comparisonSetName
-
-                    # create new column headings
-                    newCols = [
-                        ((name, f'{_colID}'), lambda row: _getValueByHeader(row, f'{_colID}'), f'{_colID}', None, None)
-                        for _colID in (HeaderRestraint, HeaderAtoms, HeaderViolation,
-                                       HeaderTarget, HeaderLowerLimit, HeaderUpperLimit,
-                                       HeaderMin, HeaderMax, HeaderMean, HeaderStd,
-                                       HeaderCount1, HeaderCount2)
-                        ]
-
-                else:
-                    # create new column headings
-                    newCols = [
-                        ((name, f'{_colID}'), lambda row: _getValueByHeader(row, f'{_colID}'), f'{_colID}', None, None)
-                        for _colID in (HeaderRestraint, HeaderAtoms)
-                        ]
-
-                _cols.extend(newCols)
-
-        else:
-            # only show the restraints
-            for cSet in cSetLists:
-                name = cSet.comparisonSetName
-
-                # create new column headings
-                newCols = [
-                    ((name, f'{_colID}'), lambda row: _getValueByHeader(row, f'{_colID}'), f'{_colID}', None, None)
-                    for _colID in (HeaderRestraint, HeaderAtoms)
-                    ]
-
-                _cols.extend(newCols)
-
-        # return the table _columns
-        return ColumnClass(_cols)
+    #-----------------------------------------------------------------------------------------
 
     def buildTableDataFrame(self):
         """Return a Pandas dataFrame from an internal list of objects.
         The columns are based on the 'func' functions in the columnDefinitions.
         :return pandas dataFrame
         """
+
+        indexColumns = ColumnGroup(ColumnItem(name=(HeaderIndex, HeaderIndex),
+                                              visible=False, internal=True),
+                                   ColumnItem(name=(HeaderRow, HeaderRow)),
+                                   ColumnItem(name=(HeaderMatch, HeaderMatch)),
+                                   ColumnItem(name=(HeaderObject, HeaderObject),
+                                              visible=False, internal=True),
+                                   name='index', groupId='indexing')
+        columnPrefs = ColumnGroup(indexColumns, name='root')
 
         rss = self.resources
         # get the target peakLists
@@ -567,8 +487,6 @@ class _NewRestraintTableWidget(_CoreMITableWidgetABC):
         # column-headers
         cSetLists = [cSet for cSet in rss.comparisonSets if not cSet.isEmpty]
         extraDefaultHiddenColumns = []
-
-        # need to remove the 'str' and use pd.MultiIndex.from_tuples(list[tuple, ...])
 
         # set the default column information
         self._columnDefs = [
@@ -740,7 +658,7 @@ class _NewRestraintTableWidget(_CoreMITableWidgetABC):
 
                                 _out.append(_new)
 
-                                self._addColumnDefs(_new, cSetName, ii)
+                                self._addColumnDefs(_new, cSetName, ii, columnPrefs)
 
                         #~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -793,7 +711,7 @@ class _NewRestraintTableWidget(_CoreMITableWidgetABC):
                         # for _colID in (HeaderRestraint, HeaderAtoms):
                         #     _cols.append((f'{_colID}_{ii + 1}', lambda row: _getValueByHeader(row, f'{_colID}_{ii + 1}'), f'{_colID}_Tip{ii + 1}', None, None))
 
-                        self._addColumnDefs(_new, cSetName, ii)
+                        self._addColumnDefs(_new, cSetName, ii, columnPrefs)
 
                 # concatenate the final dataFrame
                 # _table = pd.concat([index, allPks, *_out.values()], axis=1)
@@ -823,7 +741,7 @@ class _NewRestraintTableWidget(_CoreMITableWidgetABC):
                     _new = _new.fillna({HEADERSCOL: '-', ATOMSCOL: '-', HEADERVIOLATION: False})
                     _new = _new.fillna(0.0)
                     _out.append(_new)
-                    self._addColumnDefs(_new, cSetName, ii)
+                    self._addColumnDefs(_new, cSetName, ii, columnPrefs)
 
                 # concatenate to give the final table
                 _table = pd.concat(_out, axis=1)
@@ -849,16 +767,28 @@ class _NewRestraintTableWidget(_CoreMITableWidgetABC):
         _objects = list(_table.itertuples())
         self._objects = _objects
         if extraDefaultHiddenColumns:
-            hCols = self.headerColumnMenu._internalColumns
-            self.headerColumnMenu.setInternalColumns(set(hCols) | set(extraDefaultHiddenColumns))
+            # hCols = self.headerColumnMenu._internalColumns
+            # self.headerColumnMenu.setInternalColumns(set(hCols) | set(extraDefaultHiddenColumns))
+            self.setInternalColumns(set(self._internalColumns) | set(extraDefaultHiddenColumns))
 
+        # required by saveToPreferences
+        self._columnStateLocal = columnPrefs
         return _table
 
-    def _addColumnDefs(self, _new, cSetName, ii):
+    def _addColumnDefs(self, _new, cSetName, ii, columnPrefs):
         """Add column-definitions for the new restraints.
         """
+        # create ColumnGroup item for this restraint-set
+        restraintGroup = ColumnGroup(name=cSetName, groupId='restraints')
+        columnPrefs.addChildren(restraintGroup)
+
         for _colID, fmt in self._subgroupColumns:
+            # create a new column in ColumnGroup object here
+            restraintGroup.addChildren(itm := ColumnItem(name=(cSetName, _colID),
+                                                         visible=False,
+                                                         internal=(_colID == HeaderViolation)))
             if (cSetName, _colID) in list(_new.columns):
+                itm.visible = True
                 # check whether all the columns exist - discard otherwise
                 # columns should have been renamed and post-fixed with _<num>. above
                 self._columnDefs.append(Column((cSetName, _colID),
@@ -868,16 +798,16 @@ class _NewRestraintTableWidget(_CoreMITableWidgetABC):
                                                format=fmt
                                                ))
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Updates
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
-    def postUpdateDf(self):
-        # update the visible columns
-        self.headerColumnMenu.saveColumns([col for col in self._df.columns
-                                           if isinstance(col, tuple) and col[1] in self.defaultHiddenSubgroup])
-        self.headerColumnMenu.refreshHiddenColumns()
-        self.searchMenu.refreshFilter()
+    # def postUpdateDf(self):
+    #     # update the visible columns
+    #     self.headerColumnMenu.saveColumns([col for col in self._df.columns
+    #                                        if isinstance(col, tuple) and col[1] in self.defaultHiddenSubgroup])
+    #     self.headerColumnMenu.refreshHiddenColumns()
+    #     self.searchMenu.refreshFilter()
 
     # NOTE:ED - not done yet
     # def refreshTable(self):
@@ -962,24 +892,24 @@ class _NewRestraintTableWidget(_CoreMITableWidgetABC):
         self.updateTableExpanders()
         self.show()
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Widgets callbacks
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     ...
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Signal responses
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     def _postChangeSelectionOrderCallback(self, *args):
         super()._postChangeSelectionOrderCallback(*args)
 
         self.updateTableExpanders()
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # object properties
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     def updateTableExpanders(self, expandState=None):
         """Update the state of the expander buttons
@@ -1038,7 +968,7 @@ class RestraintFrame(_CoreTableFrameABC):
     # signal emitted when the manually changing the pulldown
     aboutToUpdate = QtCore.pyqtSignal(str)
 
-    _TableKlass = _NewRestraintTableWidget
+    _TableKlass = _NewRestraintAITableWidget
     _PulldownKlass = PeakListPulldown
 
     def __init__(self, parent, mainWindow=None, moduleParent=None, resources=None,
@@ -1083,9 +1013,9 @@ class RestraintFrame(_CoreTableFrameABC):
         self.resources = resources
         self._tableWidget.resources = resources
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Properties
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     @property
     def _tableCurrent(self):
@@ -1098,9 +1028,9 @@ class RestraintFrame(_CoreTableFrameABC):
     def _tableCurrent(self, value):
         self.current.peakList = value
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Widgets callbacks
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     def _expandAll(self, expand):
         """Expand/collapse all groups
@@ -1183,9 +1113,9 @@ class RestraintFrame(_CoreTableFrameABC):
         combo.disableLabelsOnPullDown([PULLDOWNSEPARATOR])
         combo.update()
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Other
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     def setRefreshButtonEnabled(self, value):
         """Enable/disable the refresh-button

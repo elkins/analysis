@@ -18,8 +18,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-11-12 13:25:38 +0000 (Tue, November 12, 2024) $"
-__version__ = "$Revision: 3.2.10 $"
+__dateModified__ = "$dateModified: 2024-11-15 19:34:30 +0000 (Fri, November 15, 2024) $"
+__version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -256,7 +256,7 @@ class _ParamsTable(Table):
         self.setSelectionMode(QtWidgets.QTableView.NoSelection)
         self.lockIcon = Icon('icons/locked').pixmap(int(self.model()._chrHeight), int(self.model()._chrHeight))
         self.unLockIcon = Icon('icons/unlocked').pixmap(int(self.model()._chrHeight), int(self.model()._chrHeight))
-        self.headerColumnMenu.setInternalColumns([LOCKED])
+        self.setInternalColumns([LOCKED])
         if dataChangedCallback is not None:
             self.model().dataChanged.connect(dataChangedCallback)
 
