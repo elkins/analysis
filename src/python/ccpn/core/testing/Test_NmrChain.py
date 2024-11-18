@@ -16,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-05-30 13:47:13 +0100 (Thu, May 30, 2024) $"
-__version__ = "$Revision: 3.2.3 $"
+__dateModified__ = "$dateModified: 2024-11-18 13:19:03 +0000 (Mon, November 18, 2024) $"
+__version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -143,7 +143,6 @@ class NmrChainTest(WrapperTesting):
         self.assertEqual([nmrres.residue.id for nmrres in nmr_chain.nmrResidues], [residues[4].id])
         nmr_chain.deassign()
         self.assertEqual([nmrres.residue for nmrres in nmr_chain.nmrResidues], [None])
-
 
     def test_deassignAPIError(self):
         ncx = self.project.getNmrChain('@-')
