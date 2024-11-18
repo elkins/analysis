@@ -1810,7 +1810,7 @@ def _getXmlPathFromApiTopObject(package, apiTopObject) -> Path:
     if apiTopObject is None:
         raise RuntimeError(f'Undefined apiTopObject')
 
-    _keys = [re.sub('[\[\]<>+-. \'\"]', '_', str(key)) for key in apiTopObject.getFullKey()]
+    _keys = [re.sub(r'[\[\]<>+-. \'\"]', '_', str(key)) for key in apiTopObject.getFullKey()]
     _keyStr = KEY_SEPARATOR.join(_keys)
 
     _xmlPath = package.path / (_keyStr + KEY_SEPARATOR + apiTopObject.guid + XML_SUFFIX)

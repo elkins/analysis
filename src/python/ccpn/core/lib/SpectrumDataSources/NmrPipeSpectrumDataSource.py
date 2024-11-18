@@ -10,9 +10,10 @@ is fully read into the temporary buffer at the moment of first data access
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2023"
-__credits__ = ("Ed Brooksbank, Joanna Fox, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
-               "Timothy J Ragan, Brian O Smith, Gary S Thompson & Geerten W Vuister")
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
+               "Timothy J Ragan, Brian O Smith, Daniel Thompson",
+               "Gary S Thompson & Geerten W Vuister")
 __licence__ = ("CCPN licence. See https://ccpn.ac.uk/software/licensing/")
 __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, L.G., & Vuister, G.W.",
                  "CcpNmr AnalysisAssign: a flexible platform for integrated NMR analysis",
@@ -20,9 +21,9 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: VickyAH $"
-__dateModified__ = "$dateModified: 2023-07-05 09:35:35 +0100 (Wed, July 05, 2023) $"
-__version__ = "$Revision: 3.2.0 $"
+__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
+__dateModified__ = "$dateModified: 2024-11-18 11:44:06 +0000 (Mon, November 18, 2024) $"
+__version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -280,9 +281,9 @@ class NmrPipeSpectrumDataSource(SpectrumDataSourceABC):
 
         elif self.dimensionCount == 3 and self.nFiles > 1:
             # 3D's stored as series of 2D's
-            templates = (re.sub('\d\d\d\d', '%04d', fileName),
-                         re.sub('\d\d\d',   '%03d', fileName),
-                         re.sub('\d\d',     '%02d', fileName),
+            templates = (re.sub(r'\d\d\d\d', '%04d', fileName),
+                         re.sub(r'\d\d\d',   '%03d', fileName),
+                         re.sub(r'\d\d',     '%02d', fileName),
             )
             for template in templates:
                 # check if we made a subsititution
@@ -294,10 +295,10 @@ class NmrPipeSpectrumDataSource(SpectrumDataSourceABC):
 
         elif self.dimensionCount == 4 and self.nFiles > 1:
             # 4D's stored as series of 2D's
-            templates = (re.sub('\d\d\d\d\d\d\d', '%03d%04d', fileName),
-                         re.sub('\d\d\d\d\d\d',   '%03d%03d', fileName),
-                         re.sub('\d\d\d\d\d\d',   '%02d%04d', fileName),
-                         re.sub('\d\d\d\d\d',     '%02d%03d', fileName),
+            templates = (re.sub(r'\d\d\d\d\d\d\d', '%03d%04d', fileName),
+                         re.sub(r'\d\d\d\d\d\d',   '%03d%03d', fileName),
+                         re.sub(r'\d\d\d\d\d\d',   '%02d%04d', fileName),
+                         re.sub(r'\d\d\d\d\d',     '%02d%03d', fileName),
             )
             for template in templates:
                 # check if we made a subsititution
@@ -308,9 +309,9 @@ class NmrPipeSpectrumDataSource(SpectrumDataSourceABC):
                         return str(Path(directory) / (template) + suffix)
 
             # 4D's stored as series of 3D's
-            templates = (re.sub('\d\d\d\d', '%04d', fileName),
-                         re.sub('\d\d\d',   '%03d', fileName),
-                         re.sub('\d\d',     '%02d', fileName),
+            templates = (re.sub(r'\d\d\d\d', '%04d', fileName),
+                         re.sub(r'\d\d\d',   '%03d', fileName),
+                         re.sub(r'\d\d',     '%02d', fileName),
             )
             for template in templates:
                 # check if we made a subsititution
