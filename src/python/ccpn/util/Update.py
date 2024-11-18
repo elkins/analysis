@@ -16,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-10-15 17:45:58 +0100 (Tue, October 15, 2024) $"
-__version__ = "$Revision: 3.2.6 $"
+__dateModified__ = "$dateModified: 2024-11-18 13:26:24 +0000 (Mon, November 18, 2024) $"
+__version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -161,17 +161,10 @@ def fetchUrl(url, data=None, headers=None, timeout=2.0, decodeResponse=True):
         if _userPreferences.proxyDefined:
             proxyNames = ['useProxy', 'proxyAddress', 'proxyPort', 'useProxyPassword',
                           'proxyUsername', 'proxyPassword', 'verifySSL']
-            proxySettings = {}
-            for name in proxyNames:
-                proxySettings[name] = _userPreferences._getPreferencesParameter(name)
+            proxySettings = {name: _userPreferences._getPreferencesParameter(name) for name in proxyNames}
 
-        response = fetchHttpResponse('POST', url, data, headers=headers, proxySettings=proxySettings)
-
-        # if response:
-        #     ll = len(response.data)
-        #     print('>>>>>>responseUpdate', proxySettings, response.data[0:min(ll, 20)])
-
-        return response.data.decode('utf-8') if decodeResponse else response
+        if result := fetchHttpResponse('POST', url, data, headers=headers, proxySettings=proxySettings):
+            return result.decode('utf-8') if decodeResponse else result
     except:
         print('Error fetching Url.')
 
@@ -184,10 +177,7 @@ def downloadFile(serverScript, serverDbRoot, fileName, quiet=False):
 
     try:
         values = {'fileName': fileName}
-        response = fetchUrl(serverScript, values, decodeResponse=False)
-        if response is not None:
-            data = response.data
-
+        if data := fetchUrl(serverScript, values, decodeResponse=False):
             if isBinaryData(data):
                 result = data
             else:
@@ -199,11 +189,8 @@ def downloadFile(serverScript, serverDbRoot, fileName, quiet=False):
                         bd = len(BAD_DOWNLOAD)
                         print(str(result[min(ll, bd):min(ll, bd + 50)]))
                     return
-
             return result
-
-        else:
-            raise ValueError('No file found')
+        raise ValueError('No file found')
 
     except Exception as es:
         print(f'Error downloading file from server. {es}')
