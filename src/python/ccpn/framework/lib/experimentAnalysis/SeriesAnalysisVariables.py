@@ -17,8 +17,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-11-11 13:20:51 +0000 (Mon, November 11, 2024) $"
-__version__ = "$Revision: 3.2.10 $"
+__dateModified__ = "$dateModified: 2024-11-19 19:37:24 +0000 (Tue, November 19, 2024) $"
+__version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -164,6 +164,7 @@ _FIXED = '_fixed'
 GLOBAL_FITTING_CLUSTER_ID = 'globalFittingClusterId'
 
 ## Relaxation  Fitting Variables
+RATESCOUNT = 'ratesCount'
 AMPLITUDE = 'amplitude'
 DECAY = 'decay'
 AMPLITUDE_ERR = f'{AMPLITUDE}{_ERR}'
