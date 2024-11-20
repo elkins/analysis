@@ -136,7 +136,7 @@ class MonteCarloSimulation(ParameterUncertaintyEstimation):
         super().__init__(*args, **kwargs)
 
 
-    def estimateUncertainties(self, prefixMessage, **minimiseOptions):
+    def estimateUncertainties(self, prefixMessage='', **minimiseOptions):
         """
         Perform Monte Carlo simulations for parameter uncertainties.
 
