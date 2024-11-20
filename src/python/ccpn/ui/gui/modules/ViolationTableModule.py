@@ -447,11 +447,6 @@ class _ViolationTableWidget(Table):
         # may refactor the remaining modules so this isn't needed
         self._widgetScrollArea.setFixedHeight(self._widgetScrollArea.sizeHint().height())
 
-    def setClassDefaultColumns(self, texts):
-        """set a list of default column-headers that are hidden when first shown.
-        """
-        self.headerColumnMenu.saveColumns(texts)
-
     #-----------------------------------------------------------------------------------------
     # Selection/action callbacks
     #-----------------------------------------------------------------------------------------

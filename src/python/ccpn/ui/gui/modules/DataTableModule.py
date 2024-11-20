@@ -209,7 +209,6 @@ class DataTableModule(CcpnTableModule):
     def _closeModule(self):
         """CCPN-INTERNAL: used to close the module.
         """
-        self._saveColumns()
         if self._modulePulldown:
             self._modulePulldown.unRegister()
         if self._tableWidget:
@@ -218,7 +217,6 @@ class DataTableModule(CcpnTableModule):
             self._metadata.close()
         if self.activePulldownClass and self._setCurrentPulldown:
             self._setCurrentPulldown.unRegister()
-
         super()._closeModule()
 
     def _selectTable(self, table=None):
@@ -386,11 +384,6 @@ class _DataTableWidget(Table):
         # Save/restore of hidden-columns doesn't make sense here yet, as core-object dataTables may all be different
         # may refactor the remaining modules so this isn't needed
         self._widgetScrollArea.setFixedHeight(self._widgetScrollArea.sizeHint().height())
-
-    def setClassDefaultColumns(self, texts):
-        """set a list of default column-headers that are hidden when first shown.
-        """
-        self.headerColumnMenu.saveColumns(texts)
 
     #-----------------------------------------------------------------------------------------
     # Selection/action callbacks

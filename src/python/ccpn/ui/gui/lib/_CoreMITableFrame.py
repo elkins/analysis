@@ -19,7 +19,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-11-15 19:34:27 +0000 (Fri, November 15, 2024) $"
+__dateModified__ = "$dateModified: 2024-11-20 13:19:02 +0000 (Wed, November 20, 2024) $"
 __version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
@@ -35,6 +35,7 @@ from collections import OrderedDict
 from ccpn.core.lib.DataFrameObject import DataFrameObject
 from ccpn.core.lib.Notifiers import Notifier
 from ccpn.ui.gui.widgets.table.MIProjectTable import _MIProjectTableABC
+from ccpn.ui.gui.widgets.table._TableModel import _TableModel
 from ccpn.util.Logging import getLogger
 
 
@@ -79,11 +80,6 @@ class _CoreMITableWidgetABC(_MIProjectTableABC, metaclass=_CoreMITableWidgetMeta
                          setLayout=True,
                          **kwds)
 
-    def setClassDefaultColumns(self, texts):
-        """set a list of default column-headers that are hidden when first shown.
-        """
-        self.headerColumnMenu.saveColumns(texts)
-
     #-----------------------------------------------------------------------------------------
     # Properties
     #-----------------------------------------------------------------------------------------
@@ -122,7 +118,6 @@ class _CoreMITableWidgetABC(_MIProjectTableABC, metaclass=_CoreMITableWidgetMeta
         try:
             objs = list(selection[self._OBJECT])
             self._sourceCurrent = objs
-
         except Exception as es:
             getLogger().debug2(f'{self.__class__.__name__}.selectionCallback: No selection\n{es}')
 
@@ -151,7 +146,7 @@ class _CoreMITableWidgetABC(_MIProjectTableABC, metaclass=_CoreMITableWidgetMeta
         # MUST BE SUBCLASSED
         raise NotImplementedError(f'Code error: {self.__class__.__name__}._derivedFromObject not implemented')
 
-    def buildTableDataFrame(self):
+    def buildTableDataFrame(self) -> DataFrameObject:
         """Return a Pandas dataFrame from an internal list of objects.
         The columns are based on the 'func' functions in the columnDefinitions.
         :return pandas dataFrame
@@ -161,7 +156,6 @@ class _CoreMITableWidgetABC(_MIProjectTableABC, metaclass=_CoreMITableWidgetMeta
             self._columnDefs = self._getTableColumns(self._table)
 
             objects = []
-
             for col, obj in enumerate(self._sourceObjects):
                 listItem = OrderedDict()
                 for header in self._columnDefs.columns:
@@ -171,12 +165,9 @@ class _CoreMITableWidgetABC(_MIProjectTableABC, metaclass=_CoreMITableWidgetMeta
                         # NOTE:ED - catch any nasty surprises in tables
                         getLogger().debug2(f'Error creating table information {es}')
                         listItem[header.headerText] = None
-
                 allItems.append(listItem)
                 objects.append(obj)
-
             df = pd.DataFrame(allItems, columns=self._columnDefs.headings)
-
         else:
             self._columnDefs = self._getTableColumns()
             df = pd.DataFrame(columns=self._columnDefs.headings)
@@ -212,7 +203,6 @@ class _CoreMITableWidgetABC(_MIProjectTableABC, metaclass=_CoreMITableWidgetMeta
                 rowData = {Notifier.OBJECT : rowObj,
                            Notifier.TRIGGER: _triggerType or data[Notifier.TRIGGER],
                            }
-
                 self._updateRowCallback(rowData)
 
     def _updateRowCallback(self, data):
@@ -222,6 +212,7 @@ class _CoreMITableWidgetABC(_MIProjectTableABC, metaclass=_CoreMITableWidgetMeta
         # print(f'>>> _updateRowCallback')
         with self._blockTableSignals('_updateRowCallback'):
             obj = data[Notifier.OBJECT]
+            model: _TableModel = self.model()
 
             # check that the dataframe and object are valid
             if self._df is None:
@@ -241,9 +232,8 @@ class _CoreMITableWidgetABC(_MIProjectTableABC, metaclass=_CoreMITableWidgetMeta
                     # uniqueIds in the visible table
                     if obj in (tableSet - objSet):
                         # remove from the table
-                        self.model()._deleteRow(obj)
+                        model._deleteRow(obj)
                         self._reindexTable()
-
                 elif trigger == Notifier.CREATE:
                     # uniqueIds in the visible table
                     if obj in (objSet - tableSet):
@@ -254,35 +244,31 @@ class _CoreMITableWidgetABC(_MIProjectTableABC, metaclass=_CoreMITableWidgetMeta
                         else:
                             # insert into the table
                             newRow = self._newRowFromUniqueId(df, obj, None)
-                            self.model()._insertRow(obj, newRow)
+                            model._insertRow(obj, newRow)
                             self._reindexTable()
                         # highlight the new row
                         self._highlightRow(obj)
-
                 elif trigger == Notifier.CHANGE:
                     # uniqueIds in the visible table
                     if obj in (objSet & tableSet):
                         # visible table dataframe update - object MUST be in the table
                         newRow = self._newRowFromUniqueId(df, obj, None)
-                        self.model()._updateRow(obj, newRow)
-
+                        model._updateRow(obj, newRow)
                 elif trigger == Notifier.RENAME:
                     if obj in (objSet & tableSet):
                         # visible table dataframe update
                         newRow = self._newRowFromUniqueId(df, obj, None)
-                        self.model()._updateRow(obj, newRow)
-
+                        model._updateRow(obj, newRow)
                     elif obj in (objSet - tableSet):
                         # insert renamed object INTO the table
                         newRow = self._newRowFromUniqueId(df, obj, None)
-                        self.model()._insertRow(obj, newRow)
+                        model._insertRow(obj, newRow)
                         self._reindexTable()
                         # highlight the new row
                         self._highlightRow(obj)
-
                     elif obj in (tableSet - objSet):
                         # remove renamed object OUT of the table
-                        self.model()._deleteRow(obj)
+                        model._deleteRow(obj)
                         self._reindexTable()
 
             except Exception as es:
@@ -323,7 +309,6 @@ class _CoreMITableWidgetABC(_MIProjectTableABC, metaclass=_CoreMITableWidgetMeta
         """
         if self._tableBlockingLevel:
             return
-
         objs = data['value']
         self._selectOnTableCurrent(objs)
 

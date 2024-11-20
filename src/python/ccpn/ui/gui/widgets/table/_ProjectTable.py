@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-11-15 19:34:31 +0000 (Fri, November 15, 2024) $"
+__dateModified__ = "$dateModified: 2024-11-20 13:19:04 +0000 (Wed, November 20, 2024) $"
 __version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
@@ -89,6 +89,7 @@ class _ProjectTableABC(TableABC, Base):
     _columnStateLocal = None
     # TableHeaderMenuCoreColumns includes functionality for saving state to preferences
     TableHeaderMenuKlass = TableHeaderMenuCoreColumns
+    _moduleParent = None
 
     _OBJECT = '_object'
     _ISDELETED = 'isDeleted'
@@ -262,6 +263,21 @@ class _ProjectTableABC(TableABC, Base):
         for colnum, colname in enumerate(colNames):
             color = pal.color(QtGui.QPalette.Active, QtGui.QPalette.ColorRole(colnum)).name()
             print(f"  Role: {colname:20}  {color}")
+
+    def _postInit(self):
+        from ccpn.ui.gui.widgets.DropBase import DropBase
+        from ccpn.ui.gui.lib.GuiNotifier import GuiNotifier
+
+        super()._postInit()
+
+        # add a dropped notifier to all project-tables
+        if self.moduleParent is not None:
+            # set the dropEvent to the mainWidget of the module, otherwise the event gets stolen by Frames
+            self.moduleParent.mainWidget._dropEventCallback = self._processDroppedItems
+
+        self._droppedNotifier = GuiNotifier(self,
+                                            [GuiNotifier.DROPEVENT], [DropBase.PIDS],
+                                            self._processDroppedItems)
 
     def setModel(self, model: QtCore.QAbstractItemModel) -> None:
         """Set the model for the view
@@ -798,6 +814,28 @@ class _ProjectTableABC(TableABC, Base):
                     # need to remove objList from multipleAttr - fires only one current change
                     setattr(self.current, multiple, tuple(set(multipleAttr) - set(objList)))
             self._lastSelection = [None]
+
+    #-----------------------------------------------------------------------------------------
+    # Block table signals
+    #-----------------------------------------------------------------------------------------
+
+    def _blockTableEvents(self, blanking=True, disableScroll=False, tableState=None):
+        """Block all updates/signals/notifiers in the table.
+        Subclassed to blank notifiers.
+        """
+        super()._blockTableEvents(blanking, disableScroll, tableState)
+        # block on first entry; increased in superclass
+        if self._tableBlockingLevel == 1 and blanking and self.project:
+            self.project.blankNotification()
+
+    def _unblockTableEvents(self, blanking=True, disableScroll=False, tableState=None):
+        """Unblock all updates/signals/notifiers in the table.
+        Subclassed to unblank notifiers.
+        """
+        # unblock on last exit; decreased in superclass
+        if self._tableBlockingLevel == 1 and blanking and self.project:
+            self.project.unblankNotification()
+        super()._unblockTableEvents(blanking, disableScroll, tableState)
 
     #-----------------------------------------------------------------------------------------
     # Highlight objects in table

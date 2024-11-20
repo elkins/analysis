@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-11-15 19:34:27 +0000 (Fri, November 15, 2024) $"
+__dateModified__ = "$dateModified: 2024-11-20 13:19:02 +0000 (Wed, November 20, 2024) $"
 __version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
@@ -80,11 +80,6 @@ class _CoreTableWidgetABC(_ProjectTableABC, metaclass=_CoreTableWidgetMeta):
                          setLayout=True,
                          **kwds)
 
-    def setClassDefaultColumns(self, texts):
-        """Set a list of default column-headers that are hidden when first shown.
-        """
-        self.headerColumnMenu.saveColumns(texts)
-
     #-----------------------------------------------------------------------------------------
     # Properties
     #-----------------------------------------------------------------------------------------
@@ -123,7 +118,6 @@ class _CoreTableWidgetABC(_ProjectTableABC, metaclass=_CoreTableWidgetMeta):
         try:
             objs = list(selection[self._OBJECT])
             self._sourceCurrent = objs
-
         except Exception as es:
             getLogger().debug2(f'{self.__class__.__name__}.selectionCallback: No selection\n{es}')
 
@@ -162,7 +156,6 @@ class _CoreTableWidgetABC(_ProjectTableABC, metaclass=_CoreTableWidgetMeta):
             self._columnDefs = self._getTableColumns(self._table)
 
             objects = []
-
             for col, obj in enumerate(self._sourceObjects):
                 listItem = OrderedDict()
                 for header in self._columnDefs.columns:
@@ -172,12 +165,9 @@ class _CoreTableWidgetABC(_ProjectTableABC, metaclass=_CoreTableWidgetMeta):
                         # NOTE:ED - catch any nasty surprises in tables
                         getLogger().debug2(f'Error creating table information {es}')
                         listItem[header.headerText] = None
-
                 allItems.append(listItem)
                 objects.append(obj)
-
             df = pd.DataFrame(allItems, columns=self._columnDefs.headings)
-
         else:
             self._columnDefs = self._getTableColumns()
             df = pd.DataFrame(columns=self._columnDefs.headings)
@@ -206,16 +196,13 @@ class _CoreTableWidgetABC(_ProjectTableABC, metaclass=_CoreTableWidgetMeta):
 
             rowObjs = []
             _triggerType = Notifier.CHANGE
-
             if (attr := self.cellClassNames.get(type(cellData))):
                 rowObjs, _triggerType = self.getCellToRows(cellData, attr)
-
             # update the correct row by calling row handler
             for rowObj in rowObjs:
                 rowData = {Notifier.OBJECT : rowObj,
                            Notifier.TRIGGER: _triggerType or data[Notifier.TRIGGER],
                            }
-
                 self._updateRowCallback(rowData)
 
     def _updateRowCallback(self, data):
@@ -246,7 +233,6 @@ class _CoreTableWidgetABC(_ProjectTableABC, metaclass=_CoreTableWidgetMeta):
                         # remove from the table
                         self.model()._deleteRow(obj)
                         self._reindexTable()
-
                 elif trigger == Notifier.CREATE:
                     # uniqueIds in the visible table
                     if obj in (objSet - tableSet):
@@ -261,20 +247,17 @@ class _CoreTableWidgetABC(_ProjectTableABC, metaclass=_CoreTableWidgetMeta):
                             self._reindexTable()
                         # highlight the new row
                         self._highlightRow(obj)
-
                 elif trigger == Notifier.CHANGE:
                     # uniqueIds in the visible table
                     if obj in (objSet & tableSet):
                         # visible table dataframe update - object MUST be in the table
                         newRow = self._newRowFromUniqueId(df, obj, None)
                         self.model()._updateRow(obj, newRow)
-
                 elif trigger == Notifier.RENAME:
                     if obj in (objSet & tableSet):
                         # visible table dataframe update
                         newRow = self._newRowFromUniqueId(df, obj, None)
                         self.model()._updateRow(obj, newRow)
-
                     elif obj in (objSet - tableSet):
                         # insert renamed object INTO the table
                         newRow = self._newRowFromUniqueId(df, obj, None)
@@ -282,7 +265,6 @@ class _CoreTableWidgetABC(_ProjectTableABC, metaclass=_CoreTableWidgetMeta):
                         self._reindexTable()
                         # highlight the new row
                         self._highlightRow(obj)
-
                     elif obj in (tableSet - objSet):
                         # remove renamed object OUT of the table
                         self.model()._deleteRow(obj)
@@ -319,10 +301,6 @@ class _CoreTableWidgetABC(_ProjectTableABC, metaclass=_CoreTableWidgetMeta):
 
             # table will automatically replace this on the update
             df[self._INDEX] = [objs.index(obj) if obj in objs else 0 for obj in tableObjs]
-
-    # def _searchCallBack(self, data):
-    #     # print(f'>>> _searchCallBack')
-    #     pass
 
     def _selectCurrentCallBack(self, data):
         """Callback from a notifier to highlight the current objects
@@ -388,7 +366,6 @@ class _CoreTableFrameABC(Frame):
     """
     _TableKlass = _CoreTableWidgetABC
     _PulldownKlass = None
-
     _activePulldownClass = None
     _activeCheckbox = None
 
@@ -559,12 +536,10 @@ class _CoreTableFrameABC(Frame):
         if selectableObjects:
             _openItemObject(self.mainWindow, selectableObjects[1:])
             pulldown.select(selectableObjects[0].pid)
-
         elif othersClassNames := list({obj.className for obj in others if hasattr(obj, 'className')}):
             title, msg = (
                 'Dropped wrong item.', f"Do you want to open the {''.join(othersClassNames)} in a new module?") if len(
                     othersClassNames) == 1 else ('Dropped wrong items.', 'Do you want to open items in new modules?')
-
             if showYesNo(title, msg):
                 _openItemObject(self.mainWindow, others)
 
@@ -588,7 +563,6 @@ class _CoreTableFrameABC(Frame):
         if self._activePulldownClass and self._activeCheckbox and self._activeCheckbox.isChecked():
             _table = self._tableWidget._table = self._tableCurrent
             self._tableWidget._update()
-
             if _table:
                 self._modulePulldown.select(_table.pid, blockSignals=True)
             else:

@@ -18,7 +18,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-11-15 19:34:28 +0000 (Fri, November 15, 2024) $"
+__dateModified__ = "$dateModified: 2024-11-20 13:19:03 +0000 (Wed, November 20, 2024) $"
 __version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
@@ -327,13 +327,6 @@ class _NewChemicalShiftTable(_ProjectTableABC):
                          setLayout=True,
                          **kwds
                          )
-        # self.headerColumnMenu.setInternalColumns([self.columnHeaders[col] for col in self._internalColumns])
-        # self.headerColumnMenu.setDefaultColumns([self.columnHeaders[col] for col in self.defaultHidden])
-
-    def setClassDefaultColumns(self, texts):
-        """Set a list of default column-headers that are hidden when first shown.
-        """
-        self.headerColumnMenu.saveColumns(texts)
 
     #-----------------------------------------------------------------------------------------
     # Widget callbacks

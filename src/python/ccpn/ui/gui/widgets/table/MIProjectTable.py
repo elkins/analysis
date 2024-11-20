@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-11-15 19:34:30 +0000 (Fri, November 15, 2024) $"
+__dateModified__ = "$dateModified: 2024-11-20 13:19:04 +0000 (Wed, November 20, 2024) $"
 __version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
@@ -43,6 +43,7 @@ from ccpn.ui.gui.widgets.table._TableCommon import INDEX_ROLE
 from ccpn.ui.gui.widgets.table._TableDelegates import _TableDelegate
 from ccpn.ui.gui.widgets.table._TableAdditions import TableHeaderMenuCoreColumns
 from ccpn.ui.gui.widgets.table.MITableABC import MITableABC
+from ccpn.ui.gui.widgets.table._TableCommon import ColumnGroup
 from ccpn.ui._implementation.QueueHandler import QueueHandler
 from ccpn.util.Logging import getLogger
 from ccpn.util.OrderedSet import OrderedSet
@@ -51,7 +52,7 @@ from ccpn.framework.Preferences import getPreferences
 
 
 #=========================================================================================
-# _ProjectTableABC project specific
+# _MIProjectTableABC project specific
 #=========================================================================================
 
 # define a simple class that can contain a simple id
@@ -93,10 +94,10 @@ class _MIProjectTableABC(MITableABC, Base):
     _columnStateLocal = None
     # TableHeaderMenuCoreColumns includes functionality for saving state to preferences
     TableHeaderMenuKlass = TableHeaderMenuCoreColumns
+    _moduleParent = None
 
     _OBJECT = '_object'
     _ISDELETED = 'isDeleted'
-
     OBJECTCOLUMN = '_object'
     INDEXCOLUMN = 'index'
     _INDEX = None
@@ -238,6 +239,21 @@ class _MIProjectTableABC(MITableABC, Base):
             delegate = _TableDelegate(self, objectColumn=self.OBJECTCOLUMN)
             self.setItemDelegate(delegate)
 
+    def _postInit(self):
+        from ccpn.ui.gui.widgets.DropBase import DropBase
+        from ccpn.ui.gui.lib.GuiNotifier import GuiNotifier
+
+        super()._postInit()
+
+        # add a dropped notifier to all project-tables
+        if self.moduleParent is not None:
+            # set the dropEvent to the mainWidget of the module, otherwise the event gets stolen by Frames
+            self.moduleParent.mainWidget._dropEventCallback = self._processDroppedItems
+
+        self._droppedNotifier = GuiNotifier(self,
+                                            [GuiNotifier.DROPEVENT], [DropBase.PIDS],
+                                            self._processDroppedItems)
+
     def setModel(self, model: QtCore.QAbstractItemModel) -> None:
         """Set the model for the view
         """
@@ -333,7 +349,7 @@ class _MIProjectTableABC(MITableABC, Base):
     def setColumnHidden(self, column: int, hide: bool, skipUpdateWidth=False) -> None:
         super().setColumnHidden(column, hide, skipUpdateWidth=skipUpdateWidth)
         if (self._columnStatePrefs and
-                (colState := next((self._columnStatePrefs.find(name=self.columns[column])), None))):
+                (colState := next(self._columnStatePrefs.search(name=self.columns[column]), None))):
             colState.visible = not hide
 
     #-----------------------------------------------------------------------------------------
@@ -401,12 +417,61 @@ class _MIProjectTableABC(MITableABC, Base):
             cols = cols.toJson(indent=0)
             table[_COLUMNHEADER] = cols
 
+    def _setColumnsHidden(self, source: ColumnGroup, target: ColumnGroup) -> None:
+        """Updates the visibility of columns in the target ColumnGroup based on the source ColumnGroup.
+
+        :param source: The source ColumnGroup to reference for visibility settings.
+        :type source: ColumnGroup
+        :param target: The target ColumnGroup to update visibility settings.
+        :type target: ColumnGroup
+        :return: None
+        """
+        for source_child in source.traverse(includeBranches=True, includeLeaves=False, recursive=False):
+            if source is source_child:
+                continue
+            # Find the index of the source child in the source ColumnGroup
+            source_index = list(source.search(groupId=source_child.groupId,
+                                              includeLeaves=False,
+                                              recursive=False)).index(source_child)
+            # Match the corresponding target child by groupId and filtered index
+            matching_target_child = next(
+                    (target_child
+                     for idx, target_child in enumerate(target.search(groupId=source_child.groupId,
+                                                                      includeLeaves=False, recursive=False))
+                     if idx == source_index),
+                    None)
+            if not matching_target_child:
+                # If idx doesn't match, take the first one
+                matching_target_child = next(target.search(groupId=source_child.groupId,
+                                                           includeLeaves=False, recursive=False),
+                                             None)
+            if matching_target_child:
+                # Recurse with the matching ColumnGroup
+                self._setColumnsHidden(source_child, matching_target_child)
+
+        # Update the visibility of columns in the target ColumnGroup
+        for col in target.traverse(includeBranches=False, recursive=False):
+            if col.name not in self.columns:
+                continue
+            idx = self.columns.index(col.name)
+            # Find the corresponding source column
+            if source_child := next(source.search(columnId=col.columnId,
+                                                  includeBranches=False, recursive=False),
+                                    None):
+                if source_child.internal:
+                    # Handle internal columns
+                    internals = self._internalColumns
+                    if source_child.name not in internals:
+                        self.setInternalColumns(internals + source_child.name)
+                    self.setColumnHidden(idx, True)
+                else:
+                    # Set visibility based on the source column's visibility
+                    self.setColumnHidden(idx, not source_child.visible)
+
     def restoreFromPreferences(self):
         """Read the visible/hidden columns from preferences.
         This will affect the current table.
         """
-        from ccpn.ui.gui.widgets.table._TableCommon import ColumnGroup
-
         print('==> RESTOREFROMPREFERENCES')
         tableName = self.className
         if not (prefs := getPreferences()):
@@ -416,13 +481,9 @@ class _MIProjectTableABC(MITableABC, Base):
             if (columns := prefs[_TABLES][tableName][_COLUMNHEADER]) is not None:
                 getLogger().debug2(f'Restoring default hidden-columns {columns}')
                 columns = ColumnGroup.newObjectFromJson(jsonString=columns)
-                for col in columns.traverse(includeBranches=False):
-                    if col.name in self.columns:
-                        # SHOULD only be one :|
-                        idx = self.columns.index(col.name)
-                        self.setColumnHidden(idx, not (col.visible and
-                                                       not col.internal and
-                                                       col.name not in self._internalColumns))
+                if self._columnStateLocal:
+                    # there is a table visible - hide columns based on the saved preferences
+                    self._setColumnsHidden(source=columns, target=self._columnStateLocal)
             self._columnStatePrefs = columns
         except Exception as es:
             getLogger().debug2(f'No saved state {es}')
@@ -437,7 +498,7 @@ class _MIProjectTableABC(MITableABC, Base):
             getLogger().debug2(f'Cannot reset hidden-columns {tableName}')
             return
         # store in preferences, should already be there
-        # needs to be in defaultV3settings to ensure re-load
+        # table className needs to be in defaultV3settings to ensure re-load
         table = prefs.setdefault(_TABLES, {}).setdefault(tableName, {})
         table[_COLUMNHEADER] = None
         self._columnStatePrefs = None
@@ -465,7 +526,7 @@ class _MIProjectTableABC(MITableABC, Base):
     def _handleDroppedItems(self, pids, objType, pulldown):
         """Handle dropping an item onto the module.
         :param pids: the selected objects pids
-        :param objType: the instance of the obj to handle. Eg. PeakList
+        :param objType: the instance of the obj to handle, e.g., PeakList
         :param pulldown: the pulldown of the module wich updates the table
         :return: Actions: Select the dropped item on the table or/and open a new modules if multiple drops.
         If multiple different obj instances, then asks first.
@@ -484,7 +545,7 @@ class _MIProjectTableABC(MITableABC, Base):
 
         elif othersClassNames := list({obj.className for obj in others if hasattr(obj, 'className')}):
             title, msg = (
-            'Dropped wrong item.', f"Do you want to open the {''.join(othersClassNames)} in a new module?") \
+                'Dropped wrong item.', f"Do you want to open the {''.join(othersClassNames)} in a new module?") \
                 if len(othersClassNames) == 1 else ('Dropped wrong items.', 'Do you want to open items in new modules?')
 
             if MessageDialog.showYesNo(title, msg):
@@ -845,6 +906,28 @@ class _MIProjectTableABC(MITableABC, Base):
                     setattr(self.current, multiple, tuple(set(multipleAttr) - set(objList)))
 
             self._lastSelection = [None]
+
+    #-----------------------------------------------------------------------------------------
+    # Block table signals
+    #-----------------------------------------------------------------------------------------
+
+    def _blockTableEvents(self, blanking=True, disableScroll=False, tableState=None):
+        """Block all updates/signals/notifiers in the table.
+        Subclassed to blank notifiers.
+        """
+        super()._blockTableEvents(blanking, disableScroll, tableState)
+        # block on first entry; increased in superclass
+        if self._tableBlockingLevel == 1 and blanking and self.project:
+            self.project.blankNotification()
+
+    def _unblockTableEvents(self, blanking=True, disableScroll=False, tableState=None):
+        """Unblock all updates/signals/notifiers in the table.
+        Subclassed to unblank notifiers.
+        """
+        # unblock on last exit; decreased in superclass
+        if self._tableBlockingLevel == 1 and blanking and self.project:
+            self.project.unblankNotification()
+        super()._unblockTableEvents(blanking, disableScroll, tableState)
 
     #-----------------------------------------------------------------------------------------
     # Highlight objects in table

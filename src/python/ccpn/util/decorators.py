@@ -15,8 +15,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-11-19 19:37:24 +0000 (Tue, November 19, 2024) $"
+__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
+__dateModified__ = "$dateModified: 2024-11-20 13:19:04 +0000 (Wed, November 20, 2024) $"
 __version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
@@ -27,10 +27,6 @@ __date__ = "$Date: 2017-04-07 10:28:41 +0000 (Fri, April 07, 2017) $"
 # Start of code
 #=========================================================================================
 
-
-#=========================================================================================
-# Decorators
-#=========================================================================================
 
 import sys
 import os
@@ -490,12 +486,11 @@ def deprecated(arg):
 
     def decorator(func):
         def wrapper(*args, **kwargs):
-            msg = f"{consoleStyle.fg.red}" + "Call to deprecated function \"{}\"."
+            msg = f"{consoleStyle.fg.red}Call to deprecated function {func.__name__!r}."
             if subst:
-                msg += "\n Use \"{}\" instead."
+                msg += f"\n Use \"{subst}\" instead."
             msg += f"{consoleStyle.reset}"
-            Logging.getLogger().warn(msg.format(func.__name__, subst),
-                                     category=DeprecationWarning, stacklevel=2)
+            Logging.getLogger().warning(msg, stacklevel=2)
             return func(*args, **kwargs)
 
         return wraps(func)(wrapper)
@@ -724,8 +719,7 @@ def debug3Leave():
 #=========================================================================================
 
 
-if __name__ == '__main__':
-
+def main():
     def func(par, *args, flag=False, **kwds):
 
         sig = inspect.signature(func)  # get the signature
@@ -753,5 +747,8 @@ if __name__ == '__main__':
 
         print(', '.join(pStrings))
 
-
     func('test', 1, 2, myPar='myValue')
+
+
+if __name__ == '__main__':
+    main()

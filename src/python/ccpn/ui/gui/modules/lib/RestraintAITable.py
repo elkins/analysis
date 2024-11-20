@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-11-15 19:34:29 +0000 (Fri, November 15, 2024) $"
+__dateModified__ = "$dateModified: 2024-11-20 13:19:03 +0000 (Wed, November 20, 2024) $"
 __version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
@@ -767,9 +767,7 @@ class _NewRestraintAITableWidget(_CoreMITableWidgetABC):
         _objects = list(_table.itertuples())
         self._objects = _objects
         if extraDefaultHiddenColumns:
-            # hCols = self.headerColumnMenu._internalColumns
-            # self.headerColumnMenu.setInternalColumns(set(hCols) | set(extraDefaultHiddenColumns))
-            self.setInternalColumns(set(self._internalColumns) | set(extraDefaultHiddenColumns))
+            self.setInternalColumns(list(set(self._internalColumns) | set(extraDefaultHiddenColumns)))
 
         # required by saveToPreferences
         self._columnStateLocal = columnPrefs

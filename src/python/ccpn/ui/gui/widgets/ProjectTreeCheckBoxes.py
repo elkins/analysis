@@ -13,13 +13,14 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-11-15 19:34:30 +0000 (Fri, November 15, 2024) $"
+__dateModified__ = "$dateModified: 2024-11-20 13:19:03 +0000 (Wed, November 20, 2024) $"
 __version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
 #=========================================================================================
 __author__ = "$Author: CCPN $"
 __date__ = "$Date: 2017-05-28 10:28:42 +0000 (Sun, May 28, 2017) $"
+
 #=========================================================================================
 # Start of code
 #=========================================================================================
@@ -1484,7 +1485,7 @@ def main():
                                  name='restraint-group')],
                     movable=False, name='first-columns')
     except Exception as es:
-        print(es)
+        print('1', es)
     try:
         ColumnGroup([ColumnItem(name='index'),
                      ColumnItem(name='row'),
@@ -1495,7 +1496,57 @@ def main():
                                 name='restraint-group'),
                     movable=False, name='first-columns')
     except Exception as es:
-        print(es)
+        print('2', es)
+
+    ColumnGroup(movable=False, name='first-columns')
+    ColumnGroup([ColumnItem(name='index'),
+                 ColumnItem(name='row'),
+                 ColumnItem(name='orange'),
+                 ColumnGroup(ColumnItem(name='#'),
+                             ColumnItem(locked=True, name='duplicate'),
+                             ColumnItem(name='not-duplicate'),
+                             name='restraint-group')],
+                movable=False, name='first-columns')
+    ColumnGroup(movable=False, name='first-columns',
+                children=[ColumnItem(name='index'),
+                          ColumnItem(name='row'),
+                          ColumnItem(name='orange'),
+                          ColumnGroup(ColumnItem(name='#'),
+                                      ColumnItem(locked=True, name='duplicate'),
+                                      ColumnItem(name='not-duplicate'),
+                                      name='restraint-group')], )
+    ColumnGroup(children=ColumnItem(name='index'),
+                movable=False, name='first-columns')
+    try:
+        ColumnGroup(children=42,
+                    movable=False, name='first-columns')
+    except Exception as es:
+        print('3', es)
+    try:
+        ColumnGroup(children=[ColumnItem(name='index'),
+                              42],
+                    movable=False, name='first-columns')
+    except Exception as es:
+        print('3a', es)
+    try:
+        ColumnGroup(fish=[ColumnItem(name='index'),
+                          42],
+                    chips='Help!',
+                    movable=False, name='first-columns')
+    except Exception as es:
+        print('3b', es)
+    try:
+        ColumnGroup(ColumnGroup(ColumnItem(name='#'),
+                                ColumnItem(locked=True, name='duplicate'),
+                                ColumnItem(name='not-duplicate'),
+                                name='restraint-group'),
+                    children=[ColumnItem(name='index'),
+                              ColumnItem(name='row'),
+                              ColumnItem(name='orange')],
+                    movable=False, name='first-columns')
+    except Exception as es:
+        print('4', es)
+
     columnFormat = ColumnGroup(ColumnItem(name='  0  index'),
                                ColumnItem(name='  1  row'),
                                ColumnItem(name='  2  object'),
@@ -1509,23 +1560,23 @@ def main():
     try:
         columnFormat.addChildren([ColumnItem(name='new_thing'), 42])
     except Exception as es:
-        print(es)
+        print('5', es)
     try:
         columnFormat.addChildren(ColumnItem(name='new_thing'), 42)
     except Exception as es:
-        print(es)
+        print('6', es)
     try:
         columnFormat.addChildren(42, ColumnItem(name='new_thing'))
     except Exception as es:
-        print(es)
+        print('7', es)
     try:
         columnFormat.addChildren([ColumnItem(name='new_thing'), 42], [ColumnItem(name='new_thing'), 42])
     except Exception as es:
-        print(es)
+        print('8', es)
     try:
         columnFormat.addChildren([ColumnItem(name='new_thing'), ], [ColumnItem(name='new_thing'), ])
     except Exception as es:
-        print(es)
+        print('9', es)
     columnFormat.addChildren(ColumnItem(name='  8  first_thing'))
     columnFormat.addChildren([secondThing := ColumnItem(name='  9  second_thing'), ])
     columnFormat.addChildren(ColumnItem(name='  10  new_thing'),
@@ -1533,18 +1584,18 @@ def main():
     try:
         columnFormat.addChildren((ColumnItem(name='good_thing'), ColumnItem(name='good_thing')))
     except Exception as es:
-        print(es)
+        print('10', es)
     columnFormat.addChildren((ColumnItem(name='  12  good_thing'), ColumnItem(name='  13  weird_thing')))
     try:
         columnFormat.addChildren([ColumnItem(name='  12  good_thing'), ColumnItem(name='bad_thing')])
     except Exception as es:
-        print(es)
+        print('11', es)
     secondThing.name = '  14  Help me!'
     secondThing.locked = True
     try:
         secondThing.name = '  9  second_thing'
     except Exception as es:
-        print(es)
+        print('12', es)
     # ColumnGroup.register()
     # ColumnItem.register()
     val = columnFormat.toJson()
@@ -1555,7 +1606,7 @@ def main():
     try:
         secondThing.name = 'second_thing_again'
     except Exception as es:
-        print(es)
+        print('13', es)
     wasEmpty = ColumnGroup(movable=False, name='empty-columns')
     wasEmpty.addChildren(ColumnItem(name='  --  first_thing'))
 
@@ -1569,21 +1620,21 @@ def main():
     _printParent(stuff)
     _printParent(wasEmpty)
     print('~~~~~~~~~~~~~~~~\n', '\n'.join(map(lambda val: f'{val}  {val.name}   groupId {val.groupId}',
-                                              stuff.find(groupId='fish'))))
+                                              stuff.search(groupId='fish'))))
     print('~~~~~~~~~~~~~~~~\n', '\n'.join(map(lambda val: f'{val}  {val.name}   groupId {val.groupId}',
-                                              stuff.find(groupIdmouse='fish'))))
+                                              stuff.search(groupIdmouse='fish'))))
     print('~~~~~~~~~~~~~~~~\n', '\n'.join(map(lambda val: f'{val}  {val.name}   groupId {val.groupId}',
-                                              stuff.find(groupId=None))))
+                                              stuff.search(groupId=None))))
     # groups are visible if any child is visible
     print('~~~~~~~~~~~~~~~~\n', '\n'.join(map(lambda val: f'{val}  {val.name}   visible {val.visible}',
-                                              stuff.find(visible=True))))
+                                              stuff.search(visible=True))))
     print('~~~~~~~~~~~~~~~~\n', '\n'.join(map(lambda val: f'{val}  {val.name}   visible {val.visible}',
-                                              stuff.find(visible=True, name='  12  good_thing'))))
+                                              stuff.search(visible=True, name='  12  good_thing'))))
     # object has a group container for all
     print('~~~~~~~~~~~~~~~~\n', '\n'.join(map(lambda val: f'{val}  '
-                                                          f'{val.fullName()[1:] if isinstance(val, ColumnItem) else ""}'
-                                                          f'{val.depth()}  visible {val.visible}',
-                                              stuff.find(visible=True))))
+                                                          f'{val.fullName[1:] if isinstance(val, ColumnItem) else ""}'
+                                                          f'{val.depth}  visible {val.visible}',
+                                              stuff.search(visible=True))))
     print(f'--> root  {testRoot.root() and testRoot.root().name}   {testRoot.root() and testRoot.root().maxDepth()}')
 
     print('~~~~~~ all')
