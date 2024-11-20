@@ -17,8 +17,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-09-20 14:00:50 +0100 (Fri, September 20, 2024) $"
-__version__ = "$Revision: 3.2.7 $"
+__dateModified__ = "$dateModified: 2024-11-20 16:00:26 +0000 (Wed, November 20, 2024) $"
+__version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -78,7 +78,7 @@ SPECTRA_LABEL = 'Spectra'
 GENERALTAB1D_LABEL = 'General 1d'
 GENERALTABND_LABEL = 'General Nd'
 SERIES_LABEL = 'Series'
-MAX_WIDGET_COUNT = 50  # For severe speed issues. If a SG contains more Spectra than this value, widgets are not created.
+MAX_WIDGET_COUNT = 5000  # For severe speed issues. If a SG contains more Spectra than this value, widgets are not created.
 TAB_WARNING_MSG = f'This option is not available for Spectrum Groups containing more than {MAX_WIDGET_COUNT} spectra.'
 
 _PidsHeader = 'Pids'
