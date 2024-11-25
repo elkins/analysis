@@ -16,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-10-04 07:50:07 +0100 (Fri, October 04, 2024) $"
-__version__ = "$Revision: 3.2.9.alpha $"
+__dateModified__ = "$dateModified: 2024-11-25 19:36:00 +0000 (Mon, November 25, 2024) $"
+__version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -76,11 +76,8 @@ class ChemicalShiftPerturbationAnalysisBC(SeriesAnalysisABC):
         """
         Perform calculation using the currentFittingModel and currentCalculationModel
         """
-
-        if isinstance(self.currentCalculationModel, EuclideanCalculationModel):
+        if hasattr(self.currentCalculationModel, 'setAlphaFactors'):
             self.currentCalculationModel.setAlphaFactors(self._alphaFactors)
-        else:
-            getLogger().warning("This fitting option has not been implemented yet. Only available with EuclideanCalculationModel ")
 
         if len(self.inputDataTables) == 0:
             raise RuntimeError('Cannot run any fitting models. Add a valid inputData first')
