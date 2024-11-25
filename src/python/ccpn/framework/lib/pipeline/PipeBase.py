@@ -6,8 +6,9 @@
 # Licence, Reference and Credits
 #=========================================================================================
 __copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
-__credits__ = ("Ed Brooksbank, Joanna Fox, Morgan Hayward, Victoria A Higman, Luca Mureddu",
-               "Eliza Płoskoń, Timothy J Ragan, Brian O Smith, Gary S Thompson & Geerten W Vuister")
+__credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
+               "Timothy J Ragan, Brian O Smith, Daniel Thompson",
+               "Gary S Thompson & Geerten W Vuister")
 __licence__ = ("CCPN licence. See https://ccpn.ac.uk/software/licensing/")
 __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, L.G., & Vuister, G.W.",
                  "CcpNmr AnalysisAssign: a flexible platform for integrated NMR analysis",
@@ -16,8 +17,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-01-16 17:48:55 +0000 (Tue, January 16, 2024) $"
-__version__ = "$Revision: 3.2.2 $"
+__dateModified__ = "$dateModified: 2024-11-25 09:49:17 +0000 (Mon, November 25, 2024) $"
+__version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -58,21 +59,6 @@ PIPE_CATEGORIES = [PIPE_ANALYSIS,
                    PIPE_OUTPUTS,
                    PIPE_USER]
 
-class PipeSignal:
-    def __init__(self, pipe):
-        self.callbacks = []
-        self.pipe = pipe
-
-
-    def connect(self, callback, ):
-        self.callbacks.append(callback)
-
-    def disconnect(self, callback):
-        self.callbacks.remove(callback)
-
-    def emit(self, *args, **kwargs):
-        for callback in self.callbacks:
-            callback(*args, **kwargs)
 
 class Pipe(object):
     """
@@ -100,13 +86,6 @@ class Pipe(object):
         self.spectrumGroups = None
         self.pipeline = None
         self.project = None
-        self._startedInfo = self.pipeName + ' has started'
-        self._finishedInfo = self.pipeName + ' has finished'
-        self._pipelineStopSignal = pipelineStopSignal
-        self._progressSignal = PipeSignal(self)
-        self.pipeIndex = None
-
-
         if self.pipeline is not None:
             self.inputData = self.pipeline.inputData
             self.spectrumGroups = self.pipeline.spectrumGroups

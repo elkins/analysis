@@ -5,8 +5,9 @@ Module Documentation here
 # Licence, Reference and Credits
 #=========================================================================================
 __copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
-__credits__ = ("Ed Brooksbank, Joanna Fox, Morgan Hayward, Victoria A Higman, Luca Mureddu",
-               "Eliza Płoskoń, Timothy J Ragan, Brian O Smith, Gary S Thompson & Geerten W Vuister")
+__credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
+               "Timothy J Ragan, Brian O Smith, Daniel Thompson",
+               "Gary S Thompson & Geerten W Vuister")
 __licence__ = ("CCPN licence. See https://ccpn.ac.uk/software/licensing/")
 __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, L.G., & Vuister, G.W.",
                  "CcpNmr AnalysisAssign: a flexible platform for integrated NMR analysis",
@@ -15,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-03-05 16:20:06 +0000 (Tue, March 05, 2024) $"
-__version__ = "$Revision: 3.2.2 $"
+__dateModified__ = "$dateModified: 2024-11-25 09:49:17 +0000 (Mon, November 25, 2024) $"
+__version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -78,47 +79,6 @@ applicationPipeLabel = '-- Application Pipes --'
 otherPipeLabel = '-- General Pipes --'
 PipelineName = 'NewPipeline'
 PipelinePath = 'PipelinePath'
-
-
-class _PipelineProcess(QObject):
-    """
-    An Object need to attach a Thread to the pipeline"""
-    finished = pyqtSignal()
-    nextPipeStarted = pyqtSignal(str)
-
-    def __init__(self, pipeline):
-        super().__init__()
-        self.pipeline = pipeline
-
-    def run(self):
-
-        initialTime = time.time()
-        self.pipeline.project._logger.info(f'Pipeline: Started on {datetime.now()}')
-        self.pipeline.queue = []
-
-        if not self.pipeline.inputData:
-            self.pipeline.project._logger.info('Pipeline: No input data.')
-            showWarning('Pipeline', 'No input data')
-            return
-
-        guiPipes = self.pipeline.openGuiPipes
-        self.pipeline._kwargs = {}
-        if len(guiPipes) > 0:
-            for cc, guiPipe in enumerate(guiPipes):
-                pipe = guiPipe.pipe
-                if guiPipe.isActive:
-                    pipe.isActive = True
-                    pipe._kwargs = guiPipe.widgetsState
-                    self.pipeline.queue.append(pipe)
-                else:
-                    pipe.isActive = False
-
-        self.pipeline.runPipeline()
-        if self.pipeline.updateInputData:
-            self.pipeline._updateGuiInputData()
-        finalTime = time.time()
-        self.finished.emit()
-        self.pipeline.project._logger.info(f'Pipeline: Completed in {int(finalTime-initialTime)}s')
 
 
 class GuiPipeline(CcpnModule, Pipeline,):
@@ -278,7 +238,6 @@ class GuiPipeline(CcpnModule, Pipeline,):
         self.saveIcon = Icon('icons/save')
         self.openRecentIcon = Icon('icons/document_open_recent')
         self.goIcon = Icon('icons/play')
-        self.stopIcon = Icon('icons/stop')
         self.filterIcon = Icon('icons/edit-find')
 
     def _setMainLayout(self):
@@ -343,19 +302,14 @@ class GuiPipeline(CcpnModule, Pipeline,):
                                           icons=[self.openRecentIcon, self.saveIcon],
                                           tipTexts=['', ''], direction='H')
         # self.saveOpenFrameLayout.addWidget(self.pipelineNameLabel)
-
         self.goButton = Button(self, text='', icon=self.goIcon, callback=self._runPipeline)
-        self.stopButton = Button(self, text='', icon=self.stopIcon, callback=None, enabled=True, )
-        self.pipelineProgressLabel  = Label(self)
+        self.pipelineProgressLabel = Label(self)
 
-        # callback set at run time to safely stop the thread
 
         self._addMenuToOpenButton()
         self.saveOpenButtons.setStyleSheet(transparentStyle)
         self.saveOpenFrameLayout.addWidget(self.goButton)
-        self.saveOpenFrameLayout.addWidget(self.stopButton)
         self.saveOpenFrameLayout.addWidget(self.pipelineProgressLabel)
-
         self.saveOpenFrameLayout.addStretch(1)
         self.saveOpenFrameLayout.addWidget(self.saveOpenButtons)
 
@@ -507,7 +461,7 @@ class GuiPipeline(CcpnModule, Pipeline,):
                 else:
                     if not position:
                         position = self.addBoxPosition.get()
-                    newGuiPipe = guiPipe(parent=self, application=self.application, name=serialName, project=self.project, activateSignals=self._runAsThread)
+                    newGuiPipe = guiPipe(parent=self, application=self.application, name=serialName, project=self.project)
                     newGuiPipe.setMaximumHeight(newGuiPipe.sizeHint().height())
                     self.pipelineArea.addDock(newGuiPipe, position=position, relativeTo=relativeTo)
                     autoActive = self.autoActiveCheckBox.get()
@@ -530,84 +484,31 @@ class GuiPipeline(CcpnModule, Pipeline,):
                     activePipes.append(guiPipe)
         return activePipes
 
-    @staticmethod
-    def interpolate_progress(progress, start_percent, end_percent):
-        # Ensure progress is within the valid range (0 to 100)
-        progress = max(0, min(progress, 100))
-        # Calculate the interpolated value
-        interpolated_value = start_percent + (progress / 100) * (end_percent - start_percent)
-        return interpolated_value
-
-    def _updatePipeProgress(self, progressDict):
-        pipePercentCompleted = progressDict.get('percentage',0)
-        pipeIndex = progressDict.get('pipeIndex')
-
-        guiPipes = self._getActivePipes()
-        totPipes = len(guiPipes)
-        _pipeCompleted = pipePercentCompleted
-        mileStones = [0]
-        mileStones += [(i+1)/totPipes for i in range(totPipes)]
-        start, stop = mileStones[pipeIndex],  mileStones[pipeIndex+1]
-        totCompleted = self.interpolate_progress(pipePercentCompleted, start, stop)
-
-        if totCompleted > 100:
-            totCompleted = 100
-
-        self.pipelineProgressLabel.setText(f' {round(totCompleted*100,2)}%')
-
-        for cc, guiPipe in enumerate(guiPipes):
-            if guiPipe.isActive:
-                if cc == pipeIndex:
-                    msg = f'{int(pipePercentCompleted)}%'
-                    guiPipe.label.progressLabel.setText(msg)
-                    guiPipe._setRunningStyle()
-                    if pipePercentCompleted == 100 and cc+1 == len(guiPipes): # it's last pipe
-                        guiPipe._setCompletedStyle()
-
-                elif cc < pipeIndex:
-                    guiPipe._setCompletedStyle()
-                else:
-                    guiPipe._setStandbyStyle()
-
-
     def _runPipeline(self):
 
-        self.pipelineProgressLabel.setText('Running')
-        self._pipelineProcess = _PipelineProcess(self)
-        if self._runAsThread:
-            self._clearProgress()
-            self._setThreadStyle(True)
-            self.runningThread = QThread()
-            self._pipelineProcess.moveToThread(self.runningThread)
-            self.runningThread.started.connect(self._pipelineProcess.run)
-            self._pipelineProcess.finished.connect(partial(self._pipelineFinished, self.runningThread))
-            self.stopButton.clicked.connect(partial(self._stopPipeline, self.runningThread))
-            self.runningThread.start()
-        else:
-            self._setThreadStyle(False)
-            self._pipelineProcess.run()
-            self.pipelineProgressLabel.setText('Ready')
-            showInfo('Done', 'Pipeline completed')
-
-    def _stopPipeline(self, thread=None):
-        self.pipelineProgressLabel.setText('Stopped')
-        self._pipelineFinished(thread)
-
-    def _pipelineFinished(self, thread=None):
-
-        self.pipelineProgressLabel.setText('Ready')
-        self.stopPipeline()
-
-        if thread is not None:
-            thread.quit()
-            thread.wait()
-
-    def _clearProgress(self):
+        initialTime = time.time()
+        getLogger().info(f'Pipeline: Started on {datetime.now()}')
+        self.queue = []
+        if not self.inputData:
+            getLogger().info('Pipeline: No input data.')
+            showWarning('Pipeline', 'No input data')
+            return
         guiPipes = self.openGuiPipes
         self._kwargs = {}
         if len(guiPipes) > 0:
             for cc, guiPipe in enumerate(guiPipes):
-                guiPipe._setStandbyStyle()
+                pipe = guiPipe.pipe
+                if guiPipe.isActive:
+                    pipe.isActive = True
+                    pipe._kwargs = guiPipe.widgetsState
+                    self.queue.append(pipe)
+                else:
+                    pipe.isActive = False
+        self.runPipeline()
+        if self.updateInputData:
+            self._updateGuiInputData()
+        finalTime = time.time()
+        getLogger().info(f'Pipeline: Completed in {int(finalTime-initialTime)}s')
 
 
     def _closeModule(self):
@@ -779,9 +680,6 @@ class GuiPipeline(CcpnModule, Pipeline,):
     def _createSettingsWidgets(self):
 
         row = 0
-        self.threadActive = Label(self.settingsWidget, 'Run in a Thread (Experimental)', grid=(row, 0))
-        self.threadActiveCheckBox = CheckBox(self.settingsWidget, checked=self._runAsThread, callback=self._runAsThreadCallback, grid=(row, 1))
-        row += 1
         self.addBoxLabel = Label(self.settingsWidget, 'Add Pipes', grid=(row, 0))
         self.addBoxPosition = RadioButtons(self.settingsWidget, texts=['top', 'bottom'],
                                            callback=self._addPipeDirectionCallback, selectedInd=1, direction='v',
@@ -792,7 +690,6 @@ class GuiPipeline(CcpnModule, Pipeline,):
         self.autoActiveCheckBox = CheckBox(self.settingsWidget, callback=self._autoActiveCallback, grid=(row, 1))
         self.autoActiveCheckBox.setChecked(True)
         self.settingsWidget.getLayout().setAlignment(QtCore.Qt.AlignLeft | QtCore.Qt.AlignTop)
-        self._runAsThreadCallback()
 
     def _itemsDropped(self):
         self.setDataSelection()
@@ -836,16 +733,6 @@ class GuiPipeline(CcpnModule, Pipeline,):
 
     def _autoActiveCallback(self):
         value = self.autoActiveCheckBox.get()
-
-    def _runAsThreadCallback(self):
-        value = self.threadActiveCheckBox.get()
-        self._runAsThread = value
-        self.stopButton.setEnabled(value)
-        # activate/deactivate Signals from Pipes
-        self._setThreadStyle(active=value)
-        guiPipes = self._getActivePipes()
-        for guiPipe in guiPipes:
-            guiPipe._setPipeSignal(value)
 
     def _setThreadStyle(self, active=True):
 
