@@ -18,8 +18,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-08-23 19:21:21 +0100 (Fri, August 23, 2024) $"
-__version__ = "$Revision: 3.2.5 $"
+__dateModified__ = "$dateModified: 2024-11-26 13:30:14 +0000 (Tue, November 26, 2024) $"
+__version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -1122,6 +1122,13 @@ class StripHeaderWidget(_OpenGLFrameABC):
                                             'NmrResidue',
                                             self._processNotifier,
                                             onceOnly=True)
+
+    def close(self):
+        # clean up notifiers
+        if self._nmrResidueNotifier:
+            self._nmrResidueNotifier.unRegister()
+        self._nmrResidueNotifier = None
+        super().close()
 
     def setEnabledLeftDrop(self, value):
 

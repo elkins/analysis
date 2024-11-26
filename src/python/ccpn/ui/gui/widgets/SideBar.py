@@ -28,8 +28,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-08-28 10:35:47 +0100 (Wed, August 28, 2024) $"
-__version__ = "$Revision: 3.2.5 $"
+__dateModified__ = "$dateModified: 2024-11-26 13:30:14 +0000 (Tue, November 26, 2024) $"
+__version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -502,12 +502,12 @@ class SidebarABC(NotifierBase):
         """Resets the tree from self downward, deleting widget and
         optionally the notifiers; remove all children
         """
-        if (self.children):
-
+        if self.children:
             # recurse into the tree, otherwise just delete the notifiers
             for itm in self.children:
-                itm.reset()
-
+                itm.reset(deleteNotifiers)
+        # not inside 'if' - cleanups empty top-level items prior to closing project
+        if deleteNotifiers:
             self.deleteAllNotifiers()
 
         # remove the widgets associated with the sidebar items

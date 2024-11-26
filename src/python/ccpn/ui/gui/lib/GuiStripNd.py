@@ -36,8 +36,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-10-18 14:25:34 +0100 (Fri, October 18, 2024) $"
-__version__ = "$Revision: 3.2.7 $"
+__dateModified__ = "$dateModified: 2024-11-26 13:30:14 +0000 (Tue, November 26, 2024) $"
+__version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -239,16 +239,20 @@ class GuiStripNd(GuiStrip):
         """Clean up and close
         """
         try:
-            del self.viewStripMenu
-            del self._defaultMenu
-            del self._phasingMenu
-            del self._peakMenu
-            del self._integralMenu
-            del self._multipletMenu
-            del self._axisMenu
-            del self._contextMenus
-        except Exception:
-            getLogger().debug(f'there was a problem cleaning-up strip {self}')
+            self.viewStripMenu = None
+            self._defaultMenu = None
+            self._phasingMenu = None
+            self._peakMenu = None
+            self._integralMenu = None
+            self._multipletMenu = None
+            self._axisMenu = None
+            self._contextMenus = None
+            for pl in self.planeAxisBars:
+                pl.close()
+            self.header.close()
+            self.header = None
+        except Exception as es:
+            getLogger().debug(f'there was a problem cleaning-up strip {self} {es}')
         else:
             getLogger().debug(f'cleaning-up strip {self}')
 

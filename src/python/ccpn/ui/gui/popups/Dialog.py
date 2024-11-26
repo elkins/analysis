@@ -16,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-10-16 14:44:19 +0100 (Wed, October 16, 2024) $"
-__version__ = "$Revision: 3.2.7 $"
+__dateModified__ = "$dateModified: 2024-11-26 13:30:14 +0000 (Tue, November 26, 2024) $"
+__version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -755,7 +755,12 @@ class CcpnDialogMainWidget(QtWidgets.QDialog, Base, metaclass=_DialogHook):
     def _cleanupDialog(self):
         """Clean-up any extra widgets/data before closing
         """
+        from ccpn.ui.gui.guiSettings import consoleStyle
+
         getLogger().debug2(f'Cleaning-up dialog {self} - subclass as required')
+        # MUST BE SUBCLASSED
+        # raise NotImplementedError(f"{consoleStyle.fg.magenta}{self.__class__.__name__} - Code error: "
+        #                           f"function not implemented{consoleStyle.reset}")
 
     def _refreshGLItems(self):
         """emit a signal to rebuild any required GL items
@@ -1049,7 +1054,6 @@ class DetailedTextDialog(CcpnDialogMainWidget):
         self._initialised = False
         self._lastMsgWasError = None
         self._showBoxes = False
-        self._lock = QtCore.QMutex()
 
         # Derive application, project, and current from mainWindow
         self.mainWindow = mainWindow
@@ -1183,6 +1187,8 @@ class DetailedTextDialog(CcpnDialogMainWidget):
             # return the id of the pressed button, should match Yes, No, etc.
             return self.dialogButtons._clickedButtonId
 
+    def _cleanupDialog(self):
+        ...
 
 #=========================================================================================
 # DetailDialog popups
