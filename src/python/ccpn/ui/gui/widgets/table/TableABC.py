@@ -16,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-11-01 19:40:51 +0000 (Fri, November 01, 2024) $"
-__version__ = "$Revision: 3.2.9 $"
+__dateModified__ = "$dateModified: 2024-11-26 13:29:26 +0000 (Tue, November 26, 2024) $"
+__version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -347,7 +347,7 @@ class TableABC(QtWidgets.QTableView):
         """Set the model for the view
         """
         super().setModel(model)
-        getLogger().debug(f'==> set model {model.__class__.__name__}')
+        getLogger().debug2(f'==> set model {model.__class__.__name__}')
 
         # attach a handler for updating the selection on sorting
         model.layoutAboutToBeChanged.connect(self._preChangeSelectionOrderCallback)
