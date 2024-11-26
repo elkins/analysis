@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-11-25 12:05:14 +0000 (Mon, November 25, 2024) $"
+__dateModified__ = "$dateModified: 2024-11-26 10:33:23 +0000 (Tue, November 26, 2024) $"
 __version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
@@ -40,7 +40,7 @@ _DEBUG = False
 
 
 def getBlockingDialogs(msg: str = None) -> bool:
-    """Return True if there is a QDialog blocking the mainWindow.
+    """Return True if there is a QDialog|QMenu|SpeechBalloon blocking the mainWindow.
     """
     if not isinstance(msg, str):
         raise TypeError(f'msg must be a str')
@@ -51,6 +51,6 @@ def getBlockingDialogs(msg: str = None) -> bool:
                  QtWidgets.QApplication.activeWindow())
         blocked = isinstance(state, BLOCKINGDIALOGS)
         if _DEBUG:
-            getLogger().info(f'{consoleStyle.fg.yellow}==> {state}  {consoleStyle.fg.blue}{blocked}'
-                             f'{consoleStyle.reset}')
+            getLogger().debug(f'{consoleStyle.fg.yellow}==> {msg} {state}:{blocked}'
+                              f'{consoleStyle.reset}')
         return blocked
