@@ -16,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-08-27 13:00:49 +0100 (Tue, August 27, 2024) $"
-__version__ = "$Revision: 3.2.5 $"
+__dateModified__ = "$dateModified: 2024-11-26 10:38:14 +0000 (Tue, November 26, 2024) $"
+__version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -205,13 +205,6 @@ class DataTableModule(CcpnTableModule):
 
             # set the active callback from the pulldown
             self._activeCheckbox = self._settings.checkBoxes[LINKTOPULLDOWNCLASS]['widget']
-
-    def _maximise(self):
-        """
-        Maximise the attached table
-        """
-        if not self._table:
-            self.clear()
 
     def _closeModule(self):
         """

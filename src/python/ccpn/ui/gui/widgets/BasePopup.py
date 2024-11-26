@@ -4,18 +4,20 @@
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (http://www.ccpn.ac.uk) 2014 - 2019"
-__credits__ = ("Ed Brooksbank, Luca Mureddu, Timothy J Ragan & Geerten W Vuister")
-__licence__ = ("CCPN licence. See http://www.ccpn.ac.uk/v3-software/downloads/license")
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
+               "Timothy J Ragan, Brian O Smith, Daniel Thompson",
+               "Gary S Thompson & Geerten W Vuister")
+__licence__ = ("CCPN licence. See https://ccpn.ac.uk/software/licensing/")
 __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, L.G., & Vuister, G.W.",
                  "CcpNmr AnalysisAssign: a flexible platform for integrated NMR analysis",
-                 "J.Biomol.Nmr (2016), 66, 111-124, http://doi.org/10.1007/s10858-016-0060-y")
+                 "J.Biomol.Nmr (2016), 66, 111-124, https://doi.org/10.1007/s10858-016-0060-y")
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: CCPN $"
-__dateModified__ = "$dateModified: 2017-07-07 16:32:51 +0100 (Fri, July 07, 2017) $"
-__version__ = "$Revision: 3.0.0 $"
+__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
+__dateModified__ = "$dateModified: 2024-11-26 10:38:15 +0000 (Tue, November 26, 2024) $"
+__version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -25,22 +27,19 @@ __date__ = "$Date: 2017-04-07 10:28:41 +0000 (Fri, April 07, 2017) $"
 # Start of code
 #=========================================================================================
 
-from PyQt5 import QtGui, QtWidgets, QtCore
+from PyQt5 import QtWidgets, QtCore
 from ccpn.ui.gui.widgets.Widget import Widget
 
 
 class BasePopup(Widget):
 
     def __init__(self, parent=None, title='', location=None, hide=False,
-                 modal=False, closeFunc=None, tipText=None, **kwds):
+                 modal=False, tipText=None, **kwds):
 
         super().__init__(parent, **kwds)
 
-        self.closeFunc = closeFunc
-
         if modal:  # Set before visible
             self.setWindowModality(QtCore.Qt.ApplicationModal)
-
         if tipText:
             self.setToolTip(tipText)
 
@@ -48,7 +47,6 @@ class BasePopup(Widget):
         if parent and not location:
             x = parent.x() + 50
             y = parent.y() + 50
-
             rect = self.rect()
             w = rect.width()
             h = rect.height()
@@ -68,12 +66,6 @@ class BasePopup(Widget):
         else:
             self.show()
             self.raise_()
-
-    # overrides QWidget
-    def closeEvent(self, event):
-        if self.closeFunc:
-            self.closeFunc()
-        QtWidgets.QWidget.closeEvent(self, event)
 
     def open(self):
         self.showNormal()

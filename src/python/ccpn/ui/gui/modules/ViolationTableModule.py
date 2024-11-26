@@ -16,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-06-21 19:48:44 +0100 (Fri, June 21, 2024) $"
-__version__ = "$Revision: 3.2.4 $"
+__dateModified__ = "$dateModified: 2024-11-26 10:38:14 +0000 (Tue, November 26, 2024) $"
+__version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -221,13 +221,6 @@ class ViolationTableModule(CcpnTableModule):
 
         self._violationNotifier = self.setNotifier(self.project, [Notifier.CHANGE, Notifier.DELETE],
                                                    KlassTable.__name__, self._updateViolationTable, onceOnly=True)
-
-    def _maximise(self):
-        """
-        Maximise the attached table
-        """
-        if not self._table:
-            self.clear()
 
     def _closeModule(self):
         """

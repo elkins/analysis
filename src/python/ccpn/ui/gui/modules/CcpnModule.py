@@ -16,9 +16,9 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: Daniel Thompson $"
-__dateModified__ = "$dateModified: 2024-09-05 15:47:46 +0100 (Thu, September 05, 2024) $"
-__version__ = "$Revision: 3.2.5 $"
+__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
+__dateModified__ = "$dateModified: 2024-11-26 10:38:13 +0000 (Tue, November 26, 2024) $"
+__version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -103,8 +103,6 @@ class CcpnModule(Dock, DropBase, NotifierBase):
                             def _closeModule(self):
                               # your functions here
                               super(<YourModule>, self)._closeModule()
-
-                      OR __init__ with closeFunc=<your close function>
     """
     className = None  # used for restoring GUI layouts
     shortClassName = PidShortClassName  # used to create the pid
@@ -130,7 +128,7 @@ class CcpnModule(Dock, DropBase, NotifierBase):
 
     # _instances = set()
 
-    def __init__(self, mainWindow, name, closable=True, closeFunc=None,
+    def __init__(self, mainWindow, name, closable=True,
                  settingsScrollBarPolicies=('asNeeded', 'asNeeded'), **kwds):
 
         self.maximised = False
@@ -184,7 +182,6 @@ class CcpnModule(Dock, DropBase, NotifierBase):
         Logging.getLogger().debug(f'CcpnModule>>> {type(self)} {mainWindow}')
 
         # Logging.getLogger().debug('module:"%s"' % (name,))
-        self.closeFunc = closeFunc
         self._nameSplitter = '_'  # used to get the serial number.
 
         setWidgetFont(self, )
@@ -282,9 +279,7 @@ class CcpnModule(Dock, DropBase, NotifierBase):
         self.setExpandSettingsFlag(True)
 
         # add an event filter to check when the dock has been floated - it needs to have a callback
-        # that fires when the window has been maximised
-        self._maximiseFunc = None
-        self._closeFunc = None
+        # that fires when the window has been maximised?
         CcpnModule._lastActionWasDrop = False
 
         # always explicitly show the mainWidget and/or settings widget
@@ -478,17 +473,11 @@ class CcpnModule(Dock, DropBase, NotifierBase):
     def _closeModule(self):
         """Close the module
         """
-        with contextlib.suppress(Exception):
-            if self.closeFunc:
-                self.closeFunc()
         # delete any notifiers initiated with this Module
         self.deleteAllNotifiers()
-
         getLogger().debug(f'Closing {str(self.container())}')
-
         if self.maximised:
             self.toggleMaximised()
-
         if not self._container:
             if (area := self.mainWindow.moduleArea) and area._container is None:
                 for i in area.children():
@@ -542,77 +531,34 @@ class CcpnModule(Dock, DropBase, NotifierBase):
 
         return _stateWidgets
 
-    def event(self, event):
-        """
-        CCPNInternal
-        Handle events for switching transparency of modules.
-        Modules become transparent when dragging to another module.
-        Ensure that the dropAreas become active
-        """
-        if event.type() == QtCore.QEvent.ParentChange and self._maximiseFunc:
-            try:
-                found = False
-                searchWidget = self.parent()
-
-                # while searchWidget is not None and not found:
-                #   # print (searchWidget)
-                #   if isinstance(searchWidget, TempAreaWindow):
-                #     searchWidget.eventFilter = self._tempAreaWindowEventFilter
-                #     searchWidget.installEventFilter(searchWidget)
-                #     found = True
-                #   else:
-                #     searchWidget = searchWidget.parent()
-
-            except Exception as es:
-                getLogger().warning('Error setting maximiseFunc', str(es))
-
-        return super(CcpnModule, self).event(event)
-
-    def installMaximiseEventHandler(self, maximiseFunc, closeFunc):
-        """
-        Attach a maximise function to the parent window.
-        This is called when the WindowStateChanges to maximises
-
-        :param maximiseFunc:
-        """
-        return
-
-        # self._maximiseFunc = maximiseFunc
-        # self._closeFunc = closeFunc
-
-    def removeMaximiseEventHandler(self):
-        """
-        Clear the attached maximise function
-        :return:
-        """
-        self._maximiseFunc = None
-        self._closeFunc = None
-
-    def _tempAreaWindowEventFilter(self, obj, event):
-        """
-        Window manager event filter to call the attached maximise function.
-        This is required to re-populate the window when it has been maximised
-        """
-        try:
-            if event.type() == QtCore.QEvent.WindowStateChange:
-                if (
-                        event.oldState() & QtCore.Qt.WindowMinimized
-                        and self._maximiseFunc
-                ):
-                    self._maximiseFunc()
-
-            elif event.type() == QtCore.QEvent.Close:
-
-                # catch whether the close event is from closing the tempWindow or moving back to a different module area
-                if self._closeFunc and not CcpnModule._lastActionWasDrop:
-                    self._closeFunc()
-                else:
-                    CcpnModule._lastActionWasDrop = False
-
-        except Exception as es:
-            getLogger().debug('TempWindow Error %s; %s; %s', obj, event, str(es))
-        finally:
-            return False
+    # NOTE:ED - keep for the minute, may still need window maximise/close
+    # def event(self, event):
+    #     """
+    #     CCPNInternal
+    #     Handle events for switching transparency of modules.
+    #     Modules become transparent when dragging to another module.
+    #     Ensure that the dropAreas become active.
+    #     """
+    #     if event.type() == QtCore.QEvent.ParentChange and self._maximiseFunc:
+    #         ...
+    #
+    # def _tempAreaWindowEventFilter(self, obj, event):
+    #     """
+    #     CCPNInternal
+    #     Window manager event filter to call the attached maximise function.
+    #     This is required to re-populate the window when it has been maximised.
+    #     Install as eventFilter.
+    #     """
+    #     if event.type() == QtCore.QEvent.WindowStateChange:
+    #         if event.oldState() & QtCore.Qt.WindowMinimized:
+    #             # window maximise event
+    #             ...
+    #     elif event.type() == QtCore.QEvent.Close:
+    #         # catch whether the close event is from closing the tempWindow or moving back to a different module area
+    #         # window close event
+    #         CcpnModule._lastActionWasDrop = False
+    #         ...
+    #     return False
 
     def setHelpFilePath(self, htmlFilePath):
         self._helpFilePath = htmlFilePath
@@ -1420,7 +1366,6 @@ class DropAreaSelectedOverlay(QtWidgets.QWidget):
         self._highlightBrush = QtGui.QBrush(QtGui.QColor(100, 100, 255, 50))
         self._highlightPen = QtGui.QPen(QtGui.QColor(50, 50, 150), 3)
 
-
     def setDropArea(self, area):
         """Set the widget coverage, either hidden, or a rectangle covering the module
         """
@@ -1515,6 +1460,7 @@ class CcpnTableModule(CcpnModule):
     """Module to be used for Table GUI's.
     Implemented to allow hiddenColumn saving.
     """
+
     def __init__(self, mainWindow, name, *args, **kwds):
         super().__init__(mainWindow=mainWindow, name=name, *args, **kwds)
 
@@ -1593,4 +1539,3 @@ class CcpnTableModule(CcpnModule):
         """
         self._saveColumns()
         super()._closeModule()
-

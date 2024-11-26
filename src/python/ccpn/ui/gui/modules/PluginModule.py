@@ -16,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-08-23 19:21:55 +0100 (Fri, August 23, 2024) $"
-__version__ = "$Revision: 3.2.5 $"
+__dateModified__ = "$dateModified: 2024-11-26 10:38:14 +0000 (Tue, November 26, 2024) $"
+__version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -80,7 +80,7 @@ class PluginModule(CcpnModule):
         if plugin is not None:
             self.plugin = plugin
 
-            CcpnModule.__init__(self, mainWindow=mainWindow, name=self.plugin.PLUGINNAME, closeFunc=self.closePlugin)
+            super().__init__(mainWindow=mainWindow, name=self.plugin.PLUGINNAME)
             self.current = None
             self.project = None
             self.mainWindow = mainWindow
@@ -90,6 +90,11 @@ class PluginModule(CcpnModule):
             self.application = application
             self._kwargs = {}
             self.aborted = False
+        else:
+            super().__init__(mainWindow, 'Undefined')
+
+    def _closeModule(self):
+        self.closePlugin()
 
     def issueMessage(self, message):
         raise NotImplemented('Messages are not implemented yet.')
@@ -130,7 +135,8 @@ class PluginModule(CcpnModule):
                     setWidget = getattr(widget, commonWidgets[widget.__class__.__name__][1])
                     setWidget(value)
             except Exception as e:
-                getLogger().debug('Impossible to restore %s value for %s. (%s)' % (variableName, self.plugin.PLUGINNAME, str(e)))
+                getLogger().debug(f'Impossible to restore {variableName} value for '
+                                  f'{self.plugin.PLUGINNAME}. ({str(e)})')
 
     def closePlugin(self):
         pass  # subclass as need it
@@ -211,6 +217,7 @@ if __name__ == '__main__':
     from unittest.mock import Mock
     from ccpn.ui.gui.widgets.CcpnModuleArea import CcpnModuleArea
     from ccpn.ui.gui.guiSettings import Theme
+
 
     qtTestHarness = TestQt()
 
