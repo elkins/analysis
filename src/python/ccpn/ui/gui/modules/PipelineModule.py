@@ -15,8 +15,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-11-25 09:49:17 +0000 (Mon, November 25, 2024) $"
+__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
+__dateModified__ = "$dateModified: 2024-11-26 10:34:53 +0000 (Tue, November 26, 2024) $"
 __version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
@@ -68,6 +68,7 @@ from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QPushButton, QPr
 from PyQt5.QtCore import QThread, pyqtSignal, QObject
 import threading
 
+
 Qt = QtCore.Qt
 Qkeys = QtGui.QKeySequence
 DropHereLabel = 'Drop SP or SG here'
@@ -81,7 +82,7 @@ PipelineName = 'NewPipeline'
 PipelinePath = 'PipelinePath'
 
 
-class GuiPipeline(CcpnModule, Pipeline,):
+class GuiPipeline(CcpnModule, Pipeline):
     includeSettingsWidget = True
     _includeInLastSeen = False
     maxSettingsState = 2
@@ -90,7 +91,6 @@ class GuiPipeline(CcpnModule, Pipeline,):
     moduleName = 'Pipeline'
 
     def __init__(self, mainWindow, name=moduleName, pipes=None, templates=None, **kwds):
-        super(GuiPipeline, self)
 
         # this guarantees to open the module as Gui testing
         self.project = None
@@ -113,10 +113,10 @@ class GuiPipeline(CcpnModule, Pipeline,):
             pipes = LP
 
         self.rebuildTemplates = True
-        self.userPipes = self._loadUserPipes()
+        self._loadUserPipes()
 
         # init the CcpnModule
-        CcpnModule.__init__(self, mainWindow=mainWindow, name=name, closeFunc=self._closeAllGuiPipes)
+        CcpnModule.__init__(self, mainWindow=mainWindow, name=name)
 
         # init the Pipeline
         Pipeline.__init__(self, application=self.application, pipelineName=PipelineName, pipes=pipes)
@@ -133,7 +133,7 @@ class GuiPipeline(CcpnModule, Pipeline,):
 
         # set notifier
         if self.project is not None:
-            self._inputDataDeletedNotifier = Notifier(self.project, [Notifier.DELETE], 'Spectrum', self._updateInputDataFromNotifier)
+            self.setNotifier(self.project, [Notifier.DELETE], 'Spectrum', self._updateInputDataFromNotifier)
             # add for SpectrumGroup
 
     @property
@@ -159,7 +159,8 @@ class GuiPipeline(CcpnModule, Pipeline,):
                 path = path.assureSuffix('.json')
                 self._openSavedPipeline(path)
 
-    def _getGuiFromPipes(self, pipes):
+    @staticmethod
+    def _getGuiFromPipes(pipes):
         allGuiPipes = []
         for pipe in pipes:
             if pipe:
@@ -286,7 +287,8 @@ class GuiPipeline(CcpnModule, Pipeline,):
         self.pipeTreeWidget._addPipesToTree()
         # search widget
         row += 1
-        self._resultWidget = ListWidget(self.inputFrame, contextMenu=False, callback=self.callbackResultWidget, grid=(row, 1))
+        self._resultWidget = ListWidget(self.inputFrame, contextMenu=False, callback=self.callbackResultWidget,
+                                        grid=(row, 1))
         self._resultWidget.itemDoubleClicked.connect(self._resultItemDoubleClickCallback)
         self._resultWidget.keyPressEvent = self._pipesResultskeyPressEvent
         self._resultWidget.hide()
@@ -304,7 +306,6 @@ class GuiPipeline(CcpnModule, Pipeline,):
         # self.saveOpenFrameLayout.addWidget(self.pipelineNameLabel)
         self.goButton = Button(self, text='', icon=self.goIcon, callback=self._runPipeline)
         self.pipelineProgressLabel = Label(self)
-
 
         self._addMenuToOpenButton()
         self.saveOpenButtons.setStyleSheet(transparentStyle)
@@ -361,7 +362,8 @@ class GuiPipeline(CcpnModule, Pipeline,):
                 self._resultWidget.addItems(pipeNames)
                 # b = self._resultWidget.sizeHintForRow(0) * self._resultWidget.count() + 2 * self._resultWidget.frameWidth() #this make the search of dynamic sizes
                 # self._resultWidget.setMaximumHeight(b)
-                self._resultWidget.setMaximumHeight(abs(self._resultWidget.sizeHintForRow(0)) * 4)  # fix height by num of rows
+                self._resultWidget.setMaximumHeight(
+                        abs(self._resultWidget.sizeHintForRow(0)) * 4)  # fix height by num of rows
                 self._searchWidget.setClearButtonEnabled(True)
 
             else:
@@ -387,9 +389,10 @@ class GuiPipeline(CcpnModule, Pipeline,):
 
     def _closeAllGuiPipes(self):
         guiPipes = self.pipelineArea.currentGuiPipes
-        if len(guiPipes) > 0:
+        if guiPipes:
             for guiPipe in guiPipes:
                 guiPipe._closePipe()
+
         self.pipelineArea.currentGuiPipes.clear()
         self.currentGuiPipesNames.clear()
 
@@ -404,6 +407,7 @@ class GuiPipeline(CcpnModule, Pipeline,):
                         self.addPipe(name)
                     self._searchWidget.clear()
                     self.pipeTreeWidget.clearSelection()
+
         elif keyEvent.key() == Qt.Key_Escape or keyEvent.key() == Qt.Key_Delete:
             self._searchWidget.clear()
             self.pipeTreeWidget.clearSelection()
@@ -436,7 +440,8 @@ class GuiPipeline(CcpnModule, Pipeline,):
         return str(guiPipeName) + '-' + str(counter[str(guiPipeName)])
         # return str(guiPipeName)
 
-    ####################################_________ GUI CallBacks ____________###########################################
+    #-----------------------------------------------------------------------------------------
+    # GUI CallBacks
 
     def _selectPipe(self, selected):
 
@@ -461,7 +466,8 @@ class GuiPipeline(CcpnModule, Pipeline,):
                 else:
                     if not position:
                         position = self.addBoxPosition.get()
-                    newGuiPipe = guiPipe(parent=self, application=self.application, name=serialName, project=self.project)
+                    newGuiPipe = guiPipe(parent=self, application=self.application, name=serialName,
+                                         project=self.project)
                     newGuiPipe.setMaximumHeight(newGuiPipe.sizeHint().height())
                     self.pipelineArea.addDock(newGuiPipe, position=position, relativeTo=relativeTo)
                     autoActive = self.autoActiveCheckBox.get()
@@ -472,7 +478,7 @@ class GuiPipeline(CcpnModule, Pipeline,):
     @property
     def openGuiPipes(self):
         if len(self.pipelineArea.findAll()[1]) > 0:
-            return  self.pipelineArea.orderedBoxes(self.pipelineArea.topContainer)
+            return self.pipelineArea.orderedBoxes(self.pipelineArea.topContainer)
         return []
 
     def _getActivePipes(self):
@@ -508,20 +514,10 @@ class GuiPipeline(CcpnModule, Pipeline,):
         if self.updateInputData:
             self._updateGuiInputData()
         finalTime = time.time()
-        getLogger().info(f'Pipeline: Completed in {int(finalTime-initialTime)}s')
+        getLogger().info(f'Pipeline: Completed in {int(finalTime - initialTime)}s')
 
-
-    def _closeModule(self):
-        """Re-implementation of closeModule function from CcpnModule to unregister notification """
-        self._unregisterNotifier()
-        super()._closeModule()
-
-    ####################################_________ others____________###########################################
-
-    def _unregisterNotifier(self):
-        """Cleanup of Notifierers"""
-        if self._inputDataDeletedNotifier:
-            self._inputDataDeletedNotifier.unRegister()
+    #-----------------------------------------------------------------------------------------
+    # others
 
     def _getGuiPipeClassFromClassName(self, name):
         for guiPipe in self.guiPipes:
@@ -533,7 +529,8 @@ class GuiPipeline(CcpnModule, Pipeline,):
             if guiPipe.pipeName == name:
                 return guiPipe
 
-    ####################################_________ Saving Restoring  SETUP ____________####################################
+    #-----------------------------------------------------------------------------------------
+    # Saving Restoring  SETUP
 
     def _openJsonFile(self, path):
         if path is not None:
@@ -649,7 +646,8 @@ class GuiPipeline(CcpnModule, Pipeline,):
                 fp.close()
                 getLogger().info('Pipeline File saved in: ' + str(pipelineFilePath))
 
-    #################################### _________ GUI PIPELINE SETTINGS ____________ ####################################
+    #-----------------------------------------------------------------------------------------
+    # GUI PIPELINE SETTINGS
 
     def _pipelineBoxesWidgetParams(self, currentGuiPipesName):
         self.savePipelineParams = []
@@ -816,16 +814,16 @@ class GuiPipeline(CcpnModule, Pipeline,):
         self.setDataSelection()
 
 
-#################################### _________ RUN GUI TESTING ____________ ####################################
+#=========================================================================================
+# RUN GUI TESTING
+#=========================================================================================
 
-
-if __name__ == '__main__':
+def main():
     from ccpn.ui.gui.widgets.Application import TestApplication
     from ccpn.ui.gui.widgets.CcpnModuleArea import CcpnModuleArea
 
     # analysis specific
     from ccpn.pipes import loadedPipes
-
 
     app = TestApplication()
     win = QtWidgets.QMainWindow()
@@ -843,3 +841,7 @@ if __name__ == '__main__':
     win.show()
 
     app.start()
+
+
+if __name__ == '__main__':
+    main()

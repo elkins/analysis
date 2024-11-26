@@ -15,8 +15,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-11-25 09:49:17 +0000 (Mon, November 25, 2024) $"
+__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
+__dateModified__ = "$dateModified: 2024-11-26 10:34:53 +0000 (Tue, November 26, 2024) $"
 __version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
@@ -64,6 +64,7 @@ from ccpn.ui.gui.widgets.Font import getFont
 from ccpn.ui.gui.guiSettings import getColours, LABEL_FOREGROUND
 from ccpn.util.Colour import hexToRgb
 
+
 commonWidgets = {
     CheckBox.__name__               : ('get', 'setChecked'),
     ColourDialog.__name__           : ('getColor', 'setColor'),
@@ -105,7 +106,8 @@ _standbyBlue = '#a0b5fa'
 _failedRed = '#f51d41'
 _completedGreen = '#08fc59'
 
-def _getPipeBoxStyleSheet(backgroundColour = _defaultGreen):
+
+def _getPipeBoxStyleSheet(backgroundColour=_defaultGreen):
     return f"""PipelineBoxLabel{{
                                                   background-color : {backgroundColour};
                                                   color : #000000;
@@ -121,6 +123,7 @@ def _getPipeBoxStyleSheet(backgroundColour = _defaultGreen):
 
 
 PipelineBoxLabelStyle = _getPipeBoxStyleSheet(_defaultGreen)
+
 
 class _VContainer(SplitContainer):
     def __init__(self, area):
@@ -195,15 +198,14 @@ class _PipelineDropAreaOverlay(Widget):
         p.drawRect(rgn)
 
 
-
 class PipelineDropArea(DockArea):
-    def __init__(self, parent, guiPipeline, mainWindow=None,  **kwds):
+    def __init__(self, parent, guiPipeline, mainWindow=None, **kwds):
         super().__init__()
         self.setStyleSheet("""QSplitter{background-color: transparent;}
                           QSplitter::handle:vertical {background-color: transparent;height: 1px;}""")
 
         self.parent = parent
-        self.guiPipeline =  guiPipeline
+        self.guiPipeline = guiPipeline
         self.mainWindow = mainWindow
 
         self.inputData = None
@@ -216,7 +218,6 @@ class PipelineDropArea(DockArea):
         self.colourLabel = hexToRgb(colours[LABEL_FOREGROUND])
         self.setSizePolicy(QtWidgets.QSizePolicy.MinimumExpanding, QtWidgets.QSizePolicy.MinimumExpanding)
         self.layout.setAlignment(QtCore.Qt.AlignTop)
-
 
     @property
     def currentGuiPipes(self) -> list:
@@ -412,19 +413,19 @@ class PipelineDropArea(DockArea):
         try:
             self.restoreState(state)
         except Exception as err:
-            getLogger().warning('Error restoring pipeline. %s' %err)
+            getLogger().warning('Error restoring pipeline. %s' % err)
 
     def closeAll(self):
         for guiPipe in self.currentGuiPipes:
             guiPipe.close()
 
+
 class GuiPipeDrop(DockDrop):
     """Provides dock-dropping methods"""
+
     def __init__(self, allowedAreas=None):
         DockDrop.__init__(self)
 
-    def dropEvent(self, ev):
-        super(DockDrop, self).dropEvent(ev)
 
 class GuiPipe(Dock, GuiPipeDrop):
     preferredPipe = True
@@ -442,7 +443,7 @@ class GuiPipe(Dock, GuiPipeDrop):
         :param project: ccpn Project
         :param kwds: any other
         """
-        super(GuiPipe, self).__init__(name, self)
+        super().__init__(name, self)
         self._pulldownSGHeaderText = '-- Select SG --'
         self._warningIcon = Icon('icons/warning')
         self.ccpnModule = False
@@ -579,14 +580,15 @@ class GuiPipe(Dock, GuiPipeDrop):
                 selected = _getWidgetByAtt(self, widgetVariable).get()
                 # getLogger().debug(selected)
 
-
-                _getWidgetByAtt(self, widgetVariable).setData(texts=[sg.pid for sg in spectrumGroups], objects=spectrumGroups,
-                                                              headerText=headerText, headerEnabled=headerEnabled, headerIcon=headerIcon)
+                _getWidgetByAtt(self, widgetVariable).setData(texts=[sg.pid for sg in spectrumGroups],
+                                                              objects=spectrumGroups,
+                                                              headerText=headerText, headerEnabled=headerEnabled,
+                                                              headerIcon=headerIcon)
                 # Below a mechanism to autoselect spectrumGroups Pulldown based on the pid. Eg autoselect the Control SG pulldown if in the inputData there is a SG with the name Control in its pid.
                 if selected == self._pulldownSGHeaderText:
                     pids = [sg.pid for sg in spectrumGroups]
                     for pid in pids:
-                        if len(widgetVariable.split('_'))>0:
+                        if len(widgetVariable.split('_')) > 0:
                             for subText in widgetVariable.split('_'):
                                 firstLabelLetter = subText[0]
                                 _id = pid.id
@@ -719,7 +721,7 @@ class GuiPipe(Dock, GuiPipeDrop):
         DockDrop.dragLeaveEvent(self, *args)
 
     def dropEvent(self, *args):
-        if len(args)>0:
+        if len(args) > 0:
             ev = args[0]
             src = ev.source()
 
@@ -861,8 +863,6 @@ class PipelineBoxLabel(DockLabel, VerticalLabel):
         # self.activeLabel.move(pos)
         # self.lineEdit.move(pos)
 
-
-
         pos = QtCore.QPoint(ev.size().width() - 20, 0)
         self.closeButton.move(pos)
         pos = QtCore.QPoint(ev.size().width() - 80, 0)
@@ -892,7 +892,6 @@ class PipelineBoxLabel(DockLabel, VerticalLabel):
     #
     #         ev.accept()
 
-
     def paintEvent(self, ev):
         p = QtGui.QPainter(self)
         rgn = self.contentsRect()
@@ -910,6 +909,7 @@ class PipelineBoxLabel(DockLabel, VerticalLabel):
         contextMenu.addAction('Close All', self._parent._parent._closeAllGuiPipes)
         return contextMenu
 
+
 class pipeTreeItem(QtWidgets.QTreeWidgetItem):
     def __init__(self, parent, name, isPipeCategory=False, draggable=False, expanded=True, **kwds):
         super().__init__(parent)
@@ -925,6 +925,7 @@ class pipeTreeItem(QtWidgets.QTreeWidgetItem):
     def text(self):
         return self.pipeName
 
+
 class PipesTree(QtWidgets.QTreeWidget, Base):
     def __init__(self, parent, guiPipeline, **kwds):
         super().__init__(parent)
@@ -932,7 +933,7 @@ class PipesTree(QtWidgets.QTreeWidget, Base):
         self.setSelectionMode(QtWidgets.QAbstractItemView.ExtendedSelection)
         self.setDragEnabled(True)
         self.itemDoubleClicked.connect(self._itemDoubleClickCallback)
-        self.parent =  parent
+        self.parent = parent
         self.guiPipeline = guiPipeline
         self.setHeaderLabel('Double click or drag&drop ->')
         self._selectableItems = []
@@ -944,6 +945,7 @@ class PipesTree(QtWidgets.QTreeWidget, Base):
         """
         self.clear()
         from collections import defaultdict
+
         allPipes = [(p.pipeCategory, p.pipeName) for p in self.guiPipeline.pipes if hasattr(p, PIPE_CATEGORY)]
         d = defaultdict(list)
         for k, v in allPipes:
@@ -951,19 +953,16 @@ class PipesTree(QtWidgets.QTreeWidget, Base):
         dd = OrderedDict([(el, d[el]) for el in PIPE_CATEGORIES])
         self.buildTree(dd)
 
-
     def buildTree(self, dd):
         for categoryName, pipeNames in dd.items():
             if isinstance(pipeNames, list):
-                if len(pipeNames)>0: # add a branch only if there are available pipes for that category
+                if len(pipeNames) > 0:  # add a branch only if there are available pipes for that category
                     categoryItem = pipeTreeItem(self, categoryName, isPipeCategory=True)
                     for pipeName in sorted(pipeNames):
                         pipeItem = pipeTreeItem(categoryItem, pipeName, draggable=True)
                         # pipeItem.setIcon(0, Icon('icons/mario-pipe'))
                         self._selectableItems.append(pipeItem)
                         self._availablePipeNames.append(pipeName)
-
-
 
     def mouseReleaseEvent(self, event):
         """Re-implementation of the mouse press event so right click can be used to delete items from the
@@ -984,6 +983,7 @@ class PipesTree(QtWidgets.QTreeWidget, Base):
 
     def _infoCallback(self, pipeName):
         from ccpn.ui.gui.widgets.MessageDialog import showInfo
+
         pipe = self.guiPipeline.getPipeFromName(pipeName)
         showInfo(pipeName, 'Not implemented yet')
 
