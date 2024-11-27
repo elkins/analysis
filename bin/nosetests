@@ -1,12 +1,39 @@
 #!/usr/bin/env bash
 
-# get the script file if symbolic
+# Function to display usage information
+usage() {
+    echo "Usage: $0 [-o <output_folder>] <test_files>"
+    exit 1
+}
+
+# Parse command-line options
+while getopts ":o:" opt; do
+    case ${opt} in
+        o )
+            outputDir=$OPTARG
+            outputDir="${outputDir%/}/"
+            ;;
+        \? )
+            usage
+            ;;
+    esac
+done
+
+# Shift the arguments to get the test files
+shift $((OPTIND -1))
+
+# Check if test files are provided
+if [ "$#" -lt 1 ]; then
+    usage
+fi
+
+# Get the script file if symbolic
 _path="${BASH_SOURCE[0]}"
 
-# iterate through the symbolic links if needed
-for ii in {1..3}; do
+# Iterate through the symbolic links if needed
+for _ in {1..3}; do
     if [[ -d ${_path} ]]; then
-        # change to absolute path
+        # Change to absolute path
         _path="$(cd "${_path}" || exit; pwd -P)"
     fi
     _pathlink="$(readlink "${_path}")"
@@ -24,8 +51,13 @@ FILENAME=$*
 FILENAME=${FILENAME##*/};FILENAME=${FILENAME%.*}
 STAMP="$(date +%Y%m%d_%H%M%S)"
 
-# execute nosetests and redirect all output to file 'TESTOUT_<timestamp>.txt'
-"${NOSETESTS}" -vs $* > "TESTOUT_${STAMP}.txt" 2>&1
+# Create the output directory if it doesn't exist
+if [[ -n $outputDir && ! -d $outputDir ]]; then
+    mkdir -p "$outputDir" || exit
+fi
+
+# Execute nose-tests and redirect all output to file in the specified output folder
+"${NOSETESTS}" -vs "$@" > "${outputDir}TESTOUT_$(basename "$FILENAME")_${STAMP}.txt" 2>&1
 
 ## write out any lines that contain the fail code
 #while read -r p; do
