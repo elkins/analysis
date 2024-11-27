@@ -15,8 +15,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-10-10 15:45:25 +0100 (Thu, October 10, 2024) $"
-__version__ = "$Revision: 3.2.7 $"
+__dateModified__ = "$dateModified: 2024-11-27 18:52:02 +0000 (Wed, November 27, 2024) $"
+__version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -30,7 +30,7 @@ import itertools
 import operator
 import numpy as np
 from functools import partial
-from typing import Optional, Tuple, Union, Sequence, Any, List
+from typing import Sequence
 import pandas as pd
 from ccpn.util import Common as commonUtil
 from ccpn.core._implementation.AbstractWrapperObject import AbstractWrapperObject
@@ -46,6 +46,10 @@ from ccpn.util.Logging import getLogger
 from ccpn.util.Common import makeIterableList
 # from ccpn.util.Constants import SCALETOLERANCE
 from ccpn.core.NmrAtom import UnknownIsotopeCode
+
+
+nmrSequence = list[str | NmrAtom] | tuple[str | NmrAtom, ...]
+nmrListTuple = list[str | NmrAtom | None | nmrSequence] | tuple[str | NmrAtom | None | nmrSequence, ...] | None
 
 
 class Peak(AbstractWrapperObject):
@@ -75,6 +79,7 @@ class Peak(AbstractWrapperObject):
 
     # Qualified name of matching API class
     _apiClassQualifiedName = Nmr.Peak._metaclass.qualifiedName()
+    _wrappedData: Nmr.Peak
 
     # Internal. Used as temporary holder during time-consuming and recursive peak routines.
     _tempAssignment = 0
@@ -97,7 +102,7 @@ class Peak(AbstractWrapperObject):
         return self._wrappedData.serial
 
     @property
-    def _parent(self) -> Optional[PeakList]:
+    def _parent(self) -> PeakList | None:
         """PeakList containing Peak."""
         return self._project._data2Obj[self._wrappedData.peakList] \
             if self._wrappedData.peakList in self._project._data2Obj else None
@@ -117,13 +122,13 @@ class Peak(AbstractWrapperObject):
         return self.peakList.chemicalShiftList
 
     @property
-    def restraints(self) -> tuple:
+    def restraints(self) -> list:
         """Restraints corresponding to Peak"""
         # placeholder, hot-fixed later
-        pass
+        return []
 
     @property
-    def height(self) -> Optional[float]:
+    def height(self) -> float | None:
         """height of Peak."""
         if self._wrappedData.height is None:
             return None
@@ -139,7 +144,7 @@ class Peak(AbstractWrapperObject):
     @height.setter
     @logCommand(get='self', isProperty=True)
     @ccpNmrV3CoreSetter()
-    def height(self, value: Union[float, int, None]):
+    def height(self, value: float | int | None):
         if not isinstance(value, (float, int, type(None))):
             raise TypeError('height must be a float, integer or None')
         elif value is not None and (value - value) != 0.0:
@@ -157,7 +162,7 @@ class Peak(AbstractWrapperObject):
             self._wrappedData.height = float(value) / scale
 
     @property
-    def heightError(self) -> Optional[float]:
+    def heightError(self) -> float | None:
         """height error of Peak."""
         if self._wrappedData.heightError is None:
             return None
@@ -172,7 +177,7 @@ class Peak(AbstractWrapperObject):
     @heightError.setter
     @logCommand(get='self', isProperty=True)
     @ccpNmrV3CoreSetter()
-    def heightError(self, value: Union[float, int, None]):
+    def heightError(self, value: float | int | None):
         if not isinstance(value, (float, int, type(None))):
             raise TypeError('heightError must be a float, integer or None')
         elif value is not None and (value - value) != 0.0:
@@ -190,7 +195,7 @@ class Peak(AbstractWrapperObject):
             self._wrappedData.heightError = float(value) / scale
 
     @property
-    def volume(self) -> Optional[float]:
+    def volume(self) -> float | None:
         """volume of Peak."""
         if self._wrappedData.volume is None:
             return None
@@ -205,7 +210,7 @@ class Peak(AbstractWrapperObject):
     @volume.setter
     @logCommand(get='self', isProperty=True)
     @ccpNmrV3CoreSetter()
-    def volume(self, value: Union[float, int, None]):
+    def volume(self, value: float | int | None):
         if not isinstance(value, (float, int, type(None))):
             raise TypeError('volume must be a float, integer or None')
         elif value is not None and (value - value) != 0.0:
@@ -223,7 +228,7 @@ class Peak(AbstractWrapperObject):
             self._wrappedData.volume = float(value) / scale
 
     @property
-    def volumeError(self) -> Optional[float]:
+    def volumeError(self) -> float | None:
         """volume error of Peak."""
         if self._wrappedData.volumeError is None:
             return None
@@ -238,7 +243,7 @@ class Peak(AbstractWrapperObject):
     @volumeError.setter
     @logCommand(get='self', isProperty=True)
     @ccpNmrV3CoreSetter()
-    def volumeError(self, value: Union[float, int, None]):
+    def volumeError(self, value: float | int | None):
         if not isinstance(value, (float, int, type(None))):
             raise TypeError('volumeError must be a float, integer or None')
         elif value is not None and (value - value) != 0.0:
@@ -256,7 +261,7 @@ class Peak(AbstractWrapperObject):
             self._wrappedData.volumeError = float(value) / scale
 
     @property
-    def figureOfMerit(self) -> Optional[float]:
+    def figureOfMerit(self) -> float | None:
         """figureOfMerit of Peak, between 0.0 and 1.0 inclusive."""
         return self._wrappedData.figOfMerit
 
@@ -281,26 +286,26 @@ class Peak(AbstractWrapperObject):
         self._finaliseChildren.extend((sh, 'change') for sh in shifts)
 
     @property
-    def annotation(self) -> Optional[str]:
+    def annotation(self) -> str | None:
         """Peak text annotation."""
         return self._wrappedData.annotation
 
     @annotation.setter
     @logCommand(get='self', isProperty=True)
     @ccpNmrV3CoreSetter()
-    def annotation(self, value: Optional[str]):
+    def annotation(self, value: str | None):
         if not isinstance(value, (str, type(None))):
             raise ValueError("annotation must be a string or None")
         else:
             self._wrappedData.annotation = value
 
     @property
-    def axisCodes(self) -> Tuple[str, ...]:
+    def axisCodes(self) -> tuple[str, ...]:
         """Spectrum axis codes in dimension order matching position."""
         return self.spectrum.axisCodes
 
     @property
-    def position(self) -> Tuple[float, ...]:
+    def position(self) -> tuple[float, ...]:
         """Peak position in ppm (or other relevant unit) in dimension order."""
         return tuple(x.value for x in self._wrappedData.sortedPeakDims())
 
@@ -336,7 +341,7 @@ class Peak(AbstractWrapperObject):
     ppmPositions = position
 
     # @property
-    # def ppmPositions(self) -> Tuple[float, ...]:
+    # def ppmPositions(self) -> tuple[float, ...]:
     #     """Peak position in ppm (or other relevant unit) in dimension order."""
     #     return tuple(x.value for x in self._wrappedData.sortedPeakDims())
     #
@@ -350,7 +355,7 @@ class Peak(AbstractWrapperObject):
     #         peakDim.realValue = None
 
     @property
-    def positionError(self) -> Tuple[Optional[float], ...]:
+    def positionError(self) -> tuple[float | None, ...]:
         """Peak position error in ppm (or other relevant unit)."""
         return tuple(x.valueError for x in self._wrappedData.sortedPeakDims())
 
@@ -362,7 +367,7 @@ class Peak(AbstractWrapperObject):
             peakDim.valueError = value[ii]
 
     @property
-    def pointPositions(self) -> Tuple[float, ...]:
+    def pointPositions(self) -> tuple[float, ...]:
         """Peak position in points."""
         return tuple(x.position for x in self._wrappedData.sortedPeakDims())
 
@@ -390,7 +395,7 @@ class Peak(AbstractWrapperObject):
         self._finaliseChildren.extend((sh, 'change') for sh in shifts)
 
     @property
-    def boxWidths(self) -> Tuple[Optional[float], ...]:
+    def boxWidths(self) -> tuple[float | None, ...]:
         """The full width of the peak footprint in points for each dimension,
         i.e. the width of the area that should be considered for integration, fitting, etc."""
         return tuple(x.boxWidth for x in self._wrappedData.sortedPeakDims())
@@ -408,7 +413,7 @@ class Peak(AbstractWrapperObject):
                 peakDim.boxWidth = value[ii]
 
     @property
-    def lineWidths(self) -> Tuple[Optional[float], ...]:
+    def lineWidths(self) -> tuple[float | None, ...]:
         """Full-width-half-height of peak for each dimension, in Hz/ppm.
         """
         return tuple(x.lineWidth for x in self._wrappedData.sortedPeakDims())
@@ -416,7 +421,7 @@ class Peak(AbstractWrapperObject):
     @lineWidths.setter
     @logCommand(get='self', isProperty=True)
     @ccpNmrV3CoreSetter()
-    def lineWidths(self, value: Optional[Sequence]):
+    def lineWidths(self, value: Sequence | None):
         if value is None:
             # set all dimensions to None
             for peakDim in self._wrappedData.sortedPeakDims():
@@ -426,7 +431,7 @@ class Peak(AbstractWrapperObject):
                 peakDim.lineWidth = value[ii]
 
     # @property
-    # def ppmLineWidths(self) -> Tuple[Optional[float], ...]:
+    # def ppmLineWidths(self) -> tuple[float | None, ...]:
     #     """Full-width-half-height of peak for each dimension, in ppm."""
     #     return tuple(peakDim.lineWidth * peakDim.dataDim.valuePerPoint if peakDim.lineWidth is not None else None
     #                  for peakDim in self._wrappedData.sortedPeakDims())
@@ -441,7 +446,7 @@ class Peak(AbstractWrapperObject):
     ppmLineWidths = lineWidths
 
     @property
-    def pointLineWidths(self) -> Tuple[Optional[float], ...]:
+    def pointLineWidths(self) -> tuple[float | None, ...]:
         """Full-width-half-height of peak for each dimension, in points.
         """
         # currently assumes that internal storage is in ppm's; GWV thinks Hz????
@@ -463,7 +468,7 @@ class Peak(AbstractWrapperObject):
             peakDim.lineWidth = val * valuePerPoint if val is not None else None
 
     @property
-    def aliasing(self) -> Tuple[Optional[float], ...]:
+    def aliasing(self) -> tuple[float | None, ...]:
         """Aliasing for the peak in each dimension.
         Defined as integer number of spectralWidths added or subtracted along each dimension
         """
@@ -504,7 +509,7 @@ class Peak(AbstractWrapperObject):
         self._finaliseChildren.extend((sh, 'change') for sh in shifts)
 
     @property
-    def dimensionNmrAtoms(self) -> Tuple[Tuple['NmrAtom', ...], ...]:
+    def dimensionNmrAtoms(self) -> tuple[tuple[NmrAtom, ...], ...]:
         """Peak dimension assignment - a tuple of tuples with the assigned NmrAtoms for each dimension.
         One of two alternative views on the Peak assignment.
 
@@ -533,7 +538,7 @@ class Peak(AbstractWrapperObject):
         return tuple(result)
 
     @property
-    def _dimensionNmrAtoms(self) -> Tuple[Tuple['NmrAtom', ...], ...]:
+    def _dimensionNmrAtoms(self) -> tuple[tuple[NmrAtom, ...], ...]:
         """Transparent method to control notifiers"""
         return self.dimensionNmrAtoms
 
@@ -574,7 +579,8 @@ class Peak(AbstractWrapperObject):
                             msg = f"""IsotopeCodes mismatch between NmrAtom {x.name} and Spectrum. 
                                   Consider changing NmrAtom isotopeCode from {x.isotopeCode} to {isotopeCode}, None, or {UnknownIsotopeCode}
                                   to avoid future warnings."""
-                            getLogger().warning(msg)  # don't raise errors. NmrAtoms are just labels and can be assigned to anything if user wants so.
+                            # don't raise errors. NmrAtoms are just labels and can be assigned to anything if user wants so.
+                            getLogger().warning(msg)
 
                 dimResonances.append(resonances)
 
@@ -594,7 +600,6 @@ class Peak(AbstractWrapperObject):
         """Set the peak  _snapFlag. positive or negative int
         """
         self._setInternalParameter(self._SNAPFLAG, value)
-
 
     @staticmethod
     def _recalculatePeakShifts(nmrResidues, shifts):
@@ -629,7 +634,8 @@ class Peak(AbstractWrapperObject):
             self._dimensionNmrAtoms = value
 
             # add those that are not already in the list - otherwise recalculate
-            newShifts.extend(chemShiftList.newChemicalShift(nmrAtom=nmrAtom) for nmrAtom in (_post - _pre - _thisNmrPids))
+            newShifts.extend(chemShiftList.newChemicalShift(nmrAtom=nmrAtom)
+                             for nmrAtom in (_post - _pre - _thisNmrPids))
 
             # update the chemicalShift value/valueError
             self._recalculatePeakShifts(nmrResidues, newShifts)
@@ -656,7 +662,7 @@ class Peak(AbstractWrapperObject):
             raise RuntimeError(f'{self}:  Counter below 0')
 
     @property
-    def assignedNmrAtoms(self) -> Tuple[Tuple[Optional['NmrAtom'], ...], ...]:
+    def assignedNmrAtoms(self) -> tuple[tuple[NmrAtom | None, ...], ...]:
         """Peak assignment - a tuple of tuples of NmrAtom combinations.
         (e.g. a tuple of triplets for a 3D spectrum).
         One of two alternative views on the Peak assignment.
@@ -700,7 +706,7 @@ class Peak(AbstractWrapperObject):
         return tuple(sorted(result))
 
     @property
-    def _assignedNmrAtoms(self) -> Tuple[Tuple[Optional['NmrAtom'], ...], ...]:
+    def _assignedNmrAtoms(self) -> tuple[tuple[NmrAtom | None, ...], ...]:
         """Transparent method to control notifiers"""
         return self.assignedNmrAtoms
 
@@ -810,7 +816,7 @@ class Peak(AbstractWrapperObject):
                 )
 
     @logCommand(get='self')
-    def addAssignment(self, value: Sequence[Union[str, 'NmrAtom']]):
+    def addAssignment(self, value: Sequence[NmrAtom | str]):
         """Add a peak assignment - a list of one NmrAtom or Pid for each dimension"""
 
         if len(value) != self.peakList.spectrum.dimensionCount:
@@ -840,12 +846,9 @@ class Peak(AbstractWrapperObject):
             assignedNmrAtoms.append(value)
             self.assignedNmrAtoms = assignedNmrAtoms
 
-    nmrSeq = list[str | NmrAtom] | tuple[str | NmrAtom, ...]
-    listtuple = list[str | NmrAtom | None | nmrSeq] | tuple[str | NmrAtom | None | nmrSeq, ...] | None
-
     @logCommand(get='self')
     def assignDimension(self, axisCode: list[str] | tuple[str, ...],
-                        value: nmrSeq | None = None):
+                        value: nmrSequence | None = None):
         """Assign dimension with axisCode to value (NmrAtom, or Pid or sequence of either, or None).
         """
 
@@ -883,7 +886,7 @@ class Peak(AbstractWrapperObject):
                                           f'Impossible to set isotopeCode to {nmrAtm}. {err}')
 
     @logCommand(get='self')
-    def assignDimensions(self, values: listtuple = None,
+    def assignDimensions(self, values: nmrListTuple = None,
                          *, axisCodes: list[str] | tuple[str, ...] = None
                          ):
         """Assign dimensions with axisCode to values (NmrAtom, or Pid or sequence of either, or None).
@@ -903,7 +906,8 @@ class Peak(AbstractWrapperObject):
         elif not isinstance(axisCodes, list | tuple):
             raise TypeError(f'{self.__class__.__name__}.assignDimensions: axisCodes is not a list|tuple')
         if len(axisCodes) != len(specAxisCodes) or len(values) != len(specAxisCodes):
-            raise TypeError(f'{self.__class__.__name__}.assignDimensions: axisCodes or values are not the correct length')
+            raise TypeError(f'{self.__class__.__name__}.assignDimensions: '
+                            f'axisCodes or values are not the correct length')
         if badAxisCodes := list(set(specAxisCodes) - set(axisCodes)):
             raise ValueError(f'{self.__class__.__name__}.assignDimensions: axisCodes {badAxisCodes} not recognised')
 
@@ -957,7 +961,8 @@ class Peak(AbstractWrapperObject):
         if axisCodes is None:
             dimensions = self.spectrum.dimensions
         else:
-            dimensions = self.spectrum.orderByAxisCodes(self.spectrum.dimensions, axisCodes=axisCodes, exactMatch=exactMatch)
+            dimensions = self.spectrum.orderByAxisCodes(self.spectrum.dimensions, axisCodes=axisCodes,
+                                                        exactMatch=exactMatch)
 
         try:
             newValues = _getParameterValues(self, parameterName,
@@ -967,9 +972,10 @@ class Peak(AbstractWrapperObject):
 
         return newValues
 
-    def setByAxisCodes(self, parameterName: str, values: Sequence, axisCodes: Sequence[str] = None, exactMatch: bool = False) -> list:
+    def setByAxisCodes(self, parameterName: str, values: Sequence, axisCodes: Sequence[str] = None,
+                       exactMatch: bool = False) -> list:
         """Set attributeName to values in order defined by axisCodes (default order if None)
-        Perform a mapping if exactMatch=False (eg. 'H' to 'Hn')
+        Perform a mapping if exactMatch=False (e.g. 'H' to 'Hn')
 
         :param parameterName: a str denoting a Spectrum dimensional attribute
         :param values: an iterable with values
@@ -986,7 +992,8 @@ class Peak(AbstractWrapperObject):
         if axisCodes is None:
             dimensions = self.spectrum.dimensions
         else:
-            dimensions = self.spectrum.orderByAxisCodes(self.spectrum.dimensions, axisCodes=axisCodes, exactMatch=exactMatch)
+            dimensions = self.spectrum.orderByAxisCodes(self.spectrum.dimensions, axisCodes=axisCodes,
+                                                        exactMatch=exactMatch)
 
         try:
             newValues = _setParameterValues(self, parameterName, values,
@@ -1039,7 +1046,8 @@ class Peak(AbstractWrapperObject):
             dimensions = self.spectrum.dimensions
 
         try:
-            newValues = _setParameterValues(self, parameterName, values, dimensions=dimensions, dimensionCount=self.spectrum.dimensionCount)
+            newValues = _setParameterValues(self, parameterName, values, dimensions=dimensions,
+                                            dimensionCount=self.spectrum.dimensionCount)
         except ValueError as es:
             raise ValueError(f'{self.__class__.__name__}.setByDimensions: {str(es)}') from es
 
@@ -1067,12 +1075,12 @@ class Peak(AbstractWrapperObject):
         """STUB: hot-fixed later"""
         return []
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Implementation functions
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     @classmethod
-    def _getAllWrappedData(cls, parent: PeakList) -> Tuple[Nmr.Peak, ...]:
+    def _getAllWrappedData(cls, parent: PeakList) -> tuple[Nmr.Peak, ...]:
         """Get wrappedData (Peaks) for all Peak children of parent PeakList."""
         return parent._wrappedData.sortedPeaks()
 
@@ -1113,9 +1121,9 @@ class Peak(AbstractWrapperObject):
                      for p, iCode in zip(self.ppmPositions, self.spectrum.isotopeCodes))
         return "<%s: @%r>" % (self.pid, ppms)
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # CCPN functions
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     def isPartlyAssigned(self):
         """Whether peak is partly assigned."""
@@ -1196,7 +1204,7 @@ class Peak(AbstractWrapperObject):
             # change to order defined by axisCodes
             return self.reorderValues(values, axisCodes)
 
-    def setInAxisOrder(self, attributeName: str, values: Sequence[Any], axisCodes: Sequence[str] = None):
+    def setInAxisOrder(self, attributeName: str, values: Sequence, axisCodes: Sequence[str] = None):
         """Set attributeName from values in order defined by axisCodes
            (default order if None)"""
         if not hasattr(self, attributeName):
@@ -1227,7 +1235,7 @@ class Peak(AbstractWrapperObject):
     @integral.setter
     @logCommand(get='self', isProperty=True)
     @ccpNmrV3CoreSetter()
-    def integral(self, value: Union['Integral'] = None):
+    def integral(self, value: 'Integral' = None):
         """Link an integral to the peak.
         The peak must belong to the spectrum containing the peakList.
         :param value: single integral.
@@ -1381,10 +1389,10 @@ class Peak(AbstractWrapperObject):
     #     if alias is not None:
     #         spectrum.aliasingRange = alias
 
-    #===========================================================================================
+    #-----------------------------------------------------------------------------------------
     # new<Object> and other methods
     # Call appropriate routines in their respective locations
-    #===========================================================================================
+    #-----------------------------------------------------------------------------------------
 
 
 #=========================================================================================
@@ -1397,7 +1405,8 @@ def _newPeak(self: PeakList, *, height: float = None, volume: float = None,
              figureOfMerit: float = 1.0, annotation: str = None, comment: str = None,
              ppmPositions: Sequence[float] = (), position: Sequence[float] = None, positionError: Sequence[float] = (),
              pointPositions: Sequence[float] = (), boxWidths: Sequence[float] = (),
-             lineWidths: Sequence[float] = (), ppmLineWidths: Sequence[float] = (), pointLineWidths: Sequence[float] = (),
+             lineWidths: Sequence[float] = (), ppmLineWidths: Sequence[float] = (),
+             pointLineWidths: Sequence[float] = (),
              clusterId: int = None,
              ) -> Peak:
     """Create a new Peak within a peakList
@@ -1517,8 +1526,8 @@ def _newPickedPeak(self: PeakList, pointPositions: Sequence[float] = None, heigh
 
         if dataDimRef:
             peakDim.numAliasing = int(divmod(pointPositions[i], dataDim.numPointsOrig)[0])
-            peakDim.position = float(pointPositions[i] + 1 - peakDim.numAliasing * dataDim.numPointsOrig)  # API position starts at 1
-
+            # API position starts at 1
+            peakDim.position = float(pointPositions[i] + 1 - peakDim.numAliasing * dataDim.numPointsOrig)
         else:
             peakDim.position = float(pointPositions[i] + 1)
 
