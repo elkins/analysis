@@ -16,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-07-01 20:52:11 +0100 (Mon, July 01, 2024) $"
-__version__ = "$Revision: 3.2.4 $"
+__dateModified__ = "$dateModified: 2024-11-27 18:58:35 +0000 (Wed, November 27, 2024) $"
+__version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -631,7 +631,6 @@ class NoUi(Ui):
                 return False
 
         self.application._getRecentProjectFiles()  # this will update the preferences-list
-        self.mainWindow._fillRecentProjectsMenu()  # Update the menu
         getLogger().info(f'Project successfully saved to "{self.project.path}"')
 
         return True
