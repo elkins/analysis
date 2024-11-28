@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-11-20 13:19:02 +0000 (Wed, November 20, 2024) $"
+__dateModified__ = "$dateModified: 2024-11-28 14:13:57 +0000 (Thu, November 28, 2024) $"
 __version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
@@ -30,10 +30,12 @@ __date__ = "$Date: 2022-04-29 16:52:01 +0100 (Fri, April 29, 2022) $"
 import pandas as pd
 from PyQt5 import QtWidgets, QtCore
 from collections import OrderedDict
+from abc import ABC, abstractmethod
 from ccpn.core.lib.DataFrameObject import DataFrameObject
 from ccpn.core.lib.Notifiers import Notifier
 from ccpn.ui.gui.widgets.Spacer import Spacer
 from ccpn.ui.gui.widgets.Frame import Frame
+from ccpn.ui.gui.widgets.table.TableABC import _TableABCMeta
 from ccpn.ui.gui.widgets.table._ProjectTable import _ProjectTableABC
 from ccpn.ui.gui.widgets.Font import getFontHeight
 from ccpn.util.Logging import getLogger
@@ -46,20 +48,15 @@ _DEBUG = False
 # _CoreTableWidgetABC
 #=========================================================================================
 
-class _CoreTableWidgetMeta(type(_ProjectTableABC)):
+
+class _CoreTableWidgetMeta(_TableABCMeta, type(ABC)):
     """Metaclass implementing a post-initialise hook, ALWAYS called after __init__ has finished
     """
-
-    def __call__(self, *args, **kwargs):
-        if _DEBUG: getLogger().debug2(f'--> pre-create table-widget {self}')
-        instance = super().__call__(*args, **kwargs)
-        # call the post-__init__ hook
-        instance._postInit()
-        if _DEBUG: getLogger().debug2(f'--> post-create table-widget {self}')
-        return instance
+    # required to resolve metaclass conflict due to the addition of ABC
+    ...
 
 
-class _CoreTableWidgetABC(_ProjectTableABC, metaclass=_CoreTableWidgetMeta):
+class _CoreTableWidgetABC(_ProjectTableABC, ABC, metaclass=_CoreTableWidgetMeta):
     """Class to present a table for core objects
     """
     # define overriding attributes here for subclassing - not setting will default to these
@@ -85,6 +82,7 @@ class _CoreTableWidgetABC(_ProjectTableABC, metaclass=_CoreTableWidgetMeta):
     #-----------------------------------------------------------------------------------------
 
     @property
+    @abstractmethod
     def _sourceObjects(self):
         """Return the list of source objects, e.g., _table.peaks/_table.nmrResidues
         """
@@ -92,11 +90,13 @@ class _CoreTableWidgetABC(_ProjectTableABC, metaclass=_CoreTableWidgetMeta):
         raise NotImplementedError(f'Code error: {self.__class__.__name__}._sourceObjects not implemented')
 
     @_sourceObjects.setter
+    @abstractmethod
     def _sourceObjects(self, value):
         # MUST BE SUBCLASSED
         raise NotImplementedError(f'Code error: {self.__class__.__name__}._sourceObjects not implemented')
 
     @property
+    @abstractmethod
     def _sourceCurrent(self):
         """Return the list of source objects in the current list, e.g., current.peaks/current.nmrResidues
         """
@@ -104,6 +104,7 @@ class _CoreTableWidgetABC(_ProjectTableABC, metaclass=_CoreTableWidgetMeta):
         raise NotImplementedError(f'Code error: {self.__class__.__name__}._sourceCurrent not implemented')
 
     @_sourceCurrent.setter
+    @abstractmethod
     def _sourceCurrent(self, value):
         # MUST BE SUBCLASSED
         raise NotImplementedError(f'Code error: {self.__class__.__name__}._sourceCurrent not implemented')
@@ -360,7 +361,42 @@ class _CoreTableWidgetABC(_ProjectTableABC, metaclass=_CoreTableWidgetMeta):
 # _CoreTableFrameABC
 #=========================================================================================
 
-class _CoreTableFrameABC(Frame):
+class _CoreTableFrameABCMeta(type(Frame), type(ABC)):
+    """
+    Metaclass for validating required attributes in classes derived from `_CoreTableFrameABC`.
+
+    This metaclass ensures that subclasses define the necessary attributes in their
+    class body before allowing an instance to be created.
+
+    **Required Class Attributes**:
+        - ``_TableKlass``: The class used for the table widget.
+        - ``_PulldownKlass``: The class used for the pulldown widget.
+    """
+
+    def __call__(cls, *args, **kwargs):
+        """
+        Overrides the default behavior for instance creation.
+
+        This method is called when an instance of a class using this metaclass is created.
+        It validates that all required class attributes are defined and not `None` before
+        proceeding with the creation of the instance.
+
+        :param args: Positional arguments for the class constructor.
+        :param kwargs: Keyword arguments for the class constructor.
+        :raises AttributeError: If any required class attribute is not defined or is `None`.
+        :return: The created instance of the class.
+        """
+        # Perform validation to ensure required attributes are defined
+        required_attrs = ['_TableKlass', '_PulldownKlass']
+        for attr in required_attrs:
+            # Check if the attribute exists and is not None
+            if not hasattr(cls, attr) or getattr(cls, attr) is None:
+                raise AttributeError(f"{cls.__name__} must define {attr} in its class body.")
+        # Default instance creation
+        return super().__call__(*args, **kwargs)
+
+
+class _CoreTableFrameABC(Frame, ABC, metaclass=_CoreTableFrameABCMeta):
     """Frame containing the pulldown and the table widget.
     There is no subclassed _CoreMITableFrameABC, separate class not required.
     """
@@ -449,6 +485,7 @@ class _CoreTableFrameABC(Frame):
     #-----------------------------------------------------------------------------------------
 
     @property
+    @abstractmethod
     def _tableCurrent(self):
         """Return the list of source objects, e.g., _table.peaks/_table.nmrResidues
         """
@@ -456,6 +493,7 @@ class _CoreTableFrameABC(Frame):
         raise NotImplementedError(f'Code error: {self.__class__.__name__}._tableCurrent not implemented')
 
     @_tableCurrent.setter
+    @abstractmethod
     def _tableCurrent(self, value):
         # MUST BE SUBCLASSED
         raise NotImplementedError(f'Code error: {self.__class__.__name__}._tableCurrent not implemented')

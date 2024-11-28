@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-11-20 13:19:04 +0000 (Wed, November 20, 2024) $"
+__dateModified__ = "$dateModified: 2024-11-28 14:13:58 +0000 (Thu, November 28, 2024) $"
 __version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
@@ -472,7 +472,7 @@ class _MIProjectTableABC(MITableABC, Base):
         """Read the visible/hidden columns from preferences.
         This will affect the current table.
         """
-        print('==> RESTOREFROMPREFERENCES')
+        getLogger().debug('==> RESTOREFROMPREFERENCES')
         tableName = self.className
         if not (prefs := getPreferences()):
             getLogger().debug2(f'Cannot restore hidden-columns {tableName}')
@@ -492,7 +492,7 @@ class _MIProjectTableABC(MITableABC, Base):
         """Reset the visible/hidden columns in preferences to None.
         This will affect the current table, and new modules, which will open with the internal defaults.
         """
-        print('==> RESETPREFERENCES')
+        getLogger().debug('==> RESETPREFERENCES')
         tableName = self.className
         if not (prefs := getPreferences()):
             getLogger().debug2(f'Cannot reset hidden-columns {tableName}')

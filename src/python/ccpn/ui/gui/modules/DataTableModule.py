@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-11-26 10:38:14 +0000 (Tue, November 26, 2024) $"
+__dateModified__ = "$dateModified: 2024-11-28 14:13:58 +0000 (Thu, November 28, 2024) $"
 __version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
@@ -374,16 +374,24 @@ class _DataTableWidget(Table):
         self.dataFrameObject = None
 
         # initialise the table
-        super().__init__(parent=parent,
+        super().__init__(parent=parent, acceptDrops=True,
                          grid=(3, 0), gridSpan=(1, 6), showVerticalHeader=showVerticalHeader,
                          )
         self.moduleParent = moduleParent
 
     def _postInit(self):
+        from ccpn.ui.gui.widgets.DropBase import DropBase
+        from ccpn.ui.gui.lib.GuiNotifier import GuiNotifier
+
         super()._postInit()
-        # Save/restore of hidden-columns doesn't make sense here yet, as core-object dataTables may all be different
-        # may refactor the remaining modules so this isn't needed
-        self._widgetScrollArea.setFixedHeight(self._widgetScrollArea.sizeHint().height())
+
+        # add a dropped notifier
+        if self.moduleParent is not None:
+            # set the dropEvent to the mainWidget of the module, otherwise the event gets stolen by Frames
+            self.moduleParent.mainWidget._dropEventCallback = self._processDroppedItems
+            self.moduleParent.setGuiNotifier(self,
+                                             [GuiNotifier.DROPEVENT], [DropBase.PIDS],
+                                             self._processDroppedItems)
 
     #-----------------------------------------------------------------------------------------
     # Selection/action callbacks

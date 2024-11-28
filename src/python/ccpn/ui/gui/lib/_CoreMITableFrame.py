@@ -19,7 +19,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-11-20 13:19:02 +0000 (Wed, November 20, 2024) $"
+__dateModified__ = "$dateModified: 2024-11-28 14:13:57 +0000 (Thu, November 28, 2024) $"
 __version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
@@ -32,9 +32,11 @@ __date__ = "$Date: 2023-02-07 16:38:53 +0100 (Tue, February 07, 2023) $"
 
 import pandas as pd
 from collections import OrderedDict
+from abc import ABC, abstractmethod
 from ccpn.core.lib.DataFrameObject import DataFrameObject
 from ccpn.core.lib.Notifiers import Notifier
 from ccpn.ui.gui.widgets.table.MIProjectTable import _MIProjectTableABC
+from ccpn.ui.gui.widgets.table.TableABC import _TableABCMeta
 from ccpn.ui.gui.widgets.table._TableModel import _TableModel
 from ccpn.util.Logging import getLogger
 
@@ -46,20 +48,14 @@ _DEBUG = False
 # _CoreMITableWidgetABC
 #=========================================================================================
 
-class _CoreMITableWidgetMeta(type(_MIProjectTableABC)):
+class _CoreMITableWidgetMeta(_TableABCMeta, type(ABC)):
     """Metaclass implementing a post-initialise hook, ALWAYS called after __init__ has finished
     """
-
-    def __call__(self, *args, **kwargs):
-        if _DEBUG: getLogger().debug2(f'--> pre-create table-widget {self}')
-        instance = super().__call__(*args, **kwargs)
-        # call the post-__init__ hook
-        instance._postInit()
-        if _DEBUG: getLogger().debug2(f'--> post-create table-widget {self}')
-        return instance
+    # required to resolve metaclass conflict due to the addition of ABC
+    ...
 
 
-class _CoreMITableWidgetABC(_MIProjectTableABC, metaclass=_CoreMITableWidgetMeta):
+class _CoreMITableWidgetABC(_MIProjectTableABC, ABC, metaclass=_CoreMITableWidgetMeta):
     """Class to present a multi-index table for core objects
     """
     # define overriding attributes here for subclassing - not setting will default to these
@@ -85,6 +81,7 @@ class _CoreMITableWidgetABC(_MIProjectTableABC, metaclass=_CoreMITableWidgetMeta
     #-----------------------------------------------------------------------------------------
 
     @property
+    @abstractmethod
     def _sourceObjects(self):
         """Return the list of source objects, e.g., _table.peaks/_table.nmrResidues.
         """
@@ -92,11 +89,13 @@ class _CoreMITableWidgetABC(_MIProjectTableABC, metaclass=_CoreMITableWidgetMeta
         raise NotImplementedError(f'Code error: {self.__class__.__name__}._sourceObjects not implemented')
 
     @_sourceObjects.setter
+    @abstractmethod
     def _sourceObjects(self, value):
         # MUST BE SUBCLASSED
         raise NotImplementedError(f'Code error: {self.__class__.__name__}._sourceObjects not implemented')
 
     @property
+    @abstractmethod
     def _sourceCurrent(self):
         """Return the list of source objects in the current list, e.g., current.peaks/current.nmrResidues
         """
@@ -104,6 +103,7 @@ class _CoreMITableWidgetABC(_MIProjectTableABC, metaclass=_CoreMITableWidgetMeta
         raise NotImplementedError(f'Code error: {self.__class__.__name__}._sourceCurrent not implemented')
 
     @_sourceCurrent.setter
+    @abstractmethod
     def _sourceCurrent(self, value):
         # MUST BE SUBCLASSED
         raise NotImplementedError(f'Code error: {self.__class__.__name__}._sourceCurrent not implemented')
