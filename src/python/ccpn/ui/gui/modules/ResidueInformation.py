@@ -13,8 +13,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-09-13 15:20:23 +0100 (Fri, September 13, 2024) $"
-__version__ = "$Revision: 3.2.7 $"
+__dateModified__ = "$dateModified: 2024-12-02 12:15:29 +0000 (Mon, December 02, 2024) $"
+__version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -380,8 +380,13 @@ class ResidueInformation(CcpnModule):
         """
         if self.chainPulldown:
             self.chainPulldown.unRegister()
+            self.chainPulldown = None
         if self._residueTable:
             self._residueTable._close()
+            self._residueTable = None
+        if self.thisSequenceWidget:
+            self.thisSequenceWidget._closeModule()
+            self.thisSequenceWidget = None
         super()._closeModule()
 
     #=========================================================================================

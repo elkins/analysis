@@ -16,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-10-15 12:09:49 +0100 (Tue, October 15, 2024) $"
-__version__ = "$Revision: 3.2.7 $"
+__dateModified__ = "$dateModified: 2024-12-02 12:15:30 +0000 (Mon, December 02, 2024) $"
+__version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -70,6 +70,7 @@ from ccpn.core.RestraintTable import RestraintTable
 from ccpn.core.DataTable import DataTable
 from ccpn.core.ViolationTable import ViolationTable
 from ccpn.ui._implementation.SpectrumDisplay import SpectrumDisplay
+from ccpn.util.Logging import getLogger
 
 
 ALL = '<Use all>'
@@ -1495,16 +1496,25 @@ class StripPlot(Widget, _commonSettings, SignalBlocking):
     def _unRegisterNotifiers(self):
         """Unregister notifiers
         """
+        getLogger().debug2(f'==> StripPlot  _unRegisterNotifiers')
         if self._notifierRename:
             self._notifierRename.unRegister()
+            self._notifierRename = None
         if self._notifierDelete:
             self._notifierDelete.unRegister()
+            self._notifierDelete = None
         if self._notifierCreate:
             self._notifierCreate.unRegister()
+            self._notifierCreate = None
         if self.includeNmrChainPullSelection:
             self.ncWidget.unRegister()
+            self.ncWidget = None
         if self.includeSpectrumTable:
             self.spectrumDisplayPulldown._close()
+            self.spectrumDisplayPulldown = None
+        if self.displaysWidget:
+            self.displaysWidget._close()
+            self.displaysWidget = None
 
     # not required as never called, now uses SpectrumDisplaySelectionWidget notifiers
     # def _spectrumViewChanged(self, data):
@@ -1539,8 +1549,6 @@ class StripPlot(Widget, _commonSettings, SignalBlocking):
         """Cleanup the notifiers that are left behind after the widget is closed
         """
         self._unRegisterNotifiers()
-        if self.displaysWidget:
-            self.displaysWidget._close()
 
     def _selectionPulldownCallback(self, item):
         """Notifier Callback for selecting NmrChain
@@ -1749,7 +1757,17 @@ class ModuleSettingsWidget(Widget):  #, _commonSettings):
     def _unRegisterNotifiers(self):
         """Unregister notifiers
         """
-        pass
+        getLogger().debug2(f'==> _unRegisterNotifiers {self.__class__.__name__}')
+        for widg in self.widgetsDict.values():
+            try:
+                if hasattr(widg, '_close'):
+                    widg._close()
+                else:
+                    getLogger().debug(f'{widg.__class__.__name__} has no _close method')
+            except Exception as es:
+                getLogger().debug(f'Issue closing {self}:{widg}  {es}')
+        self.widgetsDict = None
+        self.checkBoxes = None
 
     def doCallback(self):
         """Handle the user callback
@@ -1843,6 +1861,7 @@ class ObjectSelectionWidget(ListCompoundWidget):
 
         # Notifiers
         if self.project:
+            getLogger().debug2(f'--> notifiers {self.__class__.__name__}')
             self._notifierRename = Notifier(theObject=self.project,
                                             triggers=[Notifier.RENAME],
                                             targetName=self.KLASS.className,
@@ -1857,9 +1876,8 @@ class ObjectSelectionWidget(ListCompoundWidget):
                                             triggers=[Notifier.CREATE],
                                             targetName=self.KLASS.className,
                                             callback=self._objCreatedCallback)
-
-        else:
-            self._notifierRename = self._notifierDelete = None
+            return
+        self._notifierRename = self._notifierDelete = self._notifierCreate = None
 
     def _passThroughListChanged(self, *args, **kwds):
         """Pass through the signal from the listWidget."""
@@ -1867,12 +1885,16 @@ class ObjectSelectionWidget(ListCompoundWidget):
 
     def _close(self):
         """Unregister notifiers and close."""
+        getLogger().debug2(f'==> _close  {self.__class__.__name__}')
         if self._notifierRename:
             self._notifierRename.unRegister()
             self._notifierRename = None
         if self._notifierDelete:
             self._notifierDelete.unRegister()
             self._notifierDelete = None
+        if self._notifierCreate:
+            self._notifierCreate.unRegister()
+            self._notifierCreate = None
 
     def select(self, item, blockSignals=False):
         """Convenience: Set item in Pulldown; works with text or item"""
@@ -2110,8 +2132,9 @@ class SpectrumDisplaySelectionWidget(ObjectSelectionWidget):
         self.addText(obj.pid)
 
     def unRegister(self):
-        """Unregister the notifiers; needs to be called when disgarding a instance
+        """Unregister the notifiers; needs to be called when disgarding an instance
         """
+        getLogger().debug2(f'==> unRegister  {self.__class__.__name__}')
         self.deleteNotifiers()
 
     def _objectWidgetChanged(self, data=None):
