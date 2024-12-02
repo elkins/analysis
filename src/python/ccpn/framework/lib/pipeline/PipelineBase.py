@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-11-25 09:49:17 +0000 (Mon, November 25, 2024) $"
+__dateModified__ = "$dateModified: 2024-12-02 17:02:45 +0000 (Mon, December 02, 2024) $"
 __version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
@@ -116,6 +116,37 @@ class Pipeline(object):
 
     def _updateRunArgs(self, arg, value):
         self._kwargs[arg] = value
+
+    @staticmethod
+    def _convertKwargsToHumanReadable(inputDict):
+        """
+        Converts only the keys of a dictionary to human-readable format.
+        Removes keys that end with 'label' (case-insensitive).
+        Example: 'DataTable_Type' -> 'Data Table Type'
+        """
+
+        def humanise(key):
+            """Converts a single key to human-readable format."""
+            return " ".join(word.capitalize() for word in key.split('_'))
+
+        def processDict(d):
+            """Processes the dictionary, converting keys and filtering out unwanted keys."""
+            if not isinstance(d, dict):
+                return d
+            return {
+                humanise(key): processDict(value) if isinstance(value, dict) else value
+                for key, value in d.items()
+                if not key.lower().endswith('label')
+                }
+
+        return processDict(inputDict)
+
+    def _getRunPipesSettings(self):
+        """ Get the run pipes as a dictionary, key: the pipe name, value: the user's settings."""
+        dd = {}
+        for pipe in self.queue:
+            dd.update({pipe.pipeName: self._convertKwargsToHumanReadable(pipe._kwargs)})
+        return dd
 
     def _set1DRawDataDict(self, force=True):
         from ccpn.core.lib.SpectrumLib import _1DRawDataDict
