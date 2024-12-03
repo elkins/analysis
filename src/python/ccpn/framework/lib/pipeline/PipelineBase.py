@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-12-02 17:02:45 +0000 (Mon, December 02, 2024) $"
+__dateModified__ = "$dateModified: 2024-12-03 00:25:21 +0000 (Tue, December 03, 2024) $"
 __version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
@@ -146,7 +146,7 @@ class Pipeline(object):
         dd = {}
         for pipe in self.queue:
             dd.update({pipe.pipeName: self._convertKwargsToHumanReadable(pipe._kwargs)})
-        return dd
+        return {self.pipelineName: dd}
 
     def _set1DRawDataDict(self, force=True):
         from ccpn.core.lib.SpectrumLib import _1DRawDataDict

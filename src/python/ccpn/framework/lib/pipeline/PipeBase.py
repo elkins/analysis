@@ -17,7 +17,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-11-25 09:49:17 +0000 (Mon, November 25, 2024) $"
+__dateModified__ = "$dateModified: 2024-12-03 00:25:21 +0000 (Tue, December 03, 2024) $"
 __version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
@@ -80,7 +80,7 @@ class Pipe(object):
         from ccpn.pipes import loadedPipes
         loadedPipes.append(cls)
 
-    def __init__(self, application=None, pipelineStopSignal=None):
+    def __init__(self, application=None):
         self._kwargs = {}
         self.inputData = None
         self.spectrumGroups = None
