@@ -15,8 +15,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-11-26 10:34:53 +0000 (Tue, November 26, 2024) $"
+__modifiedBy__ = "$modifiedBy: Luca Mureddu $"
+__dateModified__ = "$dateModified: 2024-12-03 14:30:55 +0000 (Tue, December 03, 2024) $"
 __version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
@@ -836,8 +836,6 @@ class PipelineBoxLabel(DockLabel, VerticalLabel):
                                                   color:black;
                                                   border: 0px solid transparent}""")
         self.closeButton.setIconSize(QtCore.QSize(15, 15))
-        self.progressLabel = Label(self, text='')
-        self.progressLabel.setMinimumWidth(250)
 
     def mousePressEvent(self, ev):
 
@@ -859,16 +857,10 @@ class PipelineBoxLabel(DockLabel, VerticalLabel):
     def resizeEvent(self, ev):
         size = ev.size().height()
 
-        pos = QtCore.QPoint(ev.size().width() - 60, 0)
-        # self.activeLabel.move(pos)
-        # self.lineEdit.move(pos)
-
         pos = QtCore.QPoint(ev.size().width() - 20, 0)
         self.closeButton.move(pos)
         pos = QtCore.QPoint(ev.size().width() - 80, 0)
         self.checkBox.move(pos)
-        pos = QtCore.QPoint(ev.size().width() - 200, 0)
-        self.progressLabel.move(pos)
         super(DockLabel, self).resizeEvent(ev)
 
     def mouseMoveEvent(self, ev):
