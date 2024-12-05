@@ -13,8 +13,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-10-03 09:42:40 +0100 (Thu, October 03, 2024) $"
-__version__ = "$Revision: 3.2.9.alpha $"
+__dateModified__ = "$dateModified: 2024-12-05 12:57:47 +0000 (Thu, December 05, 2024) $"
+__version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -333,6 +333,13 @@ class Framework(NotifierBase, GuiBase):
             self.project._updateLoggerState()
             if self.mainWindow:
                 self.mainWindow._setReadOnlyIcon()
+
+    def getRegistrationDetails(self):
+        """Get the Registration details for the current User as a dict """
+        from ccpn.util import Register
+        registrationDict = Register.loadDict()
+        skipValues = ['termsConditions', 'hashcode']
+        return {k:v for k,v in registrationDict.items() if k not in skipValues}
 
     #-----------------------------------------------------------------------------------------
     # Useful (?) directories as Path instances
