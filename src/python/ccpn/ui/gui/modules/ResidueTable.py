@@ -17,7 +17,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-12-09 14:19:10 +0000 (Mon, December 09, 2024) $"
+__dateModified__ = "$dateModified: 2024-12-09 17:18:44 +0000 (Mon, December 09, 2024) $"
 __version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
@@ -136,9 +136,6 @@ class ResidueTableModule(CcpnTableModule):
         self._mainFrame.selectTable(table)
 
     def _closeModule(self):
-        if self.tableFrame:
-            self.tableFrame._cleanupWidget()
-            self._mainFrame = None
         if self.activePulldownClass and self._setCurrentPulldown:
             self._setCurrentPulldown.unRegister()
             self._setCurrentPulldown = None

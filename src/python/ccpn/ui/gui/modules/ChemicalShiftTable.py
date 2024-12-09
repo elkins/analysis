@@ -18,8 +18,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-06-21 19:48:44 +0100 (Fri, June 21, 2024) $"
-__version__ = "$Revision: 3.2.4 $"
+__dateModified__ = "$dateModified: 2024-12-09 17:18:43 +0000 (Mon, December 09, 2024) $"
+__version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -169,6 +169,15 @@ class ChemicalShiftTableModule(CcpnTableModule):
                                                    moduleParent=self,
                                                    grid=(row, 0), gridSpan=(1, 6),
                                                    hiddenColumns=_hidden)
+
+    @property
+    def tableFrame(self):
+        """Return the table frame
+        """
+        # a bit of a hack for this module as subclasses from CcpnTableModule
+        getLogger().debug(f'{self.__class__.__name__}.tableFrame: '
+                          f'a bit of a hack as subclasses from CcpnTableModule')
+        return None
 
     def selectTable(self, table=None):
         """Manually select a table from the pullDown

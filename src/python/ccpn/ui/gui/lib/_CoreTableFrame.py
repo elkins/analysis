@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-12-09 14:19:09 +0000 (Mon, December 09, 2024) $"
+__dateModified__ = "$dateModified: 2024-12-09 17:18:43 +0000 (Mon, December 09, 2024) $"
 __version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
@@ -526,6 +526,7 @@ class _CoreTableFrameABC(Frame):
     def _cleanupWidget(self):
         """CCPN-INTERNAL: used to clean-up when closing
         """
+        getLogger().debug(f'Clean up table-frame {self.__class__.__name__}')
         self._modulePulldown.unRegister()
         self._tableWidget._close()
         self._modulePulldown = None

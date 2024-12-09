@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-12-09 14:19:10 +0000 (Mon, December 09, 2024) $"
+__dateModified__ = "$dateModified: 2024-12-09 17:18:44 +0000 (Mon, December 09, 2024) $"
 __version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
@@ -820,9 +820,6 @@ class RestraintAnalysisTableModule(CcpnTableModule):
         if self._settings:
             self._settings._cleanupWidget()
             self._settings = None
-        if self.tableFrame:
-            self.tableFrame._cleanupWidget()
-            self._mainFrame = None
         if rss := self.resources:
             if rss._displayListWidget:
                 rss._displayListWidget._close()
@@ -836,10 +833,10 @@ class RestraintAnalysisTableModule(CcpnTableModule):
             if rss._collectionPulldown:
                 rss._collectionPulldown.unRegister()
                 rss._collectionPulldown = None
-            self.resources = None
         self.comparisonFrame._clear()
         self.comparisonFrame = None
         super()._closeModule()
+        self.resources = None
 
     def _getLastSeenWidgetsState(self):
         """Internal. Used to restore last closed module in the same program instance.
