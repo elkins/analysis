@@ -20,9 +20,9 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-10-25 12:56:59 +0100 (Fri, October 25, 2024) $"
-__version__ = "$Revision: 3.2.9.alpha $"
+__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
+__dateModified__ = "$dateModified: 2024-12-09 12:39:16 +0000 (Mon, December 09, 2024) $"
+__version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -40,16 +40,17 @@ import sys
 import string
 import platform
 import collections
-from collections.abc import Iterable
-from itertools import islice
+from itertools import islice, cycle, zip_longest
 from string import whitespace
 from contextlib import suppress
+from typing import Any, Iterable, Iterator
 
 from ccpn.util.OrderedSet import OrderedSet
 from ccpn.util import Constants
 from ccpn.util.decorators import singleton
 
 
+_DEBUG = False
 # define a simple sentinel
 NOTHING = object()
 
@@ -567,6 +568,7 @@ def modifyByFraction(value, fraction):
 
     return new_value
 
+
 def _add(x, y):
     if y > 0:
         return _add(x, y - 1) + 1
@@ -872,26 +874,30 @@ def camelCaseToString(name):
 #         return len(name) <= 32
 
 
-def zipCycle(*iterables, emptyDefault=None):
+def zipCycle(*iterables: Iterable[Any], emptyDefault: Any = None) -> Iterator[tuple[Any, ...]]:
     """
     Make an iterator returning elements from the iterable and saving a copy of each.
     When the iterable is exhausted, return elements from the saved copy.
 
-    example:
-            for i in zipCycle(range(2), range(5), ['a', 'b', 'c'], []):
-                print(i)
-            Outputs:
-            (0, 0, 'a', None)
-            (1, 1, 'b', None)
-            (0, 2, 'c', None)
-            (1, 3, 'a', None)
-            (0, 4, 'b', None)
-    """
-    from itertools import cycle, zip_longest
+    :param iterables: Any number of iterables to zip together.
+    :param emptyDefault: The default value to return for exhausted iterables.
+    :return: An iterator of tuples containing the zipped elements.
 
-    cycles = [cycle(i) for i in iterables]
-    for _ in zip_longest(*iterables):
-        yield tuple(next(i, emptyDefault) for i in cycles)
+    Example:
+        for i in zipCycle(range(2), range(5), ['a', 'b', 'c'], []):
+            print(i)
+        (0, 0, 'a', None)
+        (1, 1, 'b', None)
+        (0, 2, 'c', None)
+        (1, 3, 'a', None)
+        (0, 4, 'b', None)
+    """
+    if not iterables:
+        return  # No iterables provided, nothing to yield
+    cycles = [cycle(iterable) for iterable in iterables]
+    # not sure how to get rid of the pycharm type-checking warning here
+    for _ in zip_longest(*iterables, fillvalue=emptyDefault):
+        yield tuple(next(cycle_, emptyDefault) for cycle_ in cycles)
 
 
 def _getObjectsByPids(project, pids):
@@ -981,9 +987,17 @@ def consume(iterator, n=None):
         next(islice(iterator, n, n), None)
 
 
+#=========================================================================================
+# main
+#=========================================================================================
+
 def main():
+    # quick testing
     # make sure that zeroes are still included
     print(makeIterableList(((0, 1, 2, [[[], [None, 0]]], None, (0, {3, 4, 5, 5, None, 0}, 4, 5)))))
+
+    for i in zipCycle(range(2), range(5), ['a', 'b', 'c'], []):
+        print(i)
 
 
 if __name__ == '__main__':

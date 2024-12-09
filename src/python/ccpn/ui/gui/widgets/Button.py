@@ -16,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-08-23 19:21:18 +0100 (Fri, August 23, 2024) $"
-__version__ = "$Revision: 3.2.5 $"
+__dateModified__ = "$dateModified: 2024-12-09 12:39:16 +0000 (Mon, December 09, 2024) $"
+__version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -28,12 +28,10 @@ __date__ = "$Date: 2017-04-07 10:28:41 +0000 (Fri, April 07, 2017) $"
 #=========================================================================================
 
 from PyQt5 import QtCore, QtWidgets, QtGui
-
 from ccpn.framework.Translation import translator
 from ccpn.ui.gui.widgets.Base import Base
 from ccpn.ui.gui.widgets.Icon import Icon
 from ccpn.ui.gui.widgets.Font import getFontHeight
-from ccpn.ui.gui.guiSettings import getColours
 
 
 CHECKED = QtCore.Qt.Checked
@@ -53,10 +51,6 @@ class Button(QtWidgets.QPushButton, Base):
         self.setText(text)
         self._enableFocusBorder = enableFocusBorder
 
-        # polish/unpolish required if these fields change outside __init__
-        self.setProperty('iconField', bool(icon))
-        self.setProperty('focusBorderField', bool(enableFocusBorder))
-        self.setProperty('toggleField', bool(toggle))
         if icon:  # filename or pixmap
             self.setIcon(Icon(icon))
             # this causes the button to reset its stylesheet
@@ -67,6 +61,11 @@ class Button(QtWidgets.QPushButton, Base):
         if toggle is not None:
             self.setCheckable(True)
             self.setSelected(toggle)
+
+        # polish/unpolish required if these fields change outside __init__
+        self.setProperty('iconField', bool(icon and not text))
+        self.setProperty('focusBorderField', bool(enableFocusBorder))
+        self.setProperty('toggleField', bool(toggle))
 
         self._callback = None
         self.setCallback(callback)
@@ -81,8 +80,12 @@ class Button(QtWidgets.QPushButton, Base):
         self.style().polish(self)
 
     def _checkPalette(self, *args):
-        _style = """QPushButton[iconField=true] { padding: 1px 3px 1px 3px; }
-                    QPushButton { padding: 3px; }
+        _style = """QPushButton[iconField=true][focusBorderField=false] { padding: 1px 3px 1px 3px; }
+                    QPushButton[iconField=true][focusBorderField=true] {
+                        padding: 1px 3px 1px 3px;
+                        border: 0px;
+                    }
+                    QPushButton { padding: 2px 3px 2px 3px; }
                     QPushButton:focus[focusBorderField=true] {
                         padding: 0px;
                         border-color: palette(highlight);
@@ -90,9 +93,7 @@ class Button(QtWidgets.QPushButton, Base):
                         border-width: 1px;
                         border-radius: 2px;
                     }
-                    QPushButton:focus {
-                        padding: 0px;
-                    }
+                    QPushButton:focus { padding: 0px; }
                     QPushButton:disabled {
                         color: palette(dark);
                         background-color: palette(midlight);

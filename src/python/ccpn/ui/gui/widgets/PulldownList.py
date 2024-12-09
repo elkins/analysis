@@ -17,8 +17,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-09-05 11:44:15 +0100 (Thu, September 05, 2024) $"
-__version__ = "$Revision: 3.2.5 $"
+__dateModified__ = "$dateModified: 2024-12-09 12:39:16 +0000 (Mon, December 09, 2024) $"
+__version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -168,21 +168,16 @@ class PulldownList(QtWidgets.QComboBox, Base):
     def _setStyle(self):
         # weird behaviour here - the padding needs to be large on the right :|
         # otherwise there is an overlap with the pulldown down-arrow
-        _style = """
-                QComboBox {
-                    padding: 3px 8px 3px 3px;
-                    combobox-popup: 0;
-                }
-                QComboBox:disabled {
-                    color: palette(dark);
-                    background-color: palette(midlight);
-                }
-                QComboBox:!editable {
-                    color: palette(windowtext);
-                }
-                QListView::item:disabled {
-                    color: palette(dark);
-                }
+        _style = """QComboBox {
+                        padding: 2px 8px 2px 3px;
+                        combobox-popup: 0;
+                    }
+                    QComboBox:disabled {
+                        color: palette(dark);
+                        background-color: palette(midlight);
+                    }
+                    QComboBox:!editable { color: palette(windowtext); }
+                    QListView::item:disabled { color: palette(dark); }
                 """
         self.setStyleSheet(_style)
 
