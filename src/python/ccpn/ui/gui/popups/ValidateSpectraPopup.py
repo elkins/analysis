@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Daniel Thompson $"
-__dateModified__ = "$dateModified: 2024-12-05 16:31:16 +0000 (Thu, December 05, 2024) $"
+__dateModified__ = "$dateModified: 2024-12-09 11:36:19 +0000 (Mon, December 09, 2024) $"
 __version__ = "$Revision: 3.2.7 $"
 #=========================================================================================
 # Created
@@ -588,7 +588,7 @@ class SpectrumPathRow(PathRowABC):
 
         return dataStore, dataSource
 
-    def _reopenCallback(self, ignorePopup=False):
+    def _reopenCallback(self):
         """Callback when pressing reload or called on save and close if AUTODETECT is still set.
         """
         _path = self.getText()
@@ -598,12 +598,11 @@ class SpectrumPathRow(PathRowABC):
                         )
             return
 
-        if not ignorePopup:
-            ok = showOkCancel(f'Auto-detect dataFormat for {self.obj.name}',
-                              f'This will try to open "{_path}" and determine the dataFormat')
+        ok = showOkCancel(f'Auto-detect dataFormat for {self.obj.name}',
+                          f'This will try to open "{_path}" and determine the dataFormat')
 
-            if not ok:
-                return
+        if not ok:
+            return
 
         dataStore, dataSource = self._reopen(path=_path, dataFormat=None)
 
@@ -1136,7 +1135,6 @@ class ValidateSpectraPopup(CcpnDialog):
         for spectrum, row in self.spectrumData.items():
             if row.dataFormat is None:
                 # auto detect new format.
-                row._reopenCallback(ignorePopup=True)
+                row._reopenCallback()
             row.update()
-
         self.accept()
