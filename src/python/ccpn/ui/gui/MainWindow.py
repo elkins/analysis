@@ -16,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-10-14 19:13:39 +0100 (Mon, October 14, 2024) $"
-__version__ = "$Revision: 3.2.7 $"
+__dateModified__ = "$dateModified: 2024-12-09 17:15:32 +0000 (Mon, December 09, 2024) $"
+__version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -163,9 +163,6 @@ class GuiMainWindow(QtWidgets.QMainWindow, Shortcuts):
 
         # Module area
         self.moduleArea = CcpnModuleArea(mainWindow=self)
-        self._hiddenModules = CcpnModuleArea(mainWindow=self)
-        self._hiddenModules.setVisible(False)
-
         self.pythonConsoleModule = None  # Python console module; defined upon first time Class initialisation. Either by toggleConsole or Restoring layouts
         self.namespace = None
 
@@ -209,6 +206,21 @@ class GuiMainWindow(QtWidgets.QMainWindow, Shortcuts):
         # hide the window here and make visible later
         self.hide()
 
+    @property
+    def moduleArea(self):
+        return self._moduleAreaRef()
+
+    @moduleArea.setter
+    def moduleArea(self, value):
+        import weakref
+
+        def remove(wref, selfref=weakref.ref(self)):
+            getLogger().debug(f'{consoleStyle.fg.darkred}Clearing moduleArea '
+                              f'{wref}:{selfref()} {consoleStyle.reset}')
+        self._moduleAreaRef = weakref.ref(value, remove)
+        getLogger().debug(f'{consoleStyle.fg.darkgreen}Setting moduleArea '
+                          f'{self._moduleAreaRef()}{consoleStyle.reset}')
+
     def show(self):
         # self._checkPalette(self.palette())
         # self.application.ui._changeThemeInstant()
@@ -221,8 +233,7 @@ class GuiMainWindow(QtWidgets.QMainWindow, Shortcuts):
 
     def _checkPalette(self, pal: QtGui.QPalette, theme: str = None, themeColour: str = None, themeSD: str = None):
         # test the stylesheet of the QTableView
-        styleSheet = """
-                        QPushButton {
+        styleSheet = """QPushButton {
                             color: palette(text);
                         }
                         QToolTip {
