@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-12-02 12:15:30 +0000 (Mon, December 02, 2024) $"
+__dateModified__ = "$dateModified: 2024-12-09 13:10:32 +0000 (Mon, December 09, 2024) $"
 __version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
@@ -1763,7 +1763,7 @@ class ModuleSettingsWidget(Widget):  #, _commonSettings):
                 if hasattr(widg, '_close'):
                     widg._close()
                 else:
-                    getLogger().debug(f'{widg.__class__.__name__} has no _close method')
+                    getLogger().debug2(f'{widg.__class__.__name__} has no _close method')
             except Exception as es:
                 getLogger().debug(f'Issue closing {self}:{widg}  {es}')
         self.widgetsDict = None
