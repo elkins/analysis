@@ -16,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-10-02 16:39:51 +0100 (Wed, October 02, 2024) $"
-__version__ = "$Revision: 3.2.7 $"
+__dateModified__ = "$dateModified: 2024-12-09 17:26:03 +0000 (Mon, December 09, 2024) $"
+__version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -27,9 +27,9 @@ __date__ = "$Date: 2023-01-20 15:57:58 +0100 (Fri, January 20, 2023) $"
 # Start of code
 #=========================================================================================
 
-from dataclasses import dataclass, field
-from PyQt5 import QtWidgets
 import pandas as pd
+from dataclasses import dataclass, field
+from ccpn.core.lib.WeakRefLib import WeakRefDescriptor, _WeakRefDataClassMeta
 from ccpn.ui.gui.lib.GuiStripContextMenus import (_selectedPeaksMenuItem, _addMenuItems,
                                                   _getNdPeakMenuItems, _setEnabledAllItems)
 from ccpn.ui.gui.widgets.table._TableAdditions import TableMenuABC
@@ -91,6 +91,7 @@ _COMPARISONSETS = 'ComparisonSets'
 
 _DEFAULTMEANTHRESHOLD = 0.0
 ALL = '<Use all>'
+_DEBUG = False
 
 
 class SearchModes(DataEnum):
@@ -105,12 +106,12 @@ class SearchModes(DataEnum):
 #=========================================================================================
 
 @dataclass
-class _ModuleHandler(QtWidgets.QWidget):
+class _ModuleHandler(metaclass=_WeakRefDataClassMeta):
     # Use a QWidget as it can handle signals - maybe for later
 
     # gui resources
-    guiModule = None
-    guiFrame = None
+    guiModule: WeakRefDescriptor = field(default_factory=WeakRefDescriptor)
+    guiFrame: WeakRefDescriptor = field(default_factory=WeakRefDescriptor)
 
     # non-gui resources
     _restraintTables: list = field(default_factory=list)
@@ -118,12 +119,12 @@ class _ModuleHandler(QtWidgets.QWidget):
     _thisPeakList = None
 
     # don't like this holding on to widgets :|
-    _collectionPulldown = None
+    _collectionPulldown: WeakRefDescriptor = field(default_factory=WeakRefDescriptor)
     _collectionButton = None
-    _displayListWidget = None
-    _resTableWidget = None
-    _outTableWidget = None
-    _modulePulldown = None
+    _displayListWidget: WeakRefDescriptor = field(default_factory=WeakRefDescriptor)
+    _resTableWidget: WeakRefDescriptor = field(default_factory=WeakRefDescriptor)
+    _outTableWidget: WeakRefDescriptor = field(default_factory=WeakRefDescriptor)
+    _modulePulldown: WeakRefDescriptor = field(default_factory=WeakRefDescriptor)
     _searchModeRadio = None
     _includeNonPeaksCheckBox = None
 
@@ -173,21 +174,21 @@ class _RestraintOptions(TableMenuABC):
         parent._navigateToPeakMenuMain.setEnabled(False)
         _setEnabledAllItems(submenu, bool(parent.current.peaks))
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Properties
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     ...
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Class methods
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     ...
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Implementation
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     ...
 
