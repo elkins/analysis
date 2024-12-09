@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-11-26 13:30:14 +0000 (Tue, November 26, 2024) $"
+__dateModified__ = "$dateModified: 2024-12-09 17:14:34 +0000 (Mon, December 09, 2024) $"
 __version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
@@ -27,7 +27,6 @@ __date__ = "$Date: 2017-04-07 10:28:41 +0000 (Fri, April 07, 2017) $"
 # Start of code
 #=========================================================================================
 
-from functools import partial
 from typing import Sequence, Tuple, List, Union
 
 from ccpnmodel.ccpncore.api.ccpnmr.gui.Window import Window as ApiWindow
@@ -64,16 +63,11 @@ class Window(AbstractWrapperObject):
 
     # Qualified name of matching API class
     _apiClassQualifiedName = ApiWindow._metaclass.qualifiedName()
+    _wrapperData: ApiWindow
 
-    #=========================================================================================
-
-    def __init__(self, project, wrappedData):
-        super().__init__(project=project, wrappedData=wrappedData)
-        getLogger().debug(f'Initialised {self.pid}')
-
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # CCPN properties
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     @property
     def _apiWindow(self) -> ApiWindow:
@@ -154,9 +148,9 @@ class Window(AbstractWrapperObject):
         """
         return tuple(strip for display in self.spectrumDisplays for strip in display.strips)
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # property STUBS: hot-fixed later
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     @property
     def axes(self) -> list['Axis']:
@@ -229,9 +223,9 @@ class Window(AbstractWrapperObject):
     #     """
     #     return []
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # getter STUBS: hot-fixed later
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     def getAxis(self, relativeId: str) -> 'Axis | None':
         """STUB: hot-fixed later
@@ -293,9 +287,9 @@ class Window(AbstractWrapperObject):
         """
         return None
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Core methods
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     @property
     def pinnedStrips(self):
@@ -414,20 +408,20 @@ class Window(AbstractWrapperObject):
             if action := display.spectrumToolBar._addSpectrumViewToolButtons(specView):
                 action.setChecked(selected)
 
-    @staticmethod
-    def _setBlankingSpectrumDisplayNotifiers(display, value):
-        """Blank all spectrumDisplay and contained strip notifiers
-        """
-        display.setBlankingAllNotifiers(value)
-        for strip in display.strips:
-            strip.setBlankingAllNotifiers(value)
+    # @staticmethod
+    # def _setBlankingSpectrumDisplayNotifiers(display, value):
+    #     """Blank all spectrumDisplay and contained strip notifiers
+    #     """
+    #     display.setBlankingAllNotifiers(value)
+    #     for strip in display.strips:
+    #         strip.setBlankingAllNotifiers(value)
+    #
+    #         # stop events when the display is being closed
+    #         strip._CcpnGLWidget._blankDisplay = True
 
-            # stop events when the display is being closed
-            strip._CcpnGLWidget._blankDisplay = True
-
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Implementation functions
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     @classmethod
     def _getAllWrappedData(cls, parent: Project) -> list:
@@ -436,9 +430,9 @@ class Window(AbstractWrapperObject):
 
         return [] if windowStore is None else windowStore.sortedWindows()
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # 'new' methods
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     @logCommand('mainWindow.')
     def newMacroEditor(self, path=None, position='top', relativeTo=None):
@@ -521,12 +515,9 @@ class Window(AbstractWrapperObject):
         with logCommandManager('mainWindow.', 'newSpectrumDisplay',
                                spectra, axisCodes=axisCodes, stripDirection=stripDirection,
                                position=position, relativeTo=relativeTo):
-            # with undoBlockWithoutSideBar():
             with undoStackBlocking() as _:  # Do not add to undo/redo stack
-
                 try:
                     zPlaneNavigationMode = ZPlaneNavigationModes(0).dataValue
-
                     # default to preferences if not set
                     _stripDirection = self.project.application.preferences.general.stripArrangement
                     stripDirection = stripDirection or STRIPDIRECTIONS[_stripDirection]
@@ -549,24 +540,11 @@ class Window(AbstractWrapperObject):
                 self.moduleArea.addModule(display, position=position, relativeTo=relativeTo)
                 display._insertPosition = (position, relativeTo)
 
-                with undoStackBlocking() as addUndoItem:
-                    # disable all notifiers in spectrumDisplays
-                    addUndoItem(undo=partial(self._setBlankingSpectrumDisplayNotifiers, display, True),
-                                redo=partial(self._setBlankingSpectrumDisplayNotifiers, display, False))
-
-                    # add/remove spectrumDisplay from module Area - use moveDock not addModule, otherwise introduces extra splitters
-                    addUndoItem(undo=partial(self._hiddenModules.moveDock, display, position='top', neighbor=None),
-                                redo=partial(self.moduleArea.moveDock, display, position=position, neighbor=relativeTo))
-
-                # if not positions and not widths:
-                #     display.autoRange()
-
                 if isGrouped:
                     display._colourChanged(spectra)
                     display.spectrumToolBar.hide()
                     display.spectrumGroupToolBar.show()
                     display.spectrumGroupToolBar._addAction(spectra)
-
                 if isList:
                     for sp in spectra[1:]:
                         display.displaySpectrum(sp)
@@ -576,56 +554,32 @@ class Window(AbstractWrapperObject):
     # deprecated
     createSpectrumDisplay = newSpectrumDisplay
 
-    def _deleteSpectrumDisplay(self, display):
-        """Delete a spectrumDisplay from the moduleArea
-        Removes the display to a hidden moduleArea of mainWindow, deletes the _wrappedData, and disables all notifiers
-        Object is recovered through the deleteObject decorator
-        """
-        # with undoBlockWithoutSideBar():
-        with undoStackBlocking() as _:  # Do not add to undo/redo stack
-            # # get the current state of the layout
-            # _list = self._getModuleInsertList(moduleArea=display.area)
-
-            # # get the list of spectra currently displayed in the spectrumDisplay
-            # specViewList = [(specView, action.isChecked()) for specView in display.spectrumViews
-            #                 for action in display.spectrumToolBar.actions()
-            #                 if action.objectName() == specView.spectrum.pid]
-            #
-            # with undoStackBlocking() as addUndoItem:
-            #     # re-insert spectrumToolbar
-            #     addUndoItem(undo=partial(self._recoverSpectrumToolbar, display, specViewList), )
-            #
-            #     # disable all notifiers in spectrumDisplays
-            #     addUndoItem(undo=partial(self._setBlankingSpectrumDisplayNotifiers, display, False),
-            #                 redo=partial(self._setBlankingSpectrumDisplayNotifiers, display, True))
-            #
-            #     # add/remove spectrumDisplay from module Area - using moveDock method
-            #     addUndoItem(undo=partial(self._restoreModules, _list),
-            #                 redo=partial(self._hiddenModules.moveDock, display, position='top', neighbor=None), )
-
-            # disable the spectrumDisplay notifiers
-            self._setBlankingSpectrumDisplayNotifiers(display, True)
-
-            # move to the hidden module area
-            self._hiddenModules.moveDock(display, position='top', neighbor=None)
-
-            _strips = list(display.strips)
-            # delete the spectrumDisplay
-            display.delete()
-
-            # this makes it unrecoverable - okay, as strips not allowed to undo
-            for st in _strips:
-                # marks are not automatically deleted by the model when deleting strips
-                for mark in st.marks:
-                    mark.delete()
-                st.close()
-
-            # marks are not automatically deleted by the model when deleting strips
-            for mark in display.marks:
-                mark.delete()
-
-            # Update the list of opened GUI SpectrumDisplays modules
-            self.moduleArea._updateSpectrumDisplays()
+    # def _deleteSpectrumDisplay(self, display):
+    #     """Delete a spectrumDisplay from the moduleArea
+    #     Removes the display to a hidden moduleArea of mainWindow, deletes the _wrappedData, and disables all notifiers
+    #     Object is recovered through the deleteObject decorator
+    #     """
+    #     with undoStackBlocking() as _:  # Do not add to undo/redo stack
+    #         # disable the spectrumDisplay notifiers
+    #         # self._setBlankingSpectrumDisplayNotifiers(display, True)
+    #         display._closeModule()
+    #
+    #         _strips = list(display.strips)
+    #         # this makes it unrecoverable - okay, as strips not allowed to undo
+    #         for st in _strips:
+    #             # marks are not automatically deleted by the model when deleting strips
+    #             for mark in st.marks:
+    #                 mark.delete()
+    #             st.close()
+    #         # marks are not automatically deleted by the model when deleting strips
+    #         for mark in display.marks:
+    #             mark.delete()
+    #         # delete the spectrumDisplay
+    #         display.delete()
+    #         display.deleteLater()
+    #
+    #         # # Update the list of opened GUI SpectrumDisplays modules
+    #         # self.moduleArea._updateSpectrumDisplays()
 
     @logCommand('mainWindow.')
     def newMark(self, colour: str, positions: Sequence[float], axisCodes: Sequence[str],
