@@ -16,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-08-23 19:25:20 +0100 (Fri, August 23, 2024) $"
-__version__ = "$Revision: 3.2.5 $"
+__dateModified__ = "$dateModified: 2024-12-09 17:23:58 +0000 (Mon, December 09, 2024) $"
+__version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -674,46 +674,39 @@ class GuiSpectrumDisplay(CcpnModule):
                         self.removeSpectrum(specView.spectrum)
 
     def _registerNotifiers(self):
-        self._spectrumChangeNotifier = self.setNotifier(self.project,
-                                                        [Notifier.CHANGE, Notifier.RENAME, Notifier.DELETE],
-                                                        Spectrum.className,
-                                                        self._spectrumChanged)
+        self.setNotifier(self.project, [Notifier.CHANGE, Notifier.RENAME, Notifier.DELETE],
+                                       Spectrum.className,
+                                       callback=self._spectrumChanged)
 
-        self._spectrumViewNotifier = self.setNotifier(self.project,
-                                                      [Notifier.CREATE, Notifier.DELETE, Notifier.CHANGE],
-                                                      SpectrumView.className,
-                                                      self._spectrumViewChanged,
-                                                      onceOnly=True)
+        self.setNotifier(self.project, [Notifier.CREATE, Notifier.DELETE, Notifier.CHANGE],
+                                       SpectrumView.className,
+                                       callback=self._spectrumViewChanged,
+                                       onceOnly=True)
 
-        self._peakListViewNotifier = self.setNotifier(self.project,
-                                                      [Notifier.CREATE, Notifier.DELETE, Notifier.CHANGE],
-                                                      PeakListView.className,
-                                                      self._listViewChanged,
-                                                      onceOnly=True)
+        self.setNotifier(self.project, [Notifier.CREATE, Notifier.DELETE, Notifier.CHANGE],
+                                       PeakListView.className,
+                                       callback=self._listViewChanged,
+                                       onceOnly=True)
 
-        self._integralListViewNotifier = self.setNotifier(self.project,
-                                                          [Notifier.CREATE, Notifier.DELETE],
-                                                          IntegralListView.className,
-                                                          self._listViewChanged,
-                                                          onceOnly=True)
+        self.setNotifier(self.project, [Notifier.CREATE, Notifier.DELETE],
+                                       IntegralListView.className,
+                                       callback=self._listViewChanged,
+                                       onceOnly=True)
 
-        self._multipletListViewNotifier = self.setNotifier(self.project,
-                                                           [Notifier.CREATE, Notifier.DELETE],
-                                                           MultipletListView.className,
-                                                           self._listViewChanged,
-                                                           onceOnly=True)
+        self.setNotifier(self.project, [Notifier.CREATE, Notifier.DELETE],
+                                       MultipletListView.className,
+                                       callback=self._listViewChanged,
+                                       onceOnly=True)
 
-        self._spectrumGroupNotifier = self.setNotifier(self.project,
-                                                       [Notifier.CHANGE, Notifier.RENAME, Notifier.DELETE],
-                                                       SpectrumGroup.className,
-                                                       self._spectrumGroupChanged,
-                                                       onceOnly=True)
+        self.setNotifier(self.project, [Notifier.CHANGE, Notifier.RENAME, Notifier.DELETE],
+                                       SpectrumGroup.className,
+                                       callback=self._spectrumGroupChanged,
+                                       onceOnly=True)
 
-        self._spectrumDisplayNotifier = self.setNotifier(self.project,
-                                                         [Notifier.RENAME],
-                                                         SpectrumDisplay.className,
-                                                         self._spectrumDisplayChanged,
-                                                         onceOnly=True)
+        self.setNotifier(self.project, [Notifier.RENAME],
+                                        SpectrumDisplay.className,
+                                        callback=self._spectrumDisplayChanged,
+                                        onceOnly=True)
 
     @property
     def _flipped(self):
@@ -1869,7 +1862,24 @@ class GuiSpectrumDisplay(CcpnModule):
         CCPN-INTERNAL: used to close the module
         Closes spectrum display and deletes it from the project.
         """
-        self.mainWindow._deleteSpectrumDisplay(self)
+        super()._closeModule()
+        # Do not add to undo/redo stack
+        with undoStackBlocking() as _:
+            _strips = list(self.strips)
+            # this makes it unrecoverable - okay, as strips not allowed to undo
+            for st in _strips:
+                # marks are not automatically deleted by the model when deleting strips
+                for mark in st.marks:
+                    mark.delete()
+                st.close()
+            # marks are not automatically deleted by the model when deleting strips
+            for mark in self.marks:
+                mark.delete()
+
+            # delete self from api model data
+            self.delete()
+            # delete self as a widget
+            self.deleteLater()
 
     def _removeIndexStrip(self, value):
         self.deleteStrip(self.strips[value])
