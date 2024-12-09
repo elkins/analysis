@@ -23,8 +23,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-10-14 11:49:19 +0100 (Mon, October 14, 2024) $"
-__version__ = "$Revision: 3.2.7 $"
+__dateModified__ = "$dateModified: 2024-12-09 14:19:10 +0000 (Mon, December 09, 2024) $"
+__version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -163,10 +163,13 @@ class NmrResidueTableModule(CcpnTableModule):
         if self.activePulldownClass:
             if self._setCurrentPulldown:
                 self._setCurrentPulldown.unRegister()
+                self._setCurrentPulldown = None
             if self.nmrResidueTableSettings:
                 self.nmrResidueTableSettings._cleanupWidget()
+                self.nmrResidueTableSettings = None
         if self.tableFrame:
             self.tableFrame._cleanupWidget()
+            self._mainFrame = None
         super()._closeModule()
 
 

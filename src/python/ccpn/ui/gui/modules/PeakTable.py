@@ -16,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-09-20 19:28:10 +0100 (Fri, September 20, 2024) $"
-__version__ = "$Revision: 3.2.7 $"
+__dateModified__ = "$dateModified: 2024-12-09 14:19:10 +0000 (Mon, December 09, 2024) $"
+__version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -157,9 +157,10 @@ class PeakTableModule(CcpnTableModule):
         if self.activePulldownClass:
             if self._settings:
                 self._settings._cleanupWidget()
+                self._settings = None
         if self.tableFrame:
             self.tableFrame._cleanupWidget()
-
+            self._mainFrame = None
         super()._closeModule()
 
     def _getLastSeenWidgetsState(self):

@@ -16,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-09-13 20:32:52 +0100 (Fri, September 13, 2024) $"
-__version__ = "$Revision: 3.2.7 $"
+__dateModified__ = "$dateModified: 2024-12-09 14:19:09 +0000 (Mon, December 09, 2024) $"
+__version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -528,6 +528,8 @@ class _CoreTableFrameABC(Frame):
         """
         self._modulePulldown.unRegister()
         self._tableWidget._close()
+        self._modulePulldown = None
+        self._tableWidget = None
 
     #=========================================================================================
     # Process dropped items
