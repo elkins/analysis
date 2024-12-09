@@ -13,8 +13,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-06-26 11:56:03 +0100 (Wed, June 26, 2024) $"
-__version__ = "$Revision: 3.2.4 $"
+__dateModified__ = "$dateModified: 2024-12-09 17:20:18 +0000 (Mon, December 09, 2024) $"
+__version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -171,7 +171,6 @@ class CcpnModuleArea(ModuleArea, DropBase):
         self._modulesNames = {}
         self._ccpnModules = []
         self._modules = {}  # don't use self.docks, is not updated when removing docks
-        self._openedSpectrumDisplays = []  # keep track of the order of opened spectrumDisplays
         self._seenModuleStates = {}  # {className: {moduleName:'', state:widgetsState}}
         # self.setAcceptDrops(True) GWV not needed; handled by DropBase init
 
@@ -365,7 +364,8 @@ class CcpnModuleArea(ModuleArea, DropBase):
         Return the list of opened spectrumDisplays in the order of their opening.
         Contrary to mainWindow.spectrumDisplays that return in alphabetical order.
         """
-        return [x for x in self._openedSpectrumDisplays if not x.isDeleted]
+        return sorted((x for x in self.mainWindow.spectrumDisplays if not x.isDeleted),
+                      key=lambda sp: sp._uniqueId)
 
     def repopulateModules(self):
         """
@@ -406,10 +406,6 @@ class CcpnModuleArea(ModuleArea, DropBase):
                     module.renameModule(nextAvailableName)
                     ## reset  widgets  as last time the module was opened
                     self._restoreAsTheLastSeenModule(module)
-
-
-            else:
-                self._openedSpectrumDisplays.append(module)
 
         # test that only one instance of the module is opened
         if hasattr(type(module), '_alreadyOpened'):
@@ -528,10 +524,6 @@ class CcpnModuleArea(ModuleArea, DropBase):
                 if module.label.nameEditor.isVisible():
                     modules.append(module)
         return modules
-
-    def _updateSpectrumDisplays(self):
-        self._openedSpectrumDisplays = [x for x in self._openedSpectrumDisplays if
-                                        x in self.mainWindow.spectrumDisplays]
 
     def _isNameEditing(self):
         """
