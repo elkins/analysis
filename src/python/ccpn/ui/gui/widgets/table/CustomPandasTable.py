@@ -102,14 +102,12 @@ class CustomDataFrameTable(Table):
         # self._internalColumns.extend(_internalColumns)
         # self.setHiddenColumns(hiddenColumns)
 
-        cols = list(self.headerColumnMenu._internalColumns)
+        cols = list(self._internalColumns)
         cols.extend(_internalColumns)
-        self.headerColumnMenu.setInternalColumns(cols)
-        self.headerColumnMenu.setDefaultColumns(hiddenColumns)
+        self.setInternalColumns(cols)
+        self.setDefaultColumns(hiddenColumns)
         self.updateDf(df)
-
-        # update the visible columns
-        self.headerColumnMenu.refreshHiddenColumns()
+        self.postUpdateDf()
 
     def getObjects(self):
         return self._objects

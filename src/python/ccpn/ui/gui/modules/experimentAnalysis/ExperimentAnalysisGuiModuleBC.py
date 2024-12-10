@@ -12,9 +12,9 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-08-30 12:01:53 +0100 (Fri, August 30, 2024) $"
-__version__ = "$Revision: 3.2.5 $"
+__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
+__dateModified__ = "$dateModified: 2024-11-15 19:34:29 +0000 (Fri, November 15, 2024) $"
+__version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -248,7 +248,7 @@ class ExperimentAnalysisGuiModuleBC(CcpnModule):
         model = table.model()
         _sortColumn = model._sortColumn
         if _sortColumn:
-            _sortColumn =  table.headerColumnMenu.columnTexts[_sortColumn]
+            _sortColumn =  table.columns[_sortColumn]
             _sortOrder = model._sortOrder
         return _sortColumn, _sortOrder
 

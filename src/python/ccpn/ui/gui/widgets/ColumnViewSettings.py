@@ -16,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-11-01 19:40:51 +0000 (Fri, November 01, 2024) $"
-__version__ = "$Revision: 3.2.9 $"
+__dateModified__ = "$dateModified: 2024-12-10 15:38:32 +0000 (Tue, December 10, 2024) $"
+__version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -39,58 +39,12 @@ from ccpn.ui.gui.widgets.ProjectTreeCheckBoxes import ColumnTreeView
 from ccpn.ui.gui.widgets.CheckBox import CheckBox
 from ccpn.ui.gui.popups.Dialog import CcpnDialogMainWidget
 from ccpn.core.lib.DataFrameObject import DataFrameObject
+from ccpn.ui.gui.widgets.table.TableABC import TableABC
+from ccpn.ui.gui.widgets.table._TableAdditions import TableHeaderMenuColumns, TableHeaderMenuCoreColumns
+from ccpn.ui.gui.lib._CoreTableFrame import _CoreTableWidgetABC
 
 
 _LINK_COLUMNS = 'linkColumns'
-
-
-class ColumnViewSettingsPopup(CcpnDialogMainWidget):
-    FIXEDHEIGHT = False
-    FIXEDWIDTH = True
-
-    def __init__(self, table, dataFrameObject=None, parent=None, hiddenColumns=None, title='Column Settings', **kwds):
-        super().__init__(parent, setLayout=True, windowTitle=title, minimumSize=(250, 250), **kwds)
-
-        self.tableHandler = table
-        self._setWidgets(table, dataFrameObject)
-
-        self.setCloseButton(callback=self._close, tipText='Close')
-        self.setDefaultButton(self.CLOSEBUTTON)
-
-    def _setWidgets(self, table, dataFrameObject):
-        """Set up the widgets.
-        """
-        self.widgetColumnViewSettings = ColumnViewSettings(self.mainWidget, table=table,
-                                                           dfObject=dataFrameObject,
-                                                           grid=(0, 0))
-
-    def getHiddenColumns(self):
-        return self.widgetColumnViewSettings.hiddenColumns
-
-    def _close(self):
-        """Save the hidden-columns to the table class, so it remembers when you re-open the popup.
-        """
-        self.accept()
-        return self.getHiddenColumns()
-
-    def _cleanupDialog(self):
-        """Clean up widgets that are causing seg-fault on garbage-collection.
-        """
-        # these NEED to be cleaned, one causes a threading error if not deleted :|
-        self.tableHandler = None
-        self.widgetColumnViewSettings.deleteLater()
-
-    def storeWidgetState(self):
-        """Store the state of widgets between popups.
-        """
-        linked = self.widgetColumnViewSettings.linkedColumns
-        ColumnViewSettingsPopup._storedState[_LINK_COLUMNS] = linked
-
-    def restoreWidgetState(self):
-        """Restore the state of widgets.
-        """
-        self.widgetColumnViewSettings.linkedColumns = ColumnViewSettingsPopup._storedState.get(_LINK_COLUMNS, False)
-
 
 #=========================================================================================
 # ColumnViewSettings - handlers/proxies/etc.
@@ -122,12 +76,16 @@ class _TreeProxyStyle(QtWidgets.QProxyStyle):
 
 
 class ColumnViewSettings(Frame):
-    """ hide show check boxes corresponding to the table columns """
+    """A treeView of checkboxes corresponding to the table-columns.
+    """
+    _tableView: TableABC = None
+    _tableHandler: TableHeaderMenuColumns = None
 
-    def __init__(self, parent=None, table=None, dfObject=None, direction='v', **kwds):
+    def __init__(self, parent,
+                 view: TableABC = None, tableHandler: TableHeaderMenuColumns = None,
+                 dfObject: pd.DataFrame | DataFrameObject = None,
+                 **kwds):
         super().__init__(parent, setLayout=True, **kwds)
-
-        self.direction = direction
 
         # only need the pd.DataFrame
         if isinstance(dfObject, DataFrameObject):  # need to get rid of DataFrameObject :|
@@ -137,15 +95,16 @@ class ColumnViewSettings(Frame):
         else:
             raise ValueError(f'dfObject is the wrong type - {type(dfObject)}')
 
-        self.tableHandler = table
-        self.checkBoxes = []
+        self._tableView = view
+        self._tableHandler = tableHandler  # check this :|
         self._hideColumnWidths = {}
+        self._userColumns = None
         self._setWidgets()
 
     def _setWidgets(self):
 
         self._userColumns = OrderedDict([(col, rr) for col, rr in enumerate(self._df.columns)
-                                         if not self.tableHandler.isColumnInternal(col)])
+                                         if not self._tableView.isColumnInternal(col)])
         dfCol = pd.DataFrame(self._userColumns.values())
 
         row = 0
@@ -155,7 +114,6 @@ class ColumnViewSettings(Frame):
                                     multiSelect=True, enableMouseMenu=True, enableCheckBoxes=True,
                                     grid=(row, 0), gridSpan=(1, 2)
                                     )
-        self._tree.checkStateChanged.connect(self._itemChecked)
         txts = ['Check All', 'Uncheck All']
         tips = ['Check all columns',
                 'Uncheck all columns']
@@ -169,42 +127,20 @@ class ColumnViewSettings(Frame):
         # only required for multi-index tables
         self._linkedColumns.setVisible(isinstance(self._df.columns, pd.MultiIndex))
 
-        txts = ['Save', 'Restore', 'Clear']
-        tips = ['Save the current visible columns to user-preferences;\n'
-                'new tables will open from the saved state.',
-                'Restore the visible/hidden columns from the\n'
-                'saved state for this table',
-                'Clear the current saved visible/hidden columns;\n'
-                'new tables will open with the default state for this table']
-        callbacks = [self._saveHiddensColumns, self._restoreHiddenColumns, self._resetHiddenColumns]
-        row += 1
-        self._columnsButtonList = ButtonList(self, texts=txts, callbacks=callbacks, toolTips=tips,
-                                             grid=(row, 0), gridSpan=(1, 2))
-        # NOTE:ED - hide until the column-save/restore to user-preferences is properly functioning :|
-        self._columnsButtonList.setVisible(False)
         self._initCheckBoxes()
-
-    @property
-    def hiddenColumns(self):
-        return self.tableHandler.hiddenColumns
-
-    def _saveHiddensColumns(self):
-        ...
-
-    def _restoreHiddenColumns(self):
-        ...
-
-    def _resetHiddenColumns(self):
-        ...
+        # connect signal after teh checkboxes have been populated
+        self._tree.checkStateChanged.connect(self._itemChecked)
+        row += 1
+        return row
 
     def _initCheckBoxes(self):
 
         self._userColumns = OrderedDict([(col, rr) for col, rr in enumerate(self._df.columns)
-                                         if not self.tableHandler.isColumnInternal(col)])
+                                         if not self._tableView.isColumnInternal(col)])
         for idx, (col, colName) in enumerate(self._userColumns.items()):
-            self._tree._setCheckState(idx, not self.tableHandler.horizontalHeader().isSectionHidden(col))
+            self._tree._setCheckState(idx, not self._tableView.horizontalHeader().isSectionHidden(col))
 
-    def _itemChecked(self, item, column=0):
+    def _itemChecked(self, item):
         if item.childCount():
             return
         # a child-item so corresponds to a real column in the table
@@ -219,44 +155,16 @@ class ColumnViewSettings(Frame):
             idxs = [idx]
         if bool(item.checkState(0)):
             for idx in idxs:
-                self.tableHandler._showColumnName(self._df.columns[idx])
+                self._tableView.showColumn(idx)
         else:
             # visibility of last remaining column is handled by the tree-widget
             for idx in idxs:
-                self.tableHandler._hideColumnName(self._df.columns[idx])
+                self._tableView.hideColumn(idx)
 
         # refresh tree-view from columns
         if len(idxs) > 1:
             # more columns may have been shown/hidden
             self._initCheckBoxes()
-
-    def _checkLastCheckbox(self):
-        """Check whether there is a single checkbox remaining and disable as necessary.
-        """
-        checkedBoxes = list(filter(lambda ch: ch.isChecked(), self.checkBoxes))
-
-        if len(checkedBoxes) == 1:
-            # always display at least one column, disables the last checkbox
-            checkedBoxes[0].setEnabled(False)
-            checkedBoxes[0].setChecked(True)
-
-    def updateWidgets(self, table):
-        self.tableHandler = table
-        if self.checkBoxes:
-            for cb in self.checkBoxes:
-                cb.deleteLater()
-        self.checkBoxes = []
-        self._initCheckBoxes()
-
-    def refreshHiddenColumns(self):
-        # show/hide the columns in the list
-        columns = self.tableHandler.columnTexts
-
-        for i, colName in enumerate(columns):
-            if colName in self.tableHandler._hiddenColumns:
-                self.tableHandler._hideColumnName(colName)
-            else:
-                self.tableHandler._showColumnName(colName)
 
     @property
     def linkedColumns(self):
@@ -265,3 +173,133 @@ class ColumnViewSettings(Frame):
     @linkedColumns.setter
     def linkedColumns(self, value):
         self._linkedColumns.setChecked(value)
+
+
+#=========================================================================================
+# ColumnViewSettingsPopup
+#=========================================================================================
+
+class ColumnViewSettingsPopup(CcpnDialogMainWidget):
+    """Popup containing column-view-settings widget to show/hide columns.
+    """
+    FIXEDHEIGHT = False
+    FIXEDWIDTH = True
+
+    _ColumnViewKlass = ColumnViewSettings
+
+    def __init__(self, tableHandler: TableHeaderMenuColumns, dataFrameObject: pd.DataFrame | DataFrameObject = None,
+                 parent: QtWidgets.QTableView = None,
+                 title='Column Settings', **kwds):
+        super().__init__(parent, setLayout=True, windowTitle=title, minimumSize=(250, 250), **kwds)
+
+        self._tableView = parent
+        self._setWidgets(tableHandler, dataFrameObject)  # dataFrameObject needs to go! :|
+
+        self.setCloseButton(callback=self._close, tipText='Close')
+        self.setDefaultButton(self.CLOSEBUTTON)
+
+    def _setWidgets(self, tableHandler: TableHeaderMenuColumns, dataFrameObject: pd.DataFrame):
+        """Set up the widgets.
+        """
+        self._columnViewSettingsWidget = self._ColumnViewKlass(self.mainWidget,
+                                                               view=self._tableView,
+                                                               tableHandler=tableHandler,
+                                                               dfObject=dataFrameObject,
+                                                               grid=(0, 0))
+
+    def _close(self):
+        """Save the hidden-columns to the table class, so it remembers when you re-open the popup.
+        """
+        self.accept()
+
+    def _cleanupDialog(self):
+        """Clean up widgets that are causing seg-fault on garbage-collection.
+        """
+        # NEED to be cleaned, causes a threading error if not deleted :|
+        self._columnViewSettingsWidget.deleteLater()
+
+    def storeWidgetState(self):
+        """Store the state of widgets between popups.
+        """
+        linked = self._columnViewSettingsWidget.linkedColumns
+        ColumnViewSettingsPopup._storedState[_LINK_COLUMNS] = linked
+
+    def restoreWidgetState(self):
+        """Restore the state of widgets.
+        """
+        self._columnViewSettingsWidget.linkedColumns = ColumnViewSettingsPopup._storedState.get(_LINK_COLUMNS, False)
+
+
+#=========================================================================================
+# ColumnViewCoreSettings
+#=========================================================================================
+
+
+class ColumnViewCoreSettings(ColumnViewSettings):
+    """A treeView of checkboxes corresponding to the table-columns.
+    Additional functionality to allow save/restore/reset to preferences.
+    """
+    _tableView: _CoreTableWidgetABC = None
+    _tableHandler: TableHeaderMenuCoreColumns = None
+
+    def _setWidgets(self):
+        row = super()._setWidgets()
+
+        txts = ['Save', 'Restore', 'Clear']
+        tips = ['Save the current visible columns to user-preferences;\n'
+                'new tables will open from the saved state.',
+                'Restore the visible/hidden columns from the\n'
+                'saved state for this table',
+                'Clear the current saved visible/hidden columns;\n'
+                'new tables will open with the default state for this table']
+        callbacks = [self._saveHiddensColumns, self._restoreHiddenColumns, self._resetHiddenColumns]
+        row += 1
+        self._columnsButtonList = ButtonList(self, texts=txts, callbacks=callbacks, tipTexts=tips,
+                                             grid=(row, 0), gridSpan=(1, 2))
+        self._check()
+
+    def _saveHiddensColumns(self):
+        self._tableView.saveToPreferences()
+        self._check()
+
+    def _restoreHiddenColumns(self):
+        self._tableView.restoreFromPreferences()
+        # repopulate
+        self._initCheckBoxes()
+
+    def _resetHiddenColumns(self):
+        self._tableView.resetPreferences()
+        # repopulate
+        self._initCheckBoxes()
+
+    def _itemChecked(self, item):
+        super()._itemChecked(item)
+        self._check()
+
+    def _check(self):
+        save, restore, reset = self._columnsButtonList.buttons
+        state = self._tableView.hasPreferenceState()
+        if not state:
+            save.setEnabled(True)
+            restore.setEnabled(False)
+            reset.setEnabled(False)
+            return
+        if (match := self._tableView.isMatchingPreferenceState()) is not None:
+            save.setEnabled(not match)
+            restore.setEnabled(not match)
+            reset.setEnabled(True)
+            return
+        for btn in {save, restore, reset}:
+            btn.setEnabled(False)
+
+
+#=========================================================================================
+# ColumnViewCoreSettingsPopup
+#=========================================================================================
+
+class ColumnViewCoreSettingsPopup(ColumnViewSettingsPopup):
+    """Popup containing column-view-settings widget to show/hide columns.
+    Additional functionality to allow save/restore/reset to preferences.
+    """
+
+    _ColumnViewKlass = ColumnViewCoreSettings

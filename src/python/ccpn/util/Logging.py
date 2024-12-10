@@ -4,9 +4,10 @@
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2023"
-__credits__ = ("Ed Brooksbank, Joanna Fox, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
-               "Timothy J Ragan, Brian O Smith, Gary S Thompson & Geerten W Vuister")
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
+               "Timothy J Ragan, Brian O Smith, Daniel Thompson",
+               "Gary S Thompson & Geerten W Vuister")
 __licence__ = ("CCPN licence. See https://ccpn.ac.uk/software/licensing/")
 __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, L.G., & Vuister, G.W.",
                  "CcpNmr AnalysisAssign: a flexible platform for integrated NMR analysis",
@@ -15,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2023-03-28 18:46:14 +0100 (Tue, March 28, 2023) $"
-__version__ = "$Revision: 3.1.1 $"
+__dateModified__ = "$dateModified: 2024-11-20 13:19:04 +0000 (Wed, November 20, 2024) $"
+__version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -32,8 +33,8 @@ import logging
 import os
 import time
 import inspect
-import contextlib
 import sys
+import re
 from ccpn.util.Path import aPath
 
 
@@ -61,10 +62,15 @@ MAX_LOG_FILE_DAYS = 7
 LOG_FIELD_WIDTH = 90
 
 logger = None
-
-#DEFAULT_LOGGER_NAME = 'defaultLogger'
 defaultLogger = logging.getLogger('defaultLogger')
 defaultLogger.propagate = False
+
+
+def _countAnsi(text: str) -> int:
+    """Count the number of ANSI escape sequences (color control characters) in the string.
+    """
+    ansiEscapePattern = re.compile(r'\033\[[0-9;]*m')  # Matches ANSI escape sequences
+    return sum(len(match.group(0)) for match in ansiEscapePattern.finditer(text))
 
 
 def getLogger():
@@ -98,34 +104,34 @@ def getLogger():
     return logger
 
 
-def _logCaller(logger, fmsg):
+def _logCaller(logger, fmsg, stacklevel=1):
     # create the postfix to the error message as (Module:function:lineNo)
     # this replaces the formatting which contains the wrong information for decorated functions
-    _file, _line, _func, _ = logger.findCaller(stack_info=False)
+    _file, _line, _func, _ = logger.findCaller(stack_info=False, stacklevel=stacklevel)
     _fileLine = f'({aPath(_file).basename}.{_func}:{_line})'
     _msg = '; '.join(fmsg)
-    return f'{_msg:<{LOG_FIELD_WIDTH}}    {_fileLine}'
+    return f'{_msg:<{LOG_FIELD_WIDTH + _countAnsi(_msg)}}    {_fileLine}'
 
 
-def _debugGLError(MESSAGE, logger, msg, *args, **kwargs):
+def _debugGLError(MESSAGE, logger, msg, stacklevel=1, *args, **kwargs):
     # inspect.stack can be very slow - but needs more stack info than below
     stk = inspect.stack()
     stk = [stk[st][3] for st in range(min(3, len(stk)), 0, -1)]
     fmsg = ['[' + '/'.join(stk) + '] ' + msg]
     if args: fmsg.append(', '.join([str(arg) for arg in args]))
     if kwargs: fmsg.append(', '.join([str(ky) + '=' + str(kwargs[ky]) for ky in kwargs.keys()]))
-    _msg = _logCaller(logger, fmsg)
+    _msg = _logCaller(logger, fmsg, stacklevel)
     # increase the stack level to account for the partial wrapper
-    logger.log(MESSAGE, _msg, stacklevel=2)
+    logger.log(MESSAGE, _msg, stacklevel=stacklevel)
 
 
-def _message(MESSAGE, logger, msg, includeInspection=True, *args, **kwargs):
+def _message(MESSAGE, logger, msg, includeInspection=True, stacklevel=1, *args, **kwargs):
     fmsg = [msg]
     if args: fmsg.append(', '.join([str(arg) for arg in args]))
     if kwargs: fmsg.append(', '.join([str(ky) + '=' + str(kwargs[ky]) for ky in kwargs.keys()]))
-    _msg = _logCaller(logger, fmsg) if includeInspection else '; '.join(fmsg)
+    _msg = _logCaller(logger, fmsg, stacklevel) if includeInspection else '; '.join(fmsg)
     # increase the stack level to account for the partial wrapper
-    logger.log(MESSAGE, _msg, stacklevel=2)
+    logger.log(MESSAGE, _msg, stacklevel=stacklevel)
 
 
 def createLogger(loggerName,

@@ -16,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-06-21 19:48:44 +0100 (Fri, June 21, 2024) $"
-__version__ = "$Revision: 3.2.4 $"
+__dateModified__ = "$dateModified: 2024-11-28 14:13:58 +0000 (Thu, November 28, 2024) $"
+__version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -33,6 +33,7 @@ from collections import defaultdict
 from functools import partial
 from time import time_ns
 from types import SimpleNamespace
+import copy
 
 from ccpn.core.lib.ContextManagers import undoBlockWithoutSideBar, catchExceptions
 from ccpn.core.lib.Notifiers import Notifier
@@ -40,16 +41,18 @@ from ccpn.ui.gui.widgets.Base import Base
 from ccpn.ui.gui.widgets import MessageDialog
 from ccpn.ui.gui.widgets.table._TableCommon import INDEX_ROLE
 from ccpn.ui.gui.widgets.table._TableDelegates import _TableDelegate
+from ccpn.ui.gui.widgets.table._TableAdditions import TableHeaderMenuCoreColumns
+from ccpn.ui.gui.widgets.table.MITableABC import MITableABC
+from ccpn.ui.gui.widgets.table._TableCommon import ColumnGroup
 from ccpn.ui._implementation.QueueHandler import QueueHandler
 from ccpn.util.Logging import getLogger
 from ccpn.util.OrderedSet import OrderedSet
 from ccpn.util.Common import NOTHING
-
-from ccpn.ui.gui.widgets.table.MITableABC import MITableABC
+from ccpn.framework.Preferences import getPreferences
 
 
 #=========================================================================================
-# _ProjectTableABC project specific
+# _MIProjectTableABC project specific
 #=========================================================================================
 
 # define a simple class that can contain a simple id
@@ -75,14 +78,26 @@ _TABLE_KWDS = ('parent', 'df',
                'mainWindow', 'moduleParent'
                )
 
+_TABLES = 'tables'
+_HIDDENCOLUMNS = 'hiddenColumns'
+_COLUMNHEADER = 'columnHeader'
+_DEBUG = False
+
 
 class _MIProjectTableABC(MITableABC, Base):
     className = '_MIProjectTableABC'
     attributeName = '_MIProjectTableABC'
 
+    defaultHidden = None  # initial hidden-columns if nothing loaded from preferences
+    _internalColumns = None  # internal columns are always hidden
+    _columnStatePrefs = None  # state saved-to/restored-from preferences
+    _columnStateLocal = None
+    # TableHeaderMenuCoreColumns includes functionality for saving state to preferences
+    TableHeaderMenuKlass = TableHeaderMenuCoreColumns
+    _moduleParent = None
+
     _OBJECT = '_object'
     _ISDELETED = 'isDeleted'
-
     OBJECTCOLUMN = '_object'
     INDEXCOLUMN = 'index'
     _INDEX = None
@@ -166,13 +181,15 @@ class _MIProjectTableABC(MITableABC, Base):
         super().__init__(parent, df=df,
                          multiSelect=multiSelect, selectRows=selectRows,
                          showHorizontalHeader=showHorizontalHeader, showVerticalHeader=showVerticalHeader,
-                         borderWidth=borderWidth, cellPadding=cellPadding, focusBorderWidth=focusBorderWidth, gridColour=gridColour,
+                         borderWidth=borderWidth, cellPadding=cellPadding, focusBorderWidth=focusBorderWidth,
+                         gridColour=gridColour,
                          _resize=_resize, setWidthToColumns=setWidthToColumns, setHeightToRows=setHeightToRows,
                          setOnHeaderOnly=setOnHeaderOnly, showGrid=showGrid, wordWrap=wordWrap,
                          alternatingRows=alternatingRows,
                          selectionCallback=selectionCallback, selectionCallbackEnabled=selectionCallbackEnabled,
                          actionCallback=actionCallback, actionCallbackEnabled=actionCallbackEnabled,
-                         enableExport=enableExport, enableDelete=enableDelete, enableSearch=enableSearch, enableCopyCell=enableCopyCell,
+                         enableExport=enableExport, enableDelete=enableDelete, enableSearch=enableSearch,
+                         enableCopyCell=enableCopyCell,
                          tableMenuEnabled=tableMenuEnabled, toolTipsEnabled=toolTipsEnabled,
                          dividerColour=dividerColour
                          )
@@ -222,15 +239,30 @@ class _MIProjectTableABC(MITableABC, Base):
             delegate = _TableDelegate(self, objectColumn=self.OBJECTCOLUMN)
             self.setItemDelegate(delegate)
 
+    def _postInit(self):
+        from ccpn.ui.gui.widgets.DropBase import DropBase
+        from ccpn.ui.gui.lib.GuiNotifier import GuiNotifier
+
+        super()._postInit()
+
+        # add a dropped notifier to all project-tables
+        if self.moduleParent is not None:
+            # set the dropEvent to the mainWidget of the module, otherwise the event gets stolen by Frames
+            self.moduleParent.mainWidget._dropEventCallback = self._processDroppedItems
+
+        self._droppedNotifier = GuiNotifier(self,
+                                            [GuiNotifier.DROPEVENT], [DropBase.PIDS],
+                                            self._processDroppedItems)
+
     def setModel(self, model: QtCore.QAbstractItemModel) -> None:
         """Set the model for the view
         """
         super().setModel(model)
         model.showEditIcon = True
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Mouse/Keyboard handling
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     def mousePressEvent(self, event):
         """handle mouse press events
@@ -266,9 +298,9 @@ class _MIProjectTableABC(MITableABC, Base):
             self.current.guiTable = None
             # self.setStyleSheet(self._defaultStyleSheet)
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Table functions
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     def deleteSelectionFromTable(self):
         """Delete all objects in the selection from the project
@@ -308,17 +340,181 @@ class _MIProjectTableABC(MITableABC, Base):
             self.clearSelection()
             return True
 
-    #=========================================================================================
+    def postUpdateDf(self):
+        """Update hidden-columns after table has been refreshed.
+        """
+        super().postUpdateDf()
+        self.restoreFromPreferences()
+
+    def setColumnHidden(self, column: int, hide: bool, skipUpdateWidth=False) -> None:
+        super().setColumnHidden(column, hide, skipUpdateWidth=skipUpdateWidth)
+        if (self._columnStatePrefs and
+                (colState := next(self._columnStatePrefs.search(name=self.columns[column]), None))):
+            colState.visible = not hide
+
+    #-----------------------------------------------------------------------------------------
+    # Preferences
+    #-----------------------------------------------------------------------------------------
+
+    def hasPreferenceState(self):
+        """Return True if there are currently hidden-columns stored in the preferences.
+        """
+        tableName = self.className
+        if not (prefs := getPreferences()):
+            getLogger().debug2(f'Cannot check hasPreferenceState {tableName}')
+            return
+        try:
+            if prefs[_TABLES][tableName][_COLUMNHEADER] is not None:
+                getLogger().debug2(f'Checking hasPreferenceState')
+                return True
+        except Exception:
+            getLogger().debug2(f'No saved state')
+
+    def isMatchingPreferenceState(self):
+        """Return True if the hidden-columns stored in the preferences are different from the
+        current state.
+        """
+        from ccpn.ui.gui.widgets.table._TableCommon import ColumnGroup
+
+        tableName = self.className
+        if not (prefs := getPreferences()):
+            getLogger().debug2(f'Cannot check isMatchingPreferenceState {tableName}')
+            return
+        try:
+            if (columns := prefs[_TABLES][tableName][_COLUMNHEADER]) is not None:
+                getLogger().debug2(f'Checking isMatchingPreferenceState')
+                columns = ColumnGroup.newObjectFromJson(jsonString=columns)
+                if cols := self._columnStateLocal:
+                    # update the visibility of the local-state
+                    for col in cols.traverse(includeBranches=False):
+                        if col.name in self.columns:
+                            idx = self.columns.index(col.name)
+                            col.visible = not self.isColumnHidden(idx)
+                return columns.toJsonNoMetaData() == self._columnStateLocal.toJsonNoMetaData()
+        except Exception:
+            getLogger().debug2(f'No saved state')
+
+    def saveToPreferences(self):
+        """Save the current visible/hidden columns to preferences.
+        This will affect new modules that are opened.
+        """
+        print('==> SAVETOPREFERENCES')
+        tableName = self.className
+        if not (prefs := getPreferences()):
+            getLogger().debug2(f'Cannot save hidden-columns {tableName}')
+            return
+        # store in preferences, should already be there
+        # needs to be in defaultV3settings to ensure re-load
+        table = prefs.setdefault(_TABLES, {}).setdefault(tableName, {})
+        if cols := self._columnStateLocal:
+            # update the visibility of the local-state
+            for col in cols.traverse(includeBranches=False):
+                if col.name in self.columns:
+                    idx = self.columns.index(col.name)
+                    col.visible = not self.isColumnHidden(idx)
+            # store a copy to preferences
+            self._columnStatePrefs = copy.deepcopy(cols)
+            cols = cols.toJson(indent=0)
+            table[_COLUMNHEADER] = cols
+
+    def _setColumnsHidden(self, source: ColumnGroup, target: ColumnGroup) -> None:
+        """Updates the visibility of columns in the target ColumnGroup based on the source ColumnGroup.
+
+        :param source: The source ColumnGroup to reference for visibility settings.
+        :type source: ColumnGroup
+        :param target: The target ColumnGroup to update visibility settings.
+        :type target: ColumnGroup
+        :return: None
+        """
+        for source_child in source.traverse(includeBranches=True, includeLeaves=False, recursive=False):
+            if source is source_child:
+                continue
+            # Find the index of the source child in the source ColumnGroup
+            source_index = list(source.search(groupId=source_child.groupId,
+                                              includeLeaves=False,
+                                              recursive=False)).index(source_child)
+            # Match the corresponding target child by groupId and filtered index
+            matching_target_child = next(
+                    (target_child
+                     for idx, target_child in enumerate(target.search(groupId=source_child.groupId,
+                                                                      includeLeaves=False, recursive=False))
+                     if idx == source_index),
+                    None)
+            if not matching_target_child:
+                # If idx doesn't match, take the first one
+                matching_target_child = next(target.search(groupId=source_child.groupId,
+                                                           includeLeaves=False, recursive=False),
+                                             None)
+            if matching_target_child:
+                # Recurse with the matching ColumnGroup
+                self._setColumnsHidden(source_child, matching_target_child)
+
+        # Update the visibility of columns in the target ColumnGroup
+        for col in target.traverse(includeBranches=False, recursive=False):
+            if col.name not in self.columns:
+                continue
+            idx = self.columns.index(col.name)
+            # Find the corresponding source column
+            if source_child := next(source.search(columnId=col.columnId,
+                                                  includeBranches=False, recursive=False),
+                                    None):
+                if source_child.internal:
+                    # Handle internal columns
+                    internals = self._internalColumns
+                    if source_child.name not in internals:
+                        self.setInternalColumns(internals + source_child.name)
+                    self.setColumnHidden(idx, True)
+                else:
+                    # Set visibility based on the source column's visibility
+                    self.setColumnHidden(idx, not source_child.visible)
+
+    def restoreFromPreferences(self):
+        """Read the visible/hidden columns from preferences.
+        This will affect the current table.
+        """
+        getLogger().debug('==> RESTOREFROMPREFERENCES')
+        tableName = self.className
+        if not (prefs := getPreferences()):
+            getLogger().debug2(f'Cannot restore hidden-columns {tableName}')
+            return
+        try:
+            if (columns := prefs[_TABLES][tableName][_COLUMNHEADER]) is not None:
+                getLogger().debug2(f'Restoring default hidden-columns {columns}')
+                columns = ColumnGroup.newObjectFromJson(jsonString=columns)
+                if self._columnStateLocal:
+                    # there is a table visible - hide columns based on the saved preferences
+                    self._setColumnsHidden(source=columns, target=self._columnStateLocal)
+            self._columnStatePrefs = columns
+        except Exception as es:
+            getLogger().debug2(f'No saved state {es}')
+
+    def resetPreferences(self):
+        """Reset the visible/hidden columns in preferences to None.
+        This will affect the current table, and new modules, which will open with the internal defaults.
+        """
+        getLogger().debug('==> RESETPREFERENCES')
+        tableName = self.className
+        if not (prefs := getPreferences()):
+            getLogger().debug2(f'Cannot reset hidden-columns {tableName}')
+            return
+        # store in preferences, should already be there
+        # table className needs to be in defaultV3settings to ensure re-load
+        table = prefs.setdefault(_TABLES, {}).setdefault(tableName, {})
+        table[_COLUMNHEADER] = None
+        self._columnStatePrefs = None
+        self.resetHiddenColumns()
+
+    #-----------------------------------------------------------------------------------------
     # Header context menu
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Search methods
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Handle dropped items
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     def _processDroppedItems(self, data):
         """CallBack for Drop events
@@ -330,7 +526,7 @@ class _MIProjectTableABC(MITableABC, Base):
     def _handleDroppedItems(self, pids, objType, pulldown):
         """Handle dropping an item onto the module.
         :param pids: the selected objects pids
-        :param objType: the instance of the obj to handle. Eg. PeakList
+        :param objType: the instance of the obj to handle, e.g., PeakList
         :param pulldown: the pulldown of the module wich updates the table
         :return: Actions: Select the dropped item on the table or/and open a new modules if multiple drops.
         If multiple different obj instances, then asks first.
@@ -348,15 +544,16 @@ class _MIProjectTableABC(MITableABC, Base):
             pulldown.select(selectableObjects[0].pid)
 
         elif othersClassNames := list({obj.className for obj in others if hasattr(obj, 'className')}):
-            title, msg = ('Dropped wrong item.', f"Do you want to open the {''.join(othersClassNames)} in a new module?") \
+            title, msg = (
+                'Dropped wrong item.', f"Do you want to open the {''.join(othersClassNames)} in a new module?") \
                 if len(othersClassNames) == 1 else ('Dropped wrong items.', 'Do you want to open items in new modules?')
 
             if MessageDialog.showYesNo(title, msg):
                 _openItemObject(self.mainWindow, others)
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Table updates
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     def _getTableColumns(self, source=None):
         """format of column = ( Header Name, value, tipText, editOption)
@@ -433,7 +630,7 @@ class _MIProjectTableABC(MITableABC, Base):
             self.project.unblankNotification()
 
     def populateEmptyTable(self):
-        """Populate with an empty dataFrame containing the correct column headers.
+        """Populate with an empty dataFrame containing the correct column-headers.
         """
         _df = pd.DataFrame({val: [] for val in self.columnHeaders.values()})
         if self.OBJECTCOLUMN in _df.columns:
@@ -443,11 +640,44 @@ class _MIProjectTableABC(MITableABC, Base):
         self.updateDf(_df, resize=True)
         self._columnHeader.updateDf(_df, resize=True)
         self._indexHeader.updateDf(_df, resize=True)
-        self.headerColumnMenu.restoreColumns()
+        self.postUpdateDf()
 
-    #=========================================================================================
+    # def postUpdateDf(self):
+    #     # update the visible columns - save to preferences?
+    #     # self.headerColumnMenu.saveColumns([col for col in self._df.columns
+    #     #                                    if isinstance(col, tuple) and col[1] in self.defaultHiddenSubgroup])
+    #     # # restore from preferences
+    #     # self.headerColumnMenu.refreshHiddenColumns()
+    #
+    #     self.restoreFromPreferences()
+    #
+    #     hiCols = set(self.hiddenColumns) | self._internalColumns
+    #     # show the columns in the list
+    #     for col, colName in enumerate(self._df.columns):
+    #         # always hide the internal columns
+    #         if colName in hiCols:
+    #             self.hideColumn(col)
+    #         else:
+    #             self.showColumn(col)
+    #
+    #     if self._columnStatePrefs:
+    #         for col in self._columnStatePrefs.traverse(includeParents=False):
+    #             try:
+    #                 if (colNum := self._df.columns.get_loc(col.name)) is not None:
+    #                     if col.visible:
+    #                         self.showColumn(colNum)
+    #                     else:
+    #                         self.hideColumn(colNum)
+    #             except Exception as es:
+    #                 getLogger().debug(f'{self.__class__.__name__}.postUpdateDf failed: {str(es)}')
+    #
+    #     super().postUpdateDf()
+    #     # # update the search filter
+    #     # self.searchMenu.refreshFilter()
+
+    #-----------------------------------------------------------------------------------------
     # Build the dataFrame for the table
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     def buildTableDataFrame(self):
         """Return a Pandas dataFrame from an internal list of objects
@@ -455,9 +685,9 @@ class _MIProjectTableABC(MITableABC, Base):
         # MUST BE SUBCLASSED
         raise NotImplementedError(f'Code error: {self.__class__.__name__}.buildTableDataFrame not implemented')
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Notifiers
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     def _initialiseTableNotifiers(self):
         """Set the initial notifiers to empty
@@ -493,7 +723,8 @@ class _MIProjectTableABC(MITableABC, Base):
         if self.cellClassNames:
             for cellClass, attr in self.cellClassNames.items():
                 self._cellNotifiers.append(Notifier(self.project,
-                                                    [Notifier.CHANGE, Notifier.CREATE, Notifier.DELETE, Notifier.RENAME],
+                                                    [Notifier.CHANGE, Notifier.CREATE, Notifier.DELETE,
+                                                     Notifier.RENAME],
                                                     cellClass.__name__,
                                                     partial(self._queueGeneralNotifier, self._updateCellCallback),
                                                     onceOnly=True))
@@ -560,9 +791,9 @@ class _MIProjectTableABC(MITableABC, Base):
             self._selectCurrentNotifier.unRegister()
             self._selectCurrentNotifier = None
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Notifier callbacks
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     def _updateTableCallback(self, data):
         """Notifier callback when the table has changed
@@ -617,9 +848,9 @@ class _MIProjectTableABC(MITableABC, Base):
         # enable callback on the checkboxes
         self._checkBoxCallback = checkBoxCallback
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Table methods
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     def getSelectedObjects(self, fromSelection=None):
         """Return the selected core objects
@@ -676,9 +907,31 @@ class _MIProjectTableABC(MITableABC, Base):
 
             self._lastSelection = [None]
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
+    # Block table signals
+    #-----------------------------------------------------------------------------------------
+
+    def _blockTableEvents(self, blanking=True, disableScroll=False, tableState=None):
+        """Block all updates/signals/notifiers in the table.
+        Subclassed to blank notifiers.
+        """
+        super()._blockTableEvents(blanking, disableScroll, tableState)
+        # block on first entry; increased in superclass
+        if self._tableBlockingLevel == 1 and blanking and self.project:
+            self.project.blankNotification()
+
+    def _unblockTableEvents(self, blanking=True, disableScroll=False, tableState=None):
+        """Unblock all updates/signals/notifiers in the table.
+        Subclassed to unblank notifiers.
+        """
+        # unblock on last exit; decreased in superclass
+        if self._tableBlockingLevel == 1 and blanking and self.project:
+            self.project.unblankNotification()
+        super()._unblockTableEvents(blanking, disableScroll, tableState)
+
+    #-----------------------------------------------------------------------------------------
     # Highlight objects in table
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     def _highLightObjs(self, selection, scrollToSelection=True):
 
@@ -732,9 +985,9 @@ class _MIProjectTableABC(MITableABC, Base):
         else:
             self.clearSelection()
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Notifier queue handling
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     def queueFull(self):
         """Method that is called when the queue is deemed to be too big.
@@ -743,9 +996,9 @@ class _MIProjectTableABC(MITableABC, Base):
         # MUST BE SUBCLASSED
         raise NotImplementedError(f'Code error: {self.__class__.__name__}.queueFull not implemented')
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Common object properties
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     @staticmethod
     def _getCommentText(obj):

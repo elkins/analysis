@@ -206,12 +206,12 @@ class _RestraintAITableFilter(_TableFilterABC):
 
     @property
     def columns(self):
-        """Return the full list of columns
+        """Return the full list of columns.
         """
         return list(self.df.columns)
 
     def visibleColumns(self, columnIndex=None):
-        """Return the list of visible columns
+        """Return the list of visible columns.
         """
         headerMenu = self._parent.headerColumnMenu
 

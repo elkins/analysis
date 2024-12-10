@@ -1,7 +1,6 @@
 """
 Module Documentation here
 """
-
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
@@ -17,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-09-04 18:51:19 +0100 (Wed, September 04, 2024) $"
-__version__ = "$Revision: 3.2.5 $"
+__dateModified__ = "$dateModified: 2024-11-15 19:34:30 +0000 (Fri, November 15, 2024) $"
+__version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -114,13 +113,15 @@ class MITable(MITableABC, Base):
         super().__init__(parent, df=df,
                          multiSelect=multiSelect, selectRows=selectRows,
                          showHorizontalHeader=showHorizontalHeader, showVerticalHeader=showVerticalHeader,
-                         borderWidth=borderWidth, cellPadding=cellPadding, focusBorderWidth=focusBorderWidth, gridColour=gridColour,
+                         borderWidth=borderWidth, cellPadding=cellPadding, focusBorderWidth=focusBorderWidth,
+                         gridColour=gridColour,
                          _resize=_resize, setWidthToColumns=setWidthToColumns, setHeightToRows=setHeightToRows,
                          setOnHeaderOnly=setOnHeaderOnly, showGrid=showGrid, wordWrap=wordWrap,
                          alternatingRows=alternatingRows,
                          selectionCallback=selectionCallback, selectionCallbackEnabled=selectionCallbackEnabled,
                          actionCallback=actionCallback, actionCallbackEnabled=actionCallbackEnabled,
-                         enableExport=enableExport, enableDelete=enableDelete, enableSearch=enableSearch, enableCopyCell=enableCopyCell,
+                         enableExport=enableExport, enableDelete=enableDelete, enableSearch=enableSearch,
+                         enableCopyCell=enableCopyCell,
                          tableMenuEnabled=tableMenuEnabled, toolTipsEnabled=toolTipsEnabled,
                          dividerColour=dividerColour
                          )
@@ -158,16 +159,21 @@ def main():
     _useMulti = True
 
     aminoAcids = ['alanine', 'arginine',
-                  'asparagine', 'aspartic-acid', 'ambiguous asparagine/aspartic-acid',
+                  'asparagine', 'aspartic-acid', 'ambiguous asp...',
                   'cysteine', 'glutamine', 'glutamic-acid', 'glycine',
-                  'ambiguous glutamine/glutamic acid', 'histidine',
+                  'ambiguous glu...', 'histidine',
                   'isoleucine', 'leucine', 'lysine', 'methionine', 'phenylalanine',
                   'proline', 'serine', 'threonine', 'tryptophan', 'tyrosine', 'valine']
-    data = [[aminoAcids[0], 150, 300, 900, float('nan'), 80.1, 'delta', 'help'],
-            [aminoAcids[1], 200, 500, 300, float('nan'), 34.2, ['help', 'more', 'chips'], 12],
-            [aminoAcids[2], 100, np.nan, 1000, True, -float('Inf'), 'charlie', 'baaa'],
-            [aminoAcids[3], 999, np.inf, 500, False, float('Inf'), 'echo', True],
-            [aminoAcids[4], 300, -np.inf, 450, 700, 150.3, 'bravo', False]
+    data = [[aminoAcids[0], 150, 300, 900, float('nan'), 80.1, 'delta', 'help', 0, 1, aminoAcids[0], 150, 300, 900,
+             float('nan'), 80.1, 'delta', 'help'],
+            [aminoAcids[1], 200, 500, 300, float('nan'), 34.2, ['help', 'more', 'chips'], 12, 2, 3, aminoAcids[1], 200,
+             500, 300, float('nan'), 34.2, ['help', 'more', 'chips'], 12],
+            [aminoAcids[2], 100, np.nan, 1000, True, -float('Inf'), 'charlie', 'baaa', 4, 5, aminoAcids[2], 100, np.nan,
+             1000, True, -float('Inf'), 'charlie', 'baaa'],
+            [aminoAcids[3], 999, np.inf, 500, False, float('Inf'), 'echo', True, 6, 7, aminoAcids[3], 999, np.inf, 500,
+             False, float('Inf'), 'echo', True],
+            [aminoAcids[4], 300, -np.inf, 450, 700, 150.3, 'bravo', False, 8, 9, aminoAcids[4], 300, -np.inf, 450, 700,
+             150.3, 'bravo', False]
             ]
 
     if _useMulti:
@@ -192,20 +198,50 @@ def main():
                              450 + random.randint(-100, 400),
                              700 + random.randint(-MAX_ROWS, MAX_ROWS),
                              150.3 + random.random() * 1e2,
-                             f'bravo{chrs[3:]}' if ii % 2 else f'delta{chrs[3:]}'])
+                             f'bravo{chrs[3:]}' if ii % 2 else f'delta{chrs[3:]}',
+                             random.randint(0, 3),
+                             random.randint(2, 5),
+                             aminoAcids[5 + ii],
+                             300 + random.randint(1, MAX_ROWS),
+                             random.random() * 1e6,
+                             450 + random.randint(-100, 400),
+                             700 + random.randint(-MAX_ROWS, MAX_ROWS),
+                             150.3 + random.random() * 1e2,
+                             f'bravo{chrs[3:]}' if ii % 2 else f'delta{chrs[3:]}',
+                             ])
 
         rowIndex = pd.MultiIndex.from_tuples(multiIndex)
 
         # multiIndex columnHeaders
+        # cols = pd.MultiIndex.from_tuples([
+        #     ("No", "No", "No"),
+        #     ("Most", "Petrol", "Toyota"),
+        #     ("Most", "Petrol", "Ford"),
+        #     ("Most", "Electric", "Tesla\nRAAAAAH!"),
+        #     ("Most", "Electric", "Nio"),
+        #     ("Other", "Other", "NO"),
+        #     ("Set", "NO", "NO"),
+        #     ("Set", "NO", "YES"),
+        #     ])
         cols = pd.MultiIndex.from_tuples([
+            ("CCPN", "CCPN", "Again"),
+            ("testing", "testing", "Not again"),
+            ("Sheep", "Dog", "Llama"),
+            ("Sheep", "Dog", "hat"),
+            ("Sheep", "Fish", "Biscuits"),
             ("No", "No", "No"),
+            ("Why", "Something", "Else"),
             ("Most", "Petrol", "Toyota"),
             ("Most", "Petrol", "Ford"),
+            ("Most", "Petrol", "Flowers"),
+            ("Most", "Fish", "Chips"),
             ("Most", "Electric", "Tesla\nRAAAAAH!"),
             ("Most", "Electric", "Nio"),
-            ("Other", "Other", "NO"),
-            ("Set", "NO", "NO"),
-            ("Set", "NO", "YES"),
+            ("Most", "Quater", "Mass"),
+            ("Other", "Other", "Happy"),
+            ("Other1", "Other1", "Happy"),
+            ("Set", "NONO", "nay"),
+            ("Set", "NONO", "aye"),
             ])
 
     else:
@@ -277,7 +313,6 @@ def main():
         if 0 <= row < (table.rowCount() * 2 // 3) and 0 <= col < table.columnCount():
             table.setBackground(row, col, backCol)
             table.setForeground(row, col, foreCol)
-
 
     tt = table._df.columns.tolist()
     print(tt, tt[0], type(tt[0]))

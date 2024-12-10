@@ -302,9 +302,9 @@ class CcpnModule(Dock, DropBase, NotifierBase):
         self.setMinimumSize(6 * self.label.labelSize, 5 * self.label.labelSize)
         self.setSizePolicy(QtWidgets.QSizePolicy.Ignored, QtWidgets.QSizePolicy.Ignored)
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # CCPN Properties
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     def __repr__(self):
         return f'<{self.pid}>'
@@ -386,9 +386,9 @@ class CcpnModule(Dock, DropBase, NotifierBase):
         """ Internal. Used to restore last closed module in the same program instance. """
         return self.widgetsState
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Widget Methods
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     def _getModulePidFields(self):
         """
@@ -445,7 +445,7 @@ class CcpnModule(Dock, DropBase, NotifierBase):
 
     def restoreWidgetsState(self, **widgetsState):
         """
-        Restore the gui params. To Call it: _setParams(**{"variableName":"value"})
+        Restore the gui params. To call it: _setParams(**{"variableName":"value"})
 
         This is automatically called after every restoration and after the module has been initialised.
         Subclass this for a custom behaviour. for example custom callback after the widgets have been restored.
@@ -501,9 +501,9 @@ class CcpnModule(Dock, DropBase, NotifierBase):
         """
         self.float()
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Super class Methods
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     def getDockArea(self, target=None):
         current = self if target is None else target
@@ -833,11 +833,9 @@ class CcpnModule(Dock, DropBase, NotifierBase):
         globalDockRect = self.getDockArea().frameGeometry()
 
         targetWidget = QtWidgets.QApplication.instance().widgetAt(endPosition)
-        if (
-                (self.drag.target() is None)
+        if ((self.drag.target() is None)
                 and (not globalDockRect.contains(endPosition))
-                and targetWidget is None
-        ):
+                and targetWidget is None):
             self.float()
             window = self.findWindow()
             window.move(endPosition)
@@ -877,16 +875,11 @@ class CcpnModuleLabel(DockLabel):
     """
     Subclassing DockLabel to modify appearance and functionality
     """
+    sigDragEntered = QtCore.pyqtSignal(object, object)
 
     labelSize = 16
     TOP_LEFT = 'TOP_LEFT'
     TOP_RIGHT = 'TOP_RIGHT'
-
-    # TODO:GEERTEN check colours handling
-    # defined here, as the updateStyle routine is called from the
-    # DockLabel instantiation; changed later on
-
-    sigDragEntered = QtCore.pyqtSignal(object, object)
 
     @staticmethod
     def getMaxIconSize(icon):
@@ -896,6 +889,7 @@ class CcpnModuleLabel(DockLabel):
     def __init__(self, name, module, showCloseButton=True, closeCallback=None, enableSettingsButton=False,
                  settingsCallback=None,
                  helpButtonCallback=None, ):
+        from ccpn.ui._implementation.SpectrumDisplay import SpectrumDisplay
 
         self.buttonBorderWidth = 1
         self.buttonIconMargin = 1
@@ -912,13 +906,7 @@ class CcpnModuleLabel(DockLabel):
         self.fixedWidth = True
 
         setWidgetFont(self, size='MEDIUM')
-
         self.setAlignment(QtCore.Qt.AlignVCenter | QtCore.Qt.AlignHCenter)
-        # self.closeButton.setStyleSheet(
-        #         f'border: 0px solid {BORDERNOFOCUS_COLOUR};border-radius: 1px;background-color: transparent;'
-        #         )
-
-        from ccpn.ui._implementation.SpectrumDisplay import SpectrumDisplay
 
         allowSpace = not isinstance(self.module, SpectrumDisplay)
         self.nameEditor = NameEditor(self, text=self.labelName, allowSpace=allowSpace)
@@ -931,7 +919,6 @@ class CcpnModuleLabel(DockLabel):
         if showCloseButton:
             # button is already there because of the DockLabel init
             self.closeButton.setIconSize(QtCore.QSize(self._fontSize, self._fontSize))
-
             if closeCallback is None:
                 raise RuntimeError('Requested closeButton without callback')
             else:
@@ -968,10 +955,8 @@ class CcpnModuleLabel(DockLabel):
         return self.module.id
 
     def _showNameEditor(self):
+        """Show the name editor and give full focus to start typing.
         """
-        show the name editor and give full focus to start typing.
-        """
-
         self.nameEditor.show()
 
     def _renameLabel(self, name=None):
@@ -985,7 +970,6 @@ class CcpnModuleLabel(DockLabel):
             button.setIcon(icon)
         # retinaIconSize = self.getMaxIconSize(icon) // 2
         # retinaIconSize = self.labelSize - 4
-
         button.setIconSize(QtCore.QSize(self._fontSize, self._fontSize))
 
         if position == CcpnModuleLabel.TOP_RIGHT:
@@ -1019,11 +1003,9 @@ class CcpnModuleLabel(DockLabel):
         if self.dim:
             fg = getColours()[CCPNMODULELABEL_FOREGROUND]
             bg = getColours()[CCPNMODULELABEL_BACKGROUND]
-            border = getColours()[CCPNMODULELABEL_BORDER]
         else:
             fg = getColours()[CCPNMODULELABEL_FOREGROUND_ACTIVE]
             bg = getColours()[CCPNMODULELABEL_BACKGROUND_ACTIVE]
-            border = getColours()[CCPNMODULELABEL_BORDER_ACTIVE]
 
         if self.orientation == 'vertical':
             self.vStyle = """DockLabel {
@@ -1098,7 +1080,6 @@ class CcpnModuleLabel(DockLabel):
         """
         if self.module and self.module.area:
             self.module.area._finaliseAllNameEditing()  # so to close the on-going operation
-
         if event.button() == QtCore.Qt.RightButton:
             if menu := self._createContextMenu():
                 menu.move(event.globalPos().x(), event.globalPos().y() + 10)
@@ -1144,12 +1125,10 @@ class CcpnModuleLabel(DockLabel):
             if not self.mouseMoved:
                 lpos = ev.position() if hasattr(ev, 'position') else ev.localPos()
                 self.mouseMoved = (lpos - self.pressPos).manhattanLength() > QtWidgets.QApplication.startDragDistance()
-
             if self.mouseMoved and ev.buttons() == QtCore.Qt.MouseButton.LeftButton:
                 # emit a drag started event
                 self.sigDragEntered.emit(self.parent(), ev)
                 self.dock.startDrag()
-
             ev.accept()
 
     def mouseDoubleClickEvent(self, ev):
@@ -1163,9 +1142,6 @@ class CcpnModuleLabel(DockLabel):
 
         super(CcpnModuleLabel, self).mouseDoubleClickEvent(ev)
 
-        # if ev.button() == QtCore.Qt.LeftButton:
-        #     self.dock.toggleMaximised()
-
     def _resetDoubleClick(self):
         """reset the double click flag
         """
@@ -1177,13 +1153,11 @@ class CcpnModuleLabel(DockLabel):
                 self.layout().addWidget(self.closeButton, 0, 0, alignment=QtCore.Qt.AlignTop)
             else:
                 self.layout().addWidget(self.closeButton, 0, 3, alignment=QtCore.Qt.AlignRight)
-
         if hasattr(self, 'settingsButtons') and self.settingsButtons:
             if self.orientation == 'vertical':
                 self.layout().addWidget(self.settingsButtons, 0, 0, alignment=QtCore.Qt.AlignBottom)
             else:
                 self.layout().addWidget(self.settingsButtons, 0, 0, alignment=QtCore.Qt.AlignLeft)
-
         if hasattr(self, 'nameEditor') and self.nameEditor:
             self.layout().addWidget(self.nameEditor, 0, 1, alignment=QtCore.Qt.AlignCenter)
 
@@ -1266,7 +1240,6 @@ class LabelNameValidator(QtGui.QValidator):
         return self._messageState
 
     def validate(self, name, p_int):
-
         startingName = self._labelObj.module.id
         state = QtGui.QValidator.Acceptable
 
@@ -1274,14 +1247,11 @@ class LabelNameValidator(QtGui.QValidator):
             state = self._setAcceptableStatus()
             self._isValidState, self._messageState = True, 'Same name as original'
             return state, name, p_int
-
         if self._isNameAvailableFunc(name):
             self._isValidState, self._messageState = True, 'Name available'
             state = self._setAcceptableStatus()
-
         if not self._isValidInput(name):
             state = self._setIntermediateStatus()
-
         if not self._isNameAvailableFunc(name):
             state = self._setIntermediateStatus()
             self._isValidState, self._messageState = False, 'Name already taken'
@@ -1461,9 +1431,6 @@ class CcpnTableModule(CcpnModule):
     Implemented to allow hiddenColumn saving.
     """
 
-    def __init__(self, mainWindow, name, *args, **kwds):
-        super().__init__(mainWindow=mainWindow, name=name, *args, **kwds)
-
     @CcpnModule.widgetsState.getter
     def widgetsState(self):
         """Add extra parameters to the state-dict for hidden-columns.
@@ -1473,71 +1440,31 @@ class CcpnTableModule(CcpnModule):
             state |= {'_hiddenColumns': self._hiddenColumns}
         return state
 
+    def restoreWidgetsState(self, **widgetsState):
+        """Subclassed version for tables
+        """
+        super().restoreWidgetsState(**widgetsState)
+        self._postRestoreWidgetsState(**widgetsState)
+
+    def _postRestoreWidgetsState(self, **widgetsState):
+        try:
+            if (hColumns := widgetsState.get('_hiddenColumns', None)) is not None:
+                self._tableWidget.setHiddenColumns(hColumns)
+        except Exception as es:
+            getLogger().debug(f'{self.__class__.__name__}: Could not restore hidden-column widget-state: {es}')
+
     @property
     def _hiddenColumns(self) -> list[str] | None:
         """Return the hidden-columns for the primary table-widget.
         If undefined, returns None.
         """
         with contextlib.suppress(Exception):
-            return self._tableWidget.headerColumnMenu.hiddenColumns
-
-    def _setHiddenColumns(self, value: list[str] | None = None):
-        """Set the hidden-columns for the primary table-widget.
-        """
-        if value is not None:
-            if not isinstance(value, list):
-                raise TypeError(f'{self.__class__.__name__}.hiddenColumns must be list[str] of None')
-        self._tableWidget.headerColumnMenu.hiddenColumns = value
-
-    def _setClassDefaultHidden(self, hiddenColumns: list[str] | None):
-        """Copy the hidden-columns to the class; to be set when the next table is opened.
-        """
-        self._tableWidget.setClassDefaultColumns(hiddenColumns)
-
-    def _saveColumns(self, hiddenColumns: list[str] | None = None):
-        """Allows hiddenColumns to be saved to widgetState
-
-        Specifically saves to _seenModuleStates dict.
-        Normally called by the closeModule method.
-
-        :param list|None hiddenColumns: list of columns to save as hidden,
-         if blank then will automatically try to use
-         self._tableWidget.headerColumnMenu.hiddenColumns to find values
-        """
-        wState = self.widgetsState  # local state-dict
-        if hiddenColumns is not None:
-            # append hidden-column list
-            wState['_hiddenColumns'] = hiddenColumns
-        else:
-            try:
-                wState['_hiddenColumns'] = self._hiddenColumns
-                self._setClassDefaultHidden(self._hiddenColumns)
-            except Exception as es:
-                getLogger().debug(f'Table Columns for {self.moduleName} unsaved: {es}')
-
-    def _restoreColumns(self, hiddenColumns: list[str] | None):
-        """Restore the hidden columns from the widgetState dict.
-        """
-        try:
-            self._setHiddenColumns(hiddenColumns)
-        except AssertionError as es:
-            getLogger().debug(f'Could not restore table columns: {es}')
-
-    def restoreWidgetsState(self, **widgetsState):
-        """Subclassed version for tables
-        """
-        super().restoreWidgetsState(**widgetsState)
-        try:
-            if (hColumns := widgetsState.get('_hiddenColumns', None)) is not None:
-                self._restoreColumns(hColumns)
-        except Exception as es:
-            print(es)
+            return self._tableWidget.hiddenColumns
 
     def _closeModule(self):
         """
         CCPN-INTERNAL: used to close the module
         """
-        self._saveColumns()
         if self.tableFrame:
             self.tableFrame._cleanupWidget()
             self._mainFrame = None

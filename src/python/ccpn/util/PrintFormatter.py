@@ -1,16 +1,13 @@
 """
 Module Documentation here
 """
-import time
-from contextlib import suppress
-
-
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2023"
-__credits__ = ("Ed Brooksbank, Joanna Fox, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
-               "Timothy J Ragan, Brian O Smith, Gary S Thompson & Geerten W Vuister")
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
+               "Timothy J Ragan, Brian O Smith, Daniel Thompson",
+               "Gary S Thompson & Geerten W Vuister")
 __licence__ = ("CCPN licence. See https://ccpn.ac.uk/software/licensing/")
 __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, L.G., & Vuister, G.W.",
                  "CcpNmr AnalysisAssign: a flexible platform for integrated NMR analysis",
@@ -19,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2023-03-03 16:19:32 +0000 (Fri, March 03, 2023) $"
-__version__ = "$Revision: 3.1.1 $"
+__dateModified__ = "$dateModified: 2024-11-12 15:24:48 +0000 (Tue, November 12, 2024) $"
+__version__ = "$Revision: 3.2.10 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -30,18 +27,18 @@ __date__ = "$Date: 2021-06-28 18:39:46 +0100 (Mon, June 28, 2021) $"
 # Start of code
 #=========================================================================================
 
+import time
+from contextlib import suppress
 import pandas as pd
 from collections import OrderedDict
 from functools import partial
 from contextlib import contextmanager
 from ccpn.util.FrozenDict import FrozenDict
 from ccpn.util.OrderedSet import OrderedSet, FrozenOrderedSet
+from ccpn.util.Common import NOTHING
 
 
-NOTHING = object()
-
-
-class PrintFormatter(object):
+class PrintFormatter:
     """
     Class to produce formatted strings from python objects.
 
@@ -93,23 +90,23 @@ class PrintFormatter(object):
         """
 
         # use sentinels, can then be subclassed without editing __init__
-        if useTab != NOTHING:
+        if useTab is not NOTHING:
             if useTab not in (True, False):
                 raise TypeError(f'{self.__class__.__name__}: useTab must be True/False')
             self._useTab = useTab
-        if spaces != NOTHING:
+        if spaces is not NOTHING:
             if not isinstance(spaces, int) or not 0 <= spaces < self.MAXSPACES:
                 raise TypeError(f'{self.__class__.__name__}: spaces must be an int in range(0, {self.MAXSPACES})')
             self._spaces = spaces
-        if useCrlf != NOTHING:
+        if useCrlf is not NOTHING:
             if useCrlf not in (True, False):
                 raise TypeError(f'{self.__class__.__name__}: useCrlf must be True/False')
             self._useCrlf = useCrlf
-        if encodeDataFrame != NOTHING:
+        if encodeDataFrame is not NOTHING:
             if encodeDataFrame not in (True, False):
                 raise TypeError(f'{self.__class__.__name__}: encodeDataFrame must be True/False')
             self._encodeDataFrame = encodeDataFrame
-        if formatDataFrame != NOTHING:
+        if formatDataFrame is not NOTHING:
             if formatDataFrame not in (True, False):
                 raise TypeError(f'{self.__class__.__name__}: formatDataFrame must be True/False')
             self._formatDataFrame = formatDataFrame
@@ -139,15 +136,18 @@ class PrintFormatter(object):
             self.registerFormat(obj, func)
 
         # add objects to the literal_eval list
-        for klass in (OrderedDict, OrderedSet, frozenset, FrozenOrderedSet, FrozenDict, self.PythonObject, self.DfObject):
+        for klass in (
+                OrderedDict, OrderedSet, frozenset, FrozenOrderedSet, FrozenDict, self.PythonObject, self.DfObject):
             self.registerLiteralEval(klass)
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # properties
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     @property
     def useTab(self) -> bool:
+        """Use tabs for indenting.
+        """
         return self._useTab
 
     @useTab.setter
@@ -159,6 +159,8 @@ class PrintFormatter(object):
 
     @property
     def spaces(self) -> int:
+        """The number of spaces for indenting, if using spaces.
+        """
         return self._spaces
 
     @spaces.setter
@@ -170,10 +172,14 @@ class PrintFormatter(object):
 
     @property
     def crlf(self):
+        """Return the crlf (end-of-line) characters.
+        """
         return self._crlf if self._useCrlf else ''
 
     @property
     def useCrlf(self) -> bool:
+        """Use crlf characters.
+        """
         return self._useCrlf
 
     @useCrlf.setter
@@ -185,6 +191,8 @@ class PrintFormatter(object):
 
     @property
     def encodeDataFrame(self) -> bool:
+        """Encode the dataFrames as an ascii byte-string.
+        """
         return self._encodeDataFrame
 
     @encodeDataFrame.setter
@@ -195,6 +203,8 @@ class PrintFormatter(object):
 
     @property
     def formatDataFrame(self) -> bool:
+        """Format the dataFrames using the crlf, spaces, tab settings.
+        """
         return self._formatDataFrame
 
     @formatDataFrame.setter
@@ -205,6 +215,8 @@ class PrintFormatter(object):
 
     @property
     def allowPickle(self) -> bool:
+        """Allow pickle objects in the output string.
+        """
         return self._allowPickle
 
     def __str__(self):
@@ -217,12 +229,13 @@ class PrintFormatter(object):
                f'encodeDataFrame={self._encodeDataFrame}, ' \
                f'formatDataFrame={self._formatDataFrame}>'
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # internal
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     def _setTabs(self):
-        # set up the tab characters
+        """Set up the tab/space characters.
+        """
         if self._useCrlf:
             self._tabs = '\t' if self._useTab else ' ' * self._spaces
         else:
@@ -230,15 +243,15 @@ class PrintFormatter(object):
 
     @contextmanager
     def pushTabs(self, *, useTab: bool = False, spaces: int = 4, useCrlf: bool = True):
+        """Context manager to temporarily disable the tab/space characters when encoding dataFrames.
+        """
         _useTab, _spaces, _useCrlf = self._useTab, self._spaces, self._useCrlf
         if self._encodeDataFrame or not self._formatDataFrame:
             # push current tab-settings
             self._useTab, self._spaces, self._useCrlf = useTab, spaces, useCrlf
             self._setTabs()
-
         try:
             yield
-
         finally:
             if self._encodeDataFrame or not self._formatDataFrame:
                 # recover tab-settings
@@ -246,17 +259,17 @@ class PrintFormatter(object):
                 self._setTabs()
 
     def registerFormat(self, obj, callback):
-        """Register an object class to formatter
+        """Register an object class to formatter.
         """
         self._registeredFormats[obj] = callback
 
     def registerLiteralEval(self, obj):
-        """Register a literalEval object class to formatter
+        """Register a literalEval object class to formatter.
         """
         self._literalEvals[obj.__name__] = obj
 
     def __call__(self, value, **args):
-        """Call method to produce output string
+        """Call-method to produce output string.
         """
         for key in args:
             setattr(self, key, args[key])
@@ -264,7 +277,7 @@ class PrintFormatter(object):
         return formatter(self, value, self._indent)
 
     def formatDf(self, value, indent, formatString=''):
-        """Output format for pandas-dataFrames
+        """Output format for pandas-dataFrames.
         """
         from base64 import urlsafe_b64encode
 
@@ -279,7 +292,6 @@ class PrintFormatter(object):
                      f"{self.INDEXTYPE!r}  : {type(value.index).__name__!r}" \
                      f"}}\n"
                 data = f"{urlsafe_b64encode(bytes(df, 'utf-8')).decode('utf-8')!r}"
-
         else:
             with self.pushTabs(spaces=0, useCrlf=False):
                 # store directly as a formatted-dict
@@ -295,8 +307,8 @@ class PrintFormatter(object):
         return f"DfObject({data})"
 
     def formatObject(self, value, indent, formatString=''):
-        """Fallback method for objects not registered with formatter
-        Returns 'None' if allowPickle is False
+        """Fallback method for objects not registered with formatter.
+        Returns 'None' if allowPickle is False.
         """
         from base64 import urlsafe_b64encode
         import pickle
@@ -306,15 +318,17 @@ class PrintFormatter(object):
             return repr(value)
         elif self._allowPickle:
             # and finally catch any non-recognised object
-            return "PythonObject('{0}')".format(urlsafe_b64encode(pickle.dumps(value, pickle.HIGHEST_PROTOCOL)).decode('utf-8'))
+            return "PythonObject('{0}')".format(
+                    urlsafe_b64encode(pickle.dumps(value, pickle.HIGHEST_PROTOCOL)).decode('utf-8'))
         return repr(None)
 
     def formatDictBase(self, value, indent, formatString=''):
-        """Output format for dict/FrozenDict
+        """Output format for dict/FrozenDict.
         """
         items = [
             self.crlf + self._tabs * (indent + 1) + repr(key) + ': ' +
-            (self._registeredFormats[type(value[key]) if type(value[key]) in self._registeredFormats else object])(self, value[key], indent + 1)
+            (self._registeredFormats[type(value[key])
+            if type(value[key]) in self._registeredFormats else object])(self, value[key], indent + 1)
             for key in value
             ]
         return formatString.format(','.join(items) + self.crlf + self._tabs * indent)
@@ -323,11 +337,12 @@ class PrintFormatter(object):
     formatFrozenDict = partial(formatDictBase, formatString='FrozenDict({{{0}}})')
 
     def formatBase(self, value, indent, formatString=''):
-        """Output format for list
+        """Output format for list.
         """
         items = [
             self.crlf + self._tabs * (indent + 1) +
-            (self._registeredFormats[type(item) if type(item) in self._registeredFormats else object])(self, item, indent + 1)
+            (self._registeredFormats[type(item)
+            if type(item) in self._registeredFormats else object])(self, item, indent + 1)
             for item in value
             ]
         return formatString.format(','.join(items) + self.crlf + self._tabs * indent)
@@ -337,14 +352,15 @@ class PrintFormatter(object):
     formatSet = partial(formatBase, formatString='{{{0}}}')
 
     def formatKlassBase(self, value, indent, klassName=None, formatString=''):
-        """Output format for set of type klass
-        currently   ccpn.util.OrderedSet.OrderedSet
+        """Output format for sets of type klass.
+        Currently:  ccpn.util.OrderedSet.OrderedSet
                     frozenset
                     ccpn.util.OrderedSet.FrozenOrderedSet
         """
         items = [
             self.crlf + self._tabs * (indent + 1) +
-            (self._registeredFormats[type(item) if type(item) in self._registeredFormats else object])(self, item, indent + 1)
+            (self._registeredFormats[type(item)
+            if type(item) in self._registeredFormats else object])(self, item, indent + 1)
             for item in value
             ]
         return formatString.format(klassName, ','.join(items) + self.crlf + self._tabs * indent)
@@ -353,7 +369,7 @@ class PrintFormatter(object):
     formatSetType = partial(formatKlassBase, formatString='{0}({{{1}}})')
 
     def formatOrderedDict(self, value, indent):
-        """Output format for OrderedDict (collections.OrderedDict)
+        """Output format for OrderedDict (collections.OrderedDict).
         """
         items = [
             self.crlf + self._tabs * (indent + 1) +
@@ -365,8 +381,8 @@ class PrintFormatter(object):
         return 'OrderedDict([{0}])'.format(','.join(items) + self.crlf + self._tabs * indent)
 
     def PythonObject(self, value):
-        """Call method to produce object from pickled string
-        Returns None if allowPickle is False
+        """Call method to produce object from pickled string.
+        Returns None if allowPickle is False.
         """
         from base64 import urlsafe_b64decode
         import pickle
@@ -375,21 +391,18 @@ class PrintFormatter(object):
             return pickle.loads(urlsafe_b64decode(value.encode('utf-8')))
 
     def DfObject(self, value):
-        """Call method to produce object from compressed dataFrame
+        """Call-method to produce object from encoded-dataFrame.
         """
         from base64 import urlsafe_b64decode
 
         if type(value) not in (str, dict, bytes):
             return
-
         if type(value) in (dict,):
             # not-encoded - recover from dict
             data = value
-
         elif type(value) in (str, bytes):
             # encoded - recover from string
             data = self.literal_eval(urlsafe_b64decode(value).decode() if self._encodeDataFrame else value)
-
         else:
             raise ValueError('malformed DfObject')
 
@@ -405,7 +418,6 @@ class PrintFormatter(object):
                     df.index = pd.MultiIndex.from_tuples(df.index)
                 elif indexType == self.RANGEINDEX:
                     df.index = pd.RangeIndex(start=min(df.index), stop=max(df.index) + 1)
-
             with suppress(Exception):
                 if columnType == self.MULTIINDEX:
                     df.columns = pd.MultiIndex.from_tuples(df.columns)
@@ -462,7 +474,6 @@ class PrintFormatter(object):
             elif isinstance(node, Call):
                 if node.func.id in self._literalEvals:
                     return _convert_LiteralEval(node, self._literalEvals[node.func.id])
-
             elif isinstance(node, BinOp) and isinstance(node.op, (Add, Sub)):
                 left = _convert_signed_num(node.left)
                 right = _convert_num(node.right)
@@ -474,8 +485,12 @@ class PrintFormatter(object):
         return _convert(node_or_string)
 
 
+#=========================================================================================
+# main
+#=========================================================================================
+
 def main():
-    """Test the output from the printFormatter and recover as the python object
+    """Test the output from the printFormatter and recover as the python object.
     """
 
     import pandas as pd

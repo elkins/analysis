@@ -17,9 +17,9 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-09-03 09:56:08 +0100 (Tue, September 03, 2024) $"
-__version__ = "$Revision: 3.2.5 $"
+__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
+__dateModified__ = "$dateModified: 2024-11-15 19:34:30 +0000 (Fri, November 15, 2024) $"
+__version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -30,39 +30,25 @@ __date__ = "$Date:2024-07-30 17:22:58 +0100 (Tue, July 30, 2024) $"
 #=========================================================================================
 
 
-MAX_ROWS = 7
-
 import pandas as pd
 import numpy as np
-import random
-from ccpn.ui.gui.widgets.table._TableCommon import CHECKABLE, ENABLED, SELECTABLE
-from ccpn.ui.gui.widgets.Application import TestApplication
-from ccpn.ui.gui.Gui import _MyAppProxyStyle
-
-from ccpn.ui.gui.widgets.table.TableABC import TableABC
-from ccpn.ui.gui.widgets.table._TableAdditions import TableCopyCell, TableExport, TableSearchMenu, TableDelete
-from ccpn.ui.gui.widgets.table._TableCommon import _TableSelection
 from ccpn.ui.gui.widgets.Icon import Icon
-from PyQt5 import QtWidgets, QtCore, QtGui
-from ccpn.ui.gui.widgets.Label import Label
-from ccpn.ui.gui.widgets.Frame import Frame, ScrollableFrame
-from ccpn.ui.gui.widgets.RadioButtons import RadioButtons
-from ccpn.ui.gui.popups.Dialog import CcpnDialog
-from ccpn.core.lib.SeriesUnitConverter import SERIESUNITS
-from ccpn.core.SpectrumGroup import SeriesTypes
-from ccpn.ui.gui.widgets.HLine import HLine
-from ccpn.ui.gui.widgets.table.Table import Table
-import lmfit
-from ccpn.ui.gui.widgets.table._TableCommon import EDIT_ROLE, DISPLAY_ROLE, TOOLTIP_ROLE, \
-    BACKGROUND_ROLE, FOREGROUND_ROLE, CHECK_ROLE, ICON_ROLE, SIZE_ROLE, ALIGNMENT_ROLE, \
-    FONT_ROLE, CHECKABLE, ENABLED, SELECTABLE, EDITABLE, CHECKED, UNCHECKED, VALUE_ROLE, \
-    INDEX_ROLE, BORDER_ROLE, ORIENTATIONS
-from ccpn.util.floatUtils import numZeros
-from ccpn.ui.gui.widgets.table._TableModel import _TableModel
-from PyQt5.QtGui import QIcon, QPixmap
+from PyQt5 import QtWidgets, QtCore
 from PyQt5.QtCore import Qt
+import lmfit
+from ccpn.ui.gui.widgets.Frame import Frame
+from ccpn.ui.gui.widgets.table.Table import Table
+from ccpn.ui.gui.widgets.table._TableCommon import (EDIT_ROLE, DISPLAY_ROLE, TOOLTIP_ROLE,
+                                                    BACKGROUND_ROLE, FOREGROUND_ROLE, CHECK_ROLE, ICON_ROLE, SIZE_ROLE,
+                                                    FONT_ROLE, CHECKABLE, ENABLED, SELECTABLE, CHECKED, UNCHECKED,
+                                                    VALUE_ROLE,
+                                                    INDEX_ROLE, BORDER_ROLE)
+from ccpn.ui.gui.widgets.table._TableModel import _TableModel
+from ccpn.ui.gui.popups.Dialog import CcpnDialog
+from ccpn.util.floatUtils import numZeros
 
 
+MAX_ROWS = 7
 LOCKED = 'Locked'
 NAME = 'Name'
 VALUE = 'Value'
@@ -72,6 +58,7 @@ MIN = 'Min'
 MAX = 'Max'
 AUTO = 'Auto'
 DESCRIPTION = 'Description'
+
 
 class _ParamTableModel(_TableModel):
     """
@@ -86,7 +73,8 @@ class _ParamTableModel(_TableModel):
 
         try:
             # get the source cell
-            fRow = self._filterIndex[index.row()] if self._filterIndex is not None and 0 <= index.row() < len(self._filterIndex) else index.row()
+            fRow = self._filterIndex[index.row()] if self._filterIndex is not None and 0 <= index.row() < len(
+                    self._filterIndex) else index.row()
             row, col = self._sortIndex[fRow], index.column()
 
             if role == DISPLAY_ROLE:
@@ -118,10 +106,10 @@ class _ParamTableModel(_TableModel):
                         value = str(val)
                 return value
 
-            elif role ==ICON_ROLE and col == 0 and self._df.at[row, LOCKED]:
+            elif role == ICON_ROLE and col == 0 and self._df.at[row, LOCKED]:
                 return self._view.lockIcon  # Return the lock icon for the first column
 
-            elif role ==ICON_ROLE and col == 0 and not self._df.at[row, LOCKED]:
+            elif role == ICON_ROLE and col == 0 and not self._df.at[row, LOCKED]:
                 return self._view.unLockIcon  # Return the lock icon for the first column
 
             elif role == VALUE_ROLE:
@@ -186,7 +174,7 @@ class _ParamTableModel(_TableModel):
                 # this is required to disable the bbox calculation for the default QT functionality
                 return QtCore.QSize(16, 24)
 
-        except Exception as es:
+        except Exception:
             pass
 
         return None
@@ -201,13 +189,15 @@ class _ParamTableModel(_TableModel):
                 return QtCore.QSize(self._view.columnsMinWidths[header_name], -1)
 
         return super().headerData(section, orientation, role)
+
     def flags(self, index):
         """Return the item flags for the given index."""
         if not index.isValid():
             return Qt.NoItemFlags
 
         # Get the row and column indices
-        fRow = self._filterIndex[index.row()] if self._filterIndex is not None and 0 <= index.row() < len(self._filterIndex) else index.row()
+        fRow = self._filterIndex[index.row()] if self._filterIndex is not None and 0 <= index.row() < len(
+                self._filterIndex) else index.row()
         row = self._sortIndex[fRow]
         col = index.column()
 
@@ -239,16 +229,16 @@ class _ParamsTable(Table):
     tableModelClass = _ParamTableModel
     showEditIcon = True
     columnsMinWidths = {
-                                    NAME : 100,
-                                    VALUE: 80,
-                                    FIXED: 50
-                                    }
+        NAME : 100,
+        VALUE: 80,
+        FIXED: 50
+        }
+
     def __init__(self, parent, dataFrame, dataChangedCallback=None, **kwds):
-        super().__init__(parent, df=dataFrame, focusBorderWidth=0, cellPadding=10,  showGrid=False,
+        super().__init__(parent, df=dataFrame, focusBorderWidth=0, cellPadding=10, showGrid=False,
                          setWidthToColumns=False, setHeightToRows=False, _resize=True,
                          showVerticalHeader=False,
                          **kwds)
-
 
         self.model()._enableCheckBoxes = True  # make boolean appear as checkboxes (disables double-click on boolean)
         self.model().defaultFlags = ENABLED | SELECTABLE | CHECKABLE  # checkboxes are clickable
@@ -266,7 +256,7 @@ class _ParamsTable(Table):
         self.setSelectionMode(QtWidgets.QTableView.NoSelection)
         self.lockIcon = Icon('icons/locked').pixmap(int(self.model()._chrHeight), int(self.model()._chrHeight))
         self.unLockIcon = Icon('icons/unlocked').pixmap(int(self.model()._chrHeight), int(self.model()._chrHeight))
-        self.headerColumnMenu.setInternalColumns([LOCKED])
+        self.setInternalColumns([LOCKED])
         if dataChangedCallback is not None:
             self.model().dataChanged.connect(dataChangedCallback)
 
@@ -281,16 +271,14 @@ class _ParamsTable(Table):
 
 class FittingParamWidget(Frame):
 
-
     def __init__(self, parent, fittingModel, callback=None, **kwds):
-        super().__init__(parent, minimumSizes=(50,150), margins=(0, 10, 0, 10), setLayout=True, **kwds)
+        super().__init__(parent, minimumSizes=(50, 150), margins=(0, 10, 0, 10), setLayout=True, **kwds)
 
         self._fittingParamWrapper = FittingParamWrapper(fittingModel)
         df = self._fittingParamWrapper.getDataFrameFromParams()
-        df[FIXED] = df[FIXED].astype(object) #need to be object to enable the checkboxes on the table
-        self.table = _ParamsTable(self, df, dataChangedCallback=self._tableHasChanged,grid=[0,0])
+        df[FIXED] = df[FIXED].astype(object)  #need to be object to enable the checkboxes on the table
+        self.table = _ParamsTable(self, df, dataChangedCallback=self._tableHasChanged, grid=[0, 0])
         self._callback = callback
-
 
     def getDataFrame(self):
         return self.table.getDataFrame()
@@ -306,16 +294,16 @@ class FittingParamWidget(Frame):
             self._callback(params)
         return params
 
+
 class FittingParamWrapper(object):
 
     def __init__(self, fittingModel):
         self.fittingModel = fittingModel
         self._minimiser = self.fittingModel.Minimiser
-        self.params =  self._minimiser.fetchParams(self._minimiser)
+        self.params = self._minimiser.fetchParams(self._minimiser)
         self._userParams = self._minimiser._userParams
         self._userParamNames = self._minimiser.getUserParamNames(self._minimiser)
         self._fixedParamNames = self._minimiser.getFixedParamNames(self._minimiser)
-
 
     def getDataFrameFromParams(self):
         """
@@ -329,7 +317,7 @@ class FittingParamWrapper(object):
         params = self._minimiser._mergeUserParams(self.params, self._minimiser._userParams)
         for i, (name, param) in enumerate(params.items()):
             _min, _max = self._getMinMaxFromParam(name, param)
-            vary = param.vary if param.vary is not None else True # fetch the information from the existing param. it could have set previously by the user.
+            vary = param.vary if param.vary is not None else True  # fetch the information from the existing param. it could have set previously by the user.
             fixed = not vary
             description = self._minimiser.paramsDescription.get(name, '')
             df.loc[i, NAME] = name
@@ -341,11 +329,13 @@ class FittingParamWrapper(object):
             df.loc[i, LOCKED] = name not in self._userParamNames
 
         # apply a sorting . Show the User editable at the top and sort alphabetically
-        key = lambda x: pd.Categorical(x, categories=sorted( self._userParamNames) + sorted(x[~x.isin( self._userParamNames)]), ordered=True)
-        df = df.sort_values( by=NAME, key=key).reset_index(drop=True)
+        key = lambda x: pd.Categorical(x, categories=sorted(self._userParamNames) + sorted(
+                x[~x.isin(self._userParamNames)]), ordered=True)
+        df = df.sort_values(by=NAME, key=key).reset_index(drop=True)
         return df
 
-    def getParamsFromDataFrame(self, df):
+    @staticmethod
+    def getParamsFromDataFrame(df):
         params = lmfit.Parameters()
         for ix, row in df.iterrows():
             name = row[NAME]
@@ -359,13 +349,11 @@ class FittingParamWrapper(object):
             _min = row[MIN]
             if isinstance(_min, str):
                 _min = -np.inf
-            param = lmfit.Parameter(name=name, value=value, min=_min, max=_max, vary = vary)
+            param = lmfit.Parameter(name=name, value=value, min=_min, max=_max, vary=vary)
             params.add(param)
         return params
 
-
-
-    def _getMinMaxFromParam(self, name, param,):
+    def _getMinMaxFromParam(self, name, param, ):
         """Get the min amd Max from the params if conditions apply. Most likely to be Auto or Inf """
         minMax = ()
         for att in ['min', 'max']:
@@ -380,12 +368,18 @@ class FittingParamWrapper(object):
                     value = _att
                 else:
                     value = AUTO
-            minMax += (value, )
+            minMax += (value,)
         return minMax[0], minMax[1]
 
-if __name__ == '__main__':
+
+#=========================================================================================
+# main
+#=========================================================================================
+
+def main():
     from ccpn.ui.gui.widgets.Application import TestApplication
-    from ccpn.framework.lib.experimentAnalysis.fittingModels.binding.SaturationModels import FractionBindingWithFixedTargetConcentrModel, FractionBindingWithVariableTargetConcentrationModel
+    from ccpn.framework.lib.experimentAnalysis.fittingModels.binding.SaturationModels import \
+        FractionBindingWithVariableTargetConcentrationModel
 
     model = FractionBindingWithVariableTargetConcentrationModel
 
@@ -393,15 +387,10 @@ if __name__ == '__main__':
     popup = CcpnDialog(windowTitle='Test', setLayout=True)
     popup.setGeometry(200, 200, 200, 200)
 
-    widget = FittingParamWidget(popup, model, editableParamNames=['constant'],grid=(0, 0))
+    widget = FittingParamWidget(popup, model, editableParamNames=['constant'], grid=(0, 0))
     params = widget.getUpdatedParams()
     popup.exec_()
 
 
-
-
-
-
-
-
-
+if __name__ == '__main__':
+    main()
