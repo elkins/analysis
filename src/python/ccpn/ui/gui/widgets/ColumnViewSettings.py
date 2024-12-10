@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-11-15 19:34:29 +0000 (Fri, November 15, 2024) $"
+__dateModified__ = "$dateModified: 2024-12-10 15:38:32 +0000 (Tue, December 10, 2024) $"
 __version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
@@ -254,7 +254,7 @@ class ColumnViewCoreSettings(ColumnViewSettings):
                 'new tables will open with the default state for this table']
         callbacks = [self._saveHiddensColumns, self._restoreHiddenColumns, self._resetHiddenColumns]
         row += 1
-        self._columnsButtonList = ButtonList(self, texts=txts, callbacks=callbacks, toolTips=tips,
+        self._columnsButtonList = ButtonList(self, texts=txts, callbacks=callbacks, tipTexts=tips,
                                              grid=(row, 0), gridSpan=(1, 2))
         self._check()
 
