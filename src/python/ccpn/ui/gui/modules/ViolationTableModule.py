@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-12-09 17:18:44 +0000 (Mon, December 09, 2024) $"
+__dateModified__ = "$dateModified: 2024-12-11 19:13:10 +0000 (Wed, December 11, 2024) $"
 __version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
@@ -211,6 +211,7 @@ class ViolationTableModule(CcpnTableModule):
     def _setCallbacks(self):
         """Set the active callbacks for the module.
         """
+        self._activeCheckbox = None
         if self.activePulldownClass:
             self.setNotifier(self.current,
                              [Notifier.CURRENT],
@@ -219,7 +220,6 @@ class ViolationTableModule(CcpnTableModule):
 
             # set the active callback from the pulldown
             self._activeCheckbox = self._settings.checkBoxes[LINKTOPULLDOWNCLASS]['widget']
-
         self.setNotifier(self.project, [Notifier.CHANGE, Notifier.DELETE],
                          KlassTable.__name__, self._updateViolationTable, onceOnly=True)
 
@@ -234,10 +234,7 @@ class ViolationTableModule(CcpnTableModule):
             self.rtWidget.unRegister()
         if self._metadata:
             self._metadata.close()
-        if self.activePulldownClass and self._setCurrentPulldown:
-            self._setCurrentPulldown.unRegister()
-        if self._violationNotifier:
-            self._violationNotifier.unRegister()
+        self._activeCheckbox = None
         super()._closeModule()
 
     def _selectTable(self, table=None):

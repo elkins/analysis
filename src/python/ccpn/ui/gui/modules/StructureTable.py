@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-12-09 17:18:44 +0000 (Mon, December 09, 2024) $"
+__dateModified__ = "$dateModified: 2024-12-11 19:13:09 +0000 (Wed, December 11, 2024) $"
 __version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
@@ -84,12 +84,13 @@ class StructureTableModule(CcpnTableModule):
         self._settings = None
         if self.activePulldownClass:
             # add to settings widget - see sequenceGraph for more detailed example
-            settingsDict = OrderedDict(((LINKTOPULLDOWNCLASS, {'label'   : f'Link to current {self.activePulldownClass.className}',
-                                                               'tipText' : f'Set/update current {self.activePulldownClass.className} when selecting from pulldown',
-                                                               'callBack': None,
-                                                               'enabled' : True,
-                                                               'checked' : False,
-                                                               '_init'   : None}),))
+            settingsDict = OrderedDict(
+                    ((LINKTOPULLDOWNCLASS, {'label'   : f'Link to current {self.activePulldownClass.className}',
+                                            'tipText' : f'Set/update current {self.activePulldownClass.className} when selecting from pulldown',
+                                            'callBack': None,
+                                            'enabled' : True,
+                                            'checked' : False,
+                                            '_init'   : None}),))
 
             self._settings = ModuleSettingsWidget(parent=settingsWidget, mainWindow=self.mainWindow,
                                                   settingsDict=settingsDict,
@@ -118,10 +119,10 @@ class StructureTableModule(CcpnTableModule):
         """Set the active callbacks for the module
         """
         if self.activePulldownClass:
-            self._setCurrentPulldown = Notifier(self.current,
-                                                [Notifier.CURRENT],
-                                                targetName=self.activePulldownClass._pluralLinkName,
-                                                callback=self._mainFrame._selectCurrentPulldownClass)
+            self.setNotifier(self.current,
+                             [Notifier.CURRENT],
+                             targetName=self.activePulldownClass._pluralLinkName,
+                             callback=self._mainFrame._selectCurrentPulldownClass)
 
             # set the active callback from the pulldown
             self._mainFrame.setActivePulldownClass(coreClass=self.activePulldownClass,
@@ -134,18 +135,6 @@ class StructureTableModule(CcpnTableModule):
         """Select the object in the table
         """
         self._mainFrame.selectTable(table)
-
-    def _closeModule(self):
-        """CCPN-INTERNAL: used to close the module
-        """
-        if self.activePulldownClass:
-            if self._setCurrentPulldown:
-                self._setCurrentPulldown.unRegister()
-                self._setCurrentPulldown = None
-            if self._settings:
-                self._settings._cleanupWidget()
-                self._settings = None
-        super()._closeModule()
 
 
 #=========================================================================================
@@ -313,7 +302,8 @@ class _NewStructureTableWidget(_CoreTableWidgetABC):
             ('nmrSequenceCode', lambda row: self._stLamStr(row, 'nmrSequenceCode'), 'nmrSequenceCode', None, None),
             ('nmrResidueName', lambda row: self._stLamStr(row, 'nmrResidueName'), 'nmrResidueName', None, None),
             ('nmrAtomName', lambda row: self._stLamStr(row, 'nmrAtomName'), 'nmrAtomName', None, None),
-            ('comment', lambda row: self._getCommentText(row), 'Notes', lambda row, value: self._setComment(row, 'comment', value), None)
+            ('comment', lambda row: self._getCommentText(row), 'Notes',
+             lambda row, value: self._setComment(row, 'comment', value), None)
             ]  # [Column(colName, func, tipText, editValue, columnFormat)
 
         return ColumnClass(self._columnObjects)
@@ -331,7 +321,8 @@ class _NewStructureTableWidget(_CoreTableWidgetABC):
         if self._table:
             self._columnDefs = self._getTableColumns(self._table)
 
-            df = pd.DataFrame(self._table.data).astype({k: v for k, v in self._columnTypes.items() if k in self._table.data.columns})
+            df = pd.DataFrame(self._table.data).astype({k: v for k, v in self._columnTypes.items()
+                                                        if k in self._table.data.columns})
 
         else:
             self._columnDefs = self._getTableColumns()
@@ -374,7 +365,8 @@ class _NewStructureTableWidget(_CoreTableWidgetABC):
         if selection := fromSelection or model.selectedRows():
             _sortIndex = self.model()._sortIndex
 
-            return list(self._df.iloc[[_sortIndex[idx.row()] for idx in selection if idx.row() in _sortIndex]].iterrows())
+            return list(self._df.iloc[[_sortIndex[idx.row()]
+                                       for idx in selection if idx.row() in _sortIndex]].iterrows())
 
     #-----------------------------------------------------------------------------------------
     # Updates
@@ -527,7 +519,8 @@ class StructureTableFrame(_CoreTableFrameABC):
 
                 # set the new columns
                 AVheadings = list(self._tableWidget.thisDataSet)
-                self.guiTable.AVcolumns = ColumnClass([col for col in self._tableWidget._columnObjects if col[0] in AVheadings or col[0] == '#'])
+                self.guiTable.AVcolumns = ColumnClass([col for col in self._tableWidget._columnObjects
+                                                       if col[0] in AVheadings or col[0] == '#'])
 
                 if len(self.stButtons.radioButtons) > 0:
                     self.stButtons.radioButtons[1].setEnabled(True)

@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-12-09 13:10:32 +0000 (Mon, December 09, 2024) $"
+__dateModified__ = "$dateModified: 2024-12-11 19:13:10 +0000 (Wed, December 11, 2024) $"
 __version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
@@ -1054,7 +1054,8 @@ class _commonSettings():
         """Populate all spectrumFrames into a moreLessFrame
         :param data : Required for SpectrumView notifiers.
         """
-        def _codeDictUpdate(displayKey : str = None, checkBox : CheckBox = None):
+
+        def _codeDictUpdate(displayKey: str = None, checkBox: CheckBox = None):
             """update axisCode dict when check boxes are changed.
             """
             if (display is None) or (box is None):
@@ -1080,16 +1081,20 @@ class _commonSettings():
         self.spectrumIndex = []
         for num, display in enumerate(displays):
             maxLen, axisLabels, specInd, validSpectrumViews = self._getSpectraFromDisplays([display])
+            if not maxLen:
+                continue
+
             self.spectrumIndex.append(specInd)
 
-            curFrame = MoreLessFrame(self._spectraWidget, name=display.pid, showMore=True, grid=(num, 0), gridSpan=(1,4))
+            curFrame = MoreLessFrame(self._spectraWidget, name=display.pid, showMore=True, grid=(num, 0),
+                                     gridSpan=(1, 4))
 
             _frame = curFrame.contentsFrame
             f_row = 0
             Label(_frame, text='Restricted Axes', grid=(f_row, 0))
 
             axisCodeOptions = CheckBoxes(_frame, selectedInd=None, texts=[],
-                                         callback=self._changeAxisCode, grid=(f_row,1))
+                                         callback=self._changeAxisCode, grid=(f_row, 1))
             axisCodeOptions.setCheckBoxes(texts=axisLabels, tipTexts=axisLabels)
             for box in axisCodeOptions.checkBoxes:
                 box.stateChanged.connect(partial(_codeDictUpdate, f'{display}', box))
@@ -1120,7 +1125,8 @@ class _commonSettings():
                     if data is not None and data.get(Notifier.TRIGGER) == 'delete':
                         notifObj = data.get(Notifier.OBJECT)
                         # check if it is a SpectrumView and both correct spectrum display and spectrum.
-                        if isinstance(notifObj, SpectrumView) and notifObj.strip.spectrumDisplay is display and notifObj.spectrum is spectrum:
+                        if isinstance(notifObj,
+                                      SpectrumView) and notifObj.strip.spectrumDisplay is display and notifObj.spectrum is spectrum:
                             continue
 
                     f_row += 1

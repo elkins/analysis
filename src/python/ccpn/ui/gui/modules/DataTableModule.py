@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-12-09 17:18:43 +0000 (Mon, December 09, 2024) $"
+__dateModified__ = "$dateModified: 2024-12-11 19:13:08 +0000 (Wed, December 11, 2024) $"
 __version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
@@ -197,14 +197,15 @@ class DataTableModule(CcpnTableModule):
     def _setCallbacks(self):
         """Set the active callbacks for the module.
         """
-        if self.activePulldownClass:
-            self._setCurrentPulldown = self.setNotifier(self.current,
-                                                        [Notifier.CURRENT],
-                                                        targetName=self.activePulldownClass._pluralLinkName,
-                                                        callback=self._selectCurrentPulldownClass)
-
-            # set the active callback from the pulldown
-            self._activeCheckbox = self._settings.checkBoxes[LINKTOPULLDOWNCLASS]['widget']
+        if not self.activePulldownClass:
+            self._activeCheckbox = None
+            return
+        self.setNotifier(self.current,
+                         [Notifier.CURRENT],
+                         targetName=self.activePulldownClass._pluralLinkName,
+                         callback=self._selectCurrentPulldownClass)
+        # set the active callback from the pulldown
+        self._activeCheckbox = self._settings.checkBoxes[LINKTOPULLDOWNCLASS]['widget']
 
     def _closeModule(self):
         """CCPN-INTERNAL: used to close the module.
@@ -215,8 +216,7 @@ class DataTableModule(CcpnTableModule):
             self._tableWidget._close()
         if self._metadata:
             self._metadata.close()
-        if self.activePulldownClass and self._setCurrentPulldown:
-            self._setCurrentPulldown.unRegister()
+        self._activeCheckbox = None
         super()._closeModule()
 
     def _selectTable(self, table=None):

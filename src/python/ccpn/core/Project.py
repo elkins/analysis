@@ -18,7 +18,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-11-26 13:30:14 +0000 (Tue, November 26, 2024) $"
+__dateModified__ = "$dateModified: 2024-12-11 19:13:08 +0000 (Wed, December 11, 2024) $"
 __version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
@@ -1370,7 +1370,7 @@ class Project(AbstractWrapperObject):
                 for notifier in od:
                     _notified = True
                     _colour = consoleStyle.fg.darkgrey if notifier.func._theObject.isDeleted else consoleStyle.fg.red
-                    getLogger().debug(f'{_colour}==>  {notifier.func._callback}{consoleStyle.reset}')
+                    getLogger().debug(f'{_colour}==>  {notifier.func}:{notifier.func._callback}{consoleStyle.reset}')
         except Exception as es:
             getLogger().debug(f'issue cleaning up notifiers {es}')
         finally:
@@ -2028,7 +2028,8 @@ class Project(AbstractWrapperObject):
         This method is called from the api upon creation of a corresponding api object
         """
         if self._apiBlocking != 0:
-            getLogger().debug(f'{consoleStyle.fg.red}blocking _newApiObject {self} {wrappedData} {cls}{consoleStyle.reset}')
+            getLogger().debug(f'{consoleStyle.fg.red}blocking _newApiObject '
+                              f'{self} {wrappedData} {cls}{consoleStyle.reset}')
             return
 
         # See AbstractWrapperObject:1145
