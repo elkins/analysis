@@ -15,9 +15,9 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-09-30 16:31:48 +0100 (Mon, September 30, 2024) $"
-__version__ = "$Revision: 3.2.9.alpha $"
+__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
+__dateModified__ = "$dateModified: 2024-12-12 13:43:35 +0000 (Thu, December 12, 2024) $"
+__version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -49,7 +49,7 @@ from ccpn.core.ViolationTable import ViolationTable
 from ccpn.core.Collection import Collection
 from ccpn.ui.gui.popups.SpectrumGroupEditor import SpectrumGroupEditor
 from ccpn.ui.gui.widgets.Menu import Menu
-from ccpn.ui.gui.widgets.MessageDialog import showInfo, showWarning, showYesNoWarning
+from ccpn.ui.gui.widgets.MessageDialog import showWarning, showYesNoWarning, showNotImplementedMessage
 from ccpn.ui.gui.widgets.Font import setWidgetFont
 from ccpn.ui.gui.widgets.Icon import Icon
 from ccpn.ui.gui.popups.ChainPopup import ChainPopup
@@ -1445,5 +1445,4 @@ def _openItemObjects(mainWindow, objs, **kwds):
                             spectrumDisplay = returnObj
 
                 else:
-                    showInfo('Not implemented yet!',
-                             'This function has not been implemented in the current version')
+                    showNotImplementedMessage()

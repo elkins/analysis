@@ -16,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-10-11 18:50:23 +0100 (Fri, October 11, 2024) $"
-__version__ = "$Revision: 3.2.7 $"
+__dateModified__ = "$dateModified: 2024-12-12 13:43:36 +0000 (Thu, December 12, 2024) $"
+__version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -417,7 +417,7 @@ def showInfo(title, message, parent=None, iconPath=None,
 
 
 def showNotImplementedMessage():
-    showInfo('Not implemented yet!',
+    showInfo('Not implemented yet',
              'This function has not been implemented in the current version')
 
 
@@ -514,14 +514,6 @@ def showWarning(title, message, parent=None, iconPath=None, detailedText=None,
 
     # don't show checkbox required an 'accepted' response to work
     dialog.setStandardButtons(Close if not dontShowEnabled else Ok)
-    dialog.exec_()
-    return
-
-
-def showNYI(parent=None):
-    text = 'Not yet implemented'
-    dialog = MessageDialog(title=text, basicText=text, message='Sorry!', icon=Warning, iconPath=None, parent=parent)
-    dialog.setStandardButtons(Close)
     dialog.exec_()
     return
 

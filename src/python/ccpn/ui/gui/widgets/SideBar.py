@@ -28,7 +28,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-11-26 13:30:14 +0000 (Tue, November 26, 2024) $"
+__dateModified__ = "$dateModified: 2024-12-12 13:43:36 +0000 (Thu, December 12, 2024) $"
 __version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
@@ -77,7 +77,7 @@ from ccpn.core.lib.Pid import Pid
 # from ccpn.ui.gui.guiSettings import sidebarFont
 from ccpn.ui.gui.widgets.Base import Base
 from ccpn.ui.gui.widgets.DropBase import DropBase
-from ccpn.ui.gui.widgets.MessageDialog import showInfo, showWarning
+from ccpn.ui.gui.widgets.MessageDialog import showInfo, showWarning, showNotImplementedMessage
 from ccpn.ui.gui.widgets.Menu import Menu
 from ccpn.ui.gui.widgets.LineEdit import LineEdit
 from ccpn.ui.gui.widgets.Label import Label
@@ -815,9 +815,8 @@ class SidebarClassCollectionItems(SidebarClassItems):
 # Callback routines
 #===========================================================================================================
 
-def NYI(*args, **kwds):
-    info = showInfo('Not implemented yet!',
-                    'This function has not been implemented in the current version')
+def NIY(*args, **kwds):
+    showNotImplementedMessage()
 
 
 #===========================================================================================================
@@ -931,7 +930,7 @@ class SideBarStructure(object):
                                       callback=_raiseChainPopup(),
                                       menuAction=_openItemChainTable(position='bottom', relativeTo=None), isDraggable=True, children=[
                         SidebarClassTreeItems(klass=Residue, rebuildOnRename='Chain-ClassTreeItems',
-                                              callback=NYI, menuAction=_openItemResidueTable(position='bottom', relativeTo=None), isDraggable=True,
+                                              callback=NIY, menuAction=_openItemResidueTable(position='bottom', relativeTo=None), isDraggable=True,
                                               children=[
                                                   # SidebarItem('<New Atom>', callback=_raiseAtomNewPopup(editMode=False)),
 

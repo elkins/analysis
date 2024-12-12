@@ -12,8 +12,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-12-05 12:57:47 +0000 (Thu, December 05, 2024) $"
+__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
+__dateModified__ = "$dateModified: 2024-12-12 13:43:34 +0000 (Thu, December 12, 2024) $"
 __version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
@@ -2234,8 +2234,7 @@ class Framework(NotifierBase, GuiBase):
                              collection=None, selectFirstItem=False):
         """Displays Collection Module
         """
-        MessageDialog.showNYI(parent=self.mainWindow)
-        # pass
+        MessageDialog.showNotImplementedMessage()
 
     @logCommand('application.')
     def showNotesEditor(self, position: str = 'bottom', relativeTo: CcpnModule = None,

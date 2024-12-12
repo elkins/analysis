@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-12-11 19:13:10 +0000 (Wed, December 11, 2024) $"
+__dateModified__ = "$dateModified: 2024-12-12 13:43:35 +0000 (Thu, December 12, 2024) $"
 __version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
@@ -34,7 +34,6 @@ from collections import OrderedDict
 from ccpn.core.ViolationTable import ViolationTable as KlassTable
 from ccpn.ui.gui.modules.CcpnModule import CcpnTableModule
 from ccpn.ui.gui.widgets.Spacer import Spacer
-# from ccpn.ui.gui.widgets.HLine import HLine
 from ccpn.ui.gui.widgets.Label import Label
 from ccpn.ui.gui.widgets.LineEdit import LineEdit
 from ccpn.ui.gui.widgets.PulldownListsForObjects import ViolationTablePulldown as KlassPulldown, RestraintTablePulldown
@@ -44,11 +43,10 @@ from ccpn.ui.gui.widgets.Splitter import Splitter
 from ccpn.ui.gui.widgets.MoreLessFrame import MoreLessFrame
 from ccpn.ui.gui.widgets.SettingsWidgets import ModuleSettingsWidget
 from ccpn.ui.gui.widgets.table.Table import Table
-# from ccpn.ui.gui.guiSettings import getColours, DIVIDER
 from ccpn.core.lib.ContextManagers import undoBlockWithoutSideBar
 from ccpn.core.lib.Notifiers import Notifier
-from ccpn.framework.Application import getApplication
 from ccpn.util.Logging import getLogger
+from ccpn.util.Common import camelCaseToString, NOTHING
 
 
 ALL = '<all>'
@@ -73,10 +71,12 @@ class ViolationTableModule(CcpnTableModule):
     activePulldownClass = KlassTable
     _includeInLastSeen = False
 
-    def __init__(self, mainWindow=None, name=f'{KlassTable.className}',
+    def __init__(self, mainWindow=None, name=NOTHING,
                  table=None, selectFirstItem=False):
         """Initialise the Module widgets.
         """
+        if name is NOTHING:
+            name=camelCaseToString(KlassTable.className)
         super().__init__(mainWindow=mainWindow, name=name)
 
         # Derive application, project, and current from mainWindow

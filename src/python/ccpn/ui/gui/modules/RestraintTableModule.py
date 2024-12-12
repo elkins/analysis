@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-12-09 17:18:44 +0000 (Mon, December 09, 2024) $"
+__dateModified__ = "$dateModified: 2024-12-12 13:43:35 +0000 (Thu, December 12, 2024) $"
 __version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
@@ -29,10 +29,8 @@ __date__ = "$Date: 2017-04-07 10:28:41 +0000 (Fri, April 07, 2017) $"
 
 from collections import OrderedDict
 
-from ccpn.core.lib.Notifiers import Notifier
-from ccpn.core.RestraintTable import RestraintTable
+from ccpn.core.RestraintTable import RestraintTable as KlassTable
 from ccpn.core.Restraint import Restraint
-from ccpn.ui.gui.modules.CcpnModule import CcpnTableModule
 from ccpn.ui.gui.widgets.Column import ColumnClass
 from ccpn.ui.gui.widgets.PulldownListsForObjects import RestraintTablePulldown
 from ccpn.ui.gui.widgets.SettingsWidgets import SpectrumDisplaySelectionWidget
@@ -42,10 +40,12 @@ from ccpn.ui.gui.widgets import MessageDialog
 from ccpn.ui.gui.widgets.SettingsWidgets import ModuleSettingsWidget
 from ccpn.ui.gui.widgets.table._TableAdditions import TableMenuABC
 
+from ccpn.ui.gui.modules.CcpnModule import CcpnTableModule
 import ccpn.ui.gui.modules.PyMolUtil as pyMolUtil
 from ccpn.ui.gui.lib._CoreTableFrame import _CoreTableWidgetABC, _CoreTableFrameABC
 
-from ccpn.util.Common import makeIterableList
+from ccpn.core.lib.Notifiers import Notifier
+from ccpn.util.Common import makeIterableList, camelCaseToString, NOTHING
 from ccpn.util.Path import fetchDir, joinPath
 from ccpn.util.Logging import getLogger
 
@@ -75,14 +75,16 @@ class RestraintTableModule(CcpnTableModule):
     includeNmrChains = False
     includeSpectrumTable = False
 
-    activePulldownClass = RestraintTable
+    activePulldownClass = KlassTable
     _allowRename = True
 
     # we are subclassing this Module, hence some more arguments to the init
-    def __init__(self, mainWindow=None, name=f'{RestraintTable.className}',
+    def __init__(self, mainWindow=None, name=NOTHING,
                  restraintTable=None, selectFirstItem=True):
         """Initialise the Module widgets.
         """
+        if name is NOTHING:
+            name=camelCaseToString(KlassTable.className)
         super().__init__(mainWindow=mainWindow, name=name)
 
         # Derive application, project, and current from mainWindow
@@ -240,21 +242,21 @@ class _RestraintTableOptions(TableMenuABC):
         """
         ...
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Properties
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     ...
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Class methods
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     ...
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Implementation
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     ...
 
@@ -298,7 +300,7 @@ class _NewRestraintTableWidget(_CoreTableWidgetABC):
                 )
 
     # define the notifiers that are required for the specific table-type
-    tableClass = RestraintTable
+    tableClass = KlassTable
     rowClass = Restraint
     cellClass = None
     tableName = tableClass.className
@@ -311,9 +313,9 @@ class _NewRestraintTableWidget(_CoreTableWidgetABC):
     # set the queue handling parameters
     _maximumQueueLength = 25
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Properties
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     @property
     def _sourceObjects(self):
@@ -339,9 +341,9 @@ class _NewRestraintTableWidget(_CoreTableWidgetABC):
         else:
             self.current.clearRestraints()
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Widget callbacks
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     def actionCallback(self, selection, lastItem):
         """Notifier DoubleClick action on item in table
@@ -380,9 +382,9 @@ class _NewRestraintTableWidget(_CoreTableWidgetABC):
                     if markPositions:
                         display.strips[0]._markSelectedPeaks()
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Create table and row methods
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     def getCellToRows(self, cellItem, attribute=None):
         """Get the list of objects which cellItem maps to for this table
@@ -405,17 +407,17 @@ class _NewRestraintTableWidget(_CoreTableWidgetABC):
 
         self._update()
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Table context menu
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     # currently in _RestraintTableOptions
 
     ...
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Table functions
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     def _getTableColumns(self, restraintTable=None):
         """Add default columns plus the ones according to restraintTable.spectrum dimension
@@ -441,21 +443,21 @@ class _NewRestraintTableWidget(_CoreTableWidgetABC):
 
         return colDefs
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Updates
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     ...
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Widgets callbacks
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     ...
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # object properties
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     @staticmethod
     def _getContributions(restraint):
@@ -512,9 +514,9 @@ class _RestraintTableFrame(_CoreTableFrameABC):
                                          hAlign='l')
         self.addWidgetToTop(self.showOnViewerButton, 2)
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Properties
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     @property
     def _tableCurrent(self):
@@ -526,9 +528,9 @@ class _RestraintTableFrame(_CoreTableFrameABC):
     def _tableCurrent(self, value):
         self.current.restraintTable = value
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Widgets callbacks
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     def _showOnMolecularViewer(self):
         """Show the molecule on the attached viewer.
