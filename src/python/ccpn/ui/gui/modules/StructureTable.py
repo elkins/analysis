@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-12-11 19:13:09 +0000 (Wed, December 11, 2024) $"
+__dateModified__ = "$dateModified: 2024-12-12 16:46:56 +0000 (Thu, December 12, 2024) $"
 __version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
@@ -477,15 +477,11 @@ class StructureTableFrame(_CoreTableFrameABC):
         """Notifier Callback for selecting Structure Ensemble or average
         """
         item = self.stButtons.get()
-        getLogger().debug('>selectionPulldownCallback>', item, type(item))
-
         if self.table is None:
             self._tableWidget.populateEmptyTable()
-
         elif item == 'Ensemble':
             self._tableWidget.displayMode = 0
             self._tableWidget._update()
-
         elif item == 'Average':
             self._tableWidget.displayMode = 1
             self._tableWidget._update()
