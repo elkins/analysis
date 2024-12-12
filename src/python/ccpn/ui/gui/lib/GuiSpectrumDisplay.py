@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-12-12 16:18:43 +0000 (Thu, December 12, 2024) $"
+__dateModified__ = "$dateModified: 2024-12-12 18:31:40 +0000 (Thu, December 12, 2024) $"
 __version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
@@ -1863,7 +1863,6 @@ class GuiSpectrumDisplay(CcpnModule):
         CCPN-INTERNAL: used to close the module
         Closes spectrum display and deletes it from the project.
         """
-        super()._closeModule()
         # Do not add to undo/redo stack
         with undoStackBlocking() as _:
             _strips = list(self.strips)
@@ -1881,6 +1880,7 @@ class GuiSpectrumDisplay(CcpnModule):
             self.delete()
             # delete self as a widget
             self.deleteLater()
+        super()._closeModule()
 
     def _removeIndexStrip(self, value):
         self.deleteStrip(self.strips[value])
