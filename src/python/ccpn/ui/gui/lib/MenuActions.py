@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-12-12 13:43:35 +0000 (Thu, December 12, 2024) $"
+__dateModified__ = "$dateModified: 2024-12-12 16:47:15 +0000 (Thu, December 12, 2024) $"
 __version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
@@ -1164,6 +1164,7 @@ class _openItemSampleDisplay(OpenItemABC):
     @staticmethod
     def _openSampleSpectraOnDisplay(sample, spectrumDisplay, autoRange=False):
         # with undoBlockWithoutSideBar():
+        found = False
         with undoStackBlocking() as _:  # Do not add to undo/redo stack
             with notificationEchoBlocking():
                 if len(sample.spectra) > 0 and len(spectrumDisplay.strips) > 0:
@@ -1172,21 +1173,27 @@ class _openItemSampleDisplay(OpenItemABC):
                         if sampleComponent.substance is not None:
                             for spectrum in sampleComponent.substance.referenceSpectra:
                                 spectrumDisplay.displaySpectrum(spectrum)
+                                found = True
                     for spectrum in sample.spectra:
                         spectrumDisplay.displaySpectrum(spectrum)
-                    if autoRange:
+                        found = True
+                    if found and autoRange:
                         spectrumDisplay.autoRange()
+        if not found:
+            showWarning('Open Linked Spectra', f'Sample {sample.id} has no linked spectra.')
 
     def _openSampleSpectra(self, sample, position=None, relativeTo=None):
         """Add spectra linked to sample and sampleComponent. Particularly used for screening
         """
-        if len(sample.spectra) > 0:
-            mainWindow = self.mainWindow
+        if not sample.spectra:
+            showWarning('Open Linked Spectra', f'Sample {sample.id} has no linked spectra.')
+            return
 
-            spectrumDisplay = mainWindow.newSpectrumDisplay(sample.spectra[0])
-            mainWindow.moduleArea.addModule(spectrumDisplay, position=position, relativeTo=relativeTo)
-            self._openSampleSpectraOnDisplay(sample, spectrumDisplay, autoRange=True)
-            mainWindow.application.current.strip = spectrumDisplay.strips[0]
+        mainWindow = self.mainWindow
+        spectrumDisplay = mainWindow.newSpectrumDisplay(sample.spectra[0])
+        mainWindow.moduleArea.addModule(spectrumDisplay, position=position, relativeTo=relativeTo)
+        self._openSampleSpectraOnDisplay(sample, spectrumDisplay, autoRange=True)
+        mainWindow.application.current.strip = spectrumDisplay.strips[0]
 
     openItemDirectMethod = _openSampleSpectra
 
