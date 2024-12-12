@@ -18,7 +18,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-12-09 17:18:43 +0000 (Mon, December 09, 2024) $"
+__dateModified__ = "$dateModified: 2024-12-12 10:30:12 +0000 (Thu, December 12, 2024) $"
 __version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
@@ -117,7 +117,7 @@ class ChemicalShiftTableModule(CcpnTableModule):
         # Put all the NmrTable settings in a widget, as there will be more added in the PickAndAssign, and
         # backBoneAssignment modules
         if self.includeSettingsWidget:
-            self._CSTwidget = Widget(self.settingsWidget, setLayout=True,
+            self._settings = Widget(self.settingsWidget, setLayout=True,
                                      grid=(0, 0), vAlign='top', hAlign='left')
 
             # cannot set a notifier for displays, as these are not (yet?) implemented and the Notifier routines
@@ -125,7 +125,7 @@ class ChemicalShiftTableModule(CcpnTableModule):
             colwidth = 140
 
             self.autoClearMarksWidget = CheckBoxCompoundWidget(
-                    self._CSTwidget,
+                    self._settings,
                     grid=(3, 0), vAlign='top', stretch=(0, 0), hAlign='left',
                     fixedWidths=(colwidth, 30),
                     orientation='left',

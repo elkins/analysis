@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-12-11 19:13:10 +0000 (Wed, December 11, 2024) $"
+__dateModified__ = "$dateModified: 2024-12-12 10:30:13 +0000 (Thu, December 12, 2024) $"
 __version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
@@ -1555,6 +1555,7 @@ class StripPlot(Widget, _commonSettings, SignalBlocking):
         """Cleanup the notifiers that are left behind after the widget is closed
         """
         self._unRegisterNotifiers()
+        super()._cleanupWidget()
 
     def _selectionPulldownCallback(self, item):
         """Notifier Callback for selecting NmrChain
@@ -1790,6 +1791,7 @@ class ModuleSettingsWidget(Widget):  #, _commonSettings):
         """Cleanup the notifiers that are left behind after the widget is closed
         """
         self._unRegisterNotifiers()
+        super()._cleanupWidget()
 
     # def _getCheckBox(self, widgetName):
     #     """Get the required widget from the new setting Widget class
