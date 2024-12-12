@@ -16,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-09-25 18:53:58 +0100 (Wed, September 25, 2024) $"
-__version__ = "$Revision: 3.2.5 $"
+__dateModified__ = "$dateModified: 2024-12-12 16:18:43 +0000 (Thu, December 12, 2024) $"
+__version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -75,6 +75,7 @@ class SpectrumDisplay(AbstractWrapperObject):
 
     # Qualified name of matching API class
     _apiClassQualifiedName = ApiBoundDisplay._metaclass.qualifiedName()
+    _wrappedData: ApiBoundDisplay
 
     # Internal namespace
     _ISOTOPECODES_KEY = '_isotopeCodes'
@@ -527,13 +528,13 @@ class SpectrumDisplay(AbstractWrapperObject):
 
         try:
             self._validateStringValue('name', name)
-            del self.project._pid2Obj[self.shortClassName][self._id]
             apiDisplay = self._wrappedData
             apiTask = apiDisplay.parent
             apiModules = apiTask.__dict__.get('modules')
             apiModules[name] = apiModules.pop(self._id)
             apiDisplay.__dict__['name'] = name
-            self._id = name
+            # del self.project._pid2Obj[self.shortClassName][self._id]
+            # self._id = name
             return (oldName,)
 
         except Exception as err:

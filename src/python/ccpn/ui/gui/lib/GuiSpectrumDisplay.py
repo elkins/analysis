@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-12-09 17:23:58 +0000 (Mon, December 09, 2024) $"
+__dateModified__ = "$dateModified: 2024-12-12 16:18:43 +0000 (Thu, December 12, 2024) $"
 __version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
@@ -885,6 +885,7 @@ class GuiSpectrumDisplay(CcpnModule):
         if data:
             trigger = data[Notifier.TRIGGER]
             if trigger == Notifier.RENAME and data[Notifier.OBJECT] == self:
+                self._name = data[Notifier.OBJECT].title
                 self.label.setText(self._name)
                 self.label.updateGeometry()
                 self.label.repaint()
