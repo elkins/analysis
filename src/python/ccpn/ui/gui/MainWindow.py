@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-12-09 17:15:32 +0000 (Mon, December 09, 2024) $"
+__dateModified__ = "$dateModified: 2024-12-12 13:40:23 +0000 (Thu, December 12, 2024) $"
 __version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
@@ -233,9 +233,7 @@ class GuiMainWindow(QtWidgets.QMainWindow, Shortcuts):
 
     def _checkPalette(self, pal: QtGui.QPalette, theme: str = None, themeColour: str = None, themeSD: str = None):
         # test the stylesheet of the QTableView
-        styleSheet = """QPushButton {
-                            color: palette(text);
-                        }
+        styleSheet = """QPushButton { color: palette(text); }
                         QToolTip {
                             background-color: %(TOOLTIP_BACKGROUND)s;
                             color: %(TOOLTIP_FOREGROUND)s;
@@ -243,9 +241,7 @@ class GuiMainWindow(QtWidgets.QMainWindow, Shortcuts):
                             border: 1px solid %(TOOLTIP_FOREGROUND)s;
                             qproperty-margin: 4; 
                         }
-                        QMenu::item:disabled {
-                            color: palette(dark);
-                        }
+                        QMenu::item:disabled { color: palette(dark); }
                         QMenu::separator {
                             height: 1px;
                             background: qlineargradient(
@@ -254,16 +250,9 @@ class GuiMainWindow(QtWidgets.QMainWindow, Shortcuts):
                                             stop: 1 palette(text)
                                         );
                         }
-                        QMenuBar {
-                            color: palette(text);
-                        }
-                        QMenuBar::item:disabled {
-                            color: palette(dark);
-                        }
-                        QProgressBar {
-                            color: palette(text);
-                            text-align: center;
-                        }
+                        QMenuBar { color: palette(text); }
+                        QMenuBar::item:disabled { color: palette(dark); }
+                        QProgressBar { text-align: center; }
                         """
         # there is also some weird stuff with the qprogressbar text-colour:
         #   the left-edge of the text-label is its local 0%, the right-edge its local 100%,
