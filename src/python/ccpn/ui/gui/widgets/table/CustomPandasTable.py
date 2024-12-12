@@ -102,7 +102,7 @@ class CustomDataFrameTable(Table):
         # self._internalColumns.extend(_internalColumns)
         # self.setHiddenColumns(hiddenColumns)
 
-        cols = list(self._internalColumns)
+        cols = self._internalColumns if self._internalColumns else []
         cols.extend(_internalColumns)
         self.setInternalColumns(cols)
         self.setDefaultColumns(hiddenColumns)
