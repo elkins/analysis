@@ -1,9 +1,10 @@
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2023"
-__credits__ = ("Ed Brooksbank, Joanna Fox, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
-               "Timothy J Ragan, Brian O Smith, Gary S Thompson & Geerten W Vuister")
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
+               "Timothy J Ragan, Brian O Smith, Daniel Thompson",
+               "Gary S Thompson & Geerten W Vuister")
 __licence__ = ("CCPN licence. See https://ccpn.ac.uk/software/licensing/")
 __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, L.G., & Vuister, G.W.",
                  "CcpNmr AnalysisAssign: a flexible platform for integrated NMR analysis",
@@ -11,9 +12,9 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2023-11-09 09:49:32 +0000 (Thu, November 09, 2023) $"
-__version__ = "$Revision: 3.2.0 $"
+__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
+__dateModified__ = "$dateModified: 2024-12-12 13:56:42 +0000 (Thu, December 12, 2024) $"
+__version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -23,34 +24,33 @@ __date__ = "$Date: 2022-05-20 12:59:02 +0100 (Fri, May 20, 2022) $"
 # Start of code
 #=========================================================================================
 
-######## core imports ########
-from ccpn.framework.lib.experimentAnalysis.backends.ChemicalShiftPerturbationAnalysis import ChemicalShiftPerturbationAnalysisBC
+# core imports
+from ccpn.framework.lib.experimentAnalysis.backends.ChemicalShiftPerturbationAnalysis import \
+    ChemicalShiftPerturbationAnalysisBC
 import ccpn.framework.lib.experimentAnalysis.SeriesAnalysisVariables as sv
 
 ######## gui/ui imports ########
 import ccpn.ui.gui.modules.experimentAnalysis.CSMSettingsPanel as settingsPanel
 from ccpn.ui.gui.modules.experimentAnalysis.ExperimentAnalysisGuiModuleBC import ExperimentAnalysisGuiModuleBC
 
-#####################################################################
-#######################  The main GUI Module ########################
-#####################################################################
+
+#=========================================================================================
+# The main GUI Module
+#=========================================================================================
 
 class ChemicalShiftPerturbationGuiModule(ExperimentAnalysisGuiModuleBC):
-
     className = 'ChemicalShiftPerturbation'
     analysisType = sv.ChemicalShiftPerturbationAnalysis
+
     # _helpFilePath = ccpnModuleHelpPath /  'ChemicalShiftMappingModuleHelp.html'
 
     def __init__(self, mainWindow, name='Chemical Shift Perturbation Analysis (Beta)', **kwds):
-        super(ExperimentAnalysisGuiModuleBC, self)
-
-        ## link to the Non-Gui backend and its Settings
+        # link to the Non-Gui backend and its Settings
         backendHandler = ChemicalShiftPerturbationAnalysisBC()
-        ExperimentAnalysisGuiModuleBC.__init__(self, mainWindow=mainWindow, name=name, backendHandler=backendHandler)
+        super().__init__(mainWindow=mainWindow, name=name, backendHandler=backendHandler)
 
-    #################################################################
-    #####################      Widgets    ###########################
-    #################################################################
+    #-----------------------------------------------------------------------------------------
+    # Widgets
 
     def addPanels(self):
         """ Add the Gui Panels to the panelHandler."""
@@ -65,15 +65,6 @@ class ChemicalShiftPerturbationGuiModule(ExperimentAnalysisGuiModuleBC):
         self.settingsPanelHandler.append(settingsPanel.CSMGuiFittingPanel(self))
         self.settingsPanelHandler.append(settingsPanel.CSMAppearancePanel(self))
 
-
-    ################################################################
-    #####################  Widgets callbacks  ###########################
-    ################################################################
-
-    ## See base class
-
-
-
-
-
-
+    #-----------------------------------------------------------------------------------------
+    # Widgets callbacks
+    # See base class

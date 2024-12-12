@@ -13,7 +13,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-11-15 19:34:29 +0000 (Fri, November 15, 2024) $"
+__dateModified__ = "$dateModified: 2024-12-12 13:56:43 +0000 (Thu, December 12, 2024) $"
 __version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
@@ -57,8 +57,8 @@ class ExperimentAnalysisGuiModuleBC(CcpnModule):
         - backendHandler              -->  Link to the No-UI module containing data, calculation and fitting models
         - settingsPanelHandler      -->  Link to the settings widgets, getter and setters
         - panelHandler                   -->  Link to the main panels and widgets
-        - ioHandler                         -->  Link to Input-Output from-to external programs. (Not yet implemented, NYI)
-        - pluginsHandler                -->  Link to the Plugins  (Not yet implemented, NYI)
+        - ioHandler                         -->  Link to Input-Output from-to external programs. (Not implemented yet, NIY)
+        - pluginsHandler                -->  Link to the Plugins  (Not implemented yet, NIY)
 
     The settingsPanelHandler contains tabs.
         The easiest way to get the selected values from the widgets is to get all as a dictionary.
@@ -102,10 +102,10 @@ class ExperimentAnalysisGuiModuleBC(CcpnModule):
         ## link to Core Notifiers (Project/Current)
         self.coreNotifiersHandler = CoreNotifiersHandler(guiModule=self)
 
-        ## link to Input/output. (NYI)
+        ## link to Input/output. (NIY)
         self.ioHandler = IOHandler(guiModule=self)
 
-        ## link to user plugins - external programs. (NYI)
+        ## link to user plugins - external programs. (NIY)
         self.pluginsHandler = PluginsHandler(guiModule=self)
 
         ## fire any post init callback from panels
@@ -259,7 +259,8 @@ class ExperimentAnalysisGuiModuleBC(CcpnModule):
         self._setUpdateDone()
 
     def _closeModule(self):
-        ## de-register/close all notifiers. Handler
+        getLogger().debug(f'{self}. Closing guiModule...')
+        # de-register/close all notifiers. Handler
         self.backendHandler.close()
         self.coreNotifiersHandler.close()
         self.panelHandler.close()

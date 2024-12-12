@@ -12,9 +12,9 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-11-11 13:59:17 +0000 (Mon, November 11, 2024) $"
-__version__ = "$Revision: 3.2.10 $"
+__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
+__dateModified__ = "$dateModified: 2024-12-12 13:56:43 +0000 (Thu, December 12, 2024) $"
+__version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -109,6 +109,14 @@ class GuiSettingPanel(Frame):
     def postInitWidgets(self):
         """ Override to apply preselection of widgets after creation"""
         pass
+
+    def close(self):
+        """Clean up the settings-module on closing.
+        """
+        if self._moduleSettingsWidget:
+            self._moduleSettingsWidget._cleanupWidget()
+            self._moduleSettingsWidget = None
+        super().close()
 
     def getWidget(self, name):
         if self._moduleSettingsWidget is not None:
