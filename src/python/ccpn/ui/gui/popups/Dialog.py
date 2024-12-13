@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-11-26 13:30:14 +0000 (Tue, November 26, 2024) $"
+__dateModified__ = "$dateModified: 2024-12-13 11:03:40 +0000 (Fri, December 13, 2024) $"
 __version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
@@ -64,18 +64,47 @@ _DONTSHOWPOPUP = 'dontShowPopup'
 _POPUPS = 'popups'
 
 _DEBUG = False
+_POSTINIT = '_postInit'
 
 
 class _DialogHook(type(QtWidgets.QDialog), type(Base)):
-    """Metaclass implementing a post-initialise hook, ALWAYS called after __init__ has finished
+    """
+    Metaclass that implements a post-initialisation hook for dialog classes.
+
+    This metaclass ensures that a `_postInit` method, if defined, is always called after the
+    `__init__` method of a class instance has finished execution.
+
+    **Post-Initialisation**:
+        The `_postInit` method of the instance is invoked after its creation, if it is defined and callable.
+        Subclasses should implement this method to define post-construction logic.
+
+    :ivar _DEBUG: Optional debug flag to enable verbose logging during instance creation.
+    :ivar _POSTINIT: Constant (or attribute) expected to define the name of the post-initialisation hook method.
     """
 
-    def __call__(self, *args, **kwargs):
-        if _DEBUG: getLogger().debug2(f'--> pre-create dialog {self}')
+    def __call__(cls, *args, **kwargs):
+        """
+        Overrides the default behavior for instance creation.
+
+        This method creates a new instance of the class, and calls the `_postInit` method,
+        if it is defined, on the instance after creation.
+
+        :param args: Positional arguments for the class constructor.
+        :param kwargs: Keyword arguments for the class constructor.
+        :return: The newly created and fully initialised instance.
+        """
+        # Log pre-creation debug information, if enabled
+        if _DEBUG: getLogger().debug2(f'--> pre-create dialog {cls}')
+        # Create the class instance
         instance = super().__call__(*args, **kwargs)
-        # call the post-__init__ hook
-        instance._postInit()
-        if _DEBUG: getLogger().debug2(f'--> post-create dialog {self}')
+        # Check if a post-initialisation method is defined and callable
+        if (_postInit := getattr(instance, _POSTINIT, None)) and callable(_postInit):
+            # Call the post-initialisation hook
+            if _DEBUG: getLogger().debug2(f'--> _postInit {instance}')
+            _postInit()
+        # Log post-creation debug information, if enabled
+        if _DEBUG: getLogger().debug2(f'--> post-create dialog {instance}')
+        # Return the newly created instance
         return instance
 
 

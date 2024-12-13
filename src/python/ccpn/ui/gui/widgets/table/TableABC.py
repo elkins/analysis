@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-11-28 14:13:58 +0000 (Thu, November 28, 2024) $"
+__dateModified__ = "$dateModified: 2024-12-13 11:03:40 +0000 (Fri, December 13, 2024) $"
 __version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
@@ -56,6 +56,7 @@ class _BlockingContent:
 
 
 _DEBUG = False
+_POSTINIT = '_postInit'
 
 
 #=========================================================================================
@@ -67,15 +68,18 @@ class _TableABCMeta(type(QtWidgets.QTableView)):
     Metaclass for enforcing attribute validation and implementing a post-initialisation hook.
 
     This metaclass ensures that subclasses of `_TableABC` define the required attributes
-    and calls a `_postInit` method on the instance immediately after it is created.
+    and calls a `_postInit` method, if it is defined, on the instance immediately after it is created.
 
     **Required Class Attributes**:
         - ``tableModelClass``: The class used for the table's data model.
         - ``defaultTableDelegate``: The default delegate used for the table's display customization.
 
-    **Post-Initialization**:
-        The `_postInit` method of the instance is invoked after its creation. Subclasses
-        should implement this method to define post-construction logic.
+    **Post-Initialisation**:
+        The `_postInit` method of the instance is invoked after its creation, if it is defined and callable.
+        Subclasses should implement this method to define post-construction logic.
+
+    :ivar _DEBUG: Optional debug flag to enable verbose logging during instance creation.
+    :ivar _POSTINIT: Constant (or attribute) expected to define the name of the post-initialisation hook method.
     """
 
     def __call__(cls, *args, **kwargs):
@@ -83,26 +87,29 @@ class _TableABCMeta(type(QtWidgets.QTableView)):
         Overrides the default behavior for instance creation.
 
         This method performs validation to ensure that all required class attributes
-        are defined and calls the `_postInit` method on the instance after creation.
+        are defined, and calls the `_postInit` method, if it is defined, on the instance after creation.
 
         :param args: Positional arguments for the class constructor.
         :param kwargs: Keyword arguments for the class constructor.
         :raises AttributeError: If any required class attribute is not defined or is `None`.
-        :return: The created instance of the class.
+        :return: The newly created and fully initialised instance.
         """
-        if _DEBUG:
-            getLogger().debug2(f'--> pre-create table-widget {cls}')
-
+        # Log pre-creation debug information, if enabled
+        if _DEBUG: getLogger().debug2(f'--> pre-create table-widget {cls}')
         # Validate that required attributes are defined
         required_attrs = ['tableModelClass', 'defaultTableDelegate']
         for attr in required_attrs:
             if not hasattr(cls, attr) or getattr(cls, attr) is None:
                 raise AttributeError(f"{cls.__name__} must define {attr} in its class body.")
-        # Create the instance
+        # Create the class instance
         instance = super().__call__(*args, **kwargs)
-        # Call the post-initialisation hook
-        instance._postInit()
-        if _DEBUG: getLogger().debug2(f'--> post-create table-widget {cls}')
+        if (_postInit := getattr(instance, _POSTINIT, None)) and callable(_postInit):
+            # call the post-initialisation hook
+            if _DEBUG: getLogger().debug2(f'--> _postInit {instance}')
+            _postInit()
+        # Log post-creation debug information, if enabled
+        if _DEBUG: getLogger().debug2(f'--> post-create table-widget {instance}')
+        # Return the newly created instance
         return instance
 
 
