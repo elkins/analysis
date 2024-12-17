@@ -179,6 +179,9 @@ class HitReportPresentation(PresentationTemplateABC):
     PEAK_LIMITS_POINTS = 100 # take this value to crop the data left-right of a peak point position and determine the plotting area
 
 
+    _regionDataCache = {}
+
+
     def setData(self, **kwargs):
         self.dataTableName = kwargs.get('dataTableName', '')
         self._hitAnalysisSourcePipeline = kwargs.get(mv._HitAnalysisSourcePipeline, {})
@@ -330,6 +333,11 @@ class HitReportPresentation(PresentationTemplateABC):
         pass
 
     @staticmethod
+    def _setRegionDataCache(peaks, extraPointLimit=25):
+        peaksRegionData = HitReportPresentation.getRegionDatafForPeaks(peaks, extraPointLimit)
+        HitReportPresentation._regionDataCache.update(peaksRegionData)
+
+    @staticmethod
     def getRegionDatafForPeaks(peaks, extraPointLimit=25):
         peaksRegionData = {}
         for peak in peaks:
@@ -345,6 +353,23 @@ class HitReportPresentation(PresentationTemplateABC):
             peaksRegionData[peak.pid] = (ppmRange, regionData)
         return peaksRegionData
 
+    def _getPeaksFromDataSet(self, dataset):
+        allPeaks = []
+        for i, (ind, row) in enumerate(dataset.iterrows()):
+            peakPids = row[[mv.Reference_PeakPid, mv.Control_PeakPid, mv.Target_PeakPid, mv.Displacer_PeakPid]].values
+            peaks = [self.project.getByPid(pid) for pid in peakPids]
+            allPeaks.extend([pk for pk in peaks if pk is not None])
+        return allPeaks
+
+    def _getGlobalYPlotLimits(self, peaks):
+        """Get the lowest and highest point in the region data, needed for scaling the Y limits in the plot, so that a only-noise region is not over-represented as a real signal.  """
+        arrays = [self._regionDataCache.get(peak.pid, ([], [])) [1] for peak in peaks]
+        flattened = np.concatenate(arrays)
+        if len(flattened)>0:
+            globalMin = flattened.min()
+            globalMax = flattened.max()
+            return globalMin, globalMax
+        return -np.inf, np.inf
 
     def getReportPlots(self, substanceTableRow, matchingTableForSubstance):
         """Stub method for getReportPlots."""
@@ -376,19 +401,20 @@ class HitReportPresentation(PresentationTemplateABC):
         else:
             axes = axes.flatten()
 
+        peaks = self._getPeaksFromDataSet(dataset)
+        self._setRegionDataCache(peaks, self.PEAK_LIMITS_POINTS)
+        globalMin, globalMax = self._getGlobalYPlotLimits(peaks)
         for i, (ind, row) in enumerate(dataset.iterrows()):
             ax = axes[i]
             peakPids = row[[mv.Reference_PeakPid, mv.Control_PeakPid, mv.Target_PeakPid, mv.Displacer_PeakPid]].values
             peaks = [self.project.getByPid(pid) for pid in peakPids]
             peaks = [pk for pk  in peaks if pk is not None]
-            regionData = self.getRegionDatafForPeaks(peaks, self.PEAK_LIMITS_POINTS)
-            positions = [float(peak.position[0]) for peak in peaks]
 
             # Loop through sorted peaks and plot
             for ii, peak in enumerate(peaks):
                 spectrum = peak.spectrum
                 color = spectrum.sliceColour
-                x, y = regionData.get(peak.pid)
+                x, y = self._regionDataCache.get(peak.pid, ([], []))
 
                 # Plot the peak data
                 ax.plot(x, y,
@@ -396,27 +422,29 @@ class HitReportPresentation(PresentationTemplateABC):
                         label=peak.id,
                         **self.PLOT_SETTINGS["spectrum_line"])
 
-                # Force x-axis to use full tick values
-                # Apply the custom formatter to the x-axis # Ensure plain style, no scientific notation
-                ax.xaxis.set_major_formatter(FuncFormatter(_formatPlotXTicks))
+            # Force x-axis to use full tick values
+            # Apply the custom formatter to the x-axis # Ensure plain style, no scientific notation
+            ax.xaxis.set_major_formatter(FuncFormatter(_formatPlotXTicks))
+            if globalMax and globalMin:
+                ax.set_ylim(globalMin*1.1, globalMax*1.1)  # Set the same Y-limits for all curves
 
-                # Remove the y-axis
-                ax.set_yticks([])  # Removes the ticks from the y-axis
-                ax.set_yticklabels([])  # Removes the labels from the y-axis
-                # Remove the top and right spines
-                ax.spines['top'].set_visible(False)
-                ax.spines['right'].set_visible(False)
-                ax.spines['left'].set_visible(False)
+            # Remove the y-axis
+            ax.set_yticks([])  # Removes the ticks from the y-axis
+            ax.set_yticklabels([])  # Removes the labels from the y-axis
+            # Remove the top and right spines
+            ax.spines['top'].set_visible(False)
+            ax.spines['right'].set_visible(False)
+            ax.spines['left'].set_visible(False)
 
-                # Invert the x-axis
-                ax.invert_xaxis()
-                ax.tick_params(**self.PLOT_SETTINGS["tick_params"])
-                ax.set_xlabel("[ppm]", **self.PLOT_SETTINGS["xlabel"])
-                for spine in ax.spines.values():
-                    spine.set_linewidth(self.PLOT_SETTINGS["spine_width"])
+            # Invert the x-axis
+            ax.invert_xaxis()
+            ax.tick_params(**self.PLOT_SETTINGS["tick_params"])
+            ax.set_xlabel("[ppm]", **self.PLOT_SETTINGS["xlabel"])
+            for spine in ax.spines.values():
+                spine.set_linewidth(self.PLOT_SETTINGS["spine_width"])
 
-                if self.PLOT_PEAK_LABELS:
-                    ax.legend(loc=1, fontsize=4, ncol=1, numpoints=3, frameon=False)
+            if self.PLOT_PEAK_LABELS:
+                ax.legend(loc=1, fontsize=4, ncol=1, numpoints=3, frameon=False)
         # Hide unused axes
         for j in range(len(dataset), len(axes)):
             axes[j].set_visible(False)
