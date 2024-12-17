@@ -401,9 +401,9 @@ class HitReportPresentation(PresentationTemplateABC):
         else:
             axes = axes.flatten()
 
-        peaks = self._getPeaksFromDataSet(dataset)
-        self._setRegionDataCache(peaks, self.PEAK_LIMITS_POINTS)
-        globalMin, globalMax = self._getGlobalYPlotLimits(peaks)
+        allPeaks = self._getPeaksFromDataSet(dataset)
+        self._setRegionDataCache(allPeaks, self.PEAK_LIMITS_POINTS)
+        globalMin, globalMax = self._getGlobalYPlotLimits(allPeaks)
         for i, (ind, row) in enumerate(dataset.iterrows()):
             ax = axes[i]
             peakPids = row[[mv.Reference_PeakPid, mv.Control_PeakPid, mv.Target_PeakPid, mv.Displacer_PeakPid]].values
@@ -426,7 +426,17 @@ class HitReportPresentation(PresentationTemplateABC):
             # Apply the custom formatter to the x-axis # Ensure plain style, no scientific notation
             ax.xaxis.set_major_formatter(FuncFormatter(_formatPlotXTicks))
             if globalMax and globalMin:
-                ax.set_ylim(globalMin*1.1, globalMax*1.1)  # Set the same Y-limits for all curves
+                snr_threshold = 1
+                yMinLim = globalMin*1.5
+                yMaxLim = globalMax * 1.5
+                # scale by control S/N but only if there is one axis in one slide.
+                if len(axes)==1: #apply additional scaling based on the S/N Otherwise if is only noise region will look over-represented compared to other slides,
+                    controlPeakSN = row[mv.Control_PeakSNR]
+                    if controlPeakSN is not None:
+                        scaling_factor = max(1.0, snr_threshold / controlPeakSN)  # Ensure it's at least 1.0
+                        yMinLim *= scaling_factor
+                        yMaxLim *= scaling_factor
+                ax.set_ylim(yMinLim, yMaxLim)  # Set the same Y-limits for all curves
 
             # Remove the y-axis
             ax.set_yticks([])  # Removes the ticks from the y-axis
