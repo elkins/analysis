@@ -148,7 +148,7 @@ class PPTStyleManager():
                     fontStyles[levelKey]['marginLeft'] = lvlPPr.get('marL', None)
                     fontStyles[levelKey]['indent'] = lvlPPr.get('indent', None)
                     fontStyles[levelKey]['alignment'] = lvlPPr.get('algn', None)
-                    fontStyles[levelKey]['bulletType'] = 'none' if lvlPPr.find('a:buNone', namespaces) else 'default'
+                    fontStyles[levelKey]['bulletType'] = 'none' if lvlPPr.find('a:buNone', namespaces) is not None else 'default'
 
                     # Default run properties
                     defRPr = lvlPPr.find('a:defRPr', namespaces)
