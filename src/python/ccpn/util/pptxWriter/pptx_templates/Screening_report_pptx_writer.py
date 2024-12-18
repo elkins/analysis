@@ -170,15 +170,20 @@ class HitReportPresentation(PresentationTemplateABC):
                                             "x"       : 1.0,
                                             "labelpad": -15,
                                             },
+                                        "peak_symbol": {
+                                            "marker": 'x',
+                                            "s"      : 10, # size
+                                            "alpha" : 0.8,
+                                            "linewidths":0.3,
+                                            },
                                         "spine_width": 0.2,
                                         "dpi"        : 300,
                                         "format"     : "png",
                                         }
 
-    PLOT_PEAK_LABELS = True
-    PEAK_LIMITS_POINTS = 100 # take this value to crop the data left-right of a peak point position and determine the plotting area
-
-
+    REGION_DATA_WIDTH_IN_POINTS = 100 # take this value to crop the data left-right of a peak point position and determine the plotting area
+    ADD_PEAK_LABELS = True
+    ADD_PEAK_SYMBOLS =True
     _regionDataCache = {}
 
 
@@ -402,13 +407,13 @@ class HitReportPresentation(PresentationTemplateABC):
             axes = axes.flatten()
 
         allPeaks = self._getPeaksFromDataSet(dataset)
-        self._setRegionDataCache(allPeaks, self.PEAK_LIMITS_POINTS)
+        self._setRegionDataCache(allPeaks, self.REGION_DATA_WIDTH_IN_POINTS)
         globalMin, globalMax = self._getGlobalYPlotLimits(allPeaks)
         for i, (ind, row) in enumerate(dataset.iterrows()):
             ax = axes[i]
             peakPids = row[[mv.Reference_PeakPid, mv.Control_PeakPid, mv.Target_PeakPid, mv.Displacer_PeakPid]].values
             peaks = [self.project.getByPid(pid) for pid in peakPids]
-            peaks = [pk for pk  in peaks if pk is not None]
+            peaks = [pk for pk in peaks if pk is not None]
 
             # Loop through sorted peaks and plot
             for ii, peak in enumerate(peaks):
@@ -421,6 +426,14 @@ class HitReportPresentation(PresentationTemplateABC):
                         color=color,
                         label=peak.id,
                         **self.PLOT_SETTINGS["spectrum_line"])
+
+                if self.ADD_PEAK_SYMBOLS:
+                    # add peak symbol
+                    ax.scatter(float(peak.position[0]), float(peak.height),
+                            color=color,
+                            **self.PLOT_SETTINGS["peak_symbol"])
+                if self.ADD_PEAK_LABELS:
+                    ax.legend(loc=1, fontsize=4, ncol=1, numpoints=3, frameon=False)
 
             # Force x-axis to use full tick values
             # Apply the custom formatter to the x-axis # Ensure plain style, no scientific notation
@@ -453,8 +466,7 @@ class HitReportPresentation(PresentationTemplateABC):
             for spine in ax.spines.values():
                 spine.set_linewidth(self.PLOT_SETTINGS["spine_width"])
 
-            if self.PLOT_PEAK_LABELS:
-                ax.legend(loc=1, fontsize=4, ncol=1, numpoints=3, frameon=False)
+
         # Hide unused axes
         for j in range(len(dataset), len(axes)):
             axes[j].set_visible(False)
