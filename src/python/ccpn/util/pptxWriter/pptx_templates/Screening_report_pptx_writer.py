@@ -126,18 +126,18 @@ class HitReportPresentation(PresentationTemplateABC):
                             }
 
     # Table settings
-    matchesTableColumnsMap = {
-                                                        'Reference Peak Pid': mv.Reference_PeakPid,
-                                                        'Binding Score': mv.SpectrumHit_PeakScore,
-                                                        'Matching Score': mv.Reference_PeakMatchScore,
-                                                        'Displacement Score': mv.SpectrumHit_PeakDisplacementScore,
-                                                        'Control S/N': mv.Control_PeakSNR,
 
-                                                        'Reference Position (ppm)': mv.Reference_PeakPosition,
-                                                        'Label': mv.Reference_Flag_Label,
-                                                        'Comment': mv.Reference_Comment,
-                                                         }
-    matchesTableRounding = 3 # round to 3 decimal places as default
+    matchesTableColumnsMap = {
+        'Reference Peak Pid'      : {'column': mv.Reference_PeakPid, 'round': None},
+        'Binding Score'                : {'column': mv.SpectrumHit_PeakScore, 'round': 2},
+        'Matching Score'             : {'column': mv.Reference_PeakMatchScore, 'round': 0},
+        'Displacement Score'      : {'column': mv.SpectrumHit_PeakDisplacementScore, 'round': 2},
+        'Control S/N'                   : {'column': mv.Control_PeakSNR, 'round': 2},
+
+        'Reference Position (ppm)': {'column': mv.Reference_PeakPosition, 'round': 3},
+        'Label'                              : {'column': mv.Reference_Flag_Label, 'round': None},
+        'Comment'                       : {'column': mv.Reference_Comment, 'round': None},
+        }
 
     # Plot settings
     PLOT_SETTINGS = {
@@ -261,37 +261,33 @@ class HitReportPresentation(PresentationTemplateABC):
 
     # ---------- The following methods are called from the PPTxWriter -------
 
-    def getReportTitle(self, substanceTableRow, matchingTableForSubstance):
+    def getReportTitle(self, substanceTableIndex, substanceTableRow, matchingTableForSubstance):
         """Add the title from the Substance"""
         df = matchingTableForSubstance
         sampleName = df[mv.Sample_Name].unique()[-1]
         substanceName = df[mv.Reference_SubstanceName].unique()[-1]
         return f'{substanceName} ({sampleName})'
 
-    def getReportSubtitle(self, substanceTableRow, matchingTableForSubstance):
+    def getReportSubtitle(self, substanceTableIndex, substanceTableRow, matchingTableForSubstance):
         """Stub method for getReportSubtitle."""
-        substanceTableRowName = substanceTableRow.name
-        substanceIndex = None
-        if substanceTableRowName is not None:
-            try:
-                substanceIndex = int(substanceTableRowName) + 1
-            except:
-                substanceIndex = None
         substanceBindScore = substanceTableRow[mv.Reference_Score]
         substanceDisplScore = substanceTableRow[mv.Reference_DisplacementScore]
         substanceMatchScore = substanceTableRow[mv.Reference_MatchScore]
-        text = f'{mv.Substance} index: {substanceIndex}\n'
-        text += f'{mv.Substance} {mv.Binding} {mv.Score}: {round(substanceBindScore, self.matchesTableRounding)}\n'
-        if substanceDisplScore not in [np.nan, None]:
-            text += f'{mv.Substance} {mv.Displacement} {mv.Score}: {round(substanceDisplScore, self.matchesTableRounding)}\n'
-        text += f'{mv.Substance} {mv.Matching} {mv.Score}: {round(substanceMatchScore, self.matchesTableRounding)}'
+        text = f'{substanceTableIndex}) '
+        text += f'{mv.Binding} {mv.Score}: {round(substanceBindScore, 2)} -- '
+        if substanceDisplScore not in [np.nan, None, np.inf]:
+            text += f'{mv.Displacement} {mv.Score}: {round(substanceDisplScore, 2)} -- '
+        try:
+            text += f'{mv.Matching} {mv.Score}: {int(substanceMatchScore)}'
+        except Exception as r:
+            text += f'{mv.Matching} {mv.Score}: {substanceMatchScore}'
         return text
 
     def _getSubstancePid(self, substanceTableRow):
         substancePid = substanceTableRow[mv.Reference_SubstancePid]
         return substancePid
 
-    def getMolStructure(self, substanceTableRow, matchingTableForSubstance):
+    def getMolStructure(self, substanceTableIndex, substanceTableRow, matchingTableForSubstance):
         """Stub method for getMolStructure."""
         substancePid = self._getSubstancePid(substanceTableRow)
         project = self.project
@@ -311,11 +307,14 @@ class HitReportPresentation(PresentationTemplateABC):
             print(f'Error creating Mol from Smiles. {substancePid} - {smiles}. Exit with error: {err}')
         return None
 
-    def getReportTable(self, substanceTableRow, matchingTableForSubstance):
-        """Stub method for getReportTable."""
+    def getReportTable(self, substanceTableIndex, substanceTableRow, matchingTableForSubstance):
+        """Method to generate the report table with dynamic rounding."""
         columnMap = self.matchesTableColumnsMap
         validColumnMap = {}
-        for newCol, oldCol in columnMap.items():
+
+        # First, build a valid column map from the matching table
+        for newCol, properties in columnMap.items():
+            oldCol = properties['column']
             if oldCol in matchingTableForSubstance.columns:
                 validColumnMap[newCol] = oldCol
             else:
@@ -323,17 +322,31 @@ class HitReportPresentation(PresentationTemplateABC):
 
         # Construct the new DataFrame with valid columns
         df = pd.DataFrame({newCol: matchingTableForSubstance[oldCol] for newCol, oldCol in validColumnMap.items()})
-        numericCols = df.select_dtypes(include=['float', 'int']).columns
-        df[numericCols] = df[numericCols].round(self.matchesTableRounding)
+
+        # Apply rounding based on the 'round' values in the columnMap
+        for newCol, properties in columnMap.items():
+            if properties['round'] is not None and newCol in df.columns:
+                if properties['round'] == 0:
+                    # Convert to int if round is 0
+                    df[newCol] = df[newCol].astype('Int64')  # Using 'Int64' to support NaN values
+                else:
+                    # Apply rounding
+                    df[newCol] = df[newCol].round(properties['round'])
+
+        # Fill NaN values with empty strings
         df = df.fillna('')
+
+        # Transpose the DataFrame and reset index
         df = df.T.reset_index(drop=False)
-        # the first row values in the transposed DataFrame become the column headers.
+
+        # The first row values in the transposed DataFrame become the column headers
         df.columns = df.iloc[0]
         df.drop(0, inplace=True)
+
         return df
 
 
-    def getReportComment(self, substanceTableRow, matchingTableForSubstance):
+    def getReportComment(self, substanceTableIndex, substanceTableRow, matchingTableForSubstance):
         """Stub method for getReportComment."""
         pass
 
@@ -376,7 +389,7 @@ class HitReportPresentation(PresentationTemplateABC):
             return globalMin, globalMax
         return -np.inf, np.inf
 
-    def getReportPlots(self, substanceTableRow, matchingTableForSubstance):
+    def getReportPlots(self, substanceTableIndex, substanceTableRow, matchingTableForSubstance):
         """Stub method for getReportPlots."""
         substancePid = self._getSubstancePid(substanceTableRow)
         imageAspectRatio = (3, 2) # 3:2

@@ -756,7 +756,7 @@ class ScreenPPTxPresentation(PPTxPresentation):
             if substanceTable is None:
                 return
 
-            for tableIndex, substanceTableRow in substanceTable.iterrows():
+            for i, (tableIndex, substanceTableRow) in enumerate(substanceTable.iterrows()):
                 substancePid = substanceTableRow[mv.Reference_SubstancePid]
                 matchingTableForSubstance = matchingTable[matchingTable[mv.Reference_SubstancePid]==substancePid]
                 titleLayoutName = list(slideMapping.keys())[1]
@@ -765,6 +765,7 @@ class ScreenPPTxPresentation(PPTxPresentation):
                 newSlide = self.newSlide(layout, removePlaceholders=True)
                 for placeholderDef in titlePlaceholderDefs:
                     self._handlePlaceholder(newSlide, layout, placeholderDef,
+                                            substanceTableIndex = i+1,
                                             substanceTableRow=substanceTableRow,
                                             matchingTableForSubstance=matchingTableForSubstance)
 
