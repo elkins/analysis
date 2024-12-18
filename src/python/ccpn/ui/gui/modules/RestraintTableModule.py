@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-12-02 12:15:29 +0000 (Mon, December 02, 2024) $"
+__dateModified__ = "$dateModified: 2024-12-18 09:45:31 +0000 (Wed, December 18, 2024) $"
 __version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
@@ -207,7 +207,6 @@ class RestraintTableModule(CcpnTableModule):
             self._settings = None
         if self.tableFrame:
             self.tableFrame._cleanupWidget()
-            self.tableFrame = None
         super()._closeModule()
 
     def _getLastSeenWidgetsState(self):
