@@ -311,7 +311,10 @@ class PPTStyleManager():
         containerHeight = textBox.height
         containerWidth = textBox.width
         # Default font size (use the default or initial size from the style)
-        fontSize = textStyle.get('defaultFontSize', 12)  # Assume 12pt as a default
+        # Note multi level is not yet enable yet, similarly to bullet points, not yet picked up correctly.
+        fontSize = textStyle.get('level1', {}).get('fontSize')
+        if fontSize is None:
+            fontSize = textStyle.get('defaultFontSize', 12)  # Assume 12pt as a default
         # Set the initial font size
         fontSizePt = Pt(fontSize)
         # Create a function to estimate the total text height (in points)
