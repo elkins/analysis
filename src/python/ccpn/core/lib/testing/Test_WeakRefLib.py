@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-12-18 14:49:15 +0000 (Wed, December 18, 2024) $"
+__dateModified__ = "$dateModified: 2024-12-18 16:47:22 +0000 (Wed, December 18, 2024) $"
 __version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
@@ -40,7 +40,7 @@ from ccpn.core.lib.WeakRefLib import (WeakRefPartial, WeakRefProxyPartial,
                                       )
 
 
-_DEBUG = True
+_DEBUG = False
 
 
 class _Test_IdHandle:
@@ -489,6 +489,15 @@ class TestWeakRefDescriptor(unittest.TestCase):
             weak_attr2: WeakRefDescriptor = field(default_factory=WeakRefDescriptor)
             other: int = None
 
+
+        # Define a callback function
+        def on_weakref_collected(name):
+            print(f'{_consoleStyle.fg.blue}Weak-reference garbage-collected for attribute {name} '
+                  f'{_consoleStyle.reset}')
+
+        # Connect the callback function to the trait change
+        MyDataClass.weak_attr1.connect(on_weakref_collected)
+        MyDataClass.weak_attr2.connect(on_weakref_collected)
 
         obj1 = MyClass()
         obj2 = MyClass()
