@@ -20,8 +20,9 @@ April 2017: First design by Geerten Vuister
 # Licence, Reference and Credits
 #=========================================================================================
 __copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
-__credits__ = ("Ed Brooksbank, Joanna Fox, Morgan Hayward, Victoria A Higman, Luca Mureddu",
-               "Eliza Płoskoń, Timothy J Ragan, Brian O Smith, Gary S Thompson & Geerten W Vuister")
+__credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
+               "Timothy J Ragan, Brian O Smith, Daniel Thompson",
+               "Gary S Thompson & Geerten W Vuister")
 __licence__ = ("CCPN licence. See https://ccpn.ac.uk/software/licensing/")
 __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, L.G., & Vuister, G.W.",
                  "CcpNmr AnalysisAssign: a flexible platform for integrated NMR analysis",
@@ -30,8 +31,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-05-10 16:28:56 +0100 (Fri, May 10, 2024) $"
-__version__ = "$Revision: 3.2.5 $"
+__dateModified__ = "$dateModified: 2024-12-18 13:24:48 +0000 (Wed, December 18, 2024) $"
+__version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -42,14 +43,20 @@ __date__ = "$Date: 2017-04-18 15:19:30 +0100 (Tue, April 18, 2017) $"
 #=========================================================================================
 
 import sys
-
+import io
+import difflib
 from functools import partial
 from collections import OrderedDict
 from typing import Callable, Any, Optional
 from itertools import permutations
-from ccpn.util.Logging import getLogger
 import weakref
+import typing
+from ccpn.util.Logging import getLogger
 
+
+# these could be mixed in iterables
+V3CoreType = typing.TypeVar('V3CoreType', bound=typing.Union['AbstractWrapperObject', 'V3CoreObjectABC'])
+GuiNotifierType = typing.TypeVar('GuiNotifierType', bound='GuiNotifier')
 
 DEBUG = False
 _debugIds = ()
@@ -57,10 +64,10 @@ _debugIds = ()
 
 # _debugIds = (75, 84, 92, 94,95,96)  # for these _id's, debug will be True. This allows for selective debugging
 
-
-def skip(*args, **kwargs):
-    """Do nothing"""
-    pass
+# ED: not sure what this if for, but pycharm complains about the arguments
+# def skip(*args, **kwargs):
+#     """Do nothing"""
+#     pass
 
 
 class NotifierABC(object):
@@ -109,12 +116,13 @@ class NotifierABC(object):
     def id(self):
         return self._id
 
-    @property
-    def project(self):
-        """Return the project
-        """
-        # implemented as a weak reference
-        return self._project()
+    # ED - isn't defined in the base-class
+    # @property
+    # def project(self):
+    #     """Return the project
+    #     """
+    #     # implemented as a weak reference
+    #     return self._project()
 
     def setDebug(self, flag: bool):
         """Set debug output on/off"""
@@ -147,16 +155,13 @@ class NotifierABC(object):
     def __str__(self) -> str:
         if self.isRegistered():
             trigs = f'{[(t, self._targetName) for t in self._triggers]}'
-            return '<%s (%d): theObject:%s triggers:%s>' % \
-                   (self.__class__.__name__,
-                    self.id,
-                    self._theObject,
-                    trigs[1:-1])
+            return (f'<{self.__class__.__name__} '
+                    f'({self.id:d}): '
+                    f'theObject:{self._theObject} '
+                    f'triggers:{trigs[1:-1]}>'
+                    )
 
-        return '<%s (%d): not registered>' % \
-               (self.__class__.__name__,
-                self.id
-                )
+        return f'<{self.__class__.__name__} ({self.id:d}): not registered>'
 
     __repr__ = __str__
 
@@ -254,12 +259,13 @@ class Notifier(NotifierABC):
         :param debug: set debug
         :param **kwargs: optional keyword,value arguments to callback
         """
-        from ccpn.core._implementation.AbstractWrapperObject import AbstractWrapperObject  # local import to avoid cycles
+        from ccpn.core._implementation.AbstractWrapperObject import \
+            AbstractWrapperObject  # local import to avoid cycles
         from ccpn.core._implementation.V3CoreObjectABC import V3CoreObjectABC  # local import to avoid cycles
         from ccpn.framework.Current import Current  # local import to avoid cycles
 
         if theObject is None or not isinstance(theObject, (Current, AbstractWrapperObject, V3CoreObjectABC)):
-            raise RuntimeError('Notifier: invalid object %r' % theObject)
+            raise RuntimeError(f'Notifier: invalid object {theObject!r}')
 
         super().__init__(theObject=theObject,
                          triggers=triggers,
@@ -273,7 +279,7 @@ class Notifier(NotifierABC):
         if self.id in _debugIds:
             self._debug = True
 
-        # bit of a clutch for now
+        # A bit of a clutch for now
         _project = None
         if isinstance(theObject, Current):
             # assume we have current
@@ -289,7 +295,7 @@ class Notifier(NotifierABC):
             self._isProject = (theObject == _project)  # theObject is the toplevel Project instance
             self._isCurrent = False
         else:
-            raise RuntimeError('Invalid object (%s)', theObject)
+            raise RuntimeError(f'Invalid object {theObject!r}')
 
         self._previousValue = None  # used to store the value of attribute to observe for change
 
@@ -297,11 +303,11 @@ class Notifier(NotifierABC):
 
         # some sanity checks
         if len(triggers) > 1 and Notifier.OBSERVE in triggers:
-            raise RuntimeError('Notifier: trigger "%s" only to be used in isolation' % Notifier.OBSERVE)
+            raise RuntimeError(f'Notifier: trigger {Notifier.OBSERVE!r} only to be used in isolation')
         if len(triggers) > 1 and Notifier.CURRENT in triggers:
-            raise RuntimeError('Notifier.__init__: trigger "%s" only to be used in isolation' % Notifier.CURRENT)
+            raise RuntimeError(f'Notifier.__init__: trigger {Notifier.CURRENT!r} only to be used in isolation')
         if triggers[0] == Notifier.CURRENT and not self._isCurrent:
-            raise RuntimeError('Notifier.__init__: invalid object "%s" for trigger "%s"' % (theObject, triggers[0]))
+            raise RuntimeError(f'Notifier.__init__: invalid object {theObject!r} for trigger {triggers[0]!r}')
 
         if targetName is None:
             raise ValueError('Invalid None targetName')
@@ -313,8 +319,8 @@ class Notifier(NotifierABC):
             if trigger == Notifier.CURRENT:
 
                 if not hasattr(theObject, targetName):
-                    raise RuntimeWarning(
-                            'Notifier.__init__: invalid targetName "%s" for class "%s"' % (targetName, theObject))
+                    raise RuntimeWarning(f'Notifier.__init__: invalid targetName {targetName!r} '
+                                         f'for class {theObject!r}')
 
                 self._previousValue = getattr(theObject, targetName)
                 notifier = (trigger, targetName)
@@ -331,8 +337,8 @@ class Notifier(NotifierABC):
             # Hence, we track all changes to the object class, filtering those that apply
             elif trigger == Notifier.OBSERVE:
                 if targetName != self.ANY and not hasattr(theObject, targetName):
-                    raise RuntimeWarning(
-                            'Notifier.__init__: invalid targetName "%s" for class "%s"' % (targetName, theObject.className))
+                    raise RuntimeWarning(f'Notifier.__init__: invalid targetName {targetName!r} '
+                                         f'for class {theObject.className!r}')
 
                 if targetName != self.ANY:
                     self._previousValue = getattr(theObject, targetName)
@@ -364,11 +370,18 @@ class Notifier(NotifierABC):
                 self._isRegistered = True
 
         if not self.isRegistered():
-            raise RuntimeWarning('Notifier.__init__: no notifiers initialised for theObject=%s, targetName=%r, triggers=%s ' % \
-                                 (theObject, targetName, triggers))
+            raise RuntimeWarning(f'Notifier.__init__: no notifiers initialised for '
+                                 f'theObject={theObject}, targetName={targetName!r}, triggers={triggers} ')
 
         if self._debug:
-            sys.stderr.write('>>> registered %s\n' % self)
+            sys.stderr.write(f'>>> registered {self}\n')
+
+    @property
+    def project(self):
+        """Return the project
+        """
+        # implemented as a weak reference
+        return self._project()
 
     def unRegister(self):
         """
@@ -377,7 +390,7 @@ class Notifier(NotifierABC):
 
         # >>>>>>
         if self.id in _debugIds:
-            sys.stderr.write('>>> un-registering %s\n' % self)
+            sys.stderr.write(f'>>> un-registering {self}\n')
 
         if not self.isRegistered():
             return
@@ -414,10 +427,10 @@ class Notifier(NotifierABC):
         trigger, targetName = notifier
 
         if self._debug:
-            p2 = 'parameter2=%r ' % parameter2 if parameter2 else ''
-            sys.stderr.write('--> <%s (%d)> %-25s obj=%-25s %s' % \
-                             (self.__class__.__name__, self.id,
-                              notifier, obj, p2)
+            p2 = f'parameter2={parameter2!r} ' if parameter2 else ''
+            sys.stderr.write(f'--> <{self.__class__.__name__} '
+                             f'({self.id:d})> {notifier:<25} '
+                             f'obj={obj:<25} {p2}'
                              )
 
         notifierFired = False
@@ -473,7 +486,7 @@ class Notifier(NotifierABC):
 
         if self._debug:
             _tmp = 'FIRED' if notifierFired else 'not-FIRED'
-            sys.stderr.write('%-9s func:%s\n' % (_tmp, self._callback))
+            sys.stderr.write(f'{_tmp:<9} func:{self._callback}\n')
 
         return
 
@@ -525,7 +538,8 @@ class NotifierBase(object):
 
         return objNotifiers
 
-    def setNotifier(self, theObject: 'AbstractWrapperObject', triggers: list, targetName: str, callback: Callable[..., Optional[str]], **kwargs) -> Notifier:
+    def setNotifier(self, theObject: V3CoreType, triggers: list, targetName: str,
+                    callback: Callable[..., Optional[str]], **kwargs) -> Notifier:
         """
         Set Notifier for Ccpn V3 object theObject
 
@@ -546,13 +560,13 @@ class NotifierBase(object):
         _id = notifier.id
         # this should never happen; hence just a check
         if _id in objNotifiers:
-            raise RuntimeError('%s: a notifier with id "%s" already exists (%s)' % (self, _id, objNotifiers[_id]))
+            raise RuntimeError(f'{self}: a notifier with id {_id!r} already exists ({objNotifiers[_id]})')
         # add the notifier
         objNotifiers[_id] = notifier
         return notifier
 
-    def setGuiNotifier(self, theObject: 'AbstractWrapperObject', triggers: list, targetName: list,
-                       callback: Callable[..., Optional[str]], **kwargs) -> 'GuiNotifier':
+    def setGuiNotifier(self, theObject: V3CoreType, triggers: list, targetName: list,
+                       callback: Callable[..., Optional[str]], **kwargs) -> GuiNotifierType:
         """
         Set Notifier for Ccpn V3 object theObject
 
@@ -616,7 +630,7 @@ class NotifierBase(object):
 
         return notifier.id in objNotifiers
 
-    def searchNotifiers(self, objects=[], triggers=None, targetName=None):
+    def searchNotifiers(self, objects=None, triggers=None, targetName=None):
         """Search whether a notifier with the given parameters is already in the list.
         The triggers CREATE, DELETE, RENAME and CHANGE can be combined in the call signature
 
@@ -632,6 +646,7 @@ class NotifierBase(object):
         if len(objNotifiers) == 0:
             return ()
 
+        objects = objects or []
         foundNotifiers = ()
         for notifier in objNotifiers.values():
             if notifier._theObject in objects and targetName == notifier._targetName:
@@ -660,6 +675,10 @@ class NotifierBase(object):
         for notifier in list(objNotifiers.values()):
             notifier.setBlanking(flag)
 
+
+#=========================================================================================
+# _removeDuplicatedNotifiers - notifier queue handling
+#=========================================================================================
 
 def _removeDuplicatedNotifiers(notifierQueue):
     """Remove any duplicated notifiers from the queue
@@ -724,3 +743,76 @@ def _removeDuplicatedNotifiers(notifierQueue):
             executeQueue.append((func, data))
 
     return list(reversed(executeQueue))
+
+
+#=========================================================================================
+# Notifier diff-functions
+#=========================================================================================
+
+class _RedirectStdout:
+
+    def __init__(self):
+        self._newStdout = io.StringIO()
+        self._oldStdout = sys.stdout
+
+    def __enter__(self):
+        sys.stdout = self._newStdout
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        sys.stdout = self._oldStdout
+        self._capturedOutput = self._newStdout.getvalue()
+        self._newStdout.close()
+
+    @property
+    def value(self):
+        return self._capturedOutput
+
+
+def _tempNotiferState() -> str:
+    from ccpn.framework.Application import getProject
+
+    if not (project := getProject()):
+        raise RuntimeError('_tempNotiferState: No project found')
+    with _RedirectStdout() as output:
+        # funcs = sorted([[func.func.id, key, func, state] for key, value in sorted(project._context2Notifiers.items())
+        #                  for func, state in value.items() if func], key=lambda val: val[0])
+        funcs = sorted([[func.func_ref().id, key, func] for key, value in sorted(project._context2Notifiers.items())
+                        for _, func in value.items() if func and func.func_ref()], key=lambda val: val[0])
+        for notifier in funcs:
+            print(' : '.join(map(lambda kk: str(kk), notifier)))
+    return output.value
+
+
+def _printDiff(oldState, newState):
+    from ccpn.ui.gui.guiSettings import consoleStyle
+
+    bufferLen = 24
+    diff = difflib.unified_diff(oldState.splitlines(),
+                                newState.splitlines(), lineterm='', n=0)
+    head = ''
+    first = True
+    for line in diff:
+        if not line or line.startswith('+++') or line.startswith('---'):
+            continue
+        if line.startswith('@@'):
+            # info line
+            head = f'{consoleStyle.fg.blue}{line:{bufferLen}}'
+            first = True
+            continue
+        outline = head if first else ' ' * bufferLen
+        first = False
+        if line.startswith('+'):
+            # new lines added
+            outline += f'{consoleStyle.fg.green}' + line[1:]
+        elif line.startswith('-'):
+            # old lines removed
+            outline += f'{consoleStyle.fg.red}' + line[1:]
+        elif line.startswith(' '):
+            # same lines (if n is non-zero for diff)
+            outline += f'{consoleStyle.fg.darkgrey}' + line[1:]
+        else:
+            # colour for everything else
+            outline += f'{consoleStyle.fg.lightgrey}' + line
+        outline += f'{consoleStyle.reset}'
+        print(outline)
