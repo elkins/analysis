@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-12-03 00:25:21 +0000 (Tue, December 03, 2024) $"
+__dateModified__ = "$dateModified: 2024-12-18 12:35:43 +0000 (Wed, December 18, 2024) $"
 __version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
@@ -126,8 +126,9 @@ class Pipeline(object):
         """
 
         def humanise(key):
-            """Converts a single key to human-readable format."""
-            return " ".join(word.capitalize() for word in key.split('_'))
+            """Converts a single key to human-readable format while maintaining original case."""
+            words = key.split('_')
+            return " ".join(words[:1] + [word for word in words[1:]])
 
         def processDict(d):
             """Processes the dictionary, converting keys and filtering out unwanted keys."""
