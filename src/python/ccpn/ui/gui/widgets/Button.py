@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-12-09 12:39:16 +0000 (Mon, December 09, 2024) $"
+__dateModified__ = "$dateModified: 2024-12-19 14:46:11 +0000 (Thu, December 19, 2024) $"
 __version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
@@ -94,6 +94,13 @@ class Button(QtWidgets.QPushButton, Base):
                         border-radius: 2px;
                     }
                     QPushButton:focus { padding: 0px; }
+                    QPushButton:hover[iconField=true][focusBorderField=true] {
+                        padding: 0px;
+                        border-color: palette(mid);
+                        border-style: solid;
+                        border-width: 1px;
+                        border-radius: 2px;
+                    }
                     QPushButton:disabled {
                         color: palette(dark);
                         background-color: palette(midlight);
