@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-12-09 17:26:03 +0000 (Mon, December 09, 2024) $"
+__dateModified__ = "$dateModified: 2024-12-19 13:39:42 +0000 (Thu, December 19, 2024) $"
 __version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
@@ -213,9 +213,7 @@ class _RestraintAITableFilter(_TableFilterABC):
     def visibleColumns(self, columnIndex=None):
         """Return the list of visible columns.
         """
-        headerMenu = self._parent.headerColumnMenu
-
-        return ([col for col in self.df.columns if col not in headerMenu._allHiddenColumns]
+        return ([col for col in self.df.columns if col not in self._parent._allHiddenColumns]
                 if (columnIndex is None) else [self.df.columns[columnIndex]])
 
     @property
