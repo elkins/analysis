@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-12-18 16:47:22 +0000 (Wed, December 18, 2024) $"
+__dateModified__ = "$dateModified: 2024-12-20 11:02:49 +0000 (Fri, December 20, 2024) $"
 __version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
@@ -245,7 +245,7 @@ class _IdHandle:
         self.__id = id(ref)
 
     def __del__(self):
-        """Destructor that prints a message when the instance is destroyed,
+        """Destructor that prints a message when the instance is garbage-collected,
         if debugging is enabled.
         """
         if _DEBUG:
