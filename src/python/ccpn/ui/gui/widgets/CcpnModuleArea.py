@@ -13,7 +13,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-12-09 17:20:18 +0000 (Mon, December 09, 2024) $"
+__dateModified__ = "$dateModified: 2024-12-20 11:03:38 +0000 (Fri, December 20, 2024) $"
 __version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
@@ -169,7 +169,6 @@ class CcpnModuleArea(ModuleArea, DropBase):
         self.setContentsMargins(0, 0, 0, 0)
         self.currentModuleNames = []
         self._modulesNames = {}
-        self._ccpnModules = []
         self._modules = {}  # don't use self.docks, is not updated when removing docks
         self._seenModuleStates = {}  # {className: {moduleName:'', state:widgetsState}}
         # self.setAcceptDrops(True) GWV not needed; handled by DropBase init
@@ -338,7 +337,7 @@ class CcpnModuleArea(ModuleArea, DropBase):
     @property
     def ccpnModules(self) -> list:
         """return all current modules in area"""
-        return self._ccpnModules
+        ...
 
     @ccpnModules.getter
     def ccpnModules(self):
@@ -349,7 +348,7 @@ class CcpnModuleArea(ModuleArea, DropBase):
     @property
     def modules(self) -> dict:
         """return all current modules in area as a dictionary. Don't use self.docks"""
-        return self._modules
+        return ...
 
     @ccpnModules.getter
     def modules(self):
