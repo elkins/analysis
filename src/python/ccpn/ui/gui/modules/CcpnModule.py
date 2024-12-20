@@ -17,7 +17,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-12-11 19:13:08 +0000 (Wed, December 11, 2024) $"
+__dateModified__ = "$dateModified: 2024-12-20 11:45:39 +0000 (Fri, December 20, 2024) $"
 __version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
@@ -46,17 +46,15 @@ from ccpn.ui.gui.widgets.ButtonList import ButtonList
 from ccpn.ui.gui.widgets.Icon import Icon
 from ccpn.ui.gui.widgets.SideBar import SideBar, SideBarSearchListView
 from ccpn.ui.gui.widgets.Frame import Frame, ScrollableFrame
-from ccpn.ui.gui.widgets.Font import setWidgetFont, getWidgetFontHeight, getFont, DEFAULTFONT
+from ccpn.ui.gui.widgets.Font import setWidgetFont, getWidgetFontHeight
 from ccpn.ui.gui.widgets.MessageDialog import showWarning
 from ccpn.ui.gui.guiSettings import (getColours, BORDERNOFOCUS, CCPNMODULELABEL_BACKGROUND, CCPNMODULELABEL_FOREGROUND,
-                                     CCPNMODULELABEL_BACKGROUND_ACTIVE, CCPNMODULELABEL_FOREGROUND_ACTIVE,
-                                     CCPNMODULELABEL_BORDER, CCPNMODULELABEL_BORDER_ACTIVE,
-                                     BORDERNOFOCUS_COLOUR)
+                                     CCPNMODULELABEL_BACKGROUND_ACTIVE, CCPNMODULELABEL_FOREGROUND_ACTIVE)
 from ccpn.ui.gui.lib.ModuleLib import getBlockingDialogs
 from ccpn.core.lib.Notifiers import NotifierBase
 from ccpn.core.lib.Pid import Pid, createPid
+from ccpn.core.lib.WeakRefLib import WeakRefDescriptor
 from ccpn.util.Path import aPath
-from ccpn.util import Logging
 from ccpn.util.Logging import getLogger
 
 
@@ -77,6 +75,7 @@ WIDGETSTATE = 'widgetsState'
 
 MIN_PIXMAP = 32
 MAX_PIXMAP = 128
+_DEBUG = True
 
 
 #=========================================================================================
@@ -126,7 +125,10 @@ class CcpnModule(Dock, DropBase, NotifierBase):
 
     # After closing a renamed module, any new instance will be named as default.
 
-    # _instances = set()
+    mainWindow = WeakRefDescriptor()
+    application = WeakRefDescriptor()
+    project = WeakRefDescriptor()
+    current = WeakRefDescriptor()
 
     def __init__(self, mainWindow, name, closable=True,
                  settingsScrollBarPolicies=('asNeeded', 'asNeeded'), **kwds):
@@ -179,7 +181,7 @@ class CcpnModule(Dock, DropBase, NotifierBase):
         self._borderOverlay = BorderOverlay(self)
         self._borderOverlay.raise_()
 
-        Logging.getLogger().debug(f'CcpnModule>>> {type(self)} {mainWindow}')
+        getLogger().debug(f'CcpnModule>>> {type(self)} {mainWindow}')
 
         # Logging.getLogger().debug('module:"%s"' % (name,))
         self._nameSplitter = '_'  # used to get the serial number.
@@ -225,12 +227,6 @@ class CcpnModule(Dock, DropBase, NotifierBase):
             self._settingsScrollArea = self.settingsWidget._scrollArea
 
             # set the new borders for the settings scroll area - border not needed at the top
-            # self._settingsScrollArea.setStyleSheet('ScrollArea { border-left: 1px solid %s;'
-            #                                        'border-right: 1px solid %s;'
-            #                                        'border-bottom: 1px solid %s;'
-            #                                        'background: transparent; }' % (
-            #                                            BORDERNOFOCUS_COLOUR, BORDERNOFOCUS_COLOUR,
-            #                                            BORDERNOFOCUS_COLOUR))
             self._settingsScrollArea.setStyleSheet('ScrollArea { border-left: 1px solid palette(mid);'
                                                    'border-right: 1px solid palette(mid);'
                                                    'border-bottom: 1px solid palette(mid);'
@@ -496,8 +492,9 @@ class CcpnModule(Dock, DropBase, NotifierBase):
             self._container = None
             self.sigClosed.emit(self)
 
+    @staticmethod
     def _detach(self):
-        """"Remove the module from the Drop-Area into a new window
+        """Remove the module from the Drop-Area into a new window
         """
         self.float()
 
@@ -829,7 +826,7 @@ class CcpnModule(Dock, DropBase, NotifierBase):
         self.updateStyle()
 
         # GST we have to assume the drag succeeded currently as we don't get any events
-        # that report on whether the drag has failed. Indeed this effectively a failed drag...
+        # that report on whether the drag has failed. Indeed, this is effectively a failed drag...
         globalDockRect = self.getDockArea().frameGeometry()
 
         targetWidget = QtWidgets.QApplication.instance().widgetAt(endPosition)
@@ -981,16 +978,7 @@ class CcpnModuleLabel(DockLabel):
                     f"button position must be one of {', '.join([CcpnModule.TOP_LEFT, CcpnModule.TOP_RIGHT])}"
                     )
 
-        # GST colours are hard coded... help please I need  a central source for
-        # these presumably a color palette or scheme
-        # button.setStyleSheet(""" border: %ipx solid #a9a9a9 ;
-        #                          border-top-left-radius: %ipx;
-        #                          border-top-right-radius: %ipx;
-        #                          border-bottom-left-radius: 0px;
-        #                          border-bottom-right-radius: 0px;
-        #                          background-color: #ececec ;  """ % styleInfo)
         buttonSize = self.labelSize + 4
-        # button.setMinimumSize(QtCore.QSize(buttonSize, buttonSize))
         button.setMaximumSize(
                 QtCore.QSize(buttonSize, buttonSize))  # just let the button expand a little to fit the label
         button.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
@@ -1048,16 +1036,7 @@ class CcpnModuleLabel(DockLabel):
 
         gidAction = contextMenu.addAction('Copy Gid to clipboard', self._copyPidToClipboard)
         gidAction.setToolTip('Usage, On Python Console type: ui.getByGid(Pasted_Gid) to get this module as an object')
-
         renameAction.setEnabled(self.module._allowRename)
-        # numDocks = len(self.module.getDocksInParentArea())
-        #
-        # if not self.module.maximised and numDocks > 1:
-        #     contextMenu.addAction('Maximise', self.module.toggleMaximised)
-        # elif self.module.maximised:
-        #     contextMenu.addAction('Restore', self.module.toggleMaximised)
-        #
-        # contextMenu.addAction('Float', self.module.float)
 
         return contextMenu
 
