@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-12-12 10:30:13 +0000 (Thu, December 12, 2024) $"
+__dateModified__ = "$dateModified: 2024-12-20 11:45:58 +0000 (Fri, December 20, 2024) $"
 __version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
@@ -69,6 +69,7 @@ from ccpn.core.NmrAtom import NmrAtom
 from ccpn.core.RestraintTable import RestraintTable
 from ccpn.core.DataTable import DataTable
 from ccpn.core.ViolationTable import ViolationTable
+from ccpn.core.lib.WeakRefLib import WeakRefDescriptor
 from ccpn.ui._implementation.SpectrumDisplay import SpectrumDisplay
 from ccpn.util.Logging import getLogger
 
@@ -1624,6 +1625,11 @@ SETTINGSWIDGET = 'widget'
 
 
 class ModuleSettingsWidget(Widget):  #, _commonSettings):
+
+    mainWindow = WeakRefDescriptor()
+    application = WeakRefDescriptor()
+    project = WeakRefDescriptor()
+    current = WeakRefDescriptor()
 
     def __init__(self, parent=None,
                  mainWindow=None,
