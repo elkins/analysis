@@ -4,7 +4,7 @@
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2025"
 __credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
                "Timothy J Ragan, Brian O Smith, Daniel Thompson",
                "Gary S Thompson & Geerten W Vuister")
@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-11-26 13:30:14 +0000 (Tue, November 26, 2024) $"
+__dateModified__ = "$dateModified: 2025-01-03 18:56:46 +0000 (Fri, January 03, 2025) $"
 __version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
@@ -165,12 +165,14 @@ class GuiStrip1d(GuiStrip):
         # self._frameGuide.addSpacer(8, 8, grid=(1, 0))
         row = 2
 
-        self.stripLabel = StripLabelWidget(qtParent=self._frameGuide, mainWindow=self.mainWindow, strip=self, grid=(row, 1), gridSpan=(1, 1))
+        self.stripLabel = StripLabelWidget(qtParent=self._frameGuide, mainWindow=self.mainWindow, strip=self,
+                                           grid=(row, 1), gridSpan=(1, 1))
         row += 1
         # set the ID label in the new widget
         self.stripLabel._populate()
 
-        self.header = StripHeaderWidget(qtParent=self._frameGuide, mainWindow=self.mainWindow, strip=self, grid=(row, 1), gridSpan=(1, 1))
+        self.header = StripHeaderWidget(qtParent=self._frameGuide, mainWindow=self.mainWindow, strip=self,
+                                        grid=(row, 1), gridSpan=(1, 1))
         row += 1
 
         Spacer(self._frameGuide, 1, 1, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding, grid=(row, 2))
@@ -184,25 +186,13 @@ class GuiStrip1d(GuiStrip):
 
         self._setStripTiling()
 
-    def close(self):
-        """Clean up and close
+    def closeEvent(self, event):
+        """Clean-up and close.
         """
-        try:
-            self._defaultMenu = None
-            self._phasingMenu = None
-            self._peakMenu = None
-            self._integralMenu = None
-            self._multipletMenu = None
-            self._axisMenu = None
-            self._contextMenus = None
-            self.header.close()
-            self.header = None
-        except Exception as es:
-            getLogger().debug(f'there was a problem cleaning-up strip {self} {es}')
-        else:
-            getLogger().debug(f'cleaning-up strip {self}')
+        from ccpn.ui.gui.lib.WidgetClosingLib import CloseHandler
 
-        super().close()
+        with CloseHandler(self):
+            super().closeEvent(event)
 
     @property
     def symbolType(self):
@@ -386,7 +376,6 @@ class GuiStrip1d(GuiStrip):
                 #self.peakListViewDict[peakList] = peakListView
                 return peakListView
 
-
     # -------- Noise threshold lines -------- #
 
     def _removeNoiseThresholdLines(self):
@@ -409,7 +398,6 @@ class GuiStrip1d(GuiStrip):
         self._noiseThresholdLinesActive = value
         self._updateNoiseThresholdLines()
 
-
     def _updateVisibility(self):
         """Update visibility list in the OpenGL
         """
@@ -428,10 +416,12 @@ class GuiStrip1d(GuiStrip):
             negValue = spectrum.negativeNoiseLevel or -posValue
 
             brush = hexToRgbRatio(spectrum.sliceColour) + (0.3,)  # sliceCol plus an offset
-            positiveLine = self._CcpnGLWidget.addInfiniteLine(values=posValue, colour=brush, movable=True, lineStyle='dashed',
+            positiveLine = self._CcpnGLWidget.addInfiniteLine(values=posValue, colour=brush, movable=True,
+                                                              lineStyle='dashed',
                                                               lineWidth=2.0, obj=spectrum, orientation='h', )
             negativeLine = self._CcpnGLWidget.addInfiniteLine(values=negValue, colour=brush, movable=True,
-                                                              lineStyle='dashed', obj=spectrum, orientation='h', lineWidth=2.0)
+                                                              lineStyle='dashed', obj=spectrum, orientation='h',
+                                                              lineWidth=2.0)
             positiveLine.editingFinished.connect(partial(self._posLineThresholdMoveFinished, positiveLine, spectrum))
             negativeLine.editingFinished.connect(partial(self._negLineThresholdMoveFinished, negativeLine, spectrum))
             self._noiseThresholdLines[spectrum.pid] = [positiveLine, negativeLine]
@@ -443,12 +433,14 @@ class GuiStrip1d(GuiStrip):
 
         try:
             from ccpn.core.lib.SpectrumLib import _getNoiseRegionFromLimits
+
             intensities = np.array(spectrum.intensities)
             noiseRegion = _getNoiseRegionFromLimits(intensities, negValue, posValue)
             noiseSD = np.std(noiseRegion)
 
             with undoBlock():
-                spectrum._noiseSD = float(noiseSD) # need to set this first. Setting the noiseLevel will call a notifier to update the gui items etc
+                spectrum._noiseSD = float(
+                    noiseSD)  # need to set this first. Setting the noiseLevel will call a notifier to update the gui items etc
                 spectrum.noiseLevel = float(posValue)
                 spectrum.negativeNoiseLevel = float(negValue)
         except Exception as exc:
@@ -479,8 +471,6 @@ class GuiStrip1d(GuiStrip):
             # Define the noiseSD, the standard deviation of the region between the lines boundary
             self._setNoiseLevelsFromLines(spectrum, negValue, posValue)
 
-
-
     # -------- Picking Exclusion Area -------- #
 
     def _removePickingExclusionArea(self):
@@ -488,7 +478,6 @@ class GuiStrip1d(GuiStrip):
             if region is not None:
                 self._CcpnGLWidget.removeExternalRegion(region)
         self._pickingExclusionAreas.clear()
-
 
     def _updatePeakPickingExclusionArea(self):
         """Update the regions. We must delete all and recreate, not simpy hide/show.
@@ -503,7 +492,6 @@ class GuiStrip1d(GuiStrip):
         self._pickingExclusionAreaActive = value
         self._updatePeakPickingExclusionArea()
 
-
     def _initPickingExclusionArea(self, spectra=None):
 
         if not self._pickingExclusionAreaActive:
@@ -517,13 +505,14 @@ class GuiStrip1d(GuiStrip):
             negValue = spectrum.negativeContourBase or -posValue
             colour = spectrum.positiveContourColour
             brush = hexToRgbRatio(spectrum.sliceColour) + (0.3,)  # sliceCol plus an offset
-            _GLlinearRegions = self._CcpnGLWidget.addExternalRegion(values=(posValue, negValue), orientation='h', bounds=None,
-                                                                   brush=brush, colour=colour, movable=True)
+            _GLlinearRegions = self._CcpnGLWidget.addExternalRegion(values=(posValue, negValue), orientation='h',
+                                                                    bounds=None,
+                                                                    brush=brush, colour=colour, movable=True)
             # _GLlinearRegions.valuesChanged.connect(partial(self._setContourBaseValues, spectrum))
             _GLlinearRegions.editingFinished.connect(partial(self._setContourBaseValues, spectrum))
             self._pickingExclusionAreas[spectrum.pid] = _GLlinearRegions
 
-    def _setContourBaseValues(self,  spectrum, _dict, *args):
+    def _setContourBaseValues(self, spectrum, _dict, *args):
         values = _dict.get('values', [])
         if len(values) == 0:
             return
@@ -609,7 +598,8 @@ class GuiStrip1d(GuiStrip):
         if self.offsetWidget is None:
             sdWid = self.spectrumDisplay.mainWidget
             self.widgetIndex += 1
-            self.offsetWidget = Offset1DWidget(sdWid, mainWindow=self.mainWindow, strip1D=self, grid=(self.widgetIndex, 0))
+            self.offsetWidget = Offset1DWidget(sdWid, mainWindow=self.mainWindow, strip1D=self,
+                                               grid=(self.widgetIndex, 0))
             initialOffset = self._getInitialOffset()
 
             # offset is now a tuple

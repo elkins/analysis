@@ -4,7 +4,7 @@ Module Documentation here
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2025"
 __credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
                "Timothy J Ragan, Brian O Smith, Daniel Thompson",
                "Gary S Thompson & Geerten W Vuister")
@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-12-09 17:18:43 +0000 (Mon, December 09, 2024) $"
+__dateModified__ = "$dateModified: 2025-01-03 18:56:47 +0000 (Fri, January 03, 2025) $"
 __version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
@@ -538,15 +538,6 @@ class _CoreTableFrameABC(Frame, ABC, metaclass=_CoreTableFrameABCMeta):
         if col < self._addWidgetCol and not overrideMinimum:
             raise RuntimeError(f'Col has to be >= {self._addWidgetCol}')
         self._moduleHeaderFrame.getLayout().addWidget(widget, row, col, rowSpan, colSpan)
-
-    def _cleanupWidget(self):
-        """CCPN-INTERNAL: used to clean-up when closing
-        """
-        getLogger().debug(f'Clean up table-frame {self.__class__.__name__}')
-        self._modulePulldown.unRegister()
-        self._tableWidget._close()
-        self._modulePulldown = None
-        self._tableWidget = None
 
     #-----------------------------------------------------------------------------------------
     # Process dropped items
