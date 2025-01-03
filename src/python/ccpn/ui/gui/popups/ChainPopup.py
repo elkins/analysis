@@ -4,9 +4,10 @@ Module Documentation here
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2023"
-__credits__ = ("Ed Brooksbank, Joanna Fox, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
-               "Timothy J Ragan, Brian O Smith, Gary S Thompson & Geerten W Vuister")
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2025"
+__credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
+               "Timothy J Ragan, Brian O Smith, Daniel Thompson",
+               "Gary S Thompson & Geerten W Vuister")
 __licence__ = ("CCPN licence. See https://ccpn.ac.uk/software/licensing/")
 __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, L.G., & Vuister, G.W.",
                  "CcpNmr AnalysisAssign: a flexible platform for integrated NMR analysis",
@@ -15,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2023-07-10 17:55:46 +0100 (Mon, July 10, 2023) $"
-__version__ = "$Revision: 3.2.0 $"
+__dateModified__ = "$dateModified: 2025-01-03 12:44:56 +0000 (Fri, January 03, 2025) $"
+__version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -32,6 +33,7 @@ from ccpn.ui.gui.widgets.MessageDialog import showMulti
 from ccpn.ui.gui.widgets.CompoundWidgets import CheckBoxCompoundWidget
 from ccpn.ui.gui.widgets.CompoundWidgets import EntryCompoundWidget
 
+_NAME = 'name'
 
 class ChainPopup(AttributeEditorPopupABC):
     """Chain attributes editor popup
@@ -56,7 +58,9 @@ class ChainPopup(AttributeEditorPopupABC):
     def _applyAllChanges(self, changes):
         """Apply all changes - update atom name
         """
-        name = self.edits['name'].getText()
+        # why is this different from SimpleAttributeEditorPopupABC?
+        compWidget, _attSet, _attItem = self.edits[_NAME]
+        name = compWidget.getText()
         if self.obj.nmrChain is not None and name != self.obj.name:
 
             reply = showMulti('Edit Chain',
@@ -64,15 +68,15 @@ class ChainPopup(AttributeEditorPopupABC):
                               'Do you want to change the name of the associated NmrChain as well?',
                               texts=[self._OK, self._CANCEL, self._DONT_SAVE],
                               okText=self._OK, cancelText=self._CANCEL,
-                              parent=self)
-
+                              parent=self,
+                              dontShowEnabled=True,
+                              defaultResponse=self._OK,
+                              popupId=f'{self.__class__.__name__}')
             if reply == self._CANCEL:
                 return
-
             elif reply == self._OK:
                 # also rename the nmrChain
                 nmrChain = self.obj.nmrChain
-
                 super()._applyAllChanges(changes)
                 nmrChain.name = name
                 return
