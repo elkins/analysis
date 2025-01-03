@@ -4,7 +4,7 @@ This file contains the MainWindow class
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2025"
 __credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
                "Timothy J Ragan, Brian O Smith, Daniel Thompson",
                "Gary S Thompson & Geerten W Vuister")
@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-12-12 13:40:23 +0000 (Thu, December 12, 2024) $"
+__dateModified__ = "$dateModified: 2025-01-03 18:50:58 +0000 (Fri, January 03, 2025) $"
 __version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
@@ -35,7 +35,7 @@ from PyQt5 import QtWidgets, QtCore, QtGui
 from PyQt5.QtGui import QKeySequence
 from PyQt5.QtCore import pyqtSlot
 
-from ccpn.core import Multiplet
+from ccpn.core.lib.WeakRefLib import WeakRefDescriptor
 from ccpn.util import Logging
 from ccpn.core.Project import Project
 
@@ -134,6 +134,10 @@ class GuiMainWindow(QtWidgets.QMainWindow, Shortcuts):
 
     WindowMaximiseMinimise = QtCore.pyqtSignal(bool)
 
+    # allows type-checking to recognise attributes
+    application = WeakRefDescriptor()
+    current = WeakRefDescriptor()
+
     def __init__(self, application=None):
 
         # Shortcuts only inserts methods
@@ -217,6 +221,7 @@ class GuiMainWindow(QtWidgets.QMainWindow, Shortcuts):
         def remove(wref, selfref=weakref.ref(self)):
             getLogger().debug(f'{consoleStyle.fg.darkred}Clearing moduleArea '
                               f'{wref}:{selfref()} {consoleStyle.reset}')
+
         self._moduleAreaRef = weakref.ref(value, remove)
         getLogger().debug(f'{consoleStyle.fg.darkgreen}Setting moduleArea '
                           f'{self._moduleAreaRef()}{consoleStyle.reset}')
@@ -1662,7 +1667,6 @@ class GuiMainWindow(QtWidgets.QMainWindow, Shortcuts):
             ## This shortcut should be removed from here, and enabled only on displays/tables as a localised shortcut
             popup = DeleteItemsPopup(parent=self, mainWindow=self, items=deleteItems)
             popup.exec()
-
 
     @logCommand('mainWindow.')
     def propagateAssignments(self):
