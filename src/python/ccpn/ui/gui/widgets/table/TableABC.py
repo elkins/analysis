@@ -4,7 +4,7 @@ Module Documentation here
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2025"
 __credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
                "Timothy J Ragan, Brian O Smith, Daniel Thompson",
                "Gary S Thompson & Geerten W Vuister")
@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-12-13 11:03:40 +0000 (Fri, December 13, 2024) $"
+__dateModified__ = "$dateModified: 2025-01-03 18:25:54 +0000 (Fri, January 03, 2025) $"
 __version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
@@ -240,7 +240,6 @@ class TableABC(QtWidgets.QTableView, metaclass=_TableABCMeta):
         if self.className is None:
             self.className = self.__class__.__name__
         super().__init__(parent)
-        self._parent = parent
         if df is None:
             # make sure it's not empty
             df = pd.DataFrame({})
@@ -273,6 +272,11 @@ class TableABC(QtWidgets.QTableView, metaclass=_TableABCMeta):
         # initialise the table
         self.updateDf(df, _resize, setHeightToRows, setWidthToColumns, setOnHeaderOnly=setOnHeaderOnly)
         self._setStyle()
+
+    @property
+    def _parent(self):
+        getLogger().debug(f'_parent {self}')
+        return self.parent()
 
     # pyqt5.15 does not allow setting by float
     def setFixedHeight(self, p_int):
@@ -545,15 +549,11 @@ class TableABC(QtWidgets.QTableView, metaclass=_TableABCMeta):
                 'order'          : model._sortOrder,
                 })
 
-    def _close(self):
-        self.close()
+    def _preClose(self):
+        from ccpn.ui.gui.lib.WidgetClosingLib import _debugAttrib, _PRECLOSE as MSG
 
-    def close(self):
-        """Clean up the notifiers
-        """
-        if self._droppedNotifier:
-            self._droppedNotifier.unRegister()
-            self._droppedNotifier = None
+        _debugAttrib(self, MSG)
+
         # remove signals from header/table
         if header := self.horizontalHeader():
             with suppress(Exception):
@@ -562,7 +562,14 @@ class TableABC(QtWidgets.QTableView, metaclass=_TableABCMeta):
             self.customContextMenuRequested.disconnect(self._raiseTableContextMenu)
         with suppress(Exception):
             QtWidgets.QApplication.instance().sigPaletteChanged.disconnect(self._signalTarget)
-        super().close()
+
+    def closeEvent(self, event):
+        """Clean-up and close.
+        """
+        from ccpn.ui.gui.lib.WidgetClosingLib import CloseHandler
+
+        with CloseHandler(self):
+            super().closeEvent(event)
 
     #-----------------------------------------------------------------------------------------
     # Properties

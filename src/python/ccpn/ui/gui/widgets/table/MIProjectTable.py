@@ -4,7 +4,7 @@ Module Documentation here
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2025"
 __credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
                "Timothy J Ragan, Brian O Smith, Daniel Thompson",
                "Gary S Thompson & Geerten W Vuister")
@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-11-28 14:13:58 +0000 (Thu, November 28, 2024) $"
+__dateModified__ = "$dateModified: 2025-01-03 18:25:54 +0000 (Fri, January 03, 2025) $"
 __version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
@@ -760,28 +760,31 @@ class _MIProjectTableABC(MITableABC, Base):
         if self._tableNotifier is not None:
             self._tableNotifier.unRegister()
             self._tableNotifier = None
-
         if self._rowNotifier is not None:
             self._rowNotifier.unRegister()
             self._rowNotifier = None
-
         if self._cellNotifiers:
             for cell in self._cellNotifiers:
                 if cell is not None:
                     cell.unRegister()
             self._cellNotifiers = []
-
         if self._selectCurrentNotifier is not None:
             self._selectCurrentNotifier.unRegister()
             self._selectCurrentNotifier = None
-
         if self._searchNotifier is not None:
             self._searchNotifier.unRegister()
             self._searchNotifier = None
+        if self._droppedNotifier:
+            self._droppedNotifier.unRegister()
+            self._droppedNotifier = None
 
-    def _close(self):
+    def _preClose(self):
+        from ccpn.ui.gui.lib.WidgetClosingLib import _debugAttrib, _PRECLOSE as MSG
+
+        _debugAttrib(self, MSG)
+
         self._clearTableNotifiers()
-        super()._close()
+        super()._preClose()
 
     def clearCurrentCallback(self):
         """Clear the callback function for current object/list change
