@@ -284,6 +284,9 @@
         "_openItemNmrAtomItem": {
             "dontShowPopup": false
         },
+        "ChainPopup": {
+            "dontShowPopup": false
+        },
         "NmrChainPopup": {
             "dontShowPopup": false
         },
