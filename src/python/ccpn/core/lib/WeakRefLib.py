@@ -4,7 +4,7 @@ Module Documentation here
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2025"
 __credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
                "Timothy J Ragan, Brian O Smith, Daniel Thompson",
                "Gary S Thompson & Geerten W Vuister")
@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-12-20 11:02:49 +0000 (Fri, December 20, 2024) $"
+__dateModified__ = "$dateModified: 2025-01-03 17:12:13 +0000 (Fri, January 03, 2025) $"
 __version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
@@ -35,7 +35,7 @@ from reprlib import recursive_repr
 from typing import Any, Callable, TypeVar, Protocol
 
 
-_DEBUG = True
+_DEBUG = False
 
 
 class _consoleStyle():
@@ -58,6 +58,7 @@ class _consoleStyle():
         lightgrey = '\033[37m'
         yellow = '\033[93m'
         magenta = '\033[95m'
+        white = '\033[97m'
 
 
 #=========================================================================================
