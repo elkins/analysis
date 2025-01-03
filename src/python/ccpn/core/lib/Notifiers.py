@@ -19,7 +19,7 @@ April 2017: First design by Geerten Vuister
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2025"
 __credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
                "Timothy J Ragan, Brian O Smith, Daniel Thompson",
                "Gary S Thompson & Geerten W Vuister")
@@ -31,7 +31,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-12-18 13:24:48 +0000 (Wed, December 18, 2024) $"
+__dateModified__ = "$dateModified: 2025-01-03 17:11:42 +0000 (Fri, January 03, 2025) $"
 __version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
@@ -429,8 +429,8 @@ class Notifier(NotifierABC):
         if self._debug:
             p2 = f'parameter2={parameter2!r} ' if parameter2 else ''
             sys.stderr.write(f'--> <{self.__class__.__name__} '
-                             f'({self.id:d})> {notifier:<25} '
-                             f'obj={obj:<25} {p2}'
+                             f'({self.id:d})> {notifier} '
+                             f'obj={obj} {p2}'
                              )
 
         notifierFired = False
