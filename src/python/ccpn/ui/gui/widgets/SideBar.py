@@ -16,7 +16,7 @@ SidebarClassTreeItems: A Tree with a number of dynamically added items of type V
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2025"
 __credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
                "Timothy J Ragan, Brian O Smith, Daniel Thompson",
                "Gary S Thompson & Geerten W Vuister")
@@ -28,7 +28,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-12-12 13:43:36 +0000 (Thu, December 12, 2024) $"
+__dateModified__ = "$dateModified: 2025-01-06 17:24:27 +0000 (Mon, January 06, 2025) $"
 __version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
@@ -1234,6 +1234,17 @@ class SideBar(QtWidgets.QTreeWidget, SideBarStructure, Base, NotifierBase):
         self._searchSelection = []
         self._searchNotifiers = []
         self._setStyle()
+
+    def closeEvent(self, event):
+        """Clean-up and close.
+        """
+        from ccpn.ui.gui.guiSettings import consoleStyle
+        from ccpn.util.Logging import getLogger
+
+        getLogger().debug(f'{consoleStyle.fg.yellow}==> closeEvent  {self}{consoleStyle.reset}')
+        self.clearSideBar()
+        self.deleteAllNotifiers()
+        super().closeEvent(event)
 
     def _setStyle(self):
         """Set the focus/noFocus colours for the widget
