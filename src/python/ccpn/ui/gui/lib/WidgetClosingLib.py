@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2025-01-03 18:12:38 +0000 (Fri, January 03, 2025) $"
+__dateModified__ = "$dateModified: 2025-01-06 17:06:44 +0000 (Mon, January 06, 2025) $"
 __version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
@@ -157,6 +157,7 @@ def CloseHandler(container: QtWidgets.QWidget) -> Generator[None, None, None]:
             _LOGGING(f"{indent}An error occurred: {es}", stacklevel=3)
         raise
     finally:
+        # call the post-close method on the container, called AFTER all nested-children have closed
         _processFunc(container, _POSTCLOSE)
         # Schedule the widget for deletion
         container.deleteLater()
@@ -184,6 +185,7 @@ def close_all_children(parent: QtWidgets.QWidget, *, depth: int = 0) -> None:
         return
     # store the depth for debugging
     _WidgetRefStore[parent] = depth
+    # call the pre-close method on the container, called BEFORE all nested-children have closed
     _processFunc(parent, _PRECLOSE)
     for child in parent.findChildren(QWidget, options=QtCore.Qt.FindDirectChildrenOnly):
         close_all_children(child, depth=depth + 1)
@@ -322,7 +324,7 @@ def main():
     global _LOGGING
     global _DEBUG
 
-    _LOGGING = lambda msg: print(msg)
+    _LOGGING = lambda msg, stacklevel=None: print(msg)
     _DEBUG = 2
 
     # make a main-window and show the widget
