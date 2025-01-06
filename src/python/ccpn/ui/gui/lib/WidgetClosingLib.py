@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2025-01-06 17:06:44 +0000 (Mon, January 06, 2025) $"
+__dateModified__ = "$dateModified: 2025-01-06 17:18:40 +0000 (Mon, January 06, 2025) $"
 __version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
@@ -66,7 +66,7 @@ class _ConsoleStyle():
 
 
 TABWIDTH = 4
-_DEBUG = True  # can be True/False (equivalent to 0, 1), or 0,1,2 - 2 is the most verbose
+_DEBUG = False  # can be True/False (equivalent to 0, 1), or 0,1,2 - 2 is the most verbose
 _closeBlockingLevel = 0  # garbage is only collected on the last exit
 _GARBAGECOLLECT = False
 _LOGGING = getLogger().debug
