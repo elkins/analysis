@@ -4,7 +4,7 @@ Module Documentation here
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2025"
 __credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
                "Timothy J Ragan, Brian O Smith, Daniel Thompson",
                "Gary S Thompson & Geerten W Vuister")
@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-12-18 09:45:31 +0000 (Wed, December 18, 2024) $"
+__dateModified__ = "$dateModified: 2025-01-06 17:44:56 +0000 (Mon, January 06, 2025) $"
 __version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
@@ -84,7 +84,7 @@ class RestraintTableModule(CcpnTableModule):
         """Initialise the Module widgets.
         """
         if name is NOTHING:
-            name=camelCaseToString(KlassTable.className)
+            name = camelCaseToString(KlassTable.className)
         super().__init__(mainWindow=mainWindow, name=name)
 
         # Derive application, project, and current from mainWindow
@@ -199,15 +199,6 @@ class RestraintTableModule(CcpnTableModule):
         """
         pids = self.project.getPidsByObjects(peaks)
         self._mainFrame.guiTable.selectRowsByValues(pids, 'Pid')
-
-    def _closeModule(self):
-        """CCPN-INTERNAL: used to close the module.
-        """
-        getLogger().debug2(f'==> _closeModule  {self.__class__.__name__}   {self.activePulldownClass}')
-        if self._settings:
-            self._settings._cleanupWidget()
-            self._settings = None
-        super()._closeModule()
 
     def _getLastSeenWidgetsState(self):
         """Internal. Used to restore last closed module in the same program instance.
