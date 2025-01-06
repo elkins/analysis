@@ -6,7 +6,7 @@ tertiary version by Ejb 9/5/17
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2025"
 __credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
                "Timothy J Ragan, Brian O Smith, Daniel Thompson",
                "Gary S Thompson & Geerten W Vuister")
@@ -18,7 +18,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-12-12 10:30:12 +0000 (Thu, December 12, 2024) $"
+__dateModified__ = "$dateModified: 2025-01-06 17:46:56 +0000 (Mon, January 06, 2025) $"
 __version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
@@ -118,7 +118,7 @@ class ChemicalShiftTableModule(CcpnTableModule):
         # backBoneAssignment modules
         if self.includeSettingsWidget:
             self._settings = Widget(self.settingsWidget, setLayout=True,
-                                     grid=(0, 0), vAlign='top', hAlign='left')
+                                    grid=(0, 0), vAlign='top', hAlign='left')
 
             # cannot set a notifier for displays, as these are not (yet?) implemented and the Notifier routines
             # underpinning the addNotifier call do not allow for it either
@@ -200,15 +200,6 @@ class ChemicalShiftTableModule(CcpnTableModule):
             self._tableWidget.populateTable(selectedObjects=self.current.chemicalShifts)
         else:
             self._tableWidget.populateEmptyTable()
-
-    def _closeModule(self):
-        """CCPN-INTERNAL: used to close the module.
-        """
-        if self._modulePulldown:
-            self._modulePulldown.unRegister()
-        if self._tableWidget:
-            self._tableWidget._close()
-        super()._closeModule()
 
 
 #=========================================================================================
