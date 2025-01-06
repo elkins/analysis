@@ -1,7 +1,7 @@
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2025"
 __credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
                "Timothy J Ragan, Brian O Smith, Daniel Thompson",
                "Gary S Thompson & Geerten W Vuister")
@@ -13,7 +13,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-12-02 12:15:29 +0000 (Mon, December 02, 2024) $"
+__dateModified__ = "$dateModified: 2025-01-06 17:49:40 +0000 (Mon, January 06, 2025) $"
 __version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
@@ -374,20 +374,6 @@ class ResidueInformation(CcpnModule):
                     if strip != self.current.strip and not strip.header.headerVisible:
                         strip.header.reset()
                         strip.header.headerVisible = True
-
-    def _closeModule(self):
-        """CCPN-INTERNAL: used to close the module
-        """
-        if self.chainPulldown:
-            self.chainPulldown.unRegister()
-            self.chainPulldown = None
-        if self._residueTable:
-            self._residueTable._close()
-            self._residueTable = None
-        if self.thisSequenceWidget:
-            self.thisSequenceWidget._closeModule()
-            self.thisSequenceWidget = None
-        super()._closeModule()
 
     #=========================================================================================
     # Notifier queue handling
