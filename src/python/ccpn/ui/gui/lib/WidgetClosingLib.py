@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2025-01-06 17:18:40 +0000 (Mon, January 06, 2025) $"
+__dateModified__ = "$dateModified: 2025-01-07 16:33:51 +0000 (Tue, January 07, 2025) $"
 __version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
@@ -129,7 +129,7 @@ def _processFunc(widget: QWidget, attrib: str) -> None:
 
 # Capitalised for clarity because acts like a class
 @contextmanager
-def CloseHandler(container: QtWidgets.QWidget) -> Generator[None, None, None]:
+def CloseHandler(container: QtWidgets.QWidget, *, _stacklevelOffset: int = 0) -> Generator[None, None, None]:
     """
     Context manager for handling the closing of a QWidget and its children.
 
@@ -149,12 +149,12 @@ def CloseHandler(container: QtWidgets.QWidget) -> Generator[None, None, None]:
             # uses stacklevel=3 to allow for context-manager and source-method calling CloseHandler
             _LOGGING(f"{indent}{_ConsoleStyle.fg.white}CLOSEEVENT "
                      f"{getattr(container, _NAME, str(container))} - "
-                     f"{_ConsoleStyle.reset}", stacklevel=3)
+                     f"{_ConsoleStyle.reset}", stacklevel=3 + _stacklevelOffset)
         close_all_children(container, depth=_WidgetRefStore.get(container) or 0)
         yield
     except Exception as es:
         if _DEBUG:
-            _LOGGING(f"{indent}An error occurred: {es}", stacklevel=3)
+            _LOGGING(f"{indent}An error occurred: {es}", stacklevel=3 + _stacklevelOffset)
         raise
     finally:
         # call the post-close method on the container, called AFTER all nested-children have closed
@@ -169,7 +169,7 @@ def CloseHandler(container: QtWidgets.QWidget) -> Generator[None, None, None]:
         if _closeBlockingLevel == 0 and _GARBAGECOLLECT:
             if _DEBUG:
                 _LOGGING(f"{_ConsoleStyle.fg.darkgrey}{indent}Garbage Collection{_ConsoleStyle.reset}",
-                         stacklevel=3)
+                         stacklevel=3 + _stacklevelOffset)
             # remove blockers to release widgets
             gc.collect()
 
@@ -208,7 +208,7 @@ def closeWidget(widget: QWidget):
     :param widget: The widget to be closed.
     :type widget: QtWidgets.QWidget
     """
-    with CloseHandler(widget):
+    with CloseHandler(widget, _stacklevelOffset=1):
         if _DEBUG:
             _LOGGING(f'CLOSING... {widget}')
         widget.close()
