@@ -4,7 +4,7 @@ Module Documentation here
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2025"
 __credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
                "Timothy J Ragan, Brian O Smith, Daniel Thompson",
                "Gary S Thompson & Geerten W Vuister")
@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-12-13 11:03:40 +0000 (Fri, December 13, 2024) $"
+__dateModified__ = "$dateModified: 2025-01-07 16:32:26 +0000 (Tue, January 07, 2025) $"
 __version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
@@ -744,29 +744,24 @@ class CcpnDialogMainWidget(QtWidgets.QDialog, Base, metaclass=_DialogHook):
 
         return True
 
-    def accept(self) -> None:
-        result = super(CcpnDialogMainWidget, self).accept()
+    def done(self, state) -> None:
+        from ccpn.ui.gui.guiSettings import consoleStyle
+        from ccpn.ui.gui.lib.WidgetClosingLib import CloseHandler
 
-        # store the state of any required widgets
-        self.storeWidgetState()
-
-        getLogger().debug2(f'Clean up dialog {self} on accept')
-        self._cleanupDialog()
-        self._storeDontShow()
-
-        return result
-
-    def reject(self) -> None:
-        result = super(CcpnDialogMainWidget, self).reject()
-
-        if self.storeStateOnReject:
+        # only called on Accepted or Rejected
+        if state == self.Accepted:
+            # store the state of any required widgets
+            self.storeWidgetState()
+            self._storeDontShow()
+        elif self.storeStateOnReject:
             # store the state of any required widgets
             self.storeWidgetState()
 
-        getLogger().debug2(f'Clean up dialog {self} on reject')
-        self._cleanupDialog()
-
-        return result
+        getLogger().debug(f'{consoleStyle.fg.yellow}done {self}   '
+                          f'Accepted={state == self.Accepted}{consoleStyle.reset}')
+        result = super(CcpnDialogMainWidget, self).done(state)
+        with CloseHandler(self):
+            return result
 
     def _storeDontShow(self):
         if self._dontShowEnabled:
@@ -780,16 +775,6 @@ class CcpnDialogMainWidget(QtWidgets.QDialog, Base, metaclass=_DialogHook):
                     # should really get from a property rather than a widget
                     #  - if widget does not show then the initial state may not be set
                     popup[_DONTSHOWPOPUP] = self._dontShowCheckBox.isChecked()
-
-    def _cleanupDialog(self):
-        """Clean-up any extra widgets/data before closing
-        """
-        from ccpn.ui.gui.guiSettings import consoleStyle
-
-        getLogger().debug2(f'Cleaning-up dialog {self} - subclass as required')
-        # MUST BE SUBCLASSED
-        # raise NotImplementedError(f"{consoleStyle.fg.magenta}{self.__class__.__name__} - Code error: "
-        #                           f"function not implemented{consoleStyle.reset}")
 
     def _refreshGLItems(self):
         """emit a signal to rebuild any required GL items
@@ -1216,8 +1201,6 @@ class DetailedTextDialog(CcpnDialogMainWidget):
             # return the id of the pressed button, should match Yes, No, etc.
             return self.dialogButtons._clickedButtonId
 
-    def _cleanupDialog(self):
-        ...
 
 #=========================================================================================
 # DetailDialog popups

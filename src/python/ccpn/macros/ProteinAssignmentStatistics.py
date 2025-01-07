@@ -4,7 +4,7 @@ Alpha version of a popup for generating percentage assignment tables
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2025"
 __credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
                "Timothy J Ragan, Brian O Smith, Daniel Thompson",
                "Gary S Thompson & Geerten W Vuister")
@@ -16,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-09-16 10:12:11 +0100 (Mon, September 16, 2024) $"
-__version__ = "$Revision: 3.2.7 $"
+__dateModified__ = "$dateModified: 2025-01-07 16:32:25 +0000 (Tue, January 07, 2025) $"
+__version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -943,10 +943,6 @@ class CalculateAssignmentDataPopup(CcpnDialogMainWidget):
                                                   comment='Problematic Chemical Shift')
 
             self.accept()
-
-    def _cleanupDialog(self):
-        self.chainListWidget.unRegister()
-        self.chemicalShiftListWidget.unRegister()
 
 
 def main():

@@ -41,6 +41,7 @@ from ccpn.ui.gui.widgets.HLine import LabeledHLine
 from ccpn.ui.gui.popups.Dialog import CcpnDialogMainWidget
 from ccpn.core.lib.DataFrameObject import DataFrameObject
 from ccpn.ui.gui.widgets.Spacer import Spacer
+from ccpn.core.lib.WeakRefLib import WeakRefDescriptor
 from ccpn.ui.gui.widgets.table.TableABC import TableABC
 from ccpn.ui.gui.widgets.table._TableAdditions import TableHeaderMenuColumns, TableHeaderMenuCoreColumns
 from ccpn.ui.gui.lib._CoreTableFrame import _CoreTableWidgetABC
@@ -103,8 +104,8 @@ class ColumnViewSettings(Frame):
     This widget allows users to select which columns in a table to display or hide,
     with additional functionality for linked columns in multi-index tables.
     """
-    _tableView: TableABC = None
-    _tableHandler: TableHeaderMenuColumns = None
+    _tableView: TableABC = WeakRefDescriptor()
+    _tableHandler: TableHeaderMenuColumns = WeakRefDescriptor()
     buttonFrame: Frame = None
 
     def __init__(self, parent,
@@ -281,7 +282,7 @@ class ColumnViewSettingsPopup(CcpnDialogMainWidget):
         self._tableView = parent
         self._setWidgets(tableHandler, dataFrameObject)  # dataFrameObject needs to go! :|
 
-        self.setCloseButton(callback=self._close, tipText='Close')
+        self.setCloseButton(callback=self.accept, tipText='Close')
         self.setDefaultButton(self.CLOSEBUTTON)
 
     def _setWidgets(self, tableHandler: TableHeaderMenuColumns, dataFrameObject: pd.DataFrame):
@@ -298,19 +299,6 @@ class ColumnViewSettingsPopup(CcpnDialogMainWidget):
                                                                tableHandler=tableHandler,
                                                                dfObject=dataFrameObject,
                                                                grid=(0, 0))
-
-    def _close(self):
-        """
-        Save hidden columns to the table class so they persist between popups.
-        """
-        self.accept()
-
-    def _cleanupDialog(self):
-        """
-        Clean up widgets to prevent segmentation faults during garbage collection.
-        """
-        # Prevents threading errors if not deleted
-        self._columnViewSettingsWidget.deleteLater()
 
     def storeWidgetState(self):
         """
@@ -336,9 +324,9 @@ class ColumnViewCoreSettings(ColumnViewSettings):
     A tree view of checkboxes corresponding to the table columns, with additional
     functionality to allow save, restore, and reset to preferences.
     """
-
-    _tableView: _CoreTableWidgetABC = None
-    _tableHandler: TableHeaderMenuCoreColumns = None
+    # updated type-annotation
+    _tableView: _CoreTableWidgetABC = WeakRefDescriptor()
+    _tableHandler: TableHeaderMenuCoreColumns = WeakRefDescriptor()
 
     def _setWidgets(self):
         """

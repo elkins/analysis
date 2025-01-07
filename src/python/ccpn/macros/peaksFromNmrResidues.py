@@ -4,7 +4,7 @@ Module Documentation here
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2025"
 __credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
                "Timothy J Ragan, Brian O Smith, Daniel Thompson",
                "Gary S Thompson & Geerten W Vuister")
@@ -16,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-09-16 10:12:12 +0100 (Mon, September 16, 2024) $"
-__version__ = "$Revision: 3.2.7 $"
+__dateModified__ = "$dateModified: 2025-01-07 16:32:26 +0000 (Tue, January 07, 2025) $"
+__version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -139,13 +139,6 @@ class peaksFromNmrResidues(CcpnDialogMainWidget):
         row += 1
         Label(self.mainWidget, text='Set SequenceCode:', grid=(row, 0))
         self.seqCode = Entry(self.mainWidget, labelText='', grid=(row, 1))
-
-    def _cleanupDialog(self):
-        """Clean-up and unregister notifiers.
-        """
-        for ntfy in {self.NRPulldown, self.CLPulldown, self.newNCPulldown}:
-            if ntfy:
-                ntfy.unRegister()
 
     def _populateWidgets(self):
         # populate the CSL pulldown from the first selected nmrResidue
