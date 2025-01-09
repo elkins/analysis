@@ -4,7 +4,7 @@ Module Documentation here
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2025"
 __credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
                "Timothy J Ragan, Brian O Smith, Daniel Thompson",
                "Gary S Thompson & Geerten W Vuister")
@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-11-20 13:19:03 +0000 (Wed, November 20, 2024) $"
+__dateModified__ = "$dateModified: 2025-01-09 20:41:17 +0000 (Thu, January 09, 2025) $"
 __version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
@@ -54,7 +54,7 @@ from ccpn.ui.gui.modules.lib.RestraintAITableCommon import (_RestraintOptions, U
                                                             INDEXCOL, PEAKSERIALCOL, OBJCOL, HeaderRow)
 from ccpn.ui.gui.widgets.Button import Button
 from ccpn.ui.gui.widgets.ButtonList import ButtonList
-from ccpn.ui.gui.widgets.Column import ColumnClass, Column
+from ccpn.ui.gui.widgets.Column import Column
 from ccpn.ui.gui.widgets.GuiTable import _getValueByHeader
 from ccpn.ui.gui.widgets.Icon import Icon
 from ccpn.ui.gui.widgets.PulldownListsForObjects import PeakListPulldown
@@ -273,7 +273,7 @@ class _NewRestraintAITableWidget(_CoreMITableWidgetABC):
     SPANCOLUMNS = (1,)
     MINSORTCOLUMN = 0
 
-    tableModelClass = _MultiSort
+    TableModelClass = _MultiSort
     enableMultiColumnSort = True
     # subgroups are always max->min
     applySortToGroups = False
@@ -463,7 +463,7 @@ class _NewRestraintAITableWidget(_CoreMITableWidgetABC):
     # Table functions
     #-----------------------------------------------------------------------------------------
 
-    def buildTableDataFrame(self):
+    def buildTableDataFrame(self) -> pd.DataFrame:
         """Return a Pandas dataFrame from an internal list of objects.
         The columns are based on the 'func' functions in the columnDefinitions.
         :return pandas dataFrame
@@ -642,10 +642,7 @@ class _NewRestraintAITableWidget(_CoreMITableWidgetABC):
                                 if (HEADERSCOL in _left.columns and ATOMSCOL in _left.columns) and \
                                         (HEADERSCOL in _right.columns and ATOMSCOL in _right.columns):
                                     # _new = pd.merge(_left, _right, on=[HEADERSCOL, ATOMSCOL], how='left').drop(columns=[PEAKSERIALCOL]).fillna(0.0)
-
-                                    # TODO: CHECK overlapping peak-lists?
                                     _vResults.append(pd.merge(_left, _right, on=[HEADERSCOL, ATOMSCOL], how='right'))
-
                                 zeroCols.append(HEADERMEANCOL)
 
                             if _vResults:

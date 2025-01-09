@@ -13,7 +13,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2025-01-06 17:49:40 +0000 (Mon, January 06, 2025) $"
+__dateModified__ = "$dateModified: 2025-01-09 20:41:17 +0000 (Thu, January 09, 2025) $"
 __version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
@@ -93,8 +93,8 @@ class ResidueInformation(CcpnModule):
             self._selectChain(chain)
         self._getResidues()
 
-        # set the notifies for current chain
-        self._activePulldownClass = None
+        # set the notifiers for current chain
+        self._activePulldownKlass = None
         self._activeCheckbox = None
         # self._setCurrentPulldownNotifier = None
 
@@ -108,7 +108,7 @@ class ResidueInformation(CcpnModule):
 
         # put these in a smaller additional class
         if self.activePulldownClass:
-            self._activePulldownClass = self.activePulldownClass
+            self._activePulldownKlass = self.activePulldownClass
             self._activeCheckbox = getattr(self._moduleSettings, LINKTOPULLDOWNCLASS, None)
 
         # don't need a handle to these now,
@@ -241,7 +241,7 @@ class ResidueInformation(CcpnModule):
             self.selectedChain = 'All'
         else:
             self.selectedChain = self.project.getByPid(item)
-            if self._activePulldownClass and self._activeCheckbox and \
+            if self._activePulldownKlass and self._activeCheckbox and \
                     self.selectedChain != self.current.chain and self._activeCheckbox.isChecked():
                 self.current.chain = self.selectedChain
         self._getResidues()
@@ -456,7 +456,7 @@ class _ResidueTable(Table):
                         color: palette(text);
                     }
                     """
-    defaultTableDelegate = _HighlightDelegate
+    TableDelegateClass = _HighlightDelegate
     _disableNewFocus = True  # allow instant click on table
 
     def __init__(self, parent, grid, gridSpan, selectionCallback, actionCallback):

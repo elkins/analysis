@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2025-01-03 18:25:54 +0000 (Fri, January 03, 2025) $"
+__dateModified__ = "$dateModified: 2025-01-09 20:41:21 +0000 (Thu, January 09, 2025) $"
 __version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
@@ -36,6 +36,7 @@ from types import SimpleNamespace
 
 from ccpn.core.lib.ContextManagers import undoBlockWithoutSideBar, catchExceptions
 from ccpn.core.lib.Notifiers import Notifier
+from ccpn.core.lib.WeakRefLib import WeakRefDescriptor
 from ccpn.ui.gui.widgets.Base import Base
 from ccpn.ui.gui.widgets import MessageDialog
 from ccpn.ui.gui.widgets.table.TableABC import TableABC
@@ -88,8 +89,7 @@ class _ProjectTableABC(TableABC, Base):
     _columnStatePrefs = None  # state saved-to/restored-from preferences
     _columnStateLocal = None
     # TableHeaderMenuCoreColumns includes functionality for saving state to preferences
-    TableHeaderMenuKlass = TableHeaderMenuCoreColumns
-    _moduleParent = None
+    TableHeaderMenuClass = TableHeaderMenuCoreColumns
 
     _OBJECT = '_object'
     _ISDELETED = 'isDeleted'
@@ -119,8 +119,15 @@ class _ProjectTableABC(TableABC, Base):
     # set the queue handling parameters
     _maximumQueueLength = 0
     _logQueue = False
-
     _rowHeightScale = 1.0
+
+    # soft-links to external classes
+    moduleParent = WeakRefDescriptor()
+    mainWindow = WeakRefDescriptor()
+    application = WeakRefDescriptor()
+    project = WeakRefDescriptor()
+    current = WeakRefDescriptor()
+    _droppedNotifier = None
 
     def __init__(self, parent, *, df=None,
                  multiSelect=True, selectRows=True,
@@ -199,9 +206,7 @@ class _ProjectTableABC(TableABC, Base):
             # self.application.ui.qtApp.paletteChanged.connect(self._printPalette)
 
         self.moduleParent = moduleParent
-        self._table = None
         self._dataFrameObject = None
-
         self._setTableNotifiers()
 
         self._lastMouseItem = None
@@ -570,7 +575,6 @@ class _ProjectTableABC(TableABC, Base):
     def populateEmptyTable(self):
         """Populate with an empty dataFrame containing the correct column headers.
         """
-        self._dataFrameObject = None
         _df = pd.DataFrame({val: [] for val in self.columnHeaders.values()})
         if self.OBJECTCOLUMN in _df.columns:
             # use the object as the index, object always exists even if isDeleted

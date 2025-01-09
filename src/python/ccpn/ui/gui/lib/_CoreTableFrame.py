@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2025-01-03 18:56:47 +0000 (Fri, January 03, 2025) $"
+__dateModified__ = "$dateModified: 2025-01-09 20:41:16 +0000 (Thu, January 09, 2025) $"
 __version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
@@ -33,6 +33,7 @@ from collections import OrderedDict
 from abc import ABC, abstractmethod
 from ccpn.core.lib.DataFrameObject import DataFrameObject
 from ccpn.core.lib.Notifiers import Notifier
+from ccpn.core.lib.WeakRefLib import WeakRefDescriptor
 from ccpn.ui.gui.widgets.Spacer import Spacer
 from ccpn.ui.gui.widgets.Frame import Frame
 from ccpn.ui.gui.widgets.table.TableABC import _TableABCMeta
@@ -64,6 +65,7 @@ class _CoreTableWidgetABC(_ProjectTableABC, ABC, metaclass=_CoreTableWidgetMeta)
     _enableDelete = True
     _enableExport = True
     _enableCopyCell = True
+    _table = WeakRefDescriptor()
 
     def __init__(self, parent, *,
                  showHorizontalHeader=True, showVerticalHeader=False,
@@ -402,8 +404,17 @@ class _CoreTableFrameABC(Frame, ABC, metaclass=_CoreTableFrameABCMeta):
     """
     _TableKlass = _CoreTableWidgetABC
     _PulldownKlass = None
-    _activePulldownClass = None
+    # this is not a subclassed attribute (i.e. from activePulldownClass which is defined at module-level)
+    _activePulldownKlass = None
     _activeCheckbox = None
+
+    # soft-links to external classes
+    _table = WeakRefDescriptor()
+    mainWindow = WeakRefDescriptor()
+    application = WeakRefDescriptor()
+    project = WeakRefDescriptor()
+    current = WeakRefDescriptor()
+    moduleParent = WeakRefDescriptor()
 
     def __init__(self, parent, mainWindow=None, moduleParent=None,
                  obj=None, selectFirstItem=False, **kwds):
@@ -477,7 +488,7 @@ class _CoreTableFrameABC(Frame, ABC, metaclass=_CoreTableFrameABCMeta):
     def setActivePulldownClass(self, coreClass, checkBox):
         """Set up the callback properties for changing the current object from the pulldown
         """
-        self._activePulldownClass = coreClass
+        self._activePulldownKlass = coreClass
         self._activeCheckbox = checkBox
 
     #-----------------------------------------------------------------------------------------
@@ -586,13 +597,13 @@ class _CoreTableFrameABC(Frame, ABC, metaclass=_CoreTableFrameABCMeta):
         self._tableWidget._update()
 
         # update the current object from the pulldown
-        if self._activePulldownClass and self._activeCheckbox and _table != self._tableCurrent and self._activeCheckbox.isChecked():
+        if self._activePulldownKlass and self._activeCheckbox and _table != self._tableCurrent and self._activeCheckbox.isChecked():
             self._tableCurrent = _table
 
     def _selectCurrentPulldownClass(self, data):
-        """Respond to change in current activePulldownClass
+        """Respond to change in current _activePulldownKlass
         """
-        if self._activePulldownClass and self._activeCheckbox and self._activeCheckbox.isChecked():
+        if self._activePulldownKlass and self._activeCheckbox and self._activeCheckbox.isChecked():
             _table = self._tableWidget._table = self._tableCurrent
             self._tableWidget._update()
             if _table:
