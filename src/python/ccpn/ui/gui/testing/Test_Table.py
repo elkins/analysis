@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2025-01-09 13:52:33 +0000 (Thu, January 09, 2025) $"
+__dateModified__ = "$dateModified: 2025-01-09 20:33:18 +0000 (Thu, January 09, 2025) $"
 __version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
@@ -169,3 +169,49 @@ if __name__ == '__main__':
     """Call the test function
     """
     maintable()
+
+
+def maintablemodel():
+    # Create a Pandas DataFrame.
+    import pandas as pd
+
+    technologies = {
+        'Courses': ['a', 'b', 'b', 'c', 'd', 'c', 'a', 'b', 'd', 'd', 'a', 'c', 'e', 'f'],
+        'Fee'    : [1, 8, 3, 6, 12, 89, 12, 5, 9, 34, 15, 65, 60, 20],
+        }
+    df = pd.DataFrame(technologies)
+    print(df)
+
+    # print('Group by: Courses, Fee')
+    # df2=df.sort_values(['Courses','Fee'], ascending=False).groupby('Courses').head()
+    # print(df2)
+
+    print('Group by: Courses, Fee  -  max->min by max of each group')
+    # max->min by max of each group
+    df2 = df.copy()
+    df2['max'] = df2.groupby('Courses')['Fee'].transform('max')
+    df2 = df2.sort_values(['max', 'Fee'], ascending=False).drop('max', axis=1)
+    print(df2)
+
+    print('Group by: Courses, Fee  -  min->max by min of each group')
+    # min->max by min of each group
+    df2 = df.copy()
+    df2['min'] = df2.groupby('Courses')['Fee'].transform('min')
+    df2 = df2.sort_values(['min', 'Fee'], ascending=True).drop('min', axis=1)
+    print(df2)
+
+    print('Group by: Courses, Fee  -  min->max of each group / max->min within group')
+    # min->max of each group / max->min within group
+    df2 = df.copy()
+    df2['max'] = df2.groupby('Courses')['Fee'].transform('max')
+    df2['diff'] = df2['max'] - df2['Fee']
+    df2 = df2.sort_values(['max', 'diff'], ascending=True)  # .drop(['max', 'diff'], axis=1)
+    print(df2)
+
+    print('Group by: Courses, Fee  -  max->min of each group / min->max within group')
+    # max->min of each group / min->max within group
+    df2 = df.copy()
+    df2['min'] = df2.groupby('Courses')['Fee'].transform('min')
+    df2['diff'] = df2['min'] - df2['Fee']
+    df2 = df2.sort_values(['min', 'diff'], ascending=False).drop(['min', 'diff'], axis=1)
+    print(df2)

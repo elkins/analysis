@@ -4,7 +4,7 @@ Module Documentation here
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2025"
 __credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
                "Timothy J Ragan, Brian O Smith, Daniel Thompson",
                "Gary S Thompson & Geerten W Vuister")
@@ -16,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-11-12 13:22:30 +0000 (Tue, November 12, 2024) $"
-__version__ = "$Revision: 3.2.10 $"
+__dateModified__ = "$dateModified: 2025-01-09 20:33:19 +0000 (Thu, January 09, 2025) $"
+__version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -31,9 +31,8 @@ import numpy as np
 import pandas as pd
 from pandas.api.types import is_float_dtype
 from PyQt5 import QtCore, QtGui
-from ccpn.util.floatUtils import numZeros
 from ccpn.core.lib.CcpnSorting import universalSortKey
-# from ccpn.ui.gui.guiSettings import getColours, GUITABLE_ITEM_FOREGROUND
+from ccpn.core.lib.WeakRefLib import WeakRefDescriptor
 from ccpn.ui.gui.widgets.Icon import Icon
 from ccpn.ui.gui.widgets.table._TableCommon import (
     EDIT_ROLE, DISPLAY_ROLE, TOOLTIP_ROLE,
@@ -41,6 +40,7 @@ from ccpn.ui.gui.widgets.table._TableCommon import (
     ALIGNMENT_ROLE, FONT_ROLE, CHECKABLE, ENABLED, SELECTABLE, EDITABLE, CHECKED,
     UNCHECKED, VALUE_ROLE, INDEX_ROLE, BORDER_ROLE, ORIENTATIONS
     )
+from ccpn.util.floatUtils import numZeros
 from ccpn.util.Logging import getLogger
 
 
@@ -174,6 +174,7 @@ class _TableModel(QtCore.QAbstractTableModel):
     _enableCheckBoxes = False
 
     _guiState = None
+    _view = WeakRefDescriptor()
 
     #-----------------------------------------------------------------------------------------
     # Attribute handling
@@ -215,9 +216,6 @@ class _TableModel(QtCore.QAbstractTableModel):
             self._chrWidth = bbox(test).width() / len(test)
             self._chrHeight = bbox('A').height() + self._chrPixelPadding
 
-        # set default colours
-        # self._defaultForegroundColour = QtGui.QColor(getColours()[GUITABLE_ITEM_FOREGROUND])
-
         # initialise sorting/filtering
         self._sortColumn = None
         self._sortOrder = None
@@ -248,9 +246,8 @@ class _TableModel(QtCore.QAbstractTableModel):
 
         # create numpy arrays to match the data that will hold fore/background-colour, and other info
         self._guiState = np.full(value.shape, None, dtype=object)
-        self._headerToolTips = {orient: np.empty(value.shape[ii], dtype=object)
+        self._headerToolTips = {orient: np.empty(value.shape[ii], dtype=str)
                                 for ii, orient in enumerate([QtCore.Qt.Vertical, QtCore.Qt.Horizontal])}
-
         # set the dataFrame
         self._df = value
 
@@ -317,7 +314,7 @@ class _TableModel(QtCore.QAbstractTableModel):
             raise ValueError('values must be a list|tuple of str|None')
 
         try:
-            self._headerToolTips[orientation] = values
+            self._headerToolTips[orientation] = np.array(values, dtype=str)  # values
 
         except Exception as es:
             raise ValueError(f'{self.__class__.__name__}.setToolTips: '
@@ -834,57 +831,3 @@ class _TableObjectModel(_TableModel):
                 return True
 
         return False
-
-
-#=========================================================================================
-# main
-#=========================================================================================
-
-def main():
-    # Create a Pandas DataFrame.
-    import pandas as pd
-
-    technologies = {
-        'Courses': ['a', 'b', 'b', 'c', 'd', 'c', 'a', 'b', 'd', 'd', 'a', 'c', 'e', 'f'],
-        'Fee'    : [1, 8, 3, 6, 12, 89, 12, 5, 9, 34, 15, 65, 60, 20],
-        }
-    df = pd.DataFrame(technologies)
-    print(df)
-
-    # print('Group by: Courses, Fee')
-    # df2=df.sort_values(['Courses','Fee'], ascending=False).groupby('Courses').head()
-    # print(df2)
-
-    print('Group by: Courses, Fee  -  max->min by max of each group')
-    # max->min by max of each group
-    df2 = df.copy()
-    df2['max'] = df2.groupby('Courses')['Fee'].transform('max')
-    df2 = df2.sort_values(['max', 'Fee'], ascending=False).drop('max', axis=1)
-    print(df2)
-
-    print('Group by: Courses, Fee  -  min->max by min of each group')
-    # min->max by min of each group
-    df2 = df.copy()
-    df2['min'] = df2.groupby('Courses')['Fee'].transform('min')
-    df2 = df2.sort_values(['min', 'Fee'], ascending=True).drop('min', axis=1)
-    print(df2)
-
-    print('Group by: Courses, Fee  -  min->max of each group / max->min within group')
-    # min->max of each group / max->min within group
-    df2 = df.copy()
-    df2['max'] = df2.groupby('Courses')['Fee'].transform('max')
-    df2['diff'] = df2['max'] - df2['Fee']
-    df2 = df2.sort_values(['max', 'diff'], ascending=True)  # .drop(['max', 'diff'], axis=1)
-    print(df2)
-
-    print('Group by: Courses, Fee  -  max->min of each group / min->max within group')
-    # max->min of each group / min->max within group
-    df2 = df.copy()
-    df2['min'] = df2.groupby('Courses')['Fee'].transform('min')
-    df2['diff'] = df2['min'] - df2['Fee']
-    df2 = df2.sort_values(['min', 'diff'], ascending=False).drop(['min', 'diff'], axis=1)
-    print(df2)
-
-
-if __name__ == '__main__':
-    main()
