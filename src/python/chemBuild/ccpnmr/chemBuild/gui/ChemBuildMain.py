@@ -38,6 +38,8 @@ from ccpnmr.chemBuild.exchange.Mol2 import makeMol2, importMol2
 from ccpnmr.chemBuild.exchange.MolFile import makeMolFileV2000, importMolFileV2000
 from ccpnmr.chemBuild.exchange.Pdb  import makePdb,  importPdb
 from ccpnmr.chemBuild.exchange.Smiles import importSmiles
+from ccpnmr.chemBuild.exchange.MMCIF  import importMmCif
+
 # from ccpnmr.chemBuild.exchange.Inchi import makeInchi, importInchi
 
 Qt = QtCore.Qt
@@ -103,6 +105,8 @@ class ChemBuildMain(QtWidgets.QMainWindow):
     importMenu.addItem('MDL Molfile (v2000)', self.importMolFileV2000)
     importMenu.addItem('Mol2 (SYBYL2) file', self.importMol2)
     importMenu.addItem('PDB file', self.importPdb)
+    importMenu.addItem('CIF file', self.importMmCif)
+
     # importMenu.addItem('InChI file', self.importInchi)
     
     exportMenu.addItem('CCPN ChemComp XML file', self.exportChemComp)
@@ -438,17 +442,27 @@ class ChemBuildMain(QtWidgets.QMainWindow):
                                tipText='Removes the current variant form from the compound definition',
                                grid=(1,0))
 
-    columns = [Column('Polymer', self.getColPoly,
-               tipText='Relative position in biopolymer chain'),
-               Column('Protons', self.getColProton,
-               tipText='Protonation state of variant'),
-               Column('Default?', self.getColDefault, setEditValue=self.setColDefault,
-               tipText='Whether the variant is a default form (for its biopolymer linking)'),
-               Column('Links', self.getColLink,
-               tipText='Other residue links in the variant'),
-               Column('Stereo', self.getColStereo,
-               tipText='Stereochemistry that distinguishes variants')]
-    
+    columns = [
+      Column('ID', self.getId,
+             tipText='Unique identifier for the variant'),
+    Column('Type', self.getType,
+           tipText='Type of the chemical component'),
+      Column('One Letter Code', self.getOneLetterCode,
+             tipText='One-letter code for the amino acid (if applicable)'),
+      Column('Three Letter Code', self.getThreeLetterCode,
+             tipText='Three-letter code for the amino acid or residue'),
+      Column('Polymer', self.getColPoly,
+             tipText='Relative position in biopolymer chain'),
+      Column('Protons', self.getColProton,
+             tipText='Protonation state of variant'),
+      Column('Default?', self.getColDefault, setEditValue=self.setColDefault,
+             tipText='Whether the variant is a default form (for its biopolymer linking)'),
+      Column('Links', self.getColLink,
+             tipText='Other residue links in the variant'),
+      Column('Stereo', self.getColStereo,
+             tipText='Stereochemistry that distinguishes variants')
+      ]
+
     self.varTable = ObjectTable(frame, columns, [], callback=self.selectVar, grid=(2,0))
     
 
@@ -606,6 +620,24 @@ class ChemBuildMain(QtWidgets.QMainWindow):
   def getColStereo(self, obj):
   
     return obj.descriptor[2]
+
+  def getId(self, obj):
+    return obj._id
+
+  def getType(self, obj):
+    return obj._type
+
+  def getFormula(self, obj):
+    return obj._formula
+
+  def getOneLetterCode(self, obj):
+    return obj._one_letter_code
+
+  def getThreeLetterCode(self, obj):
+    return obj._three_letter_code
+
+  def getPdbxProcessingSite(self, obj):
+    return obj._pdbx_processing_site
   
   def addSmiles(self):
   
@@ -831,6 +863,9 @@ class ChemBuildMain(QtWidgets.QMainWindow):
       tryFuncs = [self.loadCompound, self.importMol2,
                   self.importMolFileV2000, self.importPdb,
                   self.importChemComp]
+    elif filePath.endswith('.cif'):
+      tryFuncs = [self.importMmCif]
+
     elif filePath.endswith('.mol2'):
       tryFuncs = [self.importMol2, self.importMolFileV2000, 
                   self.importPdb, self.importChemComp,
@@ -880,7 +915,8 @@ class ChemBuildMain(QtWidgets.QMainWindow):
                 n = self.compoundView.autoBond()
         
         break
-      except:
+      except Exception as err:
+        print(f'Error parsing file in function {func}. {err}')
         continue
         
     else:
@@ -966,6 +1002,24 @@ class ChemBuildMain(QtWidgets.QMainWindow):
       compound = importPdb(filePath)
       self.setCompound(compound, replace)
       
+      return compound
+
+  def importMmCif(self, filePath=None, replace=True):
+    if not filePath:
+      if not self.askSave('Importing compound: '):
+        return
+
+      fType = 'MMCIF (*.cif)'
+      dialog = QtWidgets.QFileDialog
+      msg = 'Select MMCIF file'
+      filePath, filtr = dialog.getOpenFileName(self, msg, directory=self.userDir, filter=fType)
+
+    if filePath:
+      dirName, fileName = path.split(filePath)
+      self.userDir = dirName
+      compound = importMmCif(filePath)
+      self.setCompound(compound, replace)
+      self.minimise()
       return compound
 
   # def importInchi(self, filePath=None, replace=True):
