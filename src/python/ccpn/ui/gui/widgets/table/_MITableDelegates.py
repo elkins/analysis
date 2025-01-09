@@ -4,7 +4,7 @@ Module Documentation here
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2025"
 __credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
                "Timothy J Ragan, Brian O Smith, Daniel Thompson",
                "Gary S Thompson & Geerten W Vuister")
@@ -16,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-09-13 15:20:23 +0100 (Fri, September 13, 2024) $"
-__version__ = "$Revision: 3.2.7 $"
+__dateModified__ = "$dateModified: 2025-01-09 20:37:58 +0000 (Thu, January 09, 2025) $"
+__version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -30,6 +30,7 @@ __date__ = "$Date: 2023-01-18 15:25:31 +0100 (Wed, January 18, 2023) $"
 from PyQt5 import QtWidgets, QtCore, QtGui
 from PyQt5.QtCore import Qt
 
+from ccpn.core.lib.WeakRefLib import WeakRefDescriptor
 from ccpn.ui.gui.widgets.Icon import Icon
 from ccpn.ui.gui.widgets.table._TableCommon import EDIT_ROLE, BORDER_ROLE, _EDITOR_SETTER, _EDITOR_GETTER
 from ccpn.util.Logging import getLogger
@@ -54,6 +55,7 @@ class _ExpandDelegateABC(QtWidgets.QStyledItemDelegate):
 
     _focusBorderWidth = 1
     _focusPen = None
+    _table = WeakRefDescriptor()
 
     def __init__(self, parent, *, table=None, focusBorderWidth=1):
         """Initialise the class.
@@ -68,7 +70,6 @@ class _ExpandDelegateABC(QtWidgets.QStyledItemDelegate):
         """
         super().__init__(parent)
 
-        self._parent = parent
         self._table = table
         self._mousePress = False
         self._expandedSections = {}
@@ -83,6 +84,11 @@ class _ExpandDelegateABC(QtWidgets.QStyledItemDelegate):
         self._focusBorderWidth = focusBorderWidth
         self._focusPen.setWidthF(focusBorderWidth * 2.0)
         self._focusPen.setJoinStyle(QtCore.Qt.MiterJoin)  # square ends
+
+    @property
+    def _parent(self):
+        # typically this a QTableView
+        return self.parent()
 
     def editorEvent(self, event, model, option, index):
         """Handle clicking the icon.
@@ -556,6 +562,7 @@ class _SortDelegate(QtWidgets.QStyledItemDelegate):
     _SORTICONSIZE = 12
     _HBORDER = 4
     _VBORDER = 4
+    _table = WeakRefDescriptor()
 
     def __init__(self, parent, *, table=None, editable=True):
         """Initialise the class.
@@ -569,7 +576,6 @@ class _SortDelegate(QtWidgets.QStyledItemDelegate):
         super().__init__(parent)
 
         self._table = table
-        self._parent = parent
         self._mousePress = False
         self._sortedColumns = {}
         self._editable = editable
@@ -577,6 +583,11 @@ class _SortDelegate(QtWidgets.QStyledItemDelegate):
         self._downIcon = Icon('icons/caret-grey-down')
         self._upIcon = Icon('icons/caret-grey-up')
         self._editableIcon = Icon('icons/editable')
+
+    @property
+    def _parent(self):
+        # typically this a QTableView
+        return self.parent()
 
     def paint(self, painter, option, index):
         """Paint the contents of the cell.
@@ -681,6 +692,7 @@ class _EditableDelegate(QtWidgets.QStyledItemDelegate):
     _EDITICONSIZE = 24
     _HBORDER = 4
     _VBORDER = 4
+    _table = WeakRefDescriptor()
 
     def __init__(self, parent, *, table=None, editable=True):
         """Initialise the class.
@@ -694,9 +706,13 @@ class _EditableDelegate(QtWidgets.QStyledItemDelegate):
         super().__init__(parent)
 
         self._table = table
-        self._parent = parent
         self._editable = editable
         self._editableIcon = Icon('icons/editable')
+
+    @property
+    def _parent(self):
+        # typically this a QTableView
+        return self.parent()
 
     def paint(self, painter, option, index):
         """Paint the contents of the cell.
@@ -732,6 +748,7 @@ class _ColourDelegate(QtWidgets.QStyledItemDelegate):
     """
     _focusBorderWidth = 1
     _focusPen = None
+    _table = WeakRefDescriptor()
 
     def __init__(self, parent, *, table=None, focusBorderWidth=1):
         """Initialise the class.
@@ -746,15 +763,17 @@ class _ColourDelegate(QtWidgets.QStyledItemDelegate):
         super().__init__(parent)
 
         self._table = table
-        self._parent = parent
-
         # set the colours
         self._focusPen = QtGui.QPen(QtGui.QPalette().highlight().color(), 2)
-
         # double the line-widths accounts for the device-pixel-ratio
         self._focusBorderWidth = focusBorderWidth
         self._focusPen.setWidthF(focusBorderWidth * 2.0)
         self._focusPen.setJoinStyle(QtCore.Qt.MiterJoin)  # square ends
+
+    @property
+    def _parent(self):
+        # typically this a QTableView
+        return self.parent()
 
     def paint(self, painter, option, index):
         """Paint the contents of the cell.
@@ -837,12 +856,14 @@ class _TableEditorDelegate(QtWidgets.QStyledItemDelegate):
         """Initialise the delegate
         :param parent - link to the handling table
         """
-        super().__init__(self, parent)
-
-        # self.customWidget = None
-        self._parent = parent
+        super().__init__(parent)
 
         self._objectColumn = objectColumn
+
+    @property
+    def _parent(self):
+        # typically this a QTableView
+        return self.parent()
 
     def createEditor(self, parentWidget, itemStyle, index):  # returns the edit widget
         """Create the editor widget
