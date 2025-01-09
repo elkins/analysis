@@ -1,6 +1,9 @@
 """
 Module Documentation here
 """
+from __future__ import annotations
+
+
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
@@ -16,7 +19,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2025-01-03 17:12:13 +0000 (Fri, January 03, 2025) $"
+__dateModified__ = "$dateModified: 2025-01-09 14:17:01 +0000 (Thu, January 09, 2025) $"
 __version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
@@ -32,7 +35,7 @@ import weakref
 from contextlib import suppress
 from dataclasses import Field
 from reprlib import recursive_repr
-from typing import Any, Callable, TypeVar, Protocol
+from typing import Any, Callable, Protocol, Type
 
 
 _DEBUG = False
@@ -53,10 +56,11 @@ class _consoleStyle():
     class fg:
         darkred = '\033[31m'
         darkyellow = '\033[33m'
+        lightgrey = '\033[37m'
         red = '\033[91m'
         green = '\033[92m'
-        lightgrey = '\033[37m'
         yellow = '\033[93m'
+        blue = '\033[94m'
         magenta = '\033[95m'
         white = '\033[97m'
 
@@ -65,23 +69,18 @@ class _consoleStyle():
 # WeakRefDescriptor
 #=========================================================================================
 
-from PyQt5.QtCore import pyqtSignal as Signal, QObject
-
-
-class WeakRefDescriptor(QObject):
+class WeakRefDescriptor:
     """
     A descriptor that stores values as weak references tied to specific instances.
 
     This allows attributes to reference objects without preventing their garbage collection.
     When the referenced object is collected, the corresponding entry is automatically removed.
     """
-    # __slots__ = "_storage", "_attrName", "_connected", "__weakref__"
+    __slots__ = "_storage", "_attrName", "_connected", "_observers", "__weakref__"
     _storage: weakref.WeakValueDictionary[int, Any]
     _attrName: str
     _connected: bool
-
-    # Define a signal that will be emitted when a weak reference is set to None
-    _weakrefCollected: Signal = Signal(str)
+    _observers: dict[int, list[WeakRefPartial]]
 
     def __init__(self) -> None:
         """
@@ -91,11 +90,12 @@ class WeakRefDescriptor(QObject):
         # A WeakValueDictionary to store weak references keyed by instance IDs.
         self._storage: weakref.WeakValueDictionary[int, Any] = weakref.WeakValueDictionary()
         self._connected: bool = False
+        self._observers: dict[int, list[WeakRefPartial]] = {}
 
     def __set_name__(self, owner, name):
         """
         Store the name of the attribute this descriptor is assigned to.
-        Can be used for returning  the name when an instance has been garbage-collected.
+        Can be used to return the name when an instance has been garbage-collected.
         """
         if _DEBUG:
             print(f'{_consoleStyle.fg.magenta}--> {self.__class__.__name__}.__set_name__ {hex(id(owner))} {name}'
@@ -135,11 +135,13 @@ class WeakRefDescriptor(QObject):
         if value is not None:
             # Store the value as a weak-reference associated with the instance ID.
             self._storage[id(instance)] = value
-            # Register a callback to emit the trait change when the object is collected
-            weakref.finalize(value, self._onWeakrefCollected, id(instance))
+            # Register a callback to notify when the object is garbage-collected
+            weakref.finalize(value, WeakRefDescriptor._onWeakrefCollected,
+                             weakref.ref(self), id(instance), id(value))
         else:
             # Remove the entry if the value is None.
             self._storage.pop(id(instance), None)
+            self._observers.pop(id(instance), None)
 
     def __delete__(self, instance: Any) -> None:
         """
@@ -147,32 +149,132 @@ class WeakRefDescriptor(QObject):
 
         :param instance: The instance for which the value is being deleted.
         """
+        if _DEBUG:
+            print(f'{_consoleStyle.fg.lightgrey}--> {self.__class__.__name__}.__delete__  -->  {hex(id(instance))} '
+                  f'{_consoleStyle.reset}')
         self._storage.pop(id(instance), None)
+        self._observers.pop(id(instance), None)
 
-    def _onWeakrefCollected(self, _instanceId: int) -> None:
+    @staticmethod
+    def _onWeakrefCollected(selfref: weakref.ref, _instanceId: int, owner: int) -> None:
         """
         Callback function that is called when a weak-referenced object is collected.
 
         :param _instanceId: The ID of the instance whose weak reference was collected.
         """
+        if not (self := selfref()):
+            return
         if _DEBUG:
             print(f'{_consoleStyle.fg.yellow}--> Weak reference collected for instance ID '
-                  f'{_instanceId}{self}{_consoleStyle.reset}')
-        self._weakrefCollected.emit(self._attrName)
+                  f'{hex(_instanceId)} {self} {hex(owner)}{_consoleStyle.reset}')
+        # emit instance-based signals
+        for observe in self._observers.get(_instanceId, []):
+            observe()
+        # emit class-based signals with instance-id of weakRefDescriptor container
+        for observe in self._observers.get(-1, []):
+            observe(_instanceId)
 
     #-----------------------------------------------------------------------------------------
     # public
 
-    def connect(self, handler):
-        if not self._connected:
-            self._connected = True
-            return self._weakrefCollected.connect(handler)
+    def connect(self, observer: Callable[..., Any], instance: object | None = None) -> None:
+        """
+        Connect an observer to the signal.
 
-    def disconnect(self):
-        if self._connected:
-            with suppress(AttributeError):
-                self._weakrefCollected.disconnect()
+        This method adds the provided observer function to the list of observers
+        that will be notified when the signal is emitted.
 
+        :param observer: The observer function that will be called when the signal is emitted.
+        :param instance: The instance for which the value is being set.
+        """
+        if not callable(observer):
+            raise TypeError(f'{self.__class__.__name__}.connect: observer must be Callable')
+        if instance:
+            if id(instance) not in self._storage.keys():
+                raise TypeError(f'{self.__class__.__name__}.connect: instance {instance} is not defined')
+            # instance-based signal
+            _id = id(instance)
+        else:
+            # class-based signal
+            _id = -1
+        dd = self._observers.setdefault(_id, [])
+        if any(func._func_ref() is observer for func in dd):
+            raise TypeError(f'{self.__class__.__name__}.connect: observer already exists')
+        dd.append(WeakRefPartial(observer))
+
+    def disconnect(self, observer: Callable[..., Any], instance: object | None = None) -> None:
+        """
+        Disconnect an observer from the signal for a specific instance.
+
+        :param observer: The observer function to be removed from the list of observers.
+        :param instance: The instance for which the observer is being disconnected.
+        """
+        if not callable(observer):
+            raise TypeError(f'{self.__class__.__name__}.disconnect: observer must be Callable')
+        if instance:
+            if id(instance) not in self._observers:
+                raise TypeError(f'{self.__class__.__name__}.disconnect: {instance} has no connected observers')
+            # instance-based signal
+            _id = id(instance)
+        else:
+            # class-based signal
+            _id = -1
+        observers_list = self._observers.get(_id, [])
+        if not any(func._func_ref() is observer for func in observers_list):
+            raise TypeError(f'{self.__class__.__name__}.disconnect: observer {observer} not found')
+        # Remove the observer if it exists, keep the same list-pointer
+        observers_list[:] = list(filter(lambda func: func._func_ref() is not observer, observers_list))
+
+    def isConnected(self, observer: Callable[..., Any], instance: object | None = None) -> bool:
+        """
+        Check if the requested observer is connected to the signal.
+
+        :param observer: The observer function that will be called when the signal is emitted.
+        :param instance: The instance for which the value is being checked.
+        :return: True if the observer is connected; otherwise, False.
+        """
+        if instance:
+            if id(instance) not in self._storage.keys():
+                return False
+            # instance-based signal
+            _id = id(instance)
+        else:
+            # class-based signal
+            _id = -1
+        dd = self._observers.setdefault(_id, [])
+        return any(func._func_ref() is observer for func in dd)
+
+    def getObservers(self, instance: object | None = None) -> list[Callable[..., Any]]:
+        """
+        Retrieve a list of observers connected to the signal.
+
+        :param instance: The instance for which the observers are being retrieved.
+        :return: A list of observer functions.
+        """
+        if instance:
+            if id(instance) not in self._storage.keys():
+                return []
+            # instance-based observers
+            _id = id(instance)
+        else:
+            # class-based observers
+            _id = -1
+        dd = self._observers.get(_id, [])
+        return [func._func_ref() for func in dd if func._func_ref() is not None]
+
+    def hasObservers(self, instance: object | None = None) -> bool:
+        """
+        Check if any observers are connected to the signal.
+
+        :param instance: The instance for which the value is being checked.
+        :return: True if there are any observers; otherwise, False.
+        """
+        return bool(self.getObservers(instance))
+
+
+#=========================================================================================
+# _WeakRefDataClassMeta
+#=========================================================================================
 
 class _WeakRefDataClassMeta(type):
     """
@@ -213,10 +315,6 @@ class _WeakRefDataClassMeta(type):
 #=========================================================================================
 # WeakRefPartial
 #=========================================================================================
-
-WeakRefPartialType = TypeVar("WeakRefPartialType", bound=Callable)
-WeakRefProxyPartialType = TypeVar("WeakRefProxyPartialType", bound=Callable)
-
 
 class PartialLike(Protocol):
     args: tuple
@@ -274,7 +372,7 @@ class WeakRefPartial:
     __slots__ = "_func_ref", "args", "keywords", "__id", "__dict__", "__weakref__"
 
     def __new__(cls, func: Callable[..., Any] | PartialLike, /,
-                *args: Any, **keywords: Any) -> WeakRefPartialType:
+                *args: Any, **keywords: Any) -> WeakRefPartial:
         """
         Initialize a new partial object.
 
@@ -457,7 +555,7 @@ class WeakRefProxyPartial:
     __slots__ = "_func_ref", "args", "keywords", "__id", "__dict__", "__weakref__"
 
     def __new__(cls, func: Callable[..., Any] | PartialLike, /,
-                *args: Any, **keywords: Any) -> WeakRefProxyPartialType:
+                *args: Any, **keywords: Any) -> WeakRefProxyPartial:
         """
         Initialize a new partial object.
 
@@ -763,7 +861,6 @@ class OrderedWeakKeyDictionary(collections.OrderedDict):
         to be checked before being used.  This can be used to avoid
         creating references that will cause the garbage collector to
         keep the keys around longer than needed.
-
         """
         return list(super().keys())
 

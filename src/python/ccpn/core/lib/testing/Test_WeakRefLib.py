@@ -4,7 +4,7 @@ Module Documentation here
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2025"
 __credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
                "Timothy J Ragan, Brian O Smith, Daniel Thompson",
                "Gary S Thompson & Geerten W Vuister")
@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-12-20 11:02:49 +0000 (Fri, December 20, 2024) $"
+__dateModified__ = "$dateModified: 2025-01-09 14:17:01 +0000 (Thu, January 09, 2025) $"
 __version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
@@ -379,6 +379,10 @@ def _picklePartial3(info: str = None):
     return info
 
 
+#=========================================================================================
+# TestOrderedWeakKeyDictionaryPickle
+#=========================================================================================
+
 class TestOrderedWeakKeyDictionaryPickle(unittest.TestCase):
 
     def _picklePartial1(info: str = None):
@@ -473,6 +477,10 @@ class TestOrderedWeakKeyDictionaryPickle(unittest.TestCase):
             print(f'{key}: {self.dictionary[key]}   {self.dictionary[key]()}')
 
 
+#=========================================================================================
+# TestWeakRefDescriptor
+#=========================================================================================
+
 class TestWeakRefDescriptor(unittest.TestCase):
 
     def test_descriptor(info: str = None):
@@ -512,9 +520,7 @@ class TestWeakRefDescriptor(unittest.TestCase):
         del obj1
         del obj2
 
-        # Garbage collection will remove k1
-        import gc
-
+        # Garbage collection
         gc.collect()
 
         # The weak-references should be removed from the dictionary
@@ -523,6 +529,8 @@ class TestWeakRefDescriptor(unittest.TestCase):
 
         # Example usage
         class SomeClass:
+            attrib: WeakRefDescriptor = WeakRefDescriptor()
+
             def __init__(self, value):
                 self._value = value
 
@@ -568,5 +576,259 @@ class TestWeakRefDescriptor(unittest.TestCase):
         print(data2)
 
 
-if __name__ == '__main__':
+#=========================================================================================
+# TestWeakRefDescriptorConnect
+#=========================================================================================
+
+class TestWeakRefDescriptorConnect(unittest.TestCase):
+    class MyClass:
+        pass
+
+
+    def setUp(self):
+        """Set up a test class with WeakRefDescriptor."""
+
+
+        class TestClass:
+            attrib = WeakRefDescriptor()
+
+
+        self.testClassType = TestClass
+        self.instance = TestClass()
+
+        self.small = self.MyClass()
+
+    def test_connect_instance_observer(self):
+        """Test connecting an observer to an instance."""
+
+        def observer():
+            print("Observer called")
+
+        self.testClassType.attrib.__set__(self.instance, self.small)
+        self.testClassType.attrib.connect(observer, instance=self.instance)
+        self.assertIn(
+                observer,
+                [obs._func_ref() for obs in self.testClassType.attrib._observers[id(self.instance)]],
+                )
+
+    def test_connect_class_observer(self):
+        """Test connecting an observer to the class."""
+
+        def observer(instance_id):
+            print(f"Observer called for instance: {instance_id}")
+
+        self.testClassType.attrib.connect(observer)
+        self.assertIn(
+                observer,
+                [obs._func_ref() for obs in self.testClassType.attrib._observers[-1]],
+                )
+
+    def test_duplicate_connect(self):
+        """Test that connecting the same observer twice raises an error."""
+
+        def observer():
+            print("Observer called")
+
+        self.testClassType.attrib.__set__(self.instance, self.small)
+        self.testClassType.attrib.connect(observer, instance=self.instance)
+        with self.assertRaises(TypeError):
+            self.testClassType.attrib.connect(observer, instance=self.instance)
+
+    def test_disconnect_instance_observer(self):
+        """Test disconnecting an observer from an instance."""
+
+        def observer():
+            print("Observer called")
+
+        self.testClassType.attrib.__set__(self.instance, self.small)
+        self.testClassType.attrib.connect(observer, instance=self.instance)
+        self.testClassType.attrib.disconnect(observer, instance=self.instance)
+        self.assertNotIn(
+                observer,
+                [obs._func_ref() for obs in self.testClassType.attrib._observers.get(id(self.instance), [])],
+                )
+
+    def test_disconnect_class_observer(self):
+        """Test disconnecting an observer from the class."""
+
+        def observer(instance_id):
+            print(f"Observer called for instance: {instance_id}")
+
+        self.testClassType.attrib.connect(observer)
+        self.testClassType.attrib.disconnect(observer)
+        self.assertNotIn(
+                observer,
+                [obs._func_ref() for obs in self.testClassType.attrib._observers.get(-1, [])],
+                )
+
+    def test_disconnect_nonexistent_observer(self):
+        """Test that disconnecting a nonexistent observer raises an error."""
+
+        def observer():
+            print("Observer called")
+
+        with self.assertRaises(TypeError):
+            self.testClassType.attrib.disconnect(observer, instance=self.instance)
+
+    def test_connect_non_callable(self):
+        """Test that connecting a non-callable observer raises an error."""
+        self.testClassType.attrib.__set__(self.instance, self.small)
+        with self.assertRaises(TypeError):
+            self.testClassType.attrib.connect(42, instance=self.instance)
+
+    def test_disconnect_non_callable(self):
+        """Test that disconnecting a non-callable observer raises an error."""
+        with self.assertRaises(TypeError):
+            self.testClassType.attrib.disconnect(42, instance=self.instance)
+
+    def test_garbage_collected_instance(self):
+        """Test that observers are notified when a weak-referenced object is garbage collected."""
+        collected = []
+
+        def observer():
+            collected.append(True)
+
+        obj = self.MyClass()
+        self.testClassType.attrib.__set__(self.instance, obj)
+        self.testClassType.attrib.connect(observer, instance=self.instance)
+
+        del obj
+        weakref.finalize(self.testClassType.attrib, lambda: None)  # Trigger garbage collection
+
+        self.assertTrue(collected)
+
+
+#=========================================================================================
+# TestWeakRefDescriptorIsConnected
+#=========================================================================================
+
+def observer():
+    print("observer called")
+
+
+def another_observer():
+    print("another_observer called")
+
+
+class TestWeakRefDescriptorIsConnected(unittest.TestCase):
+    """
+    Unit tests for the WeakRefDescriptor class.
+
+    These tests validate the behaviour of observer-related methods, including connecting,
+    disconnecting, and querying observers for both instance-level and class-level signals.
+    """
+
+
+    class MyClass:
+        pass
+
+
+    def setUp(self):
+        """
+        Set up test environment by creating a mock class with a WeakRefDescriptor attribute.
+        """
+
+
+        class SomeClass:
+            attrib = WeakRefDescriptor()
+
+
+        self.thing = self.MyClass()
+        self.someClassType = SomeClass
+        self.instance = SomeClass()
+        self.observer = observer
+        self.another_observer = another_observer
+        self.someClassType.attrib.__set__(self.instance, self.thing)  # Assign an object to attrib
+
+    def test_isConnected(self):
+        """
+        Test the isConnected method to ensure it accurately reflects observer connections.
+        """
+        # Initially, no observers are connected
+        self.assertFalse(self.someClassType.attrib.isConnected(self.observer, self.instance))
+
+        # Connect observer
+        self.someClassType.attrib.connect(self.observer, instance=self.instance)
+        self.assertTrue(self.someClassType.attrib.isConnected(self.observer, self.instance))
+
+        # Disconnect observer
+        self.someClassType.attrib.disconnect(self.observer, instance=self.instance)
+        self.assertFalse(self.someClassType.attrib.isConnected(self.observer, self.instance))
+
+    def test_getObservers(self):
+        """
+        Test the getObservers method to ensure it retrieves the correct list of observers.
+        """
+        # Initially, no observers
+        self.assertEqual(self.someClassType.attrib.getObservers(self.instance), [])
+
+        # Connect observers
+        self.someClassType.attrib.connect(self.observer, instance=self.instance)
+        self.someClassType.attrib.connect(self.another_observer, instance=self.instance)
+
+        # Check connected observers
+        observers = self.someClassType.attrib.getObservers(self.instance)
+        self.assertIn(self.observer, observers)
+        self.assertIn(self.another_observer, observers)
+        self.assertEqual(len(observers), 2)
+
+        # Disconnect one observer
+        self.someClassType.attrib.disconnect(self.observer, instance=self.instance)
+        observers = self.someClassType.attrib.getObservers(self.instance)
+        self.assertNotIn(self.observer, observers)
+        self.assertIn(self.another_observer, observers)
+        self.assertEqual(len(observers), 1)
+
+    def test_hasObservers(self):
+        """
+        Test the hasObservers method to ensure it accurately reflects the presence of observers.
+        """
+        # Initially, no observers
+        self.assertFalse(self.someClassType.attrib.hasObservers(self.instance))
+
+        # Connect an observer
+        self.someClassType.attrib.connect(self.observer, instance=self.instance)
+        self.assertTrue(self.someClassType.attrib.hasObservers(self.instance))
+
+        # Disconnect the observer
+        self.someClassType.attrib.disconnect(self.observer, instance=self.instance)
+        self.assertFalse(self.someClassType.attrib.hasObservers(self.instance))
+
+    def test_classLevelObservers(self):
+        """
+        Test observer connection and disconnection for class-level (global) signals.
+        """
+        # Class-level observer connection
+        self.someClassType.attrib.connect(self.observer)
+        self.assertTrue(self.someClassType.attrib.isConnected(self.observer))
+        self.assertTrue(self.someClassType.attrib.hasObservers())
+
+        # Disconnect class-level observer
+        self.someClassType.attrib.disconnect(self.observer)
+        self.assertFalse(self.someClassType.attrib.isConnected(self.observer))
+        self.assertFalse(self.someClassType.attrib.hasObservers())
+
+    def test_invalidConnection(self):
+        """
+        Test the behaviour of connect and disconnect methods when provided with invalid inputs.
+        """
+        # Attempt to connect non-callable
+        with self.assertRaises(TypeError):
+            self.someClassType.attrib.connect(None, instance=self.instance)
+
+        # Attempt to disconnect non-callable
+        with self.assertRaises(TypeError):
+            self.someClassType.attrib.disconnect(None, instance=self.instance)
+
+        # Attempt to connect to an invalid instance
+        # with self.assertRaises(TypeError):
+        self.someClassType.attrib.connect(self.observer, instance=None)
+
+        self.someClassType.attrib.disconnect(self.observer, instance=None)
+        # Attempt to disconnect from an invalid instance
+        with self.assertRaises(TypeError):
+            self.someClassType.attrib.disconnect(self.observer, instance=None)
+
+
+if __name__ == "__main__":
     unittest.main()
