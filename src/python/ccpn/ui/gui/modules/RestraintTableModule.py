@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2025-01-06 17:44:56 +0000 (Mon, January 06, 2025) $"
+__dateModified__ = "$dateModified: 2025-01-09 15:15:02 +0000 (Thu, January 09, 2025) $"
 __version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
@@ -350,6 +350,8 @@ class _NewRestraintTableWidget(_CoreTableWidgetABC):
             return
         restraint = objs[0] if isinstance(objs, (tuple, list)) else objs
 
+        if not restraint.peaks:
+            return
         self.current.peaks = restraint.peaks
         pk = restraint.peaks[0]
         displays = self.moduleParent._displaysWidget.getDisplays()
