@@ -4,7 +4,7 @@ Module Documentation here
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2025"
 __credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
                "Timothy J Ragan, Brian O Smith, Daniel Thompson",
                "Gary S Thompson & Geerten W Vuister")
@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-11-15 19:34:31 +0000 (Fri, November 15, 2024) $"
+__dateModified__ = "$dateModified: 2025-01-09 20:34:21 +0000 (Thu, January 09, 2025) $"
 __version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
@@ -35,6 +35,7 @@ from PyQt5 import QtWidgets, QtGui, QtCore
 from PyQt5.QtCore import Qt, QItemSelectionModel, QSize
 from PyQt5.QtWidgets import QSizePolicy
 
+from ccpn.core.lib.WeakRefLib import WeakRefDescriptor
 from ccpn.ui.gui.guiSettings import getColours, GUITABLEHEADER_GROUP_GRIDLINES
 from ccpn.ui.gui.widgets.table._TableCommon import MOUSE_MARGIN, ORIENTATIONS
 from ccpn.ui.gui.widgets.Font import setWidgetFont, TABLEFONT
@@ -109,12 +110,12 @@ class _MITableHeaderViewABC(QtWidgets.QTableView):
 
     headerModelClass = None
     headerDelegateClass = None
-
     showSectionDividers = True
     _sectionDividers = None
     _dividerColour = None
+    table = WeakRefDescriptor()
 
-    def __init__(self, parent: 'MITableABC', table: '_MITableView', df, orientation=Qt.Horizontal, dividerColour=None,
+    def __init__(self, parent: 'MITableABC', table: 'MITableABC', df, orientation=Qt.Horizontal, dividerColour=None,
                  gridColour=None):
         super().__init__(parent)
 
@@ -126,10 +127,8 @@ class _MITableHeaderViewABC(QtWidgets.QTableView):
             raise ValueError(f'orientation not in {list(ORIENTATIONS.keys())}')
 
         self.orientation = orientation
-        # self._df = df
-
-        self._parent = parent
         self.table = table
+        # are table and parent always the same? use WeakRefDescriptor or property table=self.parent()
         self.setModel(self.headerModelClass(self.table, df=df, orientation=orientation))
 
         # These are used during row/column resizing
@@ -187,6 +186,11 @@ class _MITableHeaderViewABC(QtWidgets.QTableView):
         self.setProperty('selectionField', False)
         QtWidgets.QApplication.instance().sigPaletteChanged.connect(
                 partial(QtCore.QTimer.singleShot, 0, self._checkPalette))
+
+    @property
+    def _parent(self):
+        # typically this a QTableView
+        return self.parent()
 
     def _checkPalette(self):
         """Update palette in response to palette change event.
@@ -279,6 +283,13 @@ class _MITableHeaderViewABC(QtWidgets.QTableView):
 
     def setDelegates(self):
         """Set delegates for the header.
+        """
+        # MUST BE SUBCLASSED
+        raise NotImplementedError("Code error: function not implemented")
+
+    def setSpans(self):
+        """Group together all identical items in the column/index multiIndex.
+        The structure of the index/column is preserved.
         """
         # MUST BE SUBCLASSED
         raise NotImplementedError("Code error: function not implemented")
@@ -391,7 +402,7 @@ class _HorizontalMITableHeaderView(_MITableHeaderViewABC):
     headerModelClass = _HorizontalMITableHeaderModel
     headerDelegateClass = _ExpandHorizontalDelegate
 
-    def __init__(self, parent: 'MITableABC', table: '_MITableView', df: typing.Optional[pd.DataFrame],
+    def __init__(self, parent: 'MITableABC', table: 'MITableABC', df: typing.Optional[pd.DataFrame],
                  dividerColour=None):
         super().__init__(parent, table, df, orientation=Qt.Horizontal, dividerColour=dividerColour)
 
@@ -720,7 +731,7 @@ class _VerticalMITableHeaderView(_MITableHeaderViewABC):
     """
     headerModelClass = _VerticalMITableHeaderModel
 
-    def __init__(self, parent: 'MITableABC', table: '_MITableView', df: typing.Optional[pd.DataFrame],
+    def __init__(self, parent: 'MITableABC', table: 'MITableABC', df: typing.Optional[pd.DataFrame],
                  dividerColour=None):
         super().__init__(parent, table, df, orientation=Qt.Vertical, dividerColour=dividerColour)
 
