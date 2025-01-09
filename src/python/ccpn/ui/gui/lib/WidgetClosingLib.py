@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2025-01-07 16:33:51 +0000 (Tue, January 07, 2025) $"
+__dateModified__ = "$dateModified: 2025-01-09 15:50:10 +0000 (Thu, January 09, 2025) $"
 __version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
@@ -29,11 +29,10 @@ __date__ = "$Date: 2024-12-19 12:11:19 +0000 (Thu, December 19, 2024) $"
 
 import weakref
 import gc
-from functools import partial
 from contextlib import contextmanager
-from typing import TypeVar, Generator
+from typing import Generator, Callable
 from PyQt5 import QtCore, QtWidgets
-from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QPushButton, QFrame
+from PyQt5.QtWidgets import QWidget
 from ccpn.util.Logging import getLogger
 
 
@@ -73,12 +72,10 @@ _LOGGING = getLogger().debug
 _WidgetRefStore = weakref.WeakKeyDictionary()
 _WidgetRefContextStore = weakref.WeakKeyDictionary()
 
+
 #=========================================================================================
 # close handlers
 #=========================================================================================
-
-CloseHandlerType = TypeVar("CloseHandlerType", bound='CloseHandler')
-
 
 def _debugAttrib(widget: QWidget, attrib: str) -> None:
     """
@@ -217,123 +214,30 @@ def closeWidget(widget: QWidget):
 
 
 #=========================================================================================
-# test classes
+# testing
 #=========================================================================================
 
-class BaseWidget(QWidget):
-    def __init__(self, name):
-        super().__init__()
-        self._name = name
-        self.setStyleSheet("""QWidget {
-                                border: 2px solid palette(highlight);
-                                border-radius: 2px;
-                            }""")
+def _temporaryOverrideDebugging(logging: Callable[..., None], debug: bool | int) -> None:
+    """
+    Temporarily override the global debugging and logging behaviour.
 
-    def _preClose(self):
-        if _DEBUG:
-            _LOGGING(f"{_getIndent(self)}{_ConsoleStyle.fg.darkred}Pre-closing "
-                     f"{self._name}{_ConsoleStyle.reset}")
+    This function updates the global `_LOGGING` and `_DEBUG` variables to the provided values.
+    It is typically used to adjust the debugging and logging settings dynamically within a
+    specific scope or context.
 
-    def _postClose(self):
-        if _DEBUG:
-            _LOGGING(f"{_getIndent(self)}{_ConsoleStyle.fg.darkblue}Post-closing "
-                     f"{self._name}{_ConsoleStyle.reset}")
-
-    def closeEvent(self, event):
-        if _DEBUG: _LOGGING(
-                f"{_getIndent(self)}{_ConsoleStyle.fg.darkyellow}closeEvent {self._name}{_ConsoleStyle.reset}")
-        with CloseHandler(self):
-            super().closeEvent(event)
-
-    def close(self):
-        if _DEBUG: _LOGGING(f"{_getIndent(self)}{_ConsoleStyle.fg.yellow}==> {self._name}{_ConsoleStyle.reset}")
-        super().close()
-        if _DEBUG: _LOGGING(f"{_getIndent(self)}{_ConsoleStyle.fg.yellow}<== {self._name}{_ConsoleStyle.reset}")
-
-
-class ChildWidget(BaseWidget):
-    def __init__(self, name):
-        super().__init__(name)
-        label = QtWidgets.QLabel(name)
-        label._name = f'_{name}_'
-        layout = QVBoxLayout()
-        layout.addWidget(label)
-        self.setLayout(layout)
-
-
-class FrameWidget(BaseWidget):
-    def __init__(self, name):
-        super().__init__(name)
-        self.child1 = ChildWidget('4')
-        self.child2 = ChildWidget('5')
-        layout = QVBoxLayout()
-        layout.addWidget(self.child1)
-        layout.addWidget(self.child2)
-        self.setLayout(layout)
-
-        self.frame1 = frame1 = QFrame()
-        frame1._name = '6'
-        layout.addWidget(frame1)
-        frLayout = QVBoxLayout()
-        child1 = ChildWidget('7')
-        child2 = ChildWidget('8')
-        frLayout.addWidget(child1)
-        frLayout.addWidget(child2)
-        frame1.setLayout(frLayout)
-
-        self.frame2 = frame1 = QFrame()
-        frame1._name = '9'
-        layout.addWidget(frame1)
-        frLayout = QVBoxLayout()
-        child1 = ChildWidget('10')
-        child2 = ChildWidget('11')
-        frLayout.addWidget(child1)
-        frLayout.addWidget(child2)
-        frame1.setLayout(frLayout)
-
-
-class ParentWidget(BaseWidget):
-    def __init__(self, name):
-        super().__init__(name)
-        self.frame = FrameWidget('1')
-        self.child1 = ChildWidget('2')
-        self.child2 = ChildWidget('3')
-        layout = QVBoxLayout()
-        close_button: QtWidgets.QPushButton = QPushButton("Close Parent")
-        close_button.clicked.connect(self.close)
-        layout.addWidget(close_button)
-        close_button = QPushButton("Close Frame")
-        # close_button.clicked.connect(partial(close_all_children, self.frame.frame2))
-        close_button.clicked.connect(partial(closeWidget, self.frame.frame2))
-        layout.addWidget(close_button)
-        close_button = QPushButton("Close child")
-        close_button.clicked.connect(self.frame.child1.close)
-        layout.addWidget(close_button)
-        layout.addWidget(self.frame)
-        layout.addWidget(self.child1)
-        layout.addWidget(self.child2)
-        self.setLayout(layout)
-
-
-#=========================================================================================
-# main
-#=========================================================================================
-
-def main():
-    # override the global settings for local running
+    :param logging: The logging function to temporarily override `_LOGGING`.
+                    This should be a callable that accepts logging messages.
+    :type logging: Callable[..., None]
+    :param debug: The debug flag to temporarily override `_DEBUG`.
+                  Set to True or 1 to enable debug mode, or False or 0 to disable it.
+                  Set to 2 for more verbose debugging.
+    :type debug: bool | int
+    """
+    # Declare the globals to be modified within this function.
     global _LOGGING
     global _DEBUG
 
-    _LOGGING = lambda msg, stacklevel=None: print(msg)
-    _DEBUG = 2
-
-    # make a main-window and show the widget
-    app = QApplication([])
-    parent = ParentWidget('TOP')
-    parent.show()
-    app.exec_()
-
-
-if __name__ == '__main__':
-    # call the main code
-    main()
+    # Override the global logging function.
+    _LOGGING = logging
+    # Override the global debugging flag.
+    _DEBUG = debug
