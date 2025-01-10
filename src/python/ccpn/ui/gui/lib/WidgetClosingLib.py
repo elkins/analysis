@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2025-01-10 12:09:11 +0000 (Fri, January 10, 2025) $"
+__dateModified__ = "$dateModified: 2025-01-10 16:43:05 +0000 (Fri, January 10, 2025) $"
 __version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
@@ -126,7 +126,7 @@ def _processFunc(widget: QWidget, attrib: str) -> None:
 
 # Capitalised for clarity because acts like a class
 @contextmanager
-def CloseHandler(container: QtWidgets.QWidget, *, _stacklevelOffset: int = 0) -> Generator[None, None, None]:
+def CloseHandler(container: QtWidgets.QWidget, _stacklevelOffset: int = 0) -> Generator[None, None, None]:
     """
     Context manager for handling the closing of a QWidget and its children.
 
