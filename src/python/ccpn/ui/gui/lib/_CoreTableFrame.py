@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2025-01-09 20:41:16 +0000 (Thu, January 09, 2025) $"
+__dateModified__ = "$dateModified: 2025-01-10 16:43:20 +0000 (Fri, January 10, 2025) $"
 __version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
@@ -50,14 +50,14 @@ _DEBUG = False
 #=========================================================================================
 
 
-class _CoreTableWidgetMeta(_TableABCMeta, type(ABC)):
+class _CoreTableWidgetABCMeta(_TableABCMeta, type(ABC)):
     """Metaclass implementing a post-initialise hook, ALWAYS called after __init__ has finished
     """
     # required to resolve metaclass conflict due to the addition of ABC
     ...
 
 
-class _CoreTableWidgetABC(_ProjectTableABC, ABC, metaclass=_CoreTableWidgetMeta):
+class _CoreTableWidgetABC(_ProjectTableABC, ABC, metaclass=_CoreTableWidgetABCMeta):
     """Class to present a table for core objects
     """
     # define overriding attributes here for subclassing - not setting will default to these
