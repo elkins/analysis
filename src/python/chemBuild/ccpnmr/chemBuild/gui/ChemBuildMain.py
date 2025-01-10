@@ -445,6 +445,8 @@ class ChemBuildMain(QtWidgets.QMainWindow):
     columns = [
       Column('ID', self.getId,
              tipText='Unique identifier for the variant'),
+      Column('Name', self.getVarName,
+             tipText='The variant name'),
     Column('Type', self.getType,
            tipText='Type of the chemical component'),
       Column('One Letter Code', self.getOneLetterCode,
@@ -638,7 +640,10 @@ class ChemBuildMain(QtWidgets.QMainWindow):
 
   def getPdbxProcessingSite(self, obj):
     return obj._pdbx_processing_site
-  
+
+  def getVarName(self, obj):
+    return obj._name
+
   def addSmiles(self):
   
     prompt = 'Enter SMILES string to add:'
@@ -895,7 +900,7 @@ class ChemBuildMain(QtWidgets.QMainWindow):
     msg = 'Chemical file format not understood.'
     
     for func in tryFuncs:
-      try:
+      # try:
         compound = func(filePath, not haveModKey)
         
         if compound and not compound.atoms:
@@ -915,9 +920,9 @@ class ChemBuildMain(QtWidgets.QMainWindow):
                 n = self.compoundView.autoBond()
         
         break
-      except Exception as err:
-        print(f'Error parsing file in function {func}. {err}')
-        continue
+
+        # print(f'Error parsing file in function {func}. {err}')
+        # continue
         
     else:
       QtWidgets.QMessageBox.warning(self, "Load Failed", msg)

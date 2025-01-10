@@ -57,6 +57,8 @@ class Compound:
     self.ccpCode = None
     self.ccpMolType = 'other'
     self.isModified = True
+    self.one_letter_code = None
+    self.three_letter_code = None
   
   def hasSubGraph(self,  fragement):
     

@@ -491,7 +491,10 @@ class Variant:
     tagsLink = joinStr.join(['%s%s' % x for x in tagsLink]) or 'none'
  
     return tagsProton, tagsLink, tagsStereo
-  
+
+
+
+
   def copyAtoms(self, varAtoms, coords=None, tempNames=True):
   
     if not varAtoms:
