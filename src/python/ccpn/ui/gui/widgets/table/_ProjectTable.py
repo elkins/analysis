@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2025-01-09 20:41:21 +0000 (Thu, January 09, 2025) $"
+__dateModified__ = "$dateModified: 2025-01-10 16:42:44 +0000 (Fri, January 10, 2025) $"
 __version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
@@ -110,7 +110,7 @@ class _ProjectTableABC(TableABC, Base):
 
     selectCurrent = True
     callBackClass = None
-    search = False
+    search = None
     enableEditDelegate = True
 
     _enableSelectionCallback = True
