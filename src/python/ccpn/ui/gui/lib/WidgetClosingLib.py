@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2025-01-09 15:50:10 +0000 (Thu, January 09, 2025) $"
+__dateModified__ = "$dateModified: 2025-01-10 12:09:11 +0000 (Fri, January 10, 2025) $"
 __version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
@@ -147,7 +147,7 @@ def CloseHandler(container: QtWidgets.QWidget, *, _stacklevelOffset: int = 0) ->
             _LOGGING(f"{indent}{_ConsoleStyle.fg.white}CLOSEEVENT "
                      f"{getattr(container, _NAME, str(container))} - "
                      f"{_ConsoleStyle.reset}", stacklevel=3 + _stacklevelOffset)
-        close_all_children(container, depth=_WidgetRefStore.get(container) or 0)
+        closeAllChildren(container, depth=_WidgetRefStore.get(container) or 0)
         yield
     except Exception as es:
         if _DEBUG:
@@ -171,7 +171,7 @@ def CloseHandler(container: QtWidgets.QWidget, *, _stacklevelOffset: int = 0) ->
             gc.collect()
 
 
-def close_all_children(parent: QtWidgets.QWidget, *, depth: int = 0) -> None:
+def closeAllChildren(parent: QtWidgets.QWidget, *, depth: int = 0) -> None:
     """
     Recursively close all children of a QWidget, processing pre-close and post-close functions.
 
@@ -185,7 +185,7 @@ def close_all_children(parent: QtWidgets.QWidget, *, depth: int = 0) -> None:
     # call the pre-close method on the container, called BEFORE all nested-children have closed
     _processFunc(parent, _PRECLOSE)
     for child in parent.findChildren(QWidget, options=QtCore.Qt.FindDirectChildrenOnly):
-        close_all_children(child, depth=depth + 1)
+        closeAllChildren(child, depth=depth + 1)
         child.close()  # be careful, this calls the CloseHandler from the child closeEvent :|
         if not _WidgetRefContextStore.get(child):
             # QWidget has not called the closeHandler
