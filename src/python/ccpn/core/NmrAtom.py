@@ -3,7 +3,7 @@
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2025"
 __credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
                "Timothy J Ragan, Brian O Smith, Daniel Thompson",
                "Gary S Thompson & Geerten W Vuister")
@@ -14,9 +14,9 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: Daniel Thompson $"
-__dateModified__ = "$dateModified: 2024-06-19 12:56:50 +0100 (Wed, June 19, 2024) $"
-__version__ = "$Revision: 3.2.3 $"
+__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
+__dateModified__ = "$dateModified: 2025-01-10 18:01:46 +0000 (Fri, January 10, 2025) $"
+__version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -76,6 +76,7 @@ class NmrAtom(AbstractWrapperObject):
 
     # Qualified name of matching API class
     _apiClassQualifiedName = Nmr.Resonance._metaclass.qualifiedName()
+    _wrappedData: Nmr.Resonance
 
     # Internal NameSpace
     _AMBIGUITYCODE = '_ambiguityCode'
@@ -88,9 +89,9 @@ class NmrAtom(AbstractWrapperObject):
 
         super().__init__(project, wrappedData)
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # CCPN properties
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     @property
     def _apiResonance(self) -> Nmr.Resonance:
@@ -102,7 +103,7 @@ class NmrAtom(AbstractWrapperObject):
         """Parent (containing) object."""
         return self._project._data2Obj.get(self._wrappedData.resonanceGroup)
 
-    nmrResidue = _parent
+    nmrResidue: NmrResidue = _parent
 
     @property
     def _key(self) -> str:
@@ -134,8 +135,8 @@ class NmrAtom(AbstractWrapperObject):
     @property
     def _idTuple(self) -> AtomIdTuple:
         """ID as chainCode, sequenceCode, residueType, atomName namedtuple
-        NB Unlike the _id and key, these do NOT have reserved characters mapped to '^'
-        NB _idTuple replaces empty strings with None"""
+        Note: Unlike the _id and key, these do NOT have reserved characters mapped to '^'
+        _idTuple replaces empty strings with None"""
         parent = self._parent
         ll = [parent._parent.shortName, parent.sequenceCode, parent.residueType, self.name]
         return AtomIdTuple(*(x or None for x in ll))
@@ -158,7 +159,7 @@ class NmrAtom(AbstractWrapperObject):
     #from ccpn.core.Atom import Atom: This will break the import sequence
     @property
     def atom(self) -> 'Atom':
-        """Atom to which NmrAtom is assigned. NB resetting the atom will rename the NmrAtom"""
+        """Atom to which NmrAtom is assigned; resetting the atom will rename the NmrAtom"""
         return self._project.getAtom(self._id)
 
     @property
@@ -185,7 +186,7 @@ class NmrAtom(AbstractWrapperObject):
         self._wrappedData.isotopeCode = value or UnknownIsotopeCode
 
     @property
-    def boundNmrAtoms(self) -> 'NmrAtom':
+    def boundNmrAtoms(self) -> list['NmrAtom']:
         """NmrAtoms directly bound to this one, as calculated from assignment and
         NmrAtom name matches (NOT from peak assignment)"""
         getDataObj = self._project._data2Obj.get
@@ -211,7 +212,7 @@ class NmrAtom(AbstractWrapperObject):
         return result
 
     @property
-    def assignedPeaks(self) -> Tuple['Peak']:
+    def assignedPeaks(self) -> Tuple['Peak', ...]:
         """All Peaks assigned to the NmrAtom"""
         apiResonance = self._wrappedData
         apiPeaks = {x.peakDim.peak for x in apiResonance.peakDimContribs}
@@ -260,7 +261,7 @@ class NmrAtom(AbstractWrapperObject):
 
         If the assignedTo NmrAtom already exists the function raises ValueError.
         If mergeToExisting is True it instead merges the current NmrAtom into the target
-        and returns the merged target. NB Merging is NOT undoable
+        and returns the merged target. Note: Merging is NOT undoable
 
         WARNING: is mergeToExisting is True, always use in the form "x = x.assignTo(...)",
         as the call 'x.assignTo(...) may cause the source x object to be deleted.
@@ -315,15 +316,12 @@ class NmrAtom(AbstractWrapperObject):
 
             if nmrResidue is oldNmrResidue:
                 if name != self.name:
-                    # NB self.name can never be returned as None
-
+                    # self.name can never be returned as None
                     if result is self:
                         # self._wrappedData.name = name or None
                         self.rename(name or None)
-
                     elif mergeToExisting:
                         result.mergeNmrAtoms(self)
-
                     else:
                         raise ValueError("New assignment clash with existing assignment,"
                                          " and merging is disallowed")
@@ -400,9 +398,9 @@ class NmrAtom(AbstractWrapperObject):
         """
         return tuple(self._chemicalShifts)
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Implementation functions
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     @classmethod
     def _restoreObject(cls, project, apiObj):
@@ -439,7 +437,9 @@ class NmrAtom(AbstractWrapperObject):
         """Generate a unique name in the form @n (e.g. @_123) or @symbol_n (e.g. @H_34)
         :return the generated name
         """
-        if self.isotopeCode is not None and (symbol := isotopeCode2Nucleus(self.isotopeCode)) is not None and len(symbol) > 0:
+        if (self.isotopeCode is not None and
+                (symbol := isotopeCode2Nucleus(self.isotopeCode)) is not None and
+                len(symbol) > 0):
             _name = '@%s_%d' % (symbol[0:1], self._uniqueId)
         else:
             _name = '@_%d' % self._uniqueId
@@ -451,7 +451,7 @@ class NmrAtom(AbstractWrapperObject):
         return '@'
 
     @classmethod
-    def _uniqueName(cls, parent: nmrResidue, name=None) -> str:
+    def _uniqueName(cls, parent: nmrResidue, name=None, caseSensitive=False) -> str:
         """Subclassed to get the '@' default name behavior.
         :param parent: in this case, parent MUST be of type NmrResidue
         :param name (str | None): target name (as required)
@@ -460,7 +460,7 @@ class NmrAtom(AbstractWrapperObject):
         if name is None:
             _id = parent.project._queryNextUniqueIdValue(cls.className)
             name = '%s_%d' % (cls._defaultName(), _id)
-        return super(NmrAtom, cls)._uniqueName(parent=parent, name=name)
+        return super(NmrAtom, cls)._uniqueName(parent=parent, name=name, caseSensitive=caseSensitive)
 
     def _finaliseAction(self, action: str, **actionKwds):
         """Subclassed to handle associated offsetNMrResidues
@@ -536,9 +536,9 @@ class NmrAtom(AbstractWrapperObject):
             for sh in _shifts:
                 sh.delete()
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # CCPN functions
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     def _getAssignedPeakValues(self, spectra, peakLists=None, theProperty='ppmPosition'):
         """
@@ -638,10 +638,10 @@ class NmrAtom(AbstractWrapperObject):
         # valueError (sigma) undefined for single contributions
         return mean, (sigma if len(peakDims) > 1 else None)
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # new<Object> and other methods
     # Call appropriate routines in their respective locations
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
 
 #=========================================================================================
