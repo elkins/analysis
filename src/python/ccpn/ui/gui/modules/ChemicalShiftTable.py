@@ -18,7 +18,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2025-01-06 17:46:56 +0000 (Mon, January 06, 2025) $"
+__dateModified__ = "$dateModified: 2025-01-10 17:57:38 +0000 (Fri, January 10, 2025) $"
 __version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
@@ -44,7 +44,7 @@ from ccpn.core.ChemicalShiftList import (CS_UNIQUEID, CS_ISDELETED, CS_PID, CS_S
                                          CS_ALLPEAKSCOUNT, CS_COMMENT, CS_OBJECT, CS_TABLECOLUMNS, ChemicalShiftState)
 from ccpn.core.lib.Notifiers import Notifier
 from ccpn.core.lib.DataFrameObject import DataFrameObject, DATAFRAME_OBJECT
-from ccpn.framework.Application import getApplication
+from ccpn.core.lib.WeakRefLib import WeakRefDescriptor
 from ccpn.ui.gui.modules.CcpnModule import CcpnTableModule
 from ccpn.ui.gui.widgets.Widget import Widget
 from ccpn.ui.gui.widgets.CompoundWidgets import CheckBoxCompoundWidget
@@ -309,6 +309,7 @@ class _NewChemicalShiftTable(_ProjectTableABC):
     _enableDelete = True
     _enableExport = True
     _enableCopyCell = True
+    _table = WeakRefDescriptor()
 
     # set the queue handling parameters
     _maximumQueueLength = 25
@@ -468,9 +469,8 @@ class _NewChemicalShiftTable(_ProjectTableABC):
         self._columns = self._columnDefs = ColumnClass(_cols)  # Other tables are using _columnDefs :|
 
         _csl = self._table
-
-        if _csl._data is not None:
-            # is of type _ChemicalShiftListFrame - should move functionality to there
+        if _csl and _csl._data is not None:
+            # is of type ChemicalShiftList->_ChemicalShiftListFrame - should move functionality to there
             df = _csl._data.copy()
             df = df[df[CS_ISDELETED] == False]
             df.drop(columns=[CS_STATIC], inplace=True)  # static not required
