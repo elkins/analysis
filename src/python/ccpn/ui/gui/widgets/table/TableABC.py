@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2025-01-09 20:41:21 +0000 (Thu, January 09, 2025) $"
+__dateModified__ = "$dateModified: 2025-01-13 12:40:11 +0000 (Mon, January 13, 2025) $"
 __version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
@@ -416,6 +416,16 @@ class TableABC(QtWidgets.QTableView, metaclass=_TableABCMeta):
             self.setColumnHidden(col, colName in hiCols)
 
     def model(self) -> _TableModel:
+        """
+        Retrieve the model for the table.
+
+        This method overrides the base class method to return the model
+        cast to the specific type `_TableModel`.
+
+        :return: The table model cast to `_TableModel`.
+        :rtype: _TableModel
+        """
+        # Cast the model returned by the superclass to _TableModel
         return typing.cast(_TableModel, super().model())
 
     def setModel(self, model: TableModelClass) -> None:
@@ -733,6 +743,12 @@ class TableABC(QtWidgets.QTableView, metaclass=_TableABCMeta):
     #-----------------------------------------------------------------------------------------
     # Selection/Action methods
     #-----------------------------------------------------------------------------------------
+
+    def deleteSelectionFromTable(self):
+        """Delete selection from table.
+        """
+        # MUST BE SUBCLASSED
+        raise NotImplementedError(f'Code error: {self.__class__.__name__}.deleteSelectionFromTable not implemented')
 
     def selectionCallback(self, selected, deselected, selection, lastItem):
         """Handle item selection has changed in table - call user callback
