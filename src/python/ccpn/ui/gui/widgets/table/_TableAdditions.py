@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2025-01-09 20:37:59 +0000 (Thu, January 09, 2025) $"
+__dateModified__ = "$dateModified: 2025-01-13 12:40:32 +0000 (Mon, January 13, 2025) $"
 __version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
@@ -37,6 +37,7 @@ import pandas as pd
 from ccpn.ui.gui.widgets import MessageDialog
 from ccpn.ui.gui.widgets.SearchWidget import _SimplerDFTableFilter, _TableFilterABC
 from ccpn.ui.gui.widgets.FileDialog import TablesFileDialog
+from ccpn.ui.gui.widgets.table._TableModel import _TableModel
 from ccpn.util.Path import aPath
 from ccpn.util.Logging import getLogger
 from ccpn.util.Common import copyToClipboard, NOTHING
@@ -46,6 +47,8 @@ from ccpn.core.lib.WeakRefLib import WeakRefDescriptor
 
 menuItem = namedtuple('menuItem', 'name toolTip')
 TableFilterType = typing.Type[_TableFilterABC]
+TableBaseClass = typing.TypeVar('TableBaseClass', bound='TableABC')
+
 
 #=========================================================================================
 # ABCs
@@ -57,11 +60,11 @@ class TableMenuABC(ABC):
     name: typing.Optional[str] = None
     _menuType: str = 'TableMenu'
     _enabled: bool = False
-    _parent: QtWidgets.QTableView = WeakRefDescriptor()
+    _parent: TableBaseClass = WeakRefDescriptor()
 
     # add internal labels here
 
-    def __init__(self, parent: QtWidgets.QTableView, enabled: bool = NOTHING):
+    def __init__(self, parent: TableBaseClass, enabled: bool = NOTHING):
         """Initialise the menu object to the parent-table.
 
         :param parent: QTableView object
@@ -130,7 +133,7 @@ class TableMenuABC(ABC):
     def update(self):
         return self._parent.update()
 
-    def model(self) -> QtCore.QAbstractItemModel:
+    def model(self) -> _TableModel:
         return self._parent.model()
 
     def horizontalHeader(self) -> QtWidgets.QHeaderView:
@@ -149,11 +152,11 @@ class TableHeaderMenuABC(ABC):
     name: typing.Optional[str] = None
     _menuType: str = 'TableHeaderMenu'
     _enabled: bool = True
-    _parent: QtWidgets.QTableView = WeakRefDescriptor()
+    _parent: TableBaseClass = WeakRefDescriptor()
 
     # add internal labels here
 
-    def __init__(self, parent: QtWidgets.QTableView, enabled: bool = NOTHING):
+    def __init__(self, parent: TableBaseClass, enabled: bool = NOTHING):
         """Initialise the menu object to the parent table.
 
         :param parent: QTableView object
@@ -201,7 +204,7 @@ class TableHeaderMenuABC(ABC):
     def update(self):
         return self._parent.update()
 
-    def model(self) -> QtCore.QAbstractItemModel:
+    def model(self) -> _TableModel:
         return self._parent.model()
 
     def horizontalHeader(self) -> QtWidgets.QHeaderView:
