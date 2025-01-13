@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2025-01-10 16:43:05 +0000 (Fri, January 10, 2025) $"
+__dateModified__ = "$dateModified: 2025-01-13 17:15:55 +0000 (Mon, January 13, 2025) $"
 __version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
@@ -126,49 +126,61 @@ def _processFunc(widget: QWidget, attrib: str) -> None:
 
 # Capitalised for clarity because acts like a class
 @contextmanager
-def CloseHandler(container: QtWidgets.QWidget, _stacklevelOffset: int = 0) -> Generator[None, None, None]:
+def CloseHandler(container: QtWidgets.QWidget, autoDelete: bool = False,
+                 _stacklevelOffset: int = 0) -> Generator[None, None, None]:
     """
     Context manager for handling the closing of a QWidget and its children.
 
+    This context manager ensures that the specified QWidget and its children are properly closed.
+    It also handles logging and garbage collection if necessary.
+
     :param container: The QWidget container to manage.
     :type container: QtWidgets.QWidget
+    :param autoDelete: Whether to automatically delete the widget after closing, defaults to False.
+    :type autoDelete: bool, optional
+    :param _stacklevelOffset: Offset for the logging stack level, defaults to 0.
+    :type _stacklevelOffset: int, optional
     :yield: None
     """
     global _closeBlockingLevel
 
-    # keep a temporary handle to prevent garbage-collection until handler exits
+    # Keep a temporary handle to prevent garbage-collection until handler exits
     _strongRef = container
     _WidgetRefContextStore[container] = True
     indent = _getIndent(container)
     _closeBlockingLevel += 1
     try:
         if _DEBUG:
-            # uses stacklevel=3 to allow for context-manager and source-method calling CloseHandler
+            # Uses stacklevel=3 to allow for context-manager and source-method calling CloseHandler
             _LOGGING(f"{indent}{_ConsoleStyle.fg.white}CLOSEEVENT "
                      f"{getattr(container, _NAME, str(container))} - "
                      f"{_ConsoleStyle.reset}", stacklevel=3 + _stacklevelOffset)
+        # Close all children of the container
         closeAllChildren(container, depth=_WidgetRefStore.get(container) or 0)
         yield
     except Exception as es:
         if _DEBUG:
+            # Log any errors that occur during the closing process
             _LOGGING(f"{indent}An error occurred: {es}", stacklevel=3 + _stacklevelOffset)
         raise
     finally:
-        # call the post-close method on the container, called AFTER all nested-children have closed
+        # Call the post-close method on the container, called AFTER all nested-children have closed
         _processFunc(container, _POSTCLOSE)
-        # Schedule the widget for deletion
-        container.deleteLater()
 
         if _closeBlockingLevel <= 0:
             raise RuntimeError('Error: CloseHandler blocking already at 0')
         _closeBlockingLevel -= 1
-        # clean-up on last exit
-        if _closeBlockingLevel == 0 and _GARBAGECOLLECT:
-            if _DEBUG:
-                _LOGGING(f"{_ConsoleStyle.fg.darkgrey}{indent}Garbage Collection{_ConsoleStyle.reset}",
-                         stacklevel=3 + _stacklevelOffset)
-            # remove blockers to release widgets
-            gc.collect()
+        # Clean-up on last exit
+        if _closeBlockingLevel == 0:
+            if autoDelete:
+                # Schedule the widget for deletion, including children
+                container.deleteLater()
+            if _GARBAGECOLLECT:
+                if _DEBUG:
+                    _LOGGING(f"{_ConsoleStyle.fg.darkgrey}{indent}Garbage Collection{_ConsoleStyle.reset}",
+                             stacklevel=3 + _stacklevelOffset)
+                # Garbage-collect as required
+                gc.collect()
 
 
 def closeAllChildren(parent: QtWidgets.QWidget, *, depth: int = 0) -> None:
