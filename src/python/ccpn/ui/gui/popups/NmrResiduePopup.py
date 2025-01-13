@@ -1,7 +1,7 @@
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2025"
 __credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
                "Timothy J Ragan, Brian O Smith, Daniel Thompson",
                "Gary S Thompson & Geerten W Vuister")
@@ -12,9 +12,9 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-06-06 21:20:48 +0100 (Thu, June 06, 2024) $"
-__version__ = "$Revision: 3.2.4 $"
+__modifiedBy__ = "$modifiedBy: Daniel Thompson $"
+__dateModified__ = "$dateModified: 2025-01-13 14:57:18 +0000 (Mon, January 13, 2025) $"
+__version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -274,9 +274,8 @@ class NmrResidueEditPopup(AttributeEditorPopupABC):
 
             # find the existing nmrResidue
             destNmrResidue = _getNmrResidue(_nmrChain,
-                                            self.sequenceCode.getText(),
-                                            re.sub(REMOVEPERCENT, '',
-                                                   self.residueType.getText())) if _nmrChain else None
+                                            seqCode,
+                                            resType if _nmrChain else None)
 
             if destNmrResidue and (self.obj != destNmrResidue):
                 # move to an existing nmrResidue requires a merge
@@ -336,6 +335,10 @@ class NmrResidueEditPopup(AttributeEditorPopupABC):
                     return True
                 elif comment != (self.obj.comment or None):
                     self.obj.comment = comment
+
+            # move to the correct chain if required
+            if _nmrChain is not self.obj.nmrChain:
+                self.obj.moveToNmrChain(_chainPid, seqCode, resType)
 
     def storeWidgetState(self):
         """Store the state of the checkBoxes between popups
