@@ -6,7 +6,7 @@ from __future__ import annotations
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2025"
 __credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
                "Timothy J Ragan, Brian O Smith, Daniel Thompson",
                "Gary S Thompson & Geerten W Vuister")
@@ -18,7 +18,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-12-11 19:13:08 +0000 (Wed, December 11, 2024) $"
+__dateModified__ = "$dateModified: 2025-01-13 12:41:07 +0000 (Mon, January 13, 2025) $"
 __version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
@@ -1349,6 +1349,8 @@ class Project(AbstractWrapperObject):
         """Clean up the wrapper project previous to deleting or replacing
         Cleanup includes wrapped data graphics objects (e.g. Window, Strip, ...)
         """
+        from ccpn.core.lib.Notifiers import checkFinalNotifiers
+
         # only update the logger if there have been changes to the project
         self._updateLoggerState(readOnly=self.readOnly or not self.isModified)
 
@@ -1364,18 +1366,8 @@ class Project(AbstractWrapperObject):
         # Remove undo stack:
         self._resetUndo(maxWaypoints=0)
 
-        _notified = False
-        try:
-            for od in self._context2Notifiers.values():
-                for notifier in od:
-                    _notified = True
-                    _colour = consoleStyle.fg.darkgrey if notifier.func._theObject.isDeleted else consoleStyle.fg.red
-                    getLogger().debug(f'{_colour}==>  {notifier.func}:{notifier.func._callback}{consoleStyle.reset}')
-        except Exception as es:
-            getLogger().debug(f'issue cleaning up notifiers {es}')
-        finally:
-            if _notified:
-                getLogger().debug(f'{consoleStyle.fg.darkgreen}==>  done{consoleStyle.reset}')
+        # check and log if there are any rogue notifiers left when cleaning up
+        checkFinalNotifiers()
         Logging._clearLogHandlers()
 
         self._clearAllApiNotifiers()

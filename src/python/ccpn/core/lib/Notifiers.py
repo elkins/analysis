@@ -31,7 +31,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2025-01-06 17:07:25 +0000 (Mon, January 06, 2025) $"
+__dateModified__ = "$dateModified: 2025-01-13 12:41:08 +0000 (Mon, January 13, 2025) $"
 __version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
@@ -61,6 +61,32 @@ GuiNotifierType = typing.TypeVar('GuiNotifierType', bound='GuiNotifier')
 
 DEBUG = False
 _debugIds = ()
+
+
+class _consoleStyle():
+    """Colors class:reset all colors with colors.reset; two
+    subclasses fg for foreground
+    and bg for background; use as colors.subclass.colorname.
+    i.e. colors.fg.red or colors.bg.greenalso, the generic bold, disable,
+    underline, reverse, strike through,
+    and invisible work with the main class i.e. colors.bold
+    """
+    # Smaller version of that defined in Common to remove any non-built-in imports
+    reset = '\033[0m'
+
+
+    class fg:
+        darkred = '\033[31m'
+        darkgreen = '\033[32m'
+        darkyellow = '\033[33m'
+        lightgrey = '\033[37m'
+        darkgrey = '\033[90m'
+        red = '\033[91m'
+        green = '\033[92m'
+        yellow = '\033[93m'
+        blue = '\033[94m'
+        magenta = '\033[95m'
+        white = '\033[97m'
 
 
 # _debugIds = (75, 84, 92, 94,95,96)  # for these _id's, debug will be True. This allows for selective debugging
@@ -894,6 +920,40 @@ def _printDiffToFile(oldState, newState, filePath):
     # Open the file in write mode and delegate diff printing to _printDiff
     with open(os.path.expanduser(filePath), 'w', encoding='utf-8') as fp:
         _printDiff(oldState, newState, filePath=fp)
+
+
+def checkFinalNotifiers():
+    """
+    Check and log the final state of notifiers in the project.
+
+    This function retrieves the current project and iterates through its notifiers,
+    logging their state. If no project is found, it raises a RuntimeError.
+
+    :raises RuntimeError: If no project is found.
+    """
+    from ccpn.framework.Application import getProject
+
+    # Retrieve the current project
+    if not (project := getProject()):
+        raise RuntimeError('checkFinalNotifiers: No project found')
+
+    _notified = False
+    try:
+        # Iterate through the notifiers in the project
+        for od in project._context2Notifiers.values():
+            for notifier in od:
+                _notified = True
+                # Determine the color based on whether the notifier's object is deleted
+                _colour = _consoleStyle.fg.darkgrey if notifier.func._theObject.isDeleted else _consoleStyle.fg.red
+                # Log the notifier's function and callback
+                getLogger().debug(f'{_colour}==>  {notifier.func}:{notifier.func._callback}{_consoleStyle.reset}')
+    except Exception as es:
+        # Log any issues encountered during cleanup
+        getLogger().debug(f'issue cleaning up notifiers {es}')
+    finally:
+        if _notified:
+            # Log completion message if any notifiers were processed
+            getLogger().debug(f'{_consoleStyle.fg.darkgreen}==>  done{_consoleStyle.reset}')
 
 
 #=========================================================================================
