@@ -1,29 +1,10 @@
 import warnings
-import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.ticker import FuncFormatter
-import pandas as pd
-from rdkit import Chem
-from rdkit.Chem import Draw
 from ccpn.util.Path import fetchDir, joinPath
 import ccpn.AnalysisScreen.lib.experimentAnalysis.matching.MatchingVariables as mv
 from ccpn.util.pptxWriter.PPTxWriter import *
 
-
-def smilesToImage(smiles, path):
-    """
-    Converts a SMILES string to a PNG image and saves it to disk.
-    :param smiles: SMILES string of the molecule.
-    :param path: Path to save the PNG file.
-    """
-    molecule = Chem.MolFromSmiles(smiles, sanitize=False)
-    if molecule is None:
-        return
-    Draw.MolToFile(molecule, path, format='PNG')
-
-def _formatPlotXTicks(value, _):
-    """  Ensure plain style, no scientific notation. 2 decimal places for the ppm scale"""
-    return f"{value:.2f}"
 
 class HitReportPresentation(PresentationTemplateABC):
     """
@@ -41,7 +22,7 @@ class HitReportPresentation(PresentationTemplateABC):
     """
 
     templateRelativePath = 'Screening_report_template.pptx'
-    templateName = 'Screening Report'
+    templateName = 'Screening PPTx Report'
     scratchDirName = 'screenReport' # the directory name created inside the ccpn temporary directory. And Cleared up after the report is generated
     slideMapping = {
                                 'Title Slide': [
@@ -186,7 +167,6 @@ class HitReportPresentation(PresentationTemplateABC):
     ADD_PEAK_SYMBOLS =True
     _regionDataCache = {}
 
-
     def setData(self, **kwargs):
         self.dataTableName = kwargs.get('dataTableName', '')
         self._hitAnalysisSourcePipeline = kwargs.get(mv._HitAnalysisSourcePipeline, {})
@@ -301,7 +281,7 @@ class HitReportPresentation(PresentationTemplateABC):
         td = fetchDir(self.application._temporaryDirectory.name, self.scratchDirName)
         tempSmilesPath = joinPath(td, f'{name}.png')
         try:
-            smilesToImage(smiles, tempSmilesPath)
+            self._smilesToImage(smiles, tempSmilesPath)
             return tempSmilesPath
         except Exception as err:
             print(f'Error creating Mol from Smiles. {substancePid} - {smiles}. Exit with error: {err}')
@@ -344,7 +324,6 @@ class HitReportPresentation(PresentationTemplateABC):
         df.drop(0, inplace=True)
 
         return df
-
 
     def getReportComment(self, substanceTableIndex, substanceTableRow, matchingTableForSubstance):
         """Stub method for getReportComment."""
@@ -450,7 +429,7 @@ class HitReportPresentation(PresentationTemplateABC):
 
             # Force x-axis to use full tick values
             # Apply the custom formatter to the x-axis # Ensure plain style, no scientific notation
-            ax.xaxis.set_major_formatter(FuncFormatter(_formatPlotXTicks))
+            ax.xaxis.set_major_formatter(FuncFormatter(self._formatPlotXTicks))
             if globalMax and globalMin:
                 snr_threshold = 1
                 yMinLim = globalMin*1.5
@@ -479,7 +458,6 @@ class HitReportPresentation(PresentationTemplateABC):
             for spine in ax.spines.values():
                 spine.set_linewidth(self.PLOT_SETTINGS["spine_width"])
 
-
         # Hide unused axes
         for j in range(len(dataset), len(axes)):
             axes[j].set_visible(False)
@@ -490,3 +468,23 @@ class HitReportPresentation(PresentationTemplateABC):
         fig.savefig(tempPlotPath, dpi=300, bbox_inches='tight', format="png")
         plt.close(fig)
         return tempPlotPath
+
+    @staticmethod
+    def _smilesToImage(smiles, path):
+        """
+        Converts a SMILES string to a PNG image and saves it to disk.
+        :param smiles: SMILES string of the molecule.
+        :param path: Path to save the PNG file.
+        """
+        from rdkit import Chem
+        from rdkit.Chem import Draw
+        molecule = Chem.MolFromSmiles(smiles, sanitize=False)
+        if molecule is None:
+            return False
+        Draw.MolToFile(molecule, path, format='PNG')
+        return True
+
+    @staticmethod
+    def _formatPlotXTicks(value, _):
+        """  Ensure plain style, no scientific notation. 2 decimal places for the ppm scale"""
+        return f"{value:.2f}"
