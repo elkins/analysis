@@ -1,6 +1,9 @@
 """Top level application version file
 
 """
+from __future__ import annotations
+
+
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
@@ -16,7 +19,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2025-01-15 16:03:04 +0000 (Wed, January 15, 2025) $"
+__dateModified__ = "$dateModified: 2025-01-15 17:10:06 +0000 (Wed, January 15, 2025) $"
 __version__ = "$Revision: 3.2.13 $"
 #=========================================================================================
 # Created
@@ -26,6 +29,8 @@ __date__ = "$Date: 2017-04-07 10:28:41 +0000 (Fri, April 07, 2017) $"
 #=========================================================================================
 # Start of code
 #=========================================================================================
+
+import typing
 
 
 _DEBUG = False
@@ -61,7 +66,7 @@ class VersionString(str):
     In particular, A step from 3.2.1.0 -> 3.2.1.2 will not be recognised and the update sequence will terminate early.
     """
 
-    def __new__(cls, value=None, *args, **kwargs):
+    def __new__(cls, value=None, *args, **kwargs) -> VersionString:
         """First argument ('string' must be a valid pid string with at least one, non-initial PREFIXSEP
         Additional arguments are converted to string with disallowed characters changed to altCharacter
         """
@@ -95,7 +100,7 @@ class VersionString(str):
         _new = super().__new__(cls, value)
         _new._fields = _fields
 
-        return _new
+        return typing.cast(cls, _new)
 
     @property
     def majorVersion(self) -> str:
@@ -128,7 +133,7 @@ class VersionString(str):
     @property
     def asStr(self) -> str:
         """Convenience: return as string rather than object;
-        allows to do things as obj.asPid.str rather then str(obj.asPid)
+        allows to do things as obj.asPid.str rather than str(obj.asPid)
         """
         return str(self)
 
