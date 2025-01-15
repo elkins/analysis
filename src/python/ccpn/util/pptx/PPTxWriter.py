@@ -46,13 +46,15 @@ PLACEHOLDER_TYPE_TABLE = 'Table'
 
 class PPTxPresentationWriter():
 
+    WRITER_NAME = 'Generic'
+
     def __init__(self, presentationTemplate, placeholderErrorPolicy='raise'):
         """
         :param pptxPath: The path to an existing PPTx presentation containing a single slide master and layout(s) with appropriately
                                      named placeholders to use as a template for a new presentation.
         """
         self._presentationTemplate = presentationTemplate
-        self._pptxPath = self._presentationTemplate.getAbsoluteTemplatePath()
+        self._pptxPath = self._presentationTemplate.getAbsoluteResourcesTemplatePath()
         self._presentation = _presentation(self._pptxPath)
         self._placeholderErrorPolicy = placeholderErrorPolicy
         self._data = None
@@ -383,6 +385,8 @@ class PPTxPresentationWriter():
 class ScreeningPresentationWriter(PPTxPresentationWriter):
     """The top layer  object to create presentations from a PPTX template.  This subclass  allows to write slides using its specialised
     slide writer and additionally add a custom first page summary. """
+
+    WRITER_NAME = 'SCREENING'
 
     def buildFromTemplate(self):
         import ccpn.AnalysisScreen.lib.experimentAnalysis.matching.MatchingVariables as mv

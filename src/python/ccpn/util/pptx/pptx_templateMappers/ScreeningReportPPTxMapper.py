@@ -22,7 +22,7 @@ class ScreeningReportTemplateMapper(PPTxTemplateMapperABC):
 
     """
 
-    templateRelativePath = 'Screening_report_template.pptx'
+    templateResourcesFileName = 'Screening_report_template.pptx'
     templateName = 'Screening PPTx Report'
     scratchDirName = 'screenReport' # the directory name created inside the ccpn temporary directory. And Cleared up after the report is generated
     slideMapping = {

@@ -1,14 +1,15 @@
 import importlib
 from abc import ABC
 from ccpn.framework.Application import getProject, getApplication, getMainWindow, getCurrent
-from ccpn.util.Path import aPath
+from ccpn.util.Path import aPath, joinPath
 
+TEMPLATE_DIR_NAME = 'pptx_templates'
 
 class PPTxTemplateMapperABC(ABC):
 
     templateName = 'PresentationTemplateABC' # the name that will appear in the GUI selections
     templateEntryOrder = -1 # the order in which will appear in the GUI selections
-    templateRelativePath = '' # the relative path from this file where the template is located
+    templateResourcesFileName = '' # the template file name .pptx . The file must be in one of the resources' directory. See getAbsoluteResourcesTemplatePath
     slideMapping = {}
 
     def __init__(self, *args, **kwargs):
@@ -25,15 +26,40 @@ class PPTxTemplateMapperABC(ABC):
     def setData(self, **kwargs):
         self._data = {**kwargs}
 
-    def getAbsoluteTemplatePath(self):
-        # Get the module where the current class (or subclass) is defined
-        moduleName = self.__class__.__module__
-        module = importlib.import_module(moduleName)
-        # Retrieve the file path of  the subclassed module
-        thisFile = aPath(module.__file__)
-        workingDir = aPath(thisFile.parent)
-        absPath = workingDir / self.templateRelativePath
-        return absPath
+    def getAbsoluteResourcesTemplatePath(self):
+        """The templates  should live in the resources' folder. The default template is in distribution folder.
+         However, users can override it in their local resources folders, either at project level or .ccpn/
+        Searching hierarchy levels:
+        1) Search the template first in the project resources directory if it exists.
+        2) Search in the internal user resources path.
+        3) Search the default template in the main distribution resources directory.
+        """
+        from ccpn.framework.PathsAndUrls import ccpnResourcesPath, userCcpnResourcesPath, CCPN_RESOURCES_DIRECTORY
+
+        searchPaths = []
+
+        # 1) Project resources path
+        if (project := getProject()) is not None:
+            projectResourcesPath = project.projectPath / CCPN_RESOURCES_DIRECTORY / TEMPLATE_DIR_NAME
+            searchPaths.append(projectResourcesPath)
+
+        # 2) Internal user resources path
+        internalResourcesDirPath = userCcpnResourcesPath / TEMPLATE_DIR_NAME
+        searchPaths.append(internalResourcesDirPath)
+
+        # 3) Default resources path
+        defaultResourcesDirPath = ccpnResourcesPath / TEMPLATE_DIR_NAME
+        searchPaths.append(defaultResourcesDirPath)
+
+        # Check each path in the hierarchy and return accordingly
+        for directory in searchPaths:
+            absTemplateFilePath = directory / self.templateResourcesFileName
+            if absTemplateFilePath.exists():
+                return absTemplateFilePath
+
+        # Raise error if the template is not found
+        raise FileNotFoundError( f"Template file '{self.templateResourcesFileName}' not found in any of the resources directories." )
+
 
     @staticmethod
     def formatNestedDictToText(data, indentLevel=0):

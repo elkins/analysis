@@ -3,7 +3,7 @@
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2025"
 __credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
                "Timothy J Ragan, Brian O Smith, Daniel Thompson",
                "Gary S Thompson & Geerten W Vuister")
@@ -15,8 +15,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-10-22 16:58:15 +0100 (Tue, October 22, 2024) $"
-__version__ = "$Revision: 3.2.9.alpha $"
+__dateModified__ = "$dateModified: 2025-01-15 12:22:08 +0000 (Wed, January 15, 2025) $"
+__version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -115,6 +115,8 @@ licensePath                     = ccpnCodePath / 'LICENSE.txt'
 
 # Resources Path
 ccpnResourcesChemicalShifts     = ccpnResourcesPath / 'referenceChemicalShifts'
+ccpnResourcesPPTxTemplates     = ccpnResourcesPath / 'pptx_templates'
+
 
 # User settings
 userPreferencesDirectory        = Path.aPath('~/.ccpn')
