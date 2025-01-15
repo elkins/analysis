@@ -121,53 +121,6 @@ class ScreeningReportTemplateMapper(PPTxTemplateMapperABC):
         'Comment'                       : {'column': mv.Reference_Comment, 'round': None},
         }
 
-    # Plot settings
-    PLOT_SETTINGS = {
-                                        "font"       : {
-                                            "family": "Helvetica",
-                                            "size"  : 6,
-                                            },
-                                        "spectrum_line"       : {
-                                            "linewidth": 0.5,
-                                            },
-                                        "label_line": { # peak labels
-                                            "linewidth": 0.5,
-                                            "linestyle": "dotted",
-                                            },
-                                        "label"      : {
-                                            "fontsize": 4,
-                                            "rotation": 0,
-                                            "x_offset(ppm)": 0.2,
-                                            "ha"      : "left",
-                                            "va"      : "bottom",
-                                            },
-                                        "tick_params": {
-                                            "axis"     : "x",
-                                            "labelsize": 4,
-                                            "width"    : 0.5,
-                                            },
-                                        "xlabel"     : {
-                                            "fontsize": 4,
-                                            "ha"      : "right",
-                                            "x"       : 1.0,
-                                            "labelpad": -15,
-                                            },
-                                        "peak_symbol": {
-                                            "marker": 'x',
-                                            "s"      : 10, # size
-                                            "alpha" : 0.8,
-                                            "linewidths":0.3,
-                                            },
-                                        "spine_width": 0.2,
-                                        "dpi"        : 300,
-                                        "format"     : "png",
-                                        }
-
-    REGION_DATA_WIDTH_IN_POINTS = 100 # take this value to crop the data left-right of a peak point position and determine the plotting area
-    ADD_PEAK_LABELS = True
-    ADD_PEAK_SYMBOLS =True
-    _regionDataCache = {}
-
     def setData(self, **kwargs):
         self.dataTableName = kwargs.get('dataTableName', '')
         self._hitAnalysisSourcePipeline = kwargs.get(mv._HitAnalysisSourcePipeline, {})
@@ -179,6 +132,8 @@ class ScreeningReportTemplateMapper(PPTxTemplateMapperABC):
             else:
                 self.pipelineSettingsDict = {}
         self._haModuleSettings = kwargs.get(mv.HitAnalysisSettings, {})
+
+    # ~~~~~~ slideMapping getters ~~~~~~~~
 
     def getTitle(self):
         title = 'CcpNmr Screening Report'
@@ -240,8 +195,6 @@ class ScreeningReportTemplateMapper(PPTxTemplateMapperABC):
         """Stub method for getTitleComment."""
         pass
 
-    # ---------- The following methods are called from the PPTxWriter -------
-
     def getReportTitle(self, substanceTableIndex, substanceTableRow, matchingTableForSubstance):
         """Add the title from the Substance"""
         df = matchingTableForSubstance
@@ -263,10 +216,6 @@ class ScreeningReportTemplateMapper(PPTxTemplateMapperABC):
         except Exception as r:
             text += f'{mv.Matching} {mv.Score}: {substanceMatchScore}'
         return text
-
-    def _getSubstancePid(self, substanceTableRow):
-        substancePid = substanceTableRow[mv.Reference_SubstancePid]
-        return substancePid
 
     def getMolStructure(self, substanceTableIndex, substanceTableRow, matchingTableForSubstance):
         """Stub method for getMolStructure."""
@@ -330,13 +279,207 @@ class ScreeningReportTemplateMapper(PPTxTemplateMapperABC):
         """Stub method for getReportComment."""
         pass
 
-    @staticmethod
-    def _setRegionDataCache(peaks, extraPointLimit=25):
-        peaksRegionData = ScreeningReportTemplateMapper.getRegionDatafForPeaks(peaks, extraPointLimit)
-        ScreeningReportTemplateMapper._regionDataCache.update(peaksRegionData)
+    def getReportPlots(self, substanceTableIndex, substanceTableRow, matchingTableForSubstance):
+        plotter = _MatchingPeaksPlotter(self)
+        tempPlotPath =  plotter._getReportPlots(substanceTableIndex, substanceTableRow, matchingTableForSubstance)
+        del plotter
+        return tempPlotPath
+
+    # ~~~ helper methods ~~~~
+
+    def _getSubstancePid(self, substanceTableRow):
+        substancePid = substanceTableRow[mv.Reference_SubstancePid]
+        return substancePid
 
     @staticmethod
-    def getRegionDatafForPeaks(peaks, extraPointLimit=25):
+    def _smilesToImage(smiles, path):
+        """
+        Converts a SMILES string to a PNG image and saves it to disk.
+        :param smiles: SMILES string of the molecule.
+        :param path: Path to save the PNG file.
+        """
+        from rdkit import Chem
+        from rdkit.Chem import Draw
+        molecule = Chem.MolFromSmiles(smiles, sanitize=False)
+        if molecule is None:
+            return False
+        Draw.MolToFile(molecule, path, format='PNG')
+        return True
+
+
+
+class _MatchingPeaksPlotter():
+    """A class that handles the 1D matching peaks region data and plots to a matplotlib plt instance.
+     Private and specialised class to the PPTX screening reporter only. """
+
+    # Plot settings
+    PLOT_SETTINGS = {
+                                        "font"       : {
+                                            "family": "Helvetica",
+                                            "size"  : 6,
+                                            },
+                                        "spectrum_line"       : {
+                                            "linewidth": 0.5,
+                                            },
+                                        "label_line": { # peak labels
+                                            "linewidth": 0.5,
+                                            "linestyle": "dotted",
+                                            },
+                                        "label"      : {
+                                            "fontsize": 4,
+                                            "rotation": 0,
+                                            "x_offset(ppm)": 0.2,
+                                            "ha"      : "left",
+                                            "va"      : "bottom",
+                                            },
+                                        "tick_params": {
+                                            "axis"     : "x",
+                                            "labelsize": 4,
+                                            "width"    : 0.5,
+                                            },
+                                        "xlabel"     : {
+                                            "fontsize": 4,
+                                            "ha"      : "right",
+                                            "x"       : 1.0,
+                                            "labelpad": -15,
+                                            },
+                                        "peak_symbol": {
+                                            "marker": 'x',
+                                            "s"      : 10, # size
+                                            "alpha" : 0.8,
+                                            "linewidths":0.3,
+                                            },
+                                        "spine_width": 0.2,
+                                        "dpi"        : 300,
+                                        "format"     : "png",
+                                        }
+
+    REGION_DATA_WIDTH_IN_POINTS = 100 # take this value to crop the data left-right of a peak point position and determine the plotting area
+    ADD_PEAK_LABELS = True
+    ADD_PEAK_SYMBOLS =True
+    _regionDataCache = {}
+
+    def __init__(self, templateMapper):
+        self.templateMapper = templateMapper
+
+
+    def _getReportPlots(self, substanceTableIndex, substanceTableRow, matchingTableForSubstance):
+        """Generate report plots for a given substance."""
+        substancePid = self.templateMapper._getSubstancePid(substanceTableRow)
+        dataset = self._getDatasetSubset(matchingTableForSubstance)
+        fig, axes = self._initializePlotGrid(len(dataset))
+
+        allPeaks = self._getPeaksFromDataSet(dataset)
+        self._setRegionDataCache(allPeaks, self.REGION_DATA_WIDTH_IN_POINTS)
+        globalMin, globalMax = self._getGlobalYPlotLimits(allPeaks)
+
+        for i, (ind, row) in enumerate(dataset.iterrows()):
+            self._plotRowData(axes[i], row, globalMin, globalMax)
+
+        self._hideUnusedAxes(axes, len(dataset))
+        tempPlotPath = self._saveFigure(fig, substancePid)
+        return tempPlotPath
+
+
+    # --- helper methods for the plotting ---
+
+    def _getDatasetSubset(self, matchingTable):
+        """Limit the DataFrame to the maximum number of plots."""
+        maxPlots = 4  # Max rows * max columns (2x2)
+        return matchingTable.head(maxPlots)
+
+    def _initializePlotGrid(self, numPlots):
+        """Create and configure the figure and subplot grid."""
+        maxCols = 2
+        numCols = min(maxCols, numPlots)
+        numRows = (numPlots + numCols - 1) // numCols
+        fig, axes = plt.subplots(numRows, numCols, figsize=(3 * numCols, 2 * numRows))
+
+        if numPlots == 1:
+            axes = [axes]  # If only one plot, make axes a list
+        else:
+            axes = axes.flatten()  # Flatten the axes for consistency
+
+        return fig, axes
+
+    def _plotRowData(self, ax, row, globalMin, globalMax):
+        """Plot the data for a single row on the given axis."""
+        peakPids = row[[mv.Reference_PeakPid, mv.Control_PeakPid, mv.Target_PeakPid, mv.Displacer_PeakPid]].values
+        peaks = self.templateMapper.project.getByPids(peakPids)
+
+        for peak in peaks:
+            self._plotPeak(ax, peak)
+
+        self._adjustAxisLimits(ax, row, globalMin, globalMax)
+        self._customizeAxis(ax)
+
+    def _plotPeak(self, ax, peak):
+        """Plot each single 1D peak on the given axis."""
+        spectrum = peak.spectrum
+        color = spectrum.sliceColour
+        x, y = self._regionDataCache.get(peak.pid, ([], []))
+
+        ax.plot(x, y, color=color, label=peak.id, **self.PLOT_SETTINGS["spectrum_line"])
+
+        if self.ADD_PEAK_SYMBOLS:
+            ax.scatter(float(peak.position[0]), float(peak.height), color=color, **self.PLOT_SETTINGS["peak_symbol"])
+
+        if self.ADD_PEAK_LABELS:
+            ax.legend(loc=1, fontsize=4, ncol=1, numpoints=3, frameon=False)
+
+    def _adjustAxisLimits(self, ax, row, globalMin, globalMax):
+        """Adjust the Y-axis limits for the plot."""
+        if globalMax and globalMin:
+            yMinLim, yMaxLim = globalMin * 1.5, globalMax * 1.5
+
+            if row[mv.Control_PeakSNR] is not None and len(ax.figure.axes) == 1:
+                controlPeakSN = row[mv.Control_PeakSNR]
+                scaling_factor = max(1.0, 1 / controlPeakSN)
+                yMinLim *= scaling_factor
+                yMaxLim *= scaling_factor
+
+            ax.set_ylim(yMinLim, yMaxLim)
+
+    def _customizeAxis(self, ax):
+        """Customize the axis appearance."""
+        ax.xaxis.set_major_formatter(FuncFormatter(self._formatPlotXTicks))
+        ax.set_yticks([])
+        ax.set_yticklabels([])
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+        ax.spines['left'].set_visible(False)
+        ax.invert_xaxis()
+        ax.tick_params(**self.PLOT_SETTINGS["tick_params"])
+        ax.set_xlabel("[ppm]", **self.PLOT_SETTINGS["xlabel"])
+
+        for spine in ax.spines.values():
+            spine.set_linewidth(self.PLOT_SETTINGS["spine_width"])
+
+    def _hideUnusedAxes(self, axes, numPlots):
+        """Hide any unused axes in the plot grid."""
+        for ax in axes[numPlots:]:
+            ax.set_visible(False)
+
+    def _saveFigure(self, fig, substancePid):
+        """Save the figure to a temporary path and close the figure."""
+        td = fetchDir(self.templateMapper.application._temporaryDirectory.name, self.templateMapper.scratchDirName)
+        tempPlotPath = joinPath(td, f'{substancePid}-plot.png')
+        fig.savefig(tempPlotPath, dpi=300, bbox_inches='tight', format="png")
+        plt.close(fig)
+        return tempPlotPath
+
+    @staticmethod
+    def _formatPlotXTicks(value, _):
+        """  Ensure plain style, no scientific notation. 2 decimal places for the ppm scale"""
+        return f"{value:.2f}"
+
+    ## ---- Region Data helpers ---- ##
+
+    def _setRegionDataCache(self, peaks, extraPointLimit=25):
+        peaksRegionData = self._getRegionDatafFor1DPeaks(peaks, extraPointLimit)
+        self._regionDataCache.update(peaksRegionData)
+
+    def _getRegionDatafFor1DPeaks(self, peaks, extraPointLimit=25):
         peaksRegionData = {}
         for peak in peaks:
             spectrum = peak.spectrum
@@ -355,137 +498,16 @@ class ScreeningReportTemplateMapper(PPTxTemplateMapperABC):
         allPeaks = []
         for i, (ind, row) in enumerate(dataset.iterrows()):
             peakPids = row[[mv.Reference_PeakPid, mv.Control_PeakPid, mv.Target_PeakPid, mv.Displacer_PeakPid]].values
-            peaks = [self.project.getByPid(pid) for pid in peakPids]
+            peaks = self.templateMapper.project.getByPids(peakPids)
             allPeaks.extend([pk for pk in peaks if pk is not None])
         return allPeaks
 
     def _getGlobalYPlotLimits(self, peaks):
         """Get the lowest and highest point in the region data, needed for scaling the Y limits in the plot, so that a only-noise region is not over-represented as a real signal.  """
-        arrays = [self._regionDataCache.get(peak.pid, ([], [])) [1] for peak in peaks]
+        arrays = [self._regionDataCache.get(peak.pid, ([], []))[1] for peak in peaks]
         flattened = np.concatenate(arrays)
-        if len(flattened)>0:
+        if len(flattened) > 0:
             globalMin = flattened.min()
             globalMax = flattened.max()
             return globalMin, globalMax
         return -np.inf, np.inf
-
-    def getReportPlots(self, substanceTableIndex, substanceTableRow, matchingTableForSubstance):
-        """Stub method for getReportPlots."""
-        substancePid = self._getSubstancePid(substanceTableRow)
-        imageAspectRatio = (3, 2) # 3:2
-        # Define the maximum rows and columns
-        maxRows = 2
-        maxCols = 2
-        maxPlots = maxRows * maxCols
-
-        # Limit the DataFrame to the first 'maxPlots' rows
-        dataset = matchingTableForSubstance.head(maxPlots)
-
-        # Calculate the number of rows and columns dynamically
-        numPlots = len(dataset)
-        if numPlots <= maxCols:
-            numRows, numCols = 1, numPlots  # Single row if plots fit in one row
-        else:
-            numCols = min(maxCols, numPlots)  # Cap columns at maxCols
-            numRows = (numPlots + numCols - 1) // numCols  # Calculate rows needed
-
-        plt.close('all')
-        # Create the figure and subplots
-        fig, axes = plt.subplots(numRows, numCols, figsize=(imageAspectRatio[0] * numCols, imageAspectRatio[1] * numRows))
-
-        # Flatten axes for consistent handling, even if there's only one subplot
-        if numPlots == 1:
-            axes = [axes]  # Single axis as a list
-        else:
-            axes = axes.flatten()
-
-        allPeaks = self._getPeaksFromDataSet(dataset)
-        self._setRegionDataCache(allPeaks, self.REGION_DATA_WIDTH_IN_POINTS)
-        globalMin, globalMax = self._getGlobalYPlotLimits(allPeaks)
-        for i, (ind, row) in enumerate(dataset.iterrows()):
-            ax = axes[i]
-            peakPids = row[[mv.Reference_PeakPid, mv.Control_PeakPid, mv.Target_PeakPid, mv.Displacer_PeakPid]].values
-            peaks = [self.project.getByPid(pid) for pid in peakPids]
-            peaks = [pk for pk in peaks if pk is not None]
-
-            # Loop through sorted peaks and plot
-            for ii, peak in enumerate(peaks):
-                spectrum = peak.spectrum
-                color = spectrum.sliceColour
-                x, y = self._regionDataCache.get(peak.pid, ([], []))
-
-                # Plot the peak data
-                ax.plot(x, y,
-                        color=color,
-                        label=peak.id,
-                        **self.PLOT_SETTINGS["spectrum_line"])
-
-                if self.ADD_PEAK_SYMBOLS:
-                    # add peak symbol
-                    ax.scatter(float(peak.position[0]), float(peak.height),
-                            color=color,
-                            **self.PLOT_SETTINGS["peak_symbol"])
-                if self.ADD_PEAK_LABELS:
-                    ax.legend(loc=1, fontsize=4, ncol=1, numpoints=3, frameon=False)
-
-            # Force x-axis to use full tick values
-            # Apply the custom formatter to the x-axis # Ensure plain style, no scientific notation
-            ax.xaxis.set_major_formatter(FuncFormatter(self._formatPlotXTicks))
-            if globalMax and globalMin:
-                snr_threshold = 1
-                yMinLim = globalMin*1.5
-                yMaxLim = globalMax * 1.5
-                # scale by control S/N but only if there is one axis in one slide.
-                if len(axes)==1: #apply additional scaling based on the S/N Otherwise if is only noise region will look over-represented compared to other slides,
-                    controlPeakSN = row[mv.Control_PeakSNR]
-                    if controlPeakSN is not None:
-                        scaling_factor = max(1.0, snr_threshold / controlPeakSN)  # Ensure it's at least 1.0
-                        yMinLim *= scaling_factor
-                        yMaxLim *= scaling_factor
-                ax.set_ylim(yMinLim, yMaxLim)  # Set the same Y-limits for all curves
-
-            # Remove the y-axis
-            ax.set_yticks([])  # Removes the ticks from the y-axis
-            ax.set_yticklabels([])  # Removes the labels from the y-axis
-            # Remove the top and right spines
-            ax.spines['top'].set_visible(False)
-            ax.spines['right'].set_visible(False)
-            ax.spines['left'].set_visible(False)
-
-            # Invert the x-axis
-            ax.invert_xaxis()
-            ax.tick_params(**self.PLOT_SETTINGS["tick_params"])
-            ax.set_xlabel("[ppm]", **self.PLOT_SETTINGS["xlabel"])
-            for spine in ax.spines.values():
-                spine.set_linewidth(self.PLOT_SETTINGS["spine_width"])
-
-        # Hide unused axes
-        for j in range(len(dataset), len(axes)):
-            axes[j].set_visible(False)
-
-        td = fetchDir(self.application._temporaryDirectory.name, self.scratchDirName)
-        tempPlotPath = joinPath(td, f'{substancePid}-plot.png')
-
-        fig.savefig(tempPlotPath, dpi=300, bbox_inches='tight', format="png")
-        plt.close(fig)
-        return tempPlotPath
-
-    @staticmethod
-    def _smilesToImage(smiles, path):
-        """
-        Converts a SMILES string to a PNG image and saves it to disk.
-        :param smiles: SMILES string of the molecule.
-        :param path: Path to save the PNG file.
-        """
-        from rdkit import Chem
-        from rdkit.Chem import Draw
-        molecule = Chem.MolFromSmiles(smiles, sanitize=False)
-        if molecule is None:
-            return False
-        Draw.MolToFile(molecule, path, format='PNG')
-        return True
-
-    @staticmethod
-    def _formatPlotXTicks(value, _):
-        """  Ensure plain style, no scientific notation. 2 decimal places for the ppm scale"""
-        return f"{value:.2f}"
