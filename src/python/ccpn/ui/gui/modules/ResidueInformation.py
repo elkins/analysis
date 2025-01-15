@@ -1,7 +1,7 @@
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2025"
 __credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
                "Timothy J Ragan, Brian O Smith, Daniel Thompson",
                "Gary S Thompson & Geerten W Vuister")
@@ -13,7 +13,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-12-02 12:15:29 +0000 (Mon, December 02, 2024) $"
+__dateModified__ = "$dateModified: 2025-01-09 20:41:17 +0000 (Thu, January 09, 2025) $"
 __version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
@@ -93,8 +93,8 @@ class ResidueInformation(CcpnModule):
             self._selectChain(chain)
         self._getResidues()
 
-        # set the notifies for current chain
-        self._activePulldownClass = None
+        # set the notifiers for current chain
+        self._activePulldownKlass = None
         self._activeCheckbox = None
         # self._setCurrentPulldownNotifier = None
 
@@ -108,7 +108,7 @@ class ResidueInformation(CcpnModule):
 
         # put these in a smaller additional class
         if self.activePulldownClass:
-            self._activePulldownClass = self.activePulldownClass
+            self._activePulldownKlass = self.activePulldownClass
             self._activeCheckbox = getattr(self._moduleSettings, LINKTOPULLDOWNCLASS, None)
 
         # don't need a handle to these now,
@@ -241,7 +241,7 @@ class ResidueInformation(CcpnModule):
             self.selectedChain = 'All'
         else:
             self.selectedChain = self.project.getByPid(item)
-            if self._activePulldownClass and self._activeCheckbox and \
+            if self._activePulldownKlass and self._activeCheckbox and \
                     self.selectedChain != self.current.chain and self._activeCheckbox.isChecked():
                 self.current.chain = self.selectedChain
         self._getResidues()
@@ -375,20 +375,6 @@ class ResidueInformation(CcpnModule):
                         strip.header.reset()
                         strip.header.headerVisible = True
 
-    def _closeModule(self):
-        """CCPN-INTERNAL: used to close the module
-        """
-        if self.chainPulldown:
-            self.chainPulldown.unRegister()
-            self.chainPulldown = None
-        if self._residueTable:
-            self._residueTable._close()
-            self._residueTable = None
-        if self.thisSequenceWidget:
-            self.thisSequenceWidget._closeModule()
-            self.thisSequenceWidget = None
-        super()._closeModule()
-
     #=========================================================================================
     # Notifier queue handling
     # SHOULD add some base-class methods
@@ -470,7 +456,7 @@ class _ResidueTable(Table):
                         color: palette(text);
                     }
                     """
-    defaultTableDelegate = _HighlightDelegate
+    TableDelegateClass = _HighlightDelegate
     _disableNewFocus = True  # allow instant click on table
 
     def __init__(self, parent, grid, gridSpan, selectionCallback, actionCallback):

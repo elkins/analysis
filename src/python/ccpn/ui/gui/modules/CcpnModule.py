@@ -5,7 +5,7 @@ modified by Geerten 1-12/12/2016
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2025"
 __credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
                "Timothy J Ragan, Brian O Smith, Daniel Thompson",
                "Gary S Thompson & Geerten W Vuister")
@@ -17,7 +17,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-12-11 19:13:08 +0000 (Wed, December 11, 2024) $"
+__dateModified__ = "$dateModified: 2025-01-13 17:16:15 +0000 (Mon, January 13, 2025) $"
 __version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
@@ -46,17 +46,17 @@ from ccpn.ui.gui.widgets.ButtonList import ButtonList
 from ccpn.ui.gui.widgets.Icon import Icon
 from ccpn.ui.gui.widgets.SideBar import SideBar, SideBarSearchListView
 from ccpn.ui.gui.widgets.Frame import Frame, ScrollableFrame
-from ccpn.ui.gui.widgets.Font import setWidgetFont, getWidgetFontHeight, getFont, DEFAULTFONT
+from ccpn.ui.gui.widgets.Font import setWidgetFont, getWidgetFontHeight
 from ccpn.ui.gui.widgets.MessageDialog import showWarning
+from ccpn.ui.gui.widgets.MainWindow import MainWindow
 from ccpn.ui.gui.guiSettings import (getColours, BORDERNOFOCUS, CCPNMODULELABEL_BACKGROUND, CCPNMODULELABEL_FOREGROUND,
-                                     CCPNMODULELABEL_BACKGROUND_ACTIVE, CCPNMODULELABEL_FOREGROUND_ACTIVE,
-                                     CCPNMODULELABEL_BORDER, CCPNMODULELABEL_BORDER_ACTIVE,
-                                     BORDERNOFOCUS_COLOUR)
+                                     CCPNMODULELABEL_BACKGROUND_ACTIVE, CCPNMODULELABEL_FOREGROUND_ACTIVE)
 from ccpn.ui.gui.lib.ModuleLib import getBlockingDialogs
+from ccpn.core.Project import Project
 from ccpn.core.lib.Notifiers import NotifierBase
 from ccpn.core.lib.Pid import Pid, createPid
+from ccpn.core.lib.WeakRefLib import WeakRefDescriptor
 from ccpn.util.Path import aPath
-from ccpn.util import Logging
 from ccpn.util.Logging import getLogger
 
 
@@ -77,6 +77,7 @@ WIDGETSTATE = 'widgetsState'
 
 MIN_PIXMAP = 32
 MAX_PIXMAP = 128
+_DEBUG = True
 
 
 #=========================================================================================
@@ -126,7 +127,10 @@ class CcpnModule(Dock, DropBase, NotifierBase):
 
     # After closing a renamed module, any new instance will be named as default.
 
-    # _instances = set()
+    mainWindow: MainWindow | None = WeakRefDescriptor()
+    application = WeakRefDescriptor()
+    project: Project | None = WeakRefDescriptor()
+    current = WeakRefDescriptor()
 
     def __init__(self, mainWindow, name, closable=True,
                  settingsScrollBarPolicies=('asNeeded', 'asNeeded'), **kwds):
@@ -179,7 +183,7 @@ class CcpnModule(Dock, DropBase, NotifierBase):
         self._borderOverlay = BorderOverlay(self)
         self._borderOverlay.raise_()
 
-        Logging.getLogger().debug(f'CcpnModule>>> {type(self)} {mainWindow}')
+        getLogger().debug(f'CcpnModule>>> {type(self)} {mainWindow}')
 
         # Logging.getLogger().debug('module:"%s"' % (name,))
         self._nameSplitter = '_'  # used to get the serial number.
@@ -201,12 +205,12 @@ class CcpnModule(Dock, DropBase, NotifierBase):
         # 1. replace the super class init with our own and not call it 2. replace the methods of DockLabel we have
         # problems with 3. ask the pyqtgraph guys to add a factory method...
         self.label = CcpnModuleLabel(name, self,
-                                     showCloseButton=closable, closeCallback=self._closeModule,
+                                     showCloseButton=closable,  #closeCallback=self._closeModule,
                                      enableSettingsButton=self.includeSettingsWidget,
                                      settingsCallback=self._settingsCallback,
                                      helpButtonCallback=self._helpButtonCallback,
                                      )
-        # self.label.dock = self  # not
+        self.label.sigCloseClicked.connect(self._closeModule)
 
         self.topLayout.addWidget(self.label, 0, 1)  # ejb - swap out the old widget, keeps hierarchy
         # except it doesn't work properly
@@ -225,12 +229,6 @@ class CcpnModule(Dock, DropBase, NotifierBase):
             self._settingsScrollArea = self.settingsWidget._scrollArea
 
             # set the new borders for the settings scroll area - border not needed at the top
-            # self._settingsScrollArea.setStyleSheet('ScrollArea { border-left: 1px solid %s;'
-            #                                        'border-right: 1px solid %s;'
-            #                                        'border-bottom: 1px solid %s;'
-            #                                        'background: transparent; }' % (
-            #                                            BORDERNOFOCUS_COLOUR, BORDERNOFOCUS_COLOUR,
-            #                                            BORDERNOFOCUS_COLOUR))
             self._settingsScrollArea.setStyleSheet('ScrollArea { border-left: 1px solid palette(mid);'
                                                    'border-right: 1px solid palette(mid);'
                                                    'border-bottom: 1px solid palette(mid);'
@@ -470,34 +468,71 @@ class CcpnModule(Dock, DropBase, NotifierBase):
                         f'Impossible to restore {variableName} value for {self.name()}. {es}'
                         )
 
-    def _closeModule(self):
-        """Close the module
+    # def __closeModule(self):
+    #     """Close the module
+    #     """
+    #     # delete any notifiers initiated with this Module
+    #     self.deleteAllNotifiers()
+    #     getLogger().debug(f'Closing {str(self.container())}')
+    #     if self.maximised:
+    #         self.toggleMaximised()
+    #     if not self._container:
+    #         if (area := self.mainWindow.moduleArea) and area._container is None:
+    #             for i in area.children():
+    #                 if isinstance(i, Container):
+    #                     self._container = i
+    #
+    #     if self._includeInLastSeen and self.area:
+    #         self.area._seenModuleStates[self.className] = {MODULENAME : self._defaultName,
+    #                                                        WIDGETSTATE: self._getLastSeenWidgetsState()}
+    #
+    #     self.mainWindow.application._cleanGarbageCollector()
+    #     try:
+    #         super().close()
+    #     except Exception:
+    #         """Remove this dock from the DockArea it lives inside."""
+    #         self._container = None
+    #         self.sigClosed.emit(self)
+
+    def _preClose(self):
+        """Handle closing before child-widgets.
         """
+        from ccpn.ui.gui.lib.WidgetClosingLib import _debugAttrib, _PRECLOSE as MSG
+
+        # print a temporary debug message
+        _debugAttrib(self, MSG)
+
         # delete any notifiers initiated with this Module
         self.deleteAllNotifiers()
-        getLogger().debug(f'Closing {str(self.container())}')
-        if self.maximised:
-            self.toggleMaximised()
         if not self._container:
             if (area := self.mainWindow.moduleArea) and area._container is None:
                 for i in area.children():
                     if isinstance(i, Container):
                         self._container = i
-
         if self._includeInLastSeen and self.area:
             self.area._seenModuleStates[self.className] = {MODULENAME : self._defaultName,
                                                            WIDGETSTATE: self._getLastSeenWidgetsState()}
 
-        self.mainWindow.application._cleanGarbageCollector()
-        try:
-            super().close()
-        except Exception:
-            """Remove this dock from the DockArea it lives inside."""
-            self._container = None
-            self.sigClosed.emit(self)
+    def _postClose(self):
+        """Handle closing after all child-widgets.
+        """
+        from ccpn.ui.gui.lib.WidgetClosingLib import _debugAttrib, _POSTCLOSE as MSG
 
+        # print a temporary debug message
+        _debugAttrib(self, MSG)
+
+    def _closeModule(self):
+        """Clean-up and close.
+        """
+        from ccpn.ui.gui.lib.WidgetClosingLib import CloseHandler
+
+        with CloseHandler(self, autoDelete=True):
+            # only ccpnModule should call super-close here
+            super().close()
+
+    @staticmethod
     def _detach(self):
-        """"Remove the module from the Drop-Area into a new window
+        """Remove the module from the Drop-Area into a new window
         """
         self.float()
 
@@ -528,7 +563,6 @@ class CcpnModule(Dock, DropBase, NotifierBase):
                                                  widg)
                                                 for grp in grouped
                                                 for count, widg in enumerate(grp))
-
         return _stateWidgets
 
     # NOTE:ED - keep for the minute, may still need window maximise/close
@@ -641,6 +675,7 @@ class CcpnModule(Dock, DropBase, NotifierBase):
     def close(self):
         """Close the module from the commandline
         """
+        # Dock is doing something weird with close and closeEvent :|
         self._closeModule()
 
     def enterEvent(self, event):
@@ -829,7 +864,7 @@ class CcpnModule(Dock, DropBase, NotifierBase):
         self.updateStyle()
 
         # GST we have to assume the drag succeeded currently as we don't get any events
-        # that report on whether the drag has failed. Indeed this effectively a failed drag...
+        # that report on whether the drag has failed. Indeed, this is effectively a failed drag...
         globalDockRect = self.getDockArea().frameGeometry()
 
         targetWidget = QtWidgets.QApplication.instance().widgetAt(endPosition)
@@ -919,10 +954,10 @@ class CcpnModuleLabel(DockLabel):
         if showCloseButton:
             # button is already there because of the DockLabel init
             self.closeButton.setIconSize(QtCore.QSize(self._fontSize, self._fontSize))
-            if closeCallback is None:
-                raise RuntimeError('Requested closeButton without callback')
-            else:
-                self.closeButton.clicked.connect(closeCallback)
+            # if closeCallback is None:
+            #     raise RuntimeError('Requested closeButton without callback')
+            # else:
+            #     self.closeButton.clicked.connect(closeCallback)
             self.setupLabelButton(self.closeButton, 'close-module', CcpnModuleLabel.TOP_RIGHT)
 
         # Settings
@@ -981,16 +1016,7 @@ class CcpnModuleLabel(DockLabel):
                     f"button position must be one of {', '.join([CcpnModule.TOP_LEFT, CcpnModule.TOP_RIGHT])}"
                     )
 
-        # GST colours are hard coded... help please I need  a central source for
-        # these presumably a color palette or scheme
-        # button.setStyleSheet(""" border: %ipx solid #a9a9a9 ;
-        #                          border-top-left-radius: %ipx;
-        #                          border-top-right-radius: %ipx;
-        #                          border-bottom-left-radius: 0px;
-        #                          border-bottom-right-radius: 0px;
-        #                          background-color: #ececec ;  """ % styleInfo)
         buttonSize = self.labelSize + 4
-        # button.setMinimumSize(QtCore.QSize(buttonSize, buttonSize))
         button.setMaximumSize(
                 QtCore.QSize(buttonSize, buttonSize))  # just let the button expand a little to fit the label
         button.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
@@ -1040,7 +1066,7 @@ class CcpnModuleLabel(DockLabel):
         renameAction = contextMenu.addAction('Rename', self._showNameEditor)
         detachAction = contextMenu.addAction('Detach from Drop Area', self.module._detach)
         contextMenu.addSeparator()
-        contextMenu.addAction('Close', self.module._closeModule)
+        contextMenu.addAction('Close', self.module.close)
         if len(self.module.area.ccpnModules) > 1:
             contextMenu.addAction('Close Others', partial(self.module.area._closeOthers, self.module))
             contextMenu.addAction('Close All', self.module.area._closeAll)
@@ -1048,16 +1074,7 @@ class CcpnModuleLabel(DockLabel):
 
         gidAction = contextMenu.addAction('Copy Gid to clipboard', self._copyPidToClipboard)
         gidAction.setToolTip('Usage, On Python Console type: ui.getByGid(Pasted_Gid) to get this module as an object')
-
         renameAction.setEnabled(self.module._allowRename)
-        # numDocks = len(self.module.getDocksInParentArea())
-        #
-        # if not self.module.maximised and numDocks > 1:
-        #     contextMenu.addAction('Maximise', self.module.toggleMaximised)
-        # elif self.module.maximised:
-        #     contextMenu.addAction('Restore', self.module.toggleMaximised)
-        #
-        # contextMenu.addAction('Float', self.module.float)
 
         return contextMenu
 
@@ -1460,15 +1477,3 @@ class CcpnTableModule(CcpnModule):
         """
         with contextlib.suppress(Exception):
             return self._tableWidget.hiddenColumns
-
-    def _closeModule(self):
-        """
-        CCPN-INTERNAL: used to close the module
-        """
-        if self.tableFrame:
-            self.tableFrame._cleanupWidget()
-            self._mainFrame = None
-        if self._settings:
-            self._settings._cleanupWidget()
-            self._settings = None
-        super()._closeModule()

@@ -4,7 +4,7 @@ This file contains StructureTableModule and StructureTable classes
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2025"
 __credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
                "Timothy J Ragan, Brian O Smith, Daniel Thompson",
                "Gary S Thompson & Geerten W Vuister")
@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-12-12 16:46:56 +0000 (Thu, December 12, 2024) $"
+__dateModified__ = "$dateModified: 2025-01-06 17:47:55 +0000 (Mon, January 06, 2025) $"
 __version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
@@ -40,7 +40,6 @@ from ccpn.ui.gui.widgets.PulldownListsForObjects import StructureEnsemblePulldow
 from ccpn.ui.gui.widgets.Column import ColumnClass
 from ccpn.ui.gui.widgets.SettingsWidgets import ModuleSettingsWidget
 from ccpn.ui.gui.lib._CoreTableFrame import _CoreTableWidgetABC, _CoreTableFrameABC
-from ccpn.util.Logging import getLogger
 
 
 ALL = '<all>'
@@ -91,7 +90,6 @@ class StructureTableModule(CcpnTableModule):
                                             'enabled' : True,
                                             'checked' : False,
                                             '_init'   : None}),))
-
             self._settings = ModuleSettingsWidget(parent=settingsWidget, mainWindow=self.mainWindow,
                                                   settingsDict=settingsDict,
                                                   grid=(0, 0))
@@ -123,7 +121,6 @@ class StructureTableModule(CcpnTableModule):
                              [Notifier.CURRENT],
                              targetName=self.activePulldownClass._pluralLinkName,
                              callback=self._mainFrame._selectCurrentPulldownClass)
-
             # set the active callback from the pulldown
             self._mainFrame.setActivePulldownClass(coreClass=self.activePulldownClass,
                                                    checkBox=self._settings.checkBoxes[LINKTOPULLDOWNCLASS]['widget'])
@@ -320,14 +317,11 @@ class _NewStructureTableWidget(_CoreTableWidgetABC):
         """
         if self._table:
             self._columnDefs = self._getTableColumns(self._table)
-
             df = pd.DataFrame(self._table.data).astype({k: v for k, v in self._columnTypes.items()
                                                         if k in self._table.data.columns})
-
         else:
             self._columnDefs = self._getTableColumns()
             df = pd.DataFrame(columns=self._columnDefs.headings)
-
         # change to more readable column headers
         df.columns = [self._columnHeaders.get(col) or col for col in list(df.columns)]
 
@@ -342,10 +336,8 @@ class _NewStructureTableWidget(_CoreTableWidgetABC):
         if self._table:
             # read the dataFrame from the value stored in the DataTable
             df = pd.DataFrame(self.thisDataSet)
-
         else:
             df = pd.DataFrame(columns=self.AVcolumns.headings)
-
         # change to more readable column headers
         df.columns = [self._columnHeaders.get(col) or col for col in list(df.columns)]
 
@@ -364,7 +356,6 @@ class _NewStructureTableWidget(_CoreTableWidgetABC):
         model = self.selectionModel()
         if selection := fromSelection or model.selectedRows():
             _sortIndex = self.model()._sortIndex
-
             return list(self._df.iloc[[_sortIndex[idx.row()]
                                        for idx in selection if idx.row() in _sortIndex]].iterrows())
 
@@ -512,18 +503,14 @@ class StructureTableFrame(_CoreTableFrameABC):
                 found = found[0]  # select the first found item
 
                 self._tableWidget.thisDataSet = found.data
-
                 # set the new columns
                 AVheadings = list(self._tableWidget.thisDataSet)
                 self.guiTable.AVcolumns = ColumnClass([col for col in self._tableWidget._columnObjects
                                                        if col[0] in AVheadings or col[0] == '#'])
-
                 if len(self.stButtons.radioButtons) > 0:
                     self.stButtons.radioButtons[1].setEnabled(True)
-
             else:
                 self._tableWidget.thisDataSet = None
-
         except Exception:
             self._tableWidget.thisDataSet = None
 
@@ -538,14 +525,18 @@ class StructureTableFrame(_CoreTableFrameABC):
         obj = data[Notifier.OBJECT]
         if obj != self.table:
             return
-
         self._tableWidget._update()
 
-    def _cleanupWidget(self):
+    def closeEvent(self, event):
+        """Clean-up and close.
+        """
+        from ccpn.ui.gui.lib.WidgetClosingLib import CloseHandler
+
         if self._ensembleNotifier:
             self._ensembleNotifier.unRegister()
-
-        super()._cleanupWidget()
+            self._ensembleNotifier = None
+        with CloseHandler(self):
+            super().closeEvent(event)
 
 
 #=========================================================================================

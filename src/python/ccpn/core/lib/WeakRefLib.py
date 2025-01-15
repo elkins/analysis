@@ -1,10 +1,13 @@
 """
 Module Documentation here
 """
+from __future__ import annotations
+
+
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2025"
 __credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
                "Timothy J Ragan, Brian O Smith, Daniel Thompson",
                "Gary S Thompson & Geerten W Vuister")
@@ -16,7 +19,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-12-09 12:51:06 +0000 (Mon, December 09, 2024) $"
+__dateModified__ = "$dateModified: 2025-01-09 14:17:01 +0000 (Thu, January 09, 2025) $"
 __version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
@@ -30,9 +33,9 @@ __date__ = "$Date: 2024-12-05 14:31:02 +0100 (Thu, December 05, 2024) $"
 import collections
 import weakref
 from contextlib import suppress
-from dataclasses import Field, dataclass, field
+from dataclasses import Field
 from reprlib import recursive_repr
-from typing import Any, Callable, TypeVar, Protocol
+from typing import Any, Callable, Protocol, Type
 
 
 _DEBUG = False
@@ -46,16 +49,20 @@ class _consoleStyle():
     underline, reverse, strike through,
     and invisible work with the main class i.e. colors.bold
     """
-    # smaller version of that defined in Common to remove any non-built-in imports
+    # Smaller version of that defined in Common to remove any non-built-in imports
     reset = '\033[0m'
 
 
     class fg:
         darkred = '\033[31m'
         darkyellow = '\033[33m'
+        lightgrey = '\033[37m'
         red = '\033[91m'
         green = '\033[92m'
-        lightgrey = '\033[37m'
+        yellow = '\033[93m'
+        blue = '\033[94m'
+        magenta = '\033[95m'
+        white = '\033[97m'
 
 
 #=========================================================================================
@@ -69,15 +76,31 @@ class WeakRefDescriptor:
     This allows attributes to reference objects without preventing their garbage collection.
     When the referenced object is collected, the corresponding entry is automatically removed.
     """
-    __slots__ = "_storage", "__weakref__"
+    __slots__ = "_storage", "_attrName", "_connected", "_observers", "__weakref__"
     _storage: weakref.WeakValueDictionary[int, Any]
+    _attrName: str
+    _connected: bool
+    _observers: dict[int, list[WeakRefPartial]]
 
     def __init__(self) -> None:
         """
         Initialise a new WeakRefDescriptor instance.
         """
+        super().__init__()
         # A WeakValueDictionary to store weak references keyed by instance IDs.
         self._storage: weakref.WeakValueDictionary[int, Any] = weakref.WeakValueDictionary()
+        self._connected: bool = False
+        self._observers: dict[int, list[WeakRefPartial]] = {}
+
+    def __set_name__(self, owner, name):
+        """
+        Store the name of the attribute this descriptor is assigned to.
+        Can be used to return the name when an instance has been garbage-collected.
+        """
+        if _DEBUG:
+            print(f'{_consoleStyle.fg.magenta}--> {self.__class__.__name__}.__set_name__ {hex(id(owner))} {name}'
+                  f'{_consoleStyle.reset}')
+        self._attrName: str = name
 
     def __get__(self, instance: Any, owner: Any) -> Any | None:
         """
@@ -90,10 +113,11 @@ class WeakRefDescriptor:
         if instance is None:
             # If accessed on the class rather than an instance, return the descriptor itself.
             return self
+        result = self._storage.get(id(instance), None)
         if _DEBUG:
-            print(f'{_consoleStyle.fg.lightgrey}>>> {self.__class__.__name__}.__get__ {id(instance)}'
-                  f'{_consoleStyle.reset}')
-        return self._storage.get(id(instance), None)
+            print(f'{_consoleStyle.fg.lightgrey}--> {self.__class__.__name__}.__get__  <==  {hex(id(instance))}'
+                  f' {result}{_consoleStyle.reset}')
+        return result
 
     def __set__(self, instance: Any, value: Any) -> None:
         """
@@ -106,14 +130,18 @@ class WeakRefDescriptor:
             # Prevent setting the descriptor itself as a value.
             return
         if _DEBUG:
-            print(f'{_consoleStyle.fg.lightgrey}>>> {self.__class__.__name__}.__set__ {id(instance)}'
-                  f'{_consoleStyle.reset}')
+            print(f'{_consoleStyle.fg.lightgrey}--> {self.__class__.__name__}.__set__  -->  {hex(id(instance))} '
+                  f'{value}{_consoleStyle.reset}')
         if value is not None:
             # Store the value as a weak-reference associated with the instance ID.
             self._storage[id(instance)] = value
+            # Register a callback to notify when the object is garbage-collected
+            weakref.finalize(value, WeakRefDescriptor._onWeakrefCollected,
+                             weakref.ref(self), id(instance), id(value))
         else:
             # Remove the entry if the value is None.
             self._storage.pop(id(instance), None)
+            self._observers.pop(id(instance), None)
 
     def __delete__(self, instance: Any) -> None:
         """
@@ -121,8 +149,132 @@ class WeakRefDescriptor:
 
         :param instance: The instance for which the value is being deleted.
         """
+        if _DEBUG:
+            print(f'{_consoleStyle.fg.lightgrey}--> {self.__class__.__name__}.__delete__  -->  {hex(id(instance))} '
+                  f'{_consoleStyle.reset}')
         self._storage.pop(id(instance), None)
+        self._observers.pop(id(instance), None)
 
+    @staticmethod
+    def _onWeakrefCollected(selfref: weakref.ref, _instanceId: int, owner: int) -> None:
+        """
+        Callback function that is called when a weak-referenced object is collected.
+
+        :param _instanceId: The ID of the instance whose weak reference was collected.
+        """
+        if not (self := selfref()):
+            return
+        if _DEBUG:
+            print(f'{_consoleStyle.fg.yellow}--> Weak reference collected for instance ID '
+                  f'{hex(_instanceId)} {self} {hex(owner)}{_consoleStyle.reset}')
+        # emit instance-based signals
+        for observe in self._observers.get(_instanceId, []):
+            observe()
+        # emit class-based signals with instance-id of weakRefDescriptor container
+        for observe in self._observers.get(-1, []):
+            observe(_instanceId)
+
+    #-----------------------------------------------------------------------------------------
+    # public
+
+    def connect(self, observer: Callable[..., Any], instance: object | None = None) -> None:
+        """
+        Connect an observer to the signal.
+
+        This method adds the provided observer function to the list of observers
+        that will be notified when the signal is emitted.
+
+        :param observer: The observer function that will be called when the signal is emitted.
+        :param instance: The instance for which the value is being set.
+        """
+        if not callable(observer):
+            raise TypeError(f'{self.__class__.__name__}.connect: observer must be Callable')
+        if instance:
+            if id(instance) not in self._storage.keys():
+                raise TypeError(f'{self.__class__.__name__}.connect: instance {instance} is not defined')
+            # instance-based signal
+            _id = id(instance)
+        else:
+            # class-based signal
+            _id = -1
+        dd = self._observers.setdefault(_id, [])
+        if any(func._func_ref() is observer for func in dd):
+            raise TypeError(f'{self.__class__.__name__}.connect: observer already exists')
+        dd.append(WeakRefPartial(observer))
+
+    def disconnect(self, observer: Callable[..., Any], instance: object | None = None) -> None:
+        """
+        Disconnect an observer from the signal for a specific instance.
+
+        :param observer: The observer function to be removed from the list of observers.
+        :param instance: The instance for which the observer is being disconnected.
+        """
+        if not callable(observer):
+            raise TypeError(f'{self.__class__.__name__}.disconnect: observer must be Callable')
+        if instance:
+            if id(instance) not in self._observers:
+                raise TypeError(f'{self.__class__.__name__}.disconnect: {instance} has no connected observers')
+            # instance-based signal
+            _id = id(instance)
+        else:
+            # class-based signal
+            _id = -1
+        observers_list = self._observers.get(_id, [])
+        if not any(func._func_ref() is observer for func in observers_list):
+            raise TypeError(f'{self.__class__.__name__}.disconnect: observer {observer} not found')
+        # Remove the observer if it exists, keep the same list-pointer
+        observers_list[:] = list(filter(lambda func: func._func_ref() is not observer, observers_list))
+
+    def isConnected(self, observer: Callable[..., Any], instance: object | None = None) -> bool:
+        """
+        Check if the requested observer is connected to the signal.
+
+        :param observer: The observer function that will be called when the signal is emitted.
+        :param instance: The instance for which the value is being checked.
+        :return: True if the observer is connected; otherwise, False.
+        """
+        if instance:
+            if id(instance) not in self._storage.keys():
+                return False
+            # instance-based signal
+            _id = id(instance)
+        else:
+            # class-based signal
+            _id = -1
+        dd = self._observers.setdefault(_id, [])
+        return any(func._func_ref() is observer for func in dd)
+
+    def getObservers(self, instance: object | None = None) -> list[Callable[..., Any]]:
+        """
+        Retrieve a list of observers connected to the signal.
+
+        :param instance: The instance for which the observers are being retrieved.
+        :return: A list of observer functions.
+        """
+        if instance:
+            if id(instance) not in self._storage.keys():
+                return []
+            # instance-based observers
+            _id = id(instance)
+        else:
+            # class-based observers
+            _id = -1
+        dd = self._observers.get(_id, [])
+        return [func._func_ref() for func in dd if func._func_ref() is not None]
+
+    def hasObservers(self, instance: object | None = None) -> bool:
+        """
+        Check if any observers are connected to the signal.
+
+        :param instance: The instance for which the value is being checked.
+        :return: True if there are any observers; otherwise, False.
+        """
+        return bool(self.getObservers(instance))
+
+
+#=========================================================================================
+# _WeakRefDataClassMeta
+#=========================================================================================
 
 class _WeakRefDataClassMeta(type):
     """
@@ -154,7 +306,9 @@ class _WeakRefDataClassMeta(type):
         cls_new = super().__new__(cls, name, bases, dct)
         # Assign WeakRefDescriptor instances to the new class for the identified weak-reference fields.
         for k in _weakrefs:
-            setattr(cls_new, k, WeakRefDescriptor())
+            setattr(cls_new, k, weakref := WeakRefDescriptor())
+            # set the name for the weakref-garbage-collection signal
+            weakref.__set_name__('_attrName', k)
         return cls_new
 
 
@@ -162,14 +316,11 @@ class _WeakRefDataClassMeta(type):
 # WeakRefPartial
 #=========================================================================================
 
-WeakRefPartialType = TypeVar("WeakRefPartialType", bound=Callable)
-
-
 class PartialLike(Protocol):
     args: tuple
     keywords: dict
 
-    # cheeky way to add args and keywords to pycharm type-hinting
+    # Cheeky way to add args and keywords to pycharm type-hinting
     def __call__(self, *args, **kwargs):
         ...
 
@@ -193,11 +344,12 @@ class _IdHandle:
         self.__id = id(ref)
 
     def __del__(self):
-        """Destructor that prints a message when the instance is destroyed,
+        """Destructor that prints a message when the instance is garbage-collected,
         if debugging is enabled.
         """
         if _DEBUG:
-            print(f'{_consoleStyle.fg.darkred}>>> {self.__class__.__name__}.__del__ {id(self)}{_consoleStyle.reset}')
+            print(f'{_consoleStyle.fg.darkred}--> {self.__class__.__name__}.__del__ {hex(id(self))}'
+                  f'{_consoleStyle.reset}')
 
 
 class WeakRefPartial:
@@ -220,7 +372,7 @@ class WeakRefPartial:
     __slots__ = "_func_ref", "args", "keywords", "__id", "__dict__", "__weakref__"
 
     def __new__(cls, func: Callable[..., Any] | PartialLike, /,
-                *args: Any, **keywords: Any) -> WeakRefPartialType:
+                *args: Any, **keywords: Any) -> WeakRefPartial:
         """
         Initialize a new partial object.
 
@@ -235,33 +387,23 @@ class WeakRefPartial:
         if not callable(func):
             raise TypeError("The first argument must be callable")
         if hasattr(func, "func"):
-            # wrap any nested partials
+            # Wrap any nested partials
             args = func.args + args
             keywords = {**func.keywords, **keywords}
             func = func.func
         self = super().__new__(cls)
 
-        def remove(wref, selfref=weakref.ref(self)):
-            """
-            Callback function that is called when the weakly referenced object is deleted.
-
-            Contains a weakref to Self that ensures that if the wrapper has already been collected then
-            no action is required.
-
-            :param wref: The weak-reference to the object.
-            """
-            if (sref := selfref()) is not None:
-                if _DEBUG:
-                    print(f'{_consoleStyle.fg.red}>>> {self.__class__.__name__}._remove '
-                          f'{sref} - {wref}{_consoleStyle.reset}')
-                # remove the handle, it could be used as a reference elsewhere
-                sref.__id = None
-
-        self._func_ref = weakref.ref(func, remove)  # Store a weak-reference to func
+        # Pre-create a weakref to self for the weakref delete-callback
+        selfref = weakref.ref(self)
+        # Store a weak-reference to func
+        self._func_ref = weakref.ref(func, lambda wref: WeakRefPartial.__remove(wref, selfref))
         self.args = args
         self.keywords = keywords
         self.__id = _IdHandle(self)
         return self
+
+    #-----------------------------------------------------------------------------------------
+    # Internal
 
     def __call__(self, /, *args: Any, **keywords: Any) -> Any | None:
         """
@@ -323,41 +465,44 @@ class WeakRefPartial:
         if len(state) != 4:
             raise TypeError(f"Expected 4 items in state, got {len(state)}")
         func, args, kwds, namespace = state
+        # Validate state components
         if (not callable(func) or not isinstance(args, tuple) or
                 (kwds is not None and not isinstance(kwds, dict)) or
                 (namespace is not None and not isinstance(namespace, dict))):
             raise TypeError("Invalid partial state")
-
-        args = tuple(args)  # Just in case it's a subclass
+        # Ensure arguments are a tuple (even if it's a subclass)
+        args = tuple(args)
         if kwds is None:
             kwds = {}
         elif type(kwds) is not dict:  # XXX does it need to be *exactly* dict?
             kwds = dict(kwds)
+        # Initialise namespace dictionary
         if namespace is None:
             namespace = {}
         self.__dict__ = namespace
 
-        def remove(wref, selfref=weakref.ref(self)):
-            """
-            Callback function that is called when the weakly referenced object is deleted.
-
-            :param wref: The weak-reference to the object.
-            """
-            if (sref := selfref()) is not None:
-                if _DEBUG:
-                    print(f'{_consoleStyle.fg.red}>>> {self.__class__.__name__}._remove '
-                          f'{sref} - {wref}{_consoleStyle.reset}')
-                # remove the handle, it could be used as a reference elsewhere
-                sref.__id = None
-
-        self._func_ref = weakref.ref(func, remove)  # Restore the weak-reference
+        selfref = weakref.ref(self)
+        # Restore the weak-reference
+        self._func_ref = weakref.ref(func, lambda wref: WeakRefPartial.__remove(wref, selfref))
         self.args = args
         self.keywords = kwds
-        # not sure resetting the handle is strictly necessary
+        # Initialise a unique ID handle (if required), not sure resetting the handle is strictly necessary
         self.__id = _IdHandle(self)
 
+    def __bool__(self) -> bool:
+        """
+        Check whether the referenced function still exists.
+
+        :return: True if the weakly-referenced function is still valid, False otherwise.
+        :rtype: bool
+        """
+        return self._func_ref() is not None
+
+    #-----------------------------------------------------------------------------------------
+    # Properties
+
     @property
-    def id(self):
+    def id(self) -> _IdHandle | None:
         """
         Return the internal identifier-handle.
 
@@ -365,16 +510,169 @@ class WeakRefPartial:
         """
         return self.__id
 
-    # def _remove(self, weak_ref):
-    #     """
-    #     Callback function that is called when the weakly referenced object is deleted.
-    #
-    #     :param weak_ref: The weak-reference to the object.
-    #     """
-    #     if _DEBUG:
-    #         print(f'{_consoleStyle.fg.red}>>> {self.__class__.__name__}._remove '
-    #               f'{weak_ref}{_consoleStyle.reset}')
-    #     self.__id = None
+    #-----------------------------------------------------------------------------------------
+    # Private
+
+    @staticmethod
+    def __remove(wref: weakref.ref, selfref: weakref.ref):
+        """
+        Callback function that is called when the weakly-referenced object is deleted.
+
+        This function contains a weak reference to the instance (`selfref`) to ensure that
+        if the wrapper has already been collected, no action is required.
+
+        :param wref: The weak reference to the object that is being monitored.
+        :type wref: weakref.ref
+        :param selfref: A weak reference to the instance of the class.
+        :type selfref: weakref.ref
+        """
+        # Use a staticmethod instead of a monkey-patch
+        if (sref := selfref()) is not None:
+            if _DEBUG:
+                print(f'{_consoleStyle.fg.red}--> {sref.__class__.__name__}._remove '
+                      f'{sref} - {wref}{_consoleStyle.reset}')
+            # Remove the handle, it could be used as a reference elsewhere
+            sref.__id = None
+
+
+class WeakRefProxyPartial:
+    """
+    A new function with partial application of the given arguments and keywords.
+
+    This class allows creating a callable object where some arguments and/or keyword
+    arguments are pre-filled for the specified function. The function is stored as a
+    weak-reference, so it will not prevent the function from being garbage collected.
+    If the function is deleted, calling the partial object raises a ``ReferenceError``.
+
+    :ivar _func_ref: A weak-reference to the callable function.
+    :vartype _func_ref: weakref.proxy
+    :ivar args: Positional arguments pre-filled for the function.
+    :vartype args: tuple
+    :ivar keywords: Keyword arguments pre-filled for the function.
+    :vartype keywords: dict.
+    """
+
+    __slots__ = "_func_ref", "args", "keywords", "__id", "__dict__", "__weakref__"
+
+    def __new__(cls, func: Callable[..., Any] | PartialLike, /,
+                *args: Any, **keywords: Any) -> WeakRefProxyPartial:
+        """
+        Initialize a new partial object.
+
+        :param func: The callable function to partially apply.
+        :type func: Callable
+        :param args: Positional arguments to pre-fill.
+        :type args: Any
+        :param keywords: Keyword arguments to pre-fill.
+        :type keywords: Any
+        :raises TypeError: If the first argument is not callable.
+        """
+        if not callable(func):
+            raise TypeError("The first argument must be callable")
+        if hasattr(func, "func"):
+            # Wrap any nested partials
+            args = func.args + args
+            keywords = {**func.keywords, **keywords}
+            func = func.func
+        self = super().__new__(cls)
+
+        # Pre-create a weakref to self for the weakref delete-callback
+        selfref = weakref.ref(self)
+        # Store a weak-reference to func
+        self._func_ref = weakref.proxy(func, lambda _wref: WeakRefProxyPartial.__remove(selfref))
+        self.args = args
+        self.keywords = keywords
+        self.__id = _IdHandle(self)
+        return self
+
+    #-----------------------------------------------------------------------------------------
+    # Internal
+
+    def __call__(self, /, *args: Any, **keywords: Any) -> Any | None:
+        """
+        Call the function with pre-filled and additional arguments.
+
+        :param args: Additional positional arguments to pass to the function.
+        :type args: Any
+        :param keywords: Additional keyword arguments to pass to the function.
+        :type keywords: Any
+        :return: The result of the function call.
+        :raises ReferenceError: If the referenced function has been deleted.
+        """
+        try:
+            weakref.getweakrefcount(self._func_ref)
+            keywords = {**self.keywords, **keywords}
+            return self._func_ref(*self.args, *args, **keywords)
+        except ReferenceError:
+            return None
+
+    @recursive_repr()
+    def __repr__(self) -> str:
+        """
+        Return a string representation of the partial object.
+
+        :return: A string representation of the partial object.
+        :rtype: str
+        """
+        try:
+            weakref.getweakrefcount(self._func_ref)
+            func_repr = repr(self._func_ref)
+        except ReferenceError:
+            func_repr = "<deleted function>"
+        qualname = type(self).__qualname__
+        args = [func_repr]
+        args.extend(repr(x) for x in self.args)
+        args.extend(f"{k}={v!r}" for (k, v) in self.keywords.items())
+        if type(self).__module__ == "functools":
+            return f"functools.{qualname}({', '.join(args)})"
+        return f"{qualname}({', '.join(args)})"
+
+    def __bool__(self) -> bool:
+        """
+        Check whether the referenced function still exists.
+
+        :return: True if the weakly-referenced function is still valid, False otherwise.
+        :rtype: bool
+        """
+        try:
+            weakref.getweakrefcount(self._func_ref)
+            return True
+        except ReferenceError:
+            return False
+
+    #-----------------------------------------------------------------------------------------
+    # Properties
+
+    @property
+    def id(self) -> _IdHandle | None:
+        """
+        Return the internal identifier-handle.
+
+        :return: The internal identifier-handle.
+        """
+        return self.__id
+
+    #-----------------------------------------------------------------------------------------
+    # Private
+
+    @staticmethod
+    def __remove(selfref: weakref.ref):
+        """
+        Callback function that is called when the weakly-referenced object is deleted.
+
+        This function contains a weak reference to the instance (`selfref`) to ensure that
+        if the wrapper has already been collected, no action is required.
+
+        :param selfref: A weak reference to the instance of the class.
+        :type selfref: weakref.ref
+        """
+        # Use a staticmethod instead of a monkey-patch
+        if (sref := selfref()) is not None:
+            if _DEBUG:
+                print(f'{_consoleStyle.fg.red}--> {sref.__class__.__name__}._remove '
+                      f'{sref}{_consoleStyle.reset}')
+            # Remove the handle, it could be used as a reference elsewhere
+            sref.__id = None
 
 
 #=========================================================================================
@@ -401,7 +699,7 @@ class _IterationGuard:
             st = wc._iterating
             st.remove(self)
             if not st:
-                # handle _commit_removals when _iterating set is empty
+                # Handle _commit_removals when _iterating set is empty
                 wc._commit_removals()
 
 
@@ -409,33 +707,19 @@ class OrderedWeakKeyDictionary(collections.OrderedDict):
     """
     A dictionary that preserves the order of keys and holds weak-references to the keys.
 
-    Keys are weakly referenced, allowing them to be garbage-collected when no strong
+    Keys are weakly-referenced, allowing them to be garbage-collected when no strong
     references exist. This ensures memory-efficient storage while maintaining order.
     """
 
     def __init__(self, orderedDict=None):
-
-        # this allows a weakref.ref(self) pointing to self to be inserted into the class
-        def remove(key, selfref=weakref.ref(self)):
-            if (sref := selfref()) is not None:
-                if sref._iterating:
-                    sref._pending_removals.append(key)
-                else:
-                    with suppress(KeyError):
-                        if _DEBUG:
-                            print(f'{_consoleStyle.fg.red}>>> {self.__class__.__name__}.__delitem__ {key}'
-                                  f'{_consoleStyle.reset}')
-                        super(OrderedWeakKeyDictionary, self).__delitem__(key)
-
-        self._remove = remove
-        # A list of dead weakrefs (keys to be removed)
+        # A list of dead weak-refs (keys to be removed)
         self._pending_removals = []
         self._iterating = set()
         self._dirty_len = False
         super().__init__(orderedDict or {})
 
     #-----------------------------------------------------------------------------------------
-    # internal
+    # Internal
 
     def __getitem__(self, key):
         """Retrieve the value for the specified key.
@@ -448,11 +732,12 @@ class OrderedWeakKeyDictionary(collections.OrderedDict):
         """Add or update an item in the dictionary. Keys are stored as weak-references.
         """
         if not isinstance(key, weakref.ReferenceType):
-            weak_key = weakref.ref(key, self._remove)
+            _selfref = weakref.ref(self)
+            weak_key = weakref.ref(key, lambda wref: OrderedWeakKeyDictionary.__remove(wref, _selfref))
         else:
             weak_key = key
         if _DEBUG:
-            print(f'{_consoleStyle.fg.green}>>> {self.__class__.__name__}.__setitem__ '
+            print(f'{_consoleStyle.fg.green}--> {self.__class__.__name__}.__setitem__ '
                   f'{hex(id(self))} {weak_key}{_consoleStyle.reset}')
         super().__setitem__(weak_key, value)
 
@@ -502,7 +787,7 @@ class OrderedWeakKeyDictionary(collections.OrderedDict):
         return super().__len__() - len(self._pending_removals)
 
     #-----------------------------------------------------------------------------------------
-    # private
+    # Private
 
     def _commit_removals(self):
         # NOTE: We don't need to call this method before mutating the dict,
@@ -513,13 +798,39 @@ class OrderedWeakKeyDictionary(collections.OrderedDict):
             if (key := self._pending_removals.pop()):
                 with suppress(KeyError):
                     if _DEBUG:
-                        print(f'{_consoleStyle.fg.darkyellow}>>> {self.__class__.__name__}.__delitem__ pending {key}'
+                        print(f'{_consoleStyle.fg.darkyellow}--> {self.__class__.__name__}.__delitem__ pending {key}'
                               f'{_consoleStyle.reset}')
                     super(OrderedWeakKeyDictionary, self).__delitem__(key)
 
     def _scrub_removals(self):
         self._pending_removals = [k for k in self._pending_removals if k in self]
         self._dirty_len = False
+
+    @staticmethod
+    def __remove(key: Any, selfref: weakref.ref):
+        """
+        Removes the specified key from the `OrderedWeakKeyDictionary`, handling the removal
+        either immediately or deferring it depending on the state of the object.
+
+        If the object is currently iterating over its items, the removal is postponed and
+        queued for later execution. Otherwise, the key is immediately removed from the
+        dictionary. The method suppresses `KeyError` exceptions during the removal process.
+
+        :param key: The key to be removed from the dictionary.
+        :type key: Any
+        :param selfref: A weak reference to the object containing the dictionary. Used to access
+                        the object and its state without creating strong references.
+        :type selfref: weakref.ref
+        """
+        if (sref := selfref()) is not None:
+            if sref._iterating:
+                sref._pending_removals.append(key)
+            else:
+                with suppress(KeyError):
+                    if _DEBUG:
+                        print(f'{_consoleStyle.fg.red}--> {sref.__class__.__name__}.__delitem__ {key}'
+                              f'{_consoleStyle.reset}')
+                    super(OrderedWeakKeyDictionary, sref).__delitem__(key)
 
     #-----------------------------------------------------------------------------------------
     # Methods
@@ -550,7 +861,6 @@ class OrderedWeakKeyDictionary(collections.OrderedDict):
         to be checked before being used.  This can be used to avoid
         creating references that will cause the garbage collector to
         keep the keys around longer than needed.
-
         """
         return list(super().keys())
 
@@ -567,7 +877,7 @@ class OrderedWeakKeyDictionary(collections.OrderedDict):
         """
         # Get the first or last item before calling popitem
         if last:
-            # should just do one iteration backwards
+            # Should just do one iteration backwards
             ref, value = next((itm for itm in reversed(super().items())), None)
         else:
             ref, value = next((itm for itm in super().items()), None)
@@ -585,100 +895,12 @@ class OrderedWeakKeyDictionary(collections.OrderedDict):
         if last:
             self[key] = value
         else:
-            # this is very expensive - superclass does not allow messing about :|
+            # This is very expensive - superclass does not allow messing about :|
             currentOrder = list(super().items())
             self.clear()
             self[key] = value
             super().update(currentOrder)
 
-
 #=========================================================================================
-# testing
+# Testing - see Test_WeakRefLib.py
 #=========================================================================================
-
-@dataclass
-class MyDataClass(metaclass=_WeakRefDataClassMeta):
-    """A base class to handle WeakRefDescriptor initialization in dataclasses.
-    """
-    weak_attr1: WeakRefDescriptor = field(default_factory=WeakRefDescriptor)
-    weak_attr2: WeakRefDescriptor = field(default_factory=WeakRefDescriptor)
-    other: int = None
-
-
-def main():
-    # Example usage
-    class MyClass:
-        pass
-
-
-    obj1 = MyClass()
-    obj2 = MyClass()
-
-    weakKeyOrderedDict = OrderedWeakKeyDictionary()
-    weakKeyOrderedDict[obj1] = "value1"
-    weakKeyOrderedDict[obj2] = "value2"
-
-    print(list(weakKeyOrderedDict.items()))  # Should print the items
-
-    # Deleting the original references
-    del obj1
-    del obj2
-
-    # Garbage collection will remove k1
-    import gc
-
-    gc.collect()
-
-    # The weak-references should be removed from the dictionary
-    print(list(weakKeyOrderedDict.items()))  # Should be empty if garbage collected
-
-
-    # Example usage
-    class SomeClass:
-        def __init__(self, value):
-            self._value = value
-
-        def __str__(self):
-            return f'{id(self)}:{self._value}'
-
-
-    obj1 = SomeClass('first')
-    obj2 = SomeClass('second')
-    obj3 = SomeClass('third')
-    obj4 = SomeClass('fourth')
-
-    # Create a dataclass instance
-    data = MyDataClass(weak_attr1=obj1, weak_attr2=obj2, other=23)
-    data2 = MyDataClass(weak_attr1=obj3)
-
-    print(f'1~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
-    print(data.weak_attr1)  # Outputs: <SomeClass instance>
-    print(data.weak_attr2)  # Outputs: <SomeClass instance>
-    print(data)
-    print(data2)
-
-    print(f'2~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
-    # Test garbage collection
-    del obj1
-    print(data.weak_attr1)  # Outputs: None (obj1 is garbage-collected)
-    print(data)
-    print(f'3~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
-
-    del obj2
-    print(data.weak_attr2)  # Outputs: None (obj2 is garbage-collected)
-    print(data)
-    print(f'4~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
-    print(data)
-    print(f'5~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
-    data2.weak_attr2 = obj4
-    print(data.weak_attr1)  # Outputs: <SomeClass instance>
-    print(data.weak_attr2)  # Outputs: <SomeClass instance>
-    print(data2.weak_attr1)  # Outputs: <SomeClass instance>
-    print(data2.weak_attr2)  # Outputs: <SomeClass instance>
-
-    del data2.weak_attr2
-    print(data2)
-
-
-if __name__ == '__main__':
-    main()

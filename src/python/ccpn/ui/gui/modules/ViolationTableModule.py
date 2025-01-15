@@ -4,7 +4,7 @@ Module Documentation here
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2025"
 __credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
                "Timothy J Ragan, Brian O Smith, Daniel Thompson",
                "Gary S Thompson & Geerten W Vuister")
@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-12-12 13:43:35 +0000 (Thu, December 12, 2024) $"
+__dateModified__ = "$dateModified: 2025-01-06 17:44:15 +0000 (Mon, January 06, 2025) $"
 __version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
@@ -76,7 +76,7 @@ class ViolationTableModule(CcpnTableModule):
         """Initialise the Module widgets.
         """
         if name is NOTHING:
-            name=camelCaseToString(KlassTable.className)
+            name = camelCaseToString(KlassTable.className)
         super().__init__(mainWindow=mainWindow, name=name)
 
         # Derive application, project, and current from mainWindow
@@ -222,20 +222,6 @@ class ViolationTableModule(CcpnTableModule):
             self._activeCheckbox = self._settings.checkBoxes[LINKTOPULLDOWNCLASS]['widget']
         self.setNotifier(self.project, [Notifier.CHANGE, Notifier.DELETE],
                          KlassTable.__name__, self._updateViolationTable, onceOnly=True)
-
-    def _closeModule(self):
-        """CCPN-INTERNAL: used to close the module.
-        """
-        if self._modulePulldown:
-            self._modulePulldown.unRegister()
-        if self._tableWidget:
-            self._tableWidget._close()
-        if self.rtWidget:
-            self.rtWidget.unRegister()
-        if self._metadata:
-            self._metadata.close()
-        self._activeCheckbox = None
-        super()._closeModule()
 
     def _selectTable(self, table=None):
         """Manually select a ViolationTable from the pull-down.

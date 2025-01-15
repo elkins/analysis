@@ -1,7 +1,7 @@
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2025"
 __credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
                "Timothy J Ragan, Brian O Smith, Daniel Thompson",
                "Gary S Thompson & Geerten W Vuister")
@@ -13,7 +13,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-12-12 13:56:43 +0000 (Thu, December 12, 2024) $"
+__dateModified__ = "$dateModified: 2025-01-06 17:08:09 +0000 (Mon, January 06, 2025) $"
 __version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
@@ -110,13 +110,13 @@ class GuiSettingPanel(Frame):
         """ Override to apply preselection of widgets after creation"""
         pass
 
-    def close(self):
-        """Clean up the settings-module on closing.
+    def closeEvent(self, event):
+        """Clean-up and close.
         """
-        if self._moduleSettingsWidget:
-            self._moduleSettingsWidget._cleanupWidget()
-            self._moduleSettingsWidget = None
-        super().close()
+        from ccpn.ui.gui.lib.WidgetClosingLib import CloseHandler
+
+        with CloseHandler(self):
+            super().closeEvent(event)
 
     def getWidget(self, name):
         if self._moduleSettingsWidget is not None:

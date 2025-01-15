@@ -4,7 +4,7 @@ Module Documentation here
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2025"
 __credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
                "Timothy J Ragan, Brian O Smith, Daniel Thompson",
                "Gary S Thompson & Geerten W Vuister")
@@ -16,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-09-13 15:20:23 +0100 (Fri, September 13, 2024) $"
-__version__ = "$Revision: 3.2.7 $"
+__dateModified__ = "$dateModified: 2025-01-09 20:28:59 +0000 (Thu, January 09, 2025) $"
+__version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -57,15 +57,18 @@ class _TableDelegate(QtWidgets.QStyledItemDelegate):
         super().__init__(parent)
 
         self.customWidget = None
-        self._parent = parent
         self._objectColumn = objectColumn
-
         # set the colours
         self._focusPen = QtGui.QPen(QtGui.QPalette().highlight().color(), 2)
         # double the line-widths accounts for the device-pixel-ratio
         self._focusBorderWidth = focusBorderWidth
         self._focusPen.setWidthF(focusBorderWidth * 2.0)
         self._focusPen.setJoinStyle(QtCore.Qt.MiterJoin)  # square ends
+
+    @property
+    def _parent(self):
+        # typically this a QTableView
+        return self.parent()
 
     def paint(self, painter: QtGui.QPainter, option: 'QStyleOptionViewItem', index: QtCore.QModelIndex) -> None:
         """Paint the contents of the cell.
@@ -199,16 +202,18 @@ class _TableDelegateABC(QtWidgets.QStyledItemDelegate):
     def __init__(self, parent, focusBorderWidth=1):
         super().__init__(parent)
 
-        self._parent = parent
         self.customWidget = None
-
         # set the default colour
         self._focusPen = QtGui.QPen(QtGui.QPalette().highlight(), 2)
-
         # double the line-widths accounts for the device-pixel-ratio
         self._focusBorderWidth = focusBorderWidth
         self._focusPen.setWidthF(focusBorderWidth * 2.0)
         self._focusPen.setJoinStyle(QtCore.Qt.MiterJoin)  # square ends
+
+    @property
+    def _parent(self):
+        # typically this a QTableView
+        return self.parent()
 
     @staticmethod
     def _mergeColors(color1, color2, weight1=0.5, weight2=0.5):
@@ -408,11 +413,9 @@ class _SmallPulldown(PulldownList):
     This make the table editing cleaner.
     """
 
-    def __init__(self, parent, mainWindow=None, project=None, *args, **kwds):
+    def __init__(self, parent, *args, **kwds):
         super().__init__(parent, *args, **kwds)
 
-        self.mainWindow = mainWindow
-        self.project = project
         self._popupTimer = time.perf_counter()
         self._interval = QtWidgets.QApplication.instance().doubleClickInterval() / 1e3
 
@@ -450,8 +453,12 @@ class _SimplePulldownTableDelegate(QtWidgets.QStyledItemDelegate):
         super().__init__(parent)
 
         self.customWidget = None
-        self._parent = parent
         self._objectColumn = objectColumn
+
+    @property
+    def _parent(self):
+        # typically this a QTableView
+        return self.parent()
 
     def createEditor(self, parentWidget, itemStyle, index):
         """Returns the edit widget.
@@ -575,7 +582,11 @@ class _BooleanDelegate(QtWidgets.QStyledItemDelegate):
         """
         super().__init__(parent)
         self.customWidget = None
-        self._parent = parent
+
+    @property
+    def _parent(self):
+        # typically this a QTableView
+        return self.parent()
 
     def createEditor(self, parentWidget, itemStyle, index):
         """Returns the edit widget.

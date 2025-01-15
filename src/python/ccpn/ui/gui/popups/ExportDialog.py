@@ -4,9 +4,10 @@ Module Documentation here
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
-__credits__ = ("Ed Brooksbank, Joanna Fox, Morgan Hayward, Victoria A Higman, Luca Mureddu",
-               "Eliza Płoskoń, Timothy J Ragan, Brian O Smith, Gary S Thompson & Geerten W Vuister")
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2025"
+__credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
+               "Timothy J Ragan, Brian O Smith, Daniel Thompson",
+               "Gary S Thompson & Geerten W Vuister")
 __licence__ = ("CCPN licence. See https://ccpn.ac.uk/software/licensing/")
 __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, L.G., & Vuister, G.W.",
                  "CcpNmr AnalysisAssign: a flexible platform for integrated NMR analysis",
@@ -15,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-04-04 15:19:22 +0100 (Thu, April 04, 2024) $"
-__version__ = "$Revision: 3.2.5 $"
+__dateModified__ = "$dateModified: 2025-01-13 17:18:25 +0000 (Mon, January 13, 2025) $"
+__version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -291,28 +292,27 @@ class ExportDialogABC(CcpnDialogMainWidget):
         self.exitFilename = None
         self.reject()
 
-    def closeEvent(self, QCloseEvent):
-        """Close the dialog
-        """
-        self._rejectDialog()
-
     def _exportToFile(self):
-        # build the export dict
-        with progressManager(self, 'Saving to file:\n%s' % self.exitFilename):
-            params = self.buildParameters()
+        from ccpn.core.lib.ContextManagers import busyHandler
 
+        # build the export dict
+        with busyHandler(title='Export to File', text=f'Saving to file:\n{self.exitFilename}',
+                         raiseErrors=False):
+            params = self.buildParameters()
             # do the export
             if params:
                 self.exportToFile(params=params)
-
             # return the filename
             return params
 
     def exec_(self) -> Optional[dict]:
         """Popup the dialog
         """
-        if super().exec_():
-            return self._exportToFile()
+        result = self._exportToFile() if super().exec_() else None
+
+        # clean up after any busy popups
+        self.deleteLater()
+        return result
 
     def _openFileDialog(self):
         """Open the save dialog

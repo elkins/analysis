@@ -11,7 +11,7 @@ ScrollableWidget(parent=None, setLayout=False,
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2025"
 __credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
                "Timothy J Ragan, Brian O Smith, Daniel Thompson",
                "Gary S Thompson & Geerten W Vuister")
@@ -23,7 +23,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-12-12 10:30:14 +0000 (Thu, December 12, 2024) $"
+__dateModified__ = "$dateModified: 2025-01-03 18:35:02 +0000 (Fri, January 03, 2025) $"
 __version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
@@ -44,6 +44,7 @@ class Widget(QtWidgets.QWidget, Base):
     """
     Class to handle a simple widget item
     """
+
     def __init__(self, parent=None, setLayout=False, acceptDrops=False, **kwds):
         """General widget; default accepts drops (for now)
         """
@@ -55,11 +56,6 @@ class Widget(QtWidgets.QWidget, Base):
 
         self.setContentsMargins(0, 0, 0, 0)
 
-    def _cleanupWidget(self):
-        """CCPN-INTERNAL: used to clean-up when closing
-        """
-        ...
-
 
 class WidgetCorner(Widget):
     """
@@ -67,7 +63,8 @@ class WidgetCorner(Widget):
     Item is to be resized by parent handler
     """
 
-    def __init__(self, parent, spectrumDisplay=None, mainWindow=None, setLayout=False, acceptDrops=False, background=None, **kwds):
+    def __init__(self, parent, spectrumDisplay=None, mainWindow=None, setLayout=False, acceptDrops=False,
+                 background=None, **kwds):
         """Initialise the widget
         """
         super().__init__(parent=parent, setLayout=setLayout, acceptDrops=acceptDrops, **kwds)
@@ -87,9 +84,9 @@ class WidgetCorner(Widget):
             self._background = QtGui.QColor(colour)
         except:
             # otherwise assume to be a tuple (0..1, 0..1, 0..1, 0..1, 0..1)
-            if type(colour) != tuple or len(colour) != 4 or any(not(0 <= col <= 1) for col in colour):
+            if type(colour) != tuple or len(colour) != 4 or any(not (0 <= col <= 1) for col in colour):
                 raise TypeError("colour must be a tuple(r, g, b, alpha)")
-            
+
             self._background = QtGui.QColor(rgbRatioToHex(*colour[:3]))
 
     def paintEvent(self, a0: QtGui.QPaintEvent):

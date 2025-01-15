@@ -6,7 +6,7 @@ A widget to handle the  Fitting Parameters in the series Analysis Settings.
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2025"
 __credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
                "Timothy J Ragan, Brian O Smith, Daniel Thompson",
                "Gary S Thompson & Geerten W Vuister")
@@ -18,7 +18,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-11-15 19:34:30 +0000 (Fri, November 15, 2024) $"
+__dateModified__ = "$dateModified: 2025-01-09 20:41:18 +0000 (Thu, January 09, 2025) $"
 __version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
@@ -226,7 +226,7 @@ class _ParamsTable(Table):
     _enableActionCallback = False
     _tableMenuEnabled = False
     _toolTipsEnabled = True
-    tableModelClass = _ParamTableModel
+    TableModelClass = _ParamTableModel
     showEditIcon = True
     columnsMinWidths = {
         NAME : 100,

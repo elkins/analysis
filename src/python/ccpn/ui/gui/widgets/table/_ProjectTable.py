@@ -4,7 +4,7 @@ Module Documentation here
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2025"
 __credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
                "Timothy J Ragan, Brian O Smith, Daniel Thompson",
                "Gary S Thompson & Geerten W Vuister")
@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-11-20 13:19:04 +0000 (Wed, November 20, 2024) $"
+__dateModified__ = "$dateModified: 2025-01-10 16:42:44 +0000 (Fri, January 10, 2025) $"
 __version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
@@ -36,6 +36,7 @@ from types import SimpleNamespace
 
 from ccpn.core.lib.ContextManagers import undoBlockWithoutSideBar, catchExceptions
 from ccpn.core.lib.Notifiers import Notifier
+from ccpn.core.lib.WeakRefLib import WeakRefDescriptor
 from ccpn.ui.gui.widgets.Base import Base
 from ccpn.ui.gui.widgets import MessageDialog
 from ccpn.ui.gui.widgets.table.TableABC import TableABC
@@ -88,8 +89,7 @@ class _ProjectTableABC(TableABC, Base):
     _columnStatePrefs = None  # state saved-to/restored-from preferences
     _columnStateLocal = None
     # TableHeaderMenuCoreColumns includes functionality for saving state to preferences
-    TableHeaderMenuKlass = TableHeaderMenuCoreColumns
-    _moduleParent = None
+    TableHeaderMenuClass = TableHeaderMenuCoreColumns
 
     _OBJECT = '_object'
     _ISDELETED = 'isDeleted'
@@ -110,7 +110,7 @@ class _ProjectTableABC(TableABC, Base):
 
     selectCurrent = True
     callBackClass = None
-    search = False
+    search = None
     enableEditDelegate = True
 
     _enableSelectionCallback = True
@@ -119,8 +119,15 @@ class _ProjectTableABC(TableABC, Base):
     # set the queue handling parameters
     _maximumQueueLength = 0
     _logQueue = False
-
     _rowHeightScale = 1.0
+
+    # soft-links to external classes
+    moduleParent = WeakRefDescriptor()
+    mainWindow = WeakRefDescriptor()
+    application = WeakRefDescriptor()
+    project = WeakRefDescriptor()
+    current = WeakRefDescriptor()
+    _droppedNotifier = None
 
     def __init__(self, parent, *, df=None,
                  multiSelect=True, selectRows=True,
@@ -199,9 +206,7 @@ class _ProjectTableABC(TableABC, Base):
             # self.application.ui.qtApp.paletteChanged.connect(self._printPalette)
 
         self.moduleParent = moduleParent
-        self._table = None
         self._dataFrameObject = None
-
         self._setTableNotifiers()
 
         self._lastMouseItem = None
@@ -570,7 +575,6 @@ class _ProjectTableABC(TableABC, Base):
     def populateEmptyTable(self):
         """Populate with an empty dataFrame containing the correct column headers.
         """
-        self._dataFrameObject = None
         _df = pd.DataFrame({val: [] for val in self.columnHeaders.values()})
         if self.OBJECTCOLUMN in _df.columns:
             # use the object as the index, object always exists even if isDeleted
@@ -663,28 +667,31 @@ class _ProjectTableABC(TableABC, Base):
         if self._tableNotifier is not None:
             self._tableNotifier.unRegister()
             self._tableNotifier = None
-
         if self._rowNotifier is not None:
             self._rowNotifier.unRegister()
             self._rowNotifier = None
-
         if self._cellNotifiers:
             for cell in self._cellNotifiers:
                 if cell is not None:
                     cell.unRegister()
             self._cellNotifiers = []
-
         if self._selectCurrentNotifier is not None:
             self._selectCurrentNotifier.unRegister()
             self._selectCurrentNotifier = None
-
         if self._searchNotifier is not None:
             self._searchNotifier.unRegister()
             self._searchNotifier = None
+        if self._droppedNotifier:
+            self._droppedNotifier.unRegister()
+            self._droppedNotifier = None
 
-    def _close(self):
+    def _preClose(self):
+        from ccpn.ui.gui.lib.WidgetClosingLib import _debugAttrib, _PRECLOSE as MSG
+
+        _debugAttrib(self, MSG)
+
         self._clearTableNotifiers()
-        super()._close()
+        super()._preClose()
 
     def clearCurrentCallback(self):
         """Clear the callback function for current object/list change

@@ -7,7 +7,7 @@ See: _CoreTableFrameABC
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2025"
 __credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
                "Timothy J Ragan, Brian O Smith, Daniel Thompson",
                "Gary S Thompson & Geerten W Vuister")
@@ -19,7 +19,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-11-28 14:13:57 +0000 (Thu, November 28, 2024) $"
+__dateModified__ = "$dateModified: 2025-01-09 20:37:58 +0000 (Thu, January 09, 2025) $"
 __version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
@@ -33,8 +33,8 @@ __date__ = "$Date: 2023-02-07 16:38:53 +0100 (Tue, February 07, 2023) $"
 import pandas as pd
 from collections import OrderedDict
 from abc import ABC, abstractmethod
-from ccpn.core.lib.DataFrameObject import DataFrameObject
 from ccpn.core.lib.Notifiers import Notifier
+from ccpn.core.lib.WeakRefLib import WeakRefDescriptor
 from ccpn.ui.gui.widgets.table.MIProjectTable import _MIProjectTableABC
 from ccpn.ui.gui.widgets.table.TableABC import _TableABCMeta
 from ccpn.ui.gui.widgets.table._TableModel import _TableModel
@@ -63,6 +63,7 @@ class _CoreMITableWidgetABC(_MIProjectTableABC, ABC, metaclass=_CoreMITableWidge
     _enableDelete = True
     _enableExport = True
     _enableCopyCell = True
+    _table = WeakRefDescriptor()
 
     def __init__(self, parent, *,
                  showHorizontalHeader=True, showVerticalHeader=False,
@@ -146,7 +147,7 @@ class _CoreMITableWidgetABC(_MIProjectTableABC, ABC, metaclass=_CoreMITableWidge
         # MUST BE SUBCLASSED
         raise NotImplementedError(f'Code error: {self.__class__.__name__}._derivedFromObject not implemented')
 
-    def buildTableDataFrame(self) -> DataFrameObject:
+    def buildTableDataFrame(self) -> pd.DataFrame:
         """Return a Pandas dataFrame from an internal list of objects.
         The columns are based on the 'func' functions in the columnDefinitions.
         :return pandas dataFrame
@@ -174,10 +175,7 @@ class _CoreMITableWidgetABC(_MIProjectTableABC, ABC, metaclass=_CoreMITableWidge
 
         # use the object as the index, object always exists even if isDeleted
         df.set_index(df[self.OBJECTCOLUMN], inplace=True, )
-
-        return DataFrameObject(dataFrame=df,
-                               columnDefs=self._columnDefs or [],
-                               table=self)
+        return df
 
     def getCellToRows(self, cellItem, attribute=None):
         """Get the list of objects which cellItem maps to for this table.

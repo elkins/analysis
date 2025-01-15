@@ -1,7 +1,7 @@
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2025"
 __credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
                "Timothy J Ragan, Brian O Smith, Daniel Thompson",
                "Gary S Thompson & Geerten W Vuister")
@@ -12,9 +12,9 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-10-29 17:39:44 +0000 (Tue, October 29, 2024) $"
-__version__ = "$Revision: 3.2.9.alpha $"
+__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
+__dateModified__ = "$dateModified: 2025-01-03 18:27:59 +0000 (Fri, January 03, 2025) $"
+__version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -167,23 +167,23 @@ class ListCompoundWidget(CompoundBaseWidget):
 
         return result
 
-    # def setPreSelect(self, callBack=None):
-    #     """
-    #     Add a user callback to the pulldown that fires on a mouse click.
-    #     facilitates populating the pulldown list just before it opens
-    #     :param callBack = method to call on click:
-    #     """
-    #     if callBack:
-    #         self.pulldownList.installEventFilter(self)
-    #         self._preSelectCallBack = callBack
-    #
-    # def eventFilter(self, target, event):
-    #     """
-    #     call the user callback when the pulldown has been clicked
-    #     """
-    #     if target == self.pulldownList and event.type() == QtCore.QEvent.MouseButtonPress:
-    #         self._preSelectCallBack()
-    #     return False
+    def setPreSelect(self, callBack=None):
+        """
+        Add a user-callback to the pulldown that fires on a mouse click.
+        facilitates populating the pulldown list just before it opens
+        :param callBack: method to call on click
+        """
+        if callBack:
+            self.pulldownList.installEventFilter(self)
+            self._preSelectCallBack = callBack
+
+    def eventFilter(self, target, event):
+        """
+        call the user-callback when the pulldown has been clicked
+        """
+        if target == self.pulldownList and event.type() == QtCore.QEvent.MouseButtonPress:
+            self._preSelectCallBack()
+        return False
 
     def clearList(self):
         self.listWidget._deleteAll()
@@ -937,6 +937,24 @@ class PulldownListCompoundWidget(CompoundBaseWidget):
         Internal. Called for saving/restoring the widget state.
         """
         return self.select(value)
+
+    def setPreSelect(self, callBack=None):
+        """
+        Add a user-callback to the pulldown that fires on a mouse click.
+        facilitates populating the pulldown list just before it opens
+        :param callBack: method to call on click
+        """
+        if callBack:
+            self.pulldownList.installEventFilter(self)
+            self._preSelectCallBack = callBack
+
+    def eventFilter(self, target, event):
+        """
+        call the user-callback when the pulldown has been clicked
+        """
+        if target == self.pulldownList and event.type() == QtCore.QEvent.MouseButtonPress:
+            self._preSelectCallBack()
+        return False
 
 
 class CheckBoxCompoundWidget(CompoundBaseWidget):

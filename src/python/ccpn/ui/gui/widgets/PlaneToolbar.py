@@ -6,7 +6,7 @@ The NmrResidueLabel allows drag and drop of the ids displayed in them
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2025"
 __credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
                "Timothy J Ragan, Brian O Smith, Daniel Thompson",
                "Gary S Thompson & Geerten W Vuister")
@@ -18,7 +18,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-11-26 13:30:14 +0000 (Tue, November 26, 2024) $"
+__dateModified__ = "$dateModified: 2025-01-06 17:36:49 +0000 (Mon, January 06, 2025) $"
 __version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
@@ -473,7 +473,8 @@ class _OpenGLFrameABC(OpenGLOverlayFrame):
                     raise TypeError('Error: button widget not defined')
 
                 # if widget is given then add to the container
-                widget = widgetType(self, mainWindow=mainWindow, grid=grid, gridSpan=gridSpan)  #grid=(row, col), gridSpan=(1, 1))
+                widget = widgetType(self, mainWindow=mainWindow, grid=grid,
+                                    gridSpan=gridSpan)  #grid=(row, col), gridSpan=(1, 1))
                 self._setStyle(widget)
                 if initFunc:
                     self._initFuncList += ((initFunc, self, widget),)
@@ -991,7 +992,8 @@ STRIPPOSITION_PLUS = 'plus'
 STRIPPOSITION_LEFT = 'l'
 STRIPPOSITION_CENTRE = 'c'
 STRIPPOSITION_RIGHT = 'r'
-STRIPPOSITIONS = (STRIPPOSITION_MINUS, STRIPPOSITION_PLUS, STRIPPOSITION_LEFT, STRIPPOSITION_CENTRE, STRIPPOSITION_RIGHT)
+STRIPPOSITIONS = (
+    STRIPPOSITION_MINUS, STRIPPOSITION_PLUS, STRIPPOSITION_LEFT, STRIPPOSITION_CENTRE, STRIPPOSITION_RIGHT)
 
 # STRIPDICT = 'stripHeaderDict'
 STRIPTEXT = 'stripText'
@@ -1036,21 +1038,20 @@ class StripHeaderWidget(_OpenGLFrameABC):
         """Seems an awkward way of getting a generic post init function but can't think of anything else yet
         """
         # assume that nothing has been set yet
-
-        # add gui notifiers here instead of in backboneAssignment
-        # NOTE:ED could replace this with buttons instead
-        GuiNotifier(self._nmrChainLeft,
-                    [GuiNotifier.DROPEVENT], [DropBase.TEXT],
-                    self._processDroppedLabel,
-                    toLabel=self._stripDirection,
-                    plusChain=False)
-
-        GuiNotifier(self._nmrChainRight,
-                    [GuiNotifier.DROPEVENT], [DropBase.TEXT],
-                    self._processDroppedLabel,
-                    toLabel=self._stripDirection,
-                    plusChain=True)
-
+        try:
+            # add gui notifiers here instead of in backboneAssignment
+            self._guiLeft = GuiNotifier(self._nmrChainLeft,
+                                        [GuiNotifier.DROPEVENT], [DropBase.TEXT],
+                                        self._processDroppedLabel,
+                                        toLabel=self._stripDirection,
+                                        plusChain=False)
+            self._guiRight = GuiNotifier(self._nmrChainRight,
+                                         [GuiNotifier.DROPEVENT], [DropBase.TEXT],
+                                         self._processDroppedLabel,
+                                         toLabel=self._stripDirection,
+                                         plusChain=True)
+        except Exception:
+            self._guiLeft = self._guiRight = None
         self._resize()
 
     def _processDroppedLabel(self, data, toLabel=None, plusChain=None):
@@ -1060,10 +1061,7 @@ class StripHeaderWidget(_OpenGLFrameABC):
         """
         if toLabel and toLabel.text():
             dest = toLabel.text()
-            nmrResidue = self.project.getByPid(dest)
-
-            if nmrResidue:
-
+            if nmrResidue := self.project.getByPid(dest):
                 guiModules = self.mainWindow.modules
                 for guiModule in guiModules:
                     if guiModule.className == 'BackboneAssignmentModule':
@@ -1079,7 +1077,8 @@ class StripHeaderWidget(_OpenGLFrameABC):
 
         self._labels = dict((strip, widget) for strip, widget in
                             zip(STRIPPOSITIONS,
-                                (self._nmrChainLeft, self._nmrChainRight, self._stripLabel, self._stripDirection, self._stripPercent)))
+                                (self._nmrChainLeft, self._nmrChainRight, self._stripLabel, self._stripDirection,
+                                 self._stripPercent)))
 
         # set the visible state of the header
         self.strip._setInternalParameter(STRIPHEADERVISIBLE, False)
@@ -1123,12 +1122,23 @@ class StripHeaderWidget(_OpenGLFrameABC):
                                             self._processNotifier,
                                             onceOnly=True)
 
-    def close(self):
+    def closeEvent(self, event):
+        """Clean-up and close.
+        """
+        from ccpn.ui.gui.lib.WidgetClosingLib import CloseHandler
+
         # clean up notifiers
         if self._nmrResidueNotifier:
             self._nmrResidueNotifier.unRegister()
+        if self._guiLeft:
+            self._guiLeft.unRegister()
+        if self._guiRight:
+            self._guiRight.unRegister()
         self._nmrResidueNotifier = None
-        super().close()
+        self._guiLeft = None
+        self._guiRight = None
+        with CloseHandler(self):
+            super().closeEvent(event)
 
     def setEnabledLeftDrop(self, value):
 

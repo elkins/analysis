@@ -4,7 +4,7 @@ Module Documentation here
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2025"
 __credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
                "Timothy J Ragan, Brian O Smith, Daniel Thompson",
                "Gary S Thompson & Geerten W Vuister")
@@ -16,14 +16,13 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-11-26 10:33:23 +0000 (Tue, November 26, 2024) $"
+__dateModified__ = "$dateModified: 2025-01-03 18:15:19 +0000 (Fri, January 03, 2025) $"
 __version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
 #=========================================================================================
 __author__ = "$Author: Ed Brooksbank $"
 __date__ = "$Date: 2024-05-16 11:17:23 +0100 (Thu, May 16, 2024) $"
-
 #=========================================================================================
 # Start of code
 #=========================================================================================
@@ -37,10 +36,21 @@ from ccpn.util.Logging import getLogger
 
 BLOCKINGDIALOGS = (QtWidgets.QDialog, QtWidgets.QMenu, SpeechBalloon)
 _DEBUG = False
+_RAISEERROR = False
 
 
 def getBlockingDialogs(msg: str = None) -> bool:
-    """Return True if there is a QDialog|QMenu|SpeechBalloon blocking the mainWindow.
+    """
+    Check if there is any blocking dialog in the application.
+
+    This function checks if there is any QDialog, QMenu, or SpeechBalloon
+    currently blocking the main window of the application.
+
+    :param msg: Optional message for debugging purposes.
+    :type msg: str, optional
+    :raises TypeError: If `msg` is not a string.
+    :return: True if a blocking dialog is present, False otherwise.
+    :rtype: bool
     """
     if not isinstance(msg, str):
         raise TypeError(f'msg must be a str')

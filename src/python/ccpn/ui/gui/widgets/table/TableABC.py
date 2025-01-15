@@ -4,7 +4,7 @@ Module Documentation here
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2025"
 __credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
                "Timothy J Ragan, Brian O Smith, Daniel Thompson",
                "Gary S Thompson & Geerten W Vuister")
@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-12-13 11:03:40 +0000 (Fri, December 13, 2024) $"
+__dateModified__ = "$dateModified: 2025-01-13 12:40:11 +0000 (Mon, January 13, 2025) $"
 __version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
@@ -71,8 +71,8 @@ class _TableABCMeta(type(QtWidgets.QTableView)):
     and calls a `_postInit` method, if it is defined, on the instance immediately after it is created.
 
     **Required Class Attributes**:
-        - ``tableModelClass``: The class used for the table's data model.
-        - ``defaultTableDelegate``: The default delegate used for the table's display customization.
+        - ``TableModelClass``: The class used for the table's data model.
+        - ``TableDelegateClass``: The default delegate used for the table's display customization.
 
     **Post-Initialisation**:
         The `_postInit` method of the instance is invoked after its creation, if it is defined and callable.
@@ -97,7 +97,7 @@ class _TableABCMeta(type(QtWidgets.QTableView)):
         # Log pre-creation debug information, if enabled
         if _DEBUG: getLogger().debug2(f'--> pre-create table-widget {cls}')
         # Validate that required attributes are defined
-        required_attrs = ['tableModelClass', 'defaultTableDelegate']
+        required_attrs = ['TableModelClass', 'TableDelegateClass']
         for attr in required_attrs:
             if not hasattr(cls, attr) or getattr(cls, attr) is None:
                 raise AttributeError(f"{cls.__name__} must define {attr} in its class body.")
@@ -147,7 +147,7 @@ class TableABC(QtWidgets.QTableView, metaclass=_TableABCMeta):
                     }
                     """
 
-    # NOTE:ED overrides QtCore.Qt.ForegroundRole - keep
+    # this overrides QtCore.Qt.ForegroundRole - keep for the minute
     # QTableView::item - color: %(GUITABLE_ITEM_FOREGROUND)s;
     # QTableView::item:selected - color: %(GUITABLE_SELECTED_FOREGROUND)s;
     # cell uses alternate-background-role for unselected-focused cell
@@ -169,8 +169,8 @@ class TableABC(QtWidgets.QTableView, metaclass=_TableABCMeta):
     # hidden-column defaults
     defaultHidden = None
     _internalColumns = None  # internal columns are always hidden
-    TableHeaderMenuKlass = TableHeaderMenuColumns
 
+    # handle single/double-click events
     _columnDefs = None
     _enableSelectionCallback = False
     _enableActionCallback = False
@@ -182,11 +182,10 @@ class TableABC(QtWidgets.QTableView, metaclass=_TableABCMeta):
     _toolTipsEnabled = True
     _enableCheckBoxes = False
 
-    # define the default TableModel class
-    tableModelClass = _TableModel
-    defaultTableDelegate = _TableDelegateABC
-
-    _droppedNotifier = None
+    # define the default TableModel/Header classes
+    TableHeaderMenuClass = TableHeaderMenuColumns
+    TableModelClass = _TableModel
+    TableDelegateClass = _TableDelegateABC
 
     defaultSortColumn = 0  # allow the use of integer or string/tuple values here
     defaultSortOrder = QtCore.Qt.AscendingOrder
@@ -240,7 +239,6 @@ class TableABC(QtWidgets.QTableView, metaclass=_TableABCMeta):
         if self.className is None:
             self.className = self.__class__.__name__
         super().__init__(parent)
-        self._parent = parent
         if df is None:
             # make sure it's not empty
             df = pd.DataFrame({})
@@ -265,14 +263,16 @@ class TableABC(QtWidgets.QTableView, metaclass=_TableABCMeta):
         # set up the menus
         self.setTableMenu(tableMenuEnabled)
         self.setHeaderMenu()
-
         self.setToolTipsEnabled(toolTipsEnabled)
-
-        self.setItemDelegate(self.defaultTableDelegate(parent=self, focusBorderWidth=focusBorderWidth))
+        self.setItemDelegate(self.TableDelegateClass(parent=self, focusBorderWidth=focusBorderWidth))
 
         # initialise the table
         self.updateDf(df, _resize, setHeightToRows, setWidthToColumns, setOnHeaderOnly=setOnHeaderOnly)
         self._setStyle()
+
+    @property
+    def _parent(self):
+        return self.parent()
 
     # pyqt5.15 does not allow setting by float
     def setFixedHeight(self, p_int):
@@ -349,7 +349,7 @@ class TableABC(QtWidgets.QTableView, metaclass=_TableABCMeta):
                                               enableCopyCell if enableCopyCell is not NOTHING else self._enableCopyCell)
         self.deleteMenu = TableMenuDelete(self, enableDelete if enableDelete is not NOTHING else self._enableDelete)
         self.exportMenu = TableMenuExport(self, enableExport if enableExport is not NOTHING else self._enableExport)
-        self.headerColumnMenu = self.TableHeaderMenuKlass(self, True)
+        self.headerColumnMenu = self.TableHeaderMenuClass(self, True)
 
         # add options to the table-menu and table-header-menu
         self.tableMenuOptions = [self.searchMenu,
@@ -369,7 +369,7 @@ class TableABC(QtWidgets.QTableView, metaclass=_TableABCMeta):
             # set the model
             if newModel or not (model := self.model()):
                 # create a new model if required
-                model = self.tableModelClass(df, view=self)
+                model = self.TableModelClass(df, view=self)
                 self.setModel(model)
             else:
                 model.df = df
@@ -393,7 +393,7 @@ class TableABC(QtWidgets.QTableView, metaclass=_TableABCMeta):
             df = pd.DataFrame({})
             if newModel or not (model := self.model()):
                 # create a new model if required
-                model = self.tableModelClass(df, view=self)
+                model = self.TableModelClass(df, view=self)
                 self.setModel(model)
             else:
                 model.df = df
@@ -416,9 +416,19 @@ class TableABC(QtWidgets.QTableView, metaclass=_TableABCMeta):
             self.setColumnHidden(col, colName in hiCols)
 
     def model(self) -> _TableModel:
+        """
+        Retrieve the model for the table.
+
+        This method overrides the base class method to return the model
+        cast to the specific type `_TableModel`.
+
+        :return: The table model cast to `_TableModel`.
+        :rtype: _TableModel
+        """
+        # Cast the model returned by the superclass to _TableModel
         return typing.cast(_TableModel, super().model())
 
-    def setModel(self, model: tableModelClass) -> None:
+    def setModel(self, model: TableModelClass) -> None:
         """Set the model for the view
         """
         super().setModel(model)
@@ -545,15 +555,11 @@ class TableABC(QtWidgets.QTableView, metaclass=_TableABCMeta):
                 'order'          : model._sortOrder,
                 })
 
-    def _close(self):
-        self.close()
+    def _preClose(self):
+        from ccpn.ui.gui.lib.WidgetClosingLib import _debugAttrib, _PRECLOSE as MSG
 
-    def close(self):
-        """Clean up the notifiers
-        """
-        if self._droppedNotifier:
-            self._droppedNotifier.unRegister()
-            self._droppedNotifier = None
+        _debugAttrib(self, MSG)
+
         # remove signals from header/table
         if header := self.horizontalHeader():
             with suppress(Exception):
@@ -562,7 +568,14 @@ class TableABC(QtWidgets.QTableView, metaclass=_TableABCMeta):
             self.customContextMenuRequested.disconnect(self._raiseTableContextMenu)
         with suppress(Exception):
             QtWidgets.QApplication.instance().sigPaletteChanged.disconnect(self._signalTarget)
-        super().close()
+
+    def closeEvent(self, event):
+        """Clean-up and close.
+        """
+        from ccpn.ui.gui.lib.WidgetClosingLib import CloseHandler
+
+        with CloseHandler(self):
+            super().closeEvent(event)
 
     #-----------------------------------------------------------------------------------------
     # Properties
@@ -730,6 +743,12 @@ class TableABC(QtWidgets.QTableView, metaclass=_TableABCMeta):
     #-----------------------------------------------------------------------------------------
     # Selection/Action methods
     #-----------------------------------------------------------------------------------------
+
+    def deleteSelectionFromTable(self):
+        """Delete selection from table.
+        """
+        # MUST BE SUBCLASSED
+        raise NotImplementedError(f'Code error: {self.__class__.__name__}.deleteSelectionFromTable not implemented')
 
     def selectionCallback(self, selected, deselected, selection, lastItem):
         """Handle item selection has changed in table - call user callback
@@ -1079,7 +1098,7 @@ class TableABC(QtWidgets.QTableView, metaclass=_TableABCMeta):
 
         return tuple(sortIndex[row] if 0 <= row < len(sortIndex) else None for row in rows)
 
-    def setForeground(self, row: int, column: int, colour: QtGui.QColor | str):
+    def setForeground(self, row: int, column: int, colour: QtGui.QColor | QtCore.Qt.GlobalColor | str):
         """Set the foreground colour for cell at position (row, column).
 
         :param int row: row as integer
@@ -1089,7 +1108,7 @@ class TableABC(QtWidgets.QTableView, metaclass=_TableABCMeta):
         if (model := self.model()):
             model.setForeground(row, column, colour)
 
-    def setBackground(self, row: int, column: int, colour: QtGui.QColor | str):
+    def setBackground(self, row: int, column: int, colour: QtGui.QColor | QtCore.Qt.GlobalColor | str):
         """Set the background colour for cell at position (row, column).
 
         :param int row: row as integer

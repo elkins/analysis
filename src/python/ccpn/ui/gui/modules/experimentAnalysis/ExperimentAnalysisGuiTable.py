@@ -1,7 +1,7 @@
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2025"
 __credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
                "Timothy J Ragan, Brian O Smith, Daniel Thompson",
                "Gary S Thompson & Geerten W Vuister")
@@ -13,7 +13,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-11-20 13:19:03 +0000 (Wed, November 20, 2024) $"
+__dateModified__ = "$dateModified: 2025-01-06 17:08:09 +0000 (Mon, January 06, 2025) $"
 __version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
@@ -457,6 +457,13 @@ class _ExperimentalAnalysisTableABC(Table):
         self.current.collections = []
         self.guiModule.updateAll()
 
+    def closeEvent(self, event):
+        """Clean-up and close.
+        """
+        self._selectCurrentCONotifier.unRegister()
+        self._selectCurrentCONotifier = None
+        super().closeEvent(event)
+
 
 #=========================================================================================
 # TablePanel
@@ -488,12 +495,3 @@ class TablePanel(GuiPanel):
         # update here the X-Y selectors on the settings. Has to be done here because the mainplot has to be in sync with the table.
         appearance = self.guiModule.settingsPanelHandler.getTab(guiNameSpaces.Label_GeneralAppearance)
         appearance._setXYAxisSelectors()
-
-    def close(self):
-        if self.mainTable:
-            self.mainTable.close()
-        super().close()
-
-    # def clearData(self):
-    #     self.mainTable.dataFrame = None
-    #     self.mainTable.clearTable()

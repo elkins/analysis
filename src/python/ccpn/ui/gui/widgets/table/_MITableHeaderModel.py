@@ -4,7 +4,7 @@ Module Documentation here
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2025"
 __credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
                "Timothy J Ragan, Brian O Smith, Daniel Thompson",
                "Gary S Thompson & Geerten W Vuister")
@@ -16,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-10-16 18:41:25 +0100 (Wed, October 16, 2024) $"
-__version__ = "$Revision: 3.2.7 $"
+__dateModified__ = "$dateModified: 2025-01-09 20:37:59 +0000 (Thu, January 09, 2025) $"
+__version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -58,11 +58,10 @@ class _MITableHeaderModelABC(QtCore.QAbstractTableModel):
     showEditIcon = True
     defaultFlags = SELECTABLE | ENABLED
     _defaultEditable = False
-
     _guiState = None
 
     def __init__(self, parent, *, df=None, orientation='horizontal'):
-        super().__init__()
+        super().__init__(parent)
 
         if not isinstance(df, pd.DataFrame):
             raise ValueError('df must be a pd.DataFrame')
@@ -70,14 +69,11 @@ class _MITableHeaderModelABC(QtCore.QAbstractTableModel):
         if orientation is None:
             raise ValueError(f'orientation not in {list(ORIENTATIONS.keys())}')
 
-        self._parent = parent
         self._df = df
         self.orientation = orientation
-
         if parent:
             fontMetric = QtGui.QFontMetricsF(parent.font())
             bbox = fontMetric.boundingRect
-
             # get an estimate for an average character width/height - must be floats for estimate-column-widths
             test = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789,./;\<>?:|!@£$%^&*()'
             self._chrWidth = 1 + bbox(test).width() / len(test)
@@ -85,8 +81,12 @@ class _MITableHeaderModelABC(QtCore.QAbstractTableModel):
 
         # create a pixmap for the editable icon (currently a pencil)
         self._editableIcon = Icon('icons/editable').pixmap(int(self._chrHeight), int(self._chrHeight))
-
         self.clearSpans()
+
+    @property
+    def _parent(self):
+        # typically this a QTableView
+        return self.parent()
 
     @property
     def df(self):
@@ -228,16 +228,13 @@ class _HorizontalMITableHeaderModel(_MITableHeaderModelABC):
 
         # get the source cell
         row, col = index.row(), index.column()
-
         if role in [DISPLAY_ROLE, TOOLTIP_ROLE]:
             if type(self._df.columns) == pd.MultiIndex:
                 return str(self._df.columns.values[col][row])
             else:
                 return str(self._df.columns.values[col])
-
         elif role == USER_ROLE:
             return self._spanTopLeft[row, col]
-
         elif role == ICON_ROLE and self._isColumnEditable(index) and self.showEditIcon:
             # return the pixmap
             return self._editableIcon
@@ -255,32 +252,6 @@ class _HorizontalMITableHeaderModel(_MITableHeaderModelABC):
                 return str(self._df.columns.names[section])
             else:
                 return str(self._df.columns.name)
-
-        # possibly not needed, but slightly quicker than the default bbox
-        # elif role == SIZE_ROLE:
-        #     print(f'==> header column size  {section}, {orientation}')
-            # return super().headerData(section, orientation, role)
-        #     # process the heights/widths of the headers
-        #     if orientation == QtCore.Qt.Vertical:
-        #         # print(f'size-hz   {section}    {self._parent._indexHeader.sizeHintForRow(section)}')
-        #         try:
-        #             # vertical-height of horizontal header
-        #             if type(self._df.columns) is pd.MultiIndex:
-        #                 txts = [col[section] for col in self._df.columns.values]
-        #             else:
-        #                 txts = list(self._df.columns)
-        #             height = int(max(len(txt.split('\n') * self._chrHeight) for txt in txts))
-        #
-        #             # return the height of the maximum text in the row, width is discarded
-        #             return QtCore.QSize(int(self._chrWidth), height)
-        #
-        #         except Exception:
-        #             # return the size
-        #             return QtCore.QSize(int(self._chrWidth), int(self._chrHeight))
-        #
-        #     # print(f'size-hz   {section}    {self._parent._columnHeader.sizeHintForColumn(section)}')
-        #     # column-width, return the default QSize
-        #     return QtCore.QSize(int(self._chrWidth), int(self._chrHeight))
 
     def _isColumnEditable(self, index):
         try:
@@ -309,10 +280,6 @@ class _HorizontalMITableHeaderModel(_MITableHeaderModelABC):
             maxLen = 0
 
         maxLen = max(maxLen + 3, self._MINCHARS)  # never smaller than 4 characters
-
-        # for _count in range(self._CHECKROWS):
-        # # for ss in range(min(self.rowCount(), self._CHECKROWS)):
-        #     row = random.randint(0, self.rowCount() - 1)
 
         # iterate over a few rows to get an estimate
         for row in range(min(self.rowCount(), self._CHECKROWS)):
@@ -383,30 +350,3 @@ class _VerticalMITableHeaderModel(_MITableHeaderModelABC):
                 return str(self._df.index.names[section])
             else:
                 return str(self._df.index.name)
-
-        # possibly not needed, but slightly quicker than the default bbox
-        # elif role == SIZE_ROLE:
-        #     # process the heights/widths of the headers
-        #     if orientation == QtCore.Qt.Horizontal:
-        #         try:
-        #             # width of vertical-header
-        #             print(f'size-vt   {section}    {self._parent._columnHeader.sizeHintForColumn(section)}')
-        #             # horizontal-width of vertical header
-        #             if type(self._df.index) is pd.MultiIndex:
-        #                 txts = [row[section] for row in self._df.index.values]
-        #             else:
-        #                 txts = list(self._df.index)
-        #
-        #             width = max(len(splt) for txt in txts for splt in txt.split('\n'))
-        #             _w = int(min(self._MAXCHARS, width) * self._chrWidth) + 2
-        #
-        #             # return the width of the maximum text in the row, height is discarded
-        #             return QtCore.QSize(_w, int(self._chrHeight))
-        #
-        #         except Exception:
-        #             # return the size
-        #             return QtCore.QSize(int(self._chrWidth), int(self._chrHeight))
-        #
-        #     # print(f'size-vt   {section}    {self._parent._indexHeader.sizeHintForRow(section)}')
-        #     # row-height, return the default QSize
-        #     return QtCore.QSize(int(self._chrWidth), int(self._chrHeight))

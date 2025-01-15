@@ -4,7 +4,7 @@ Base class for compound widgets
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2025"
 __credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
                "Timothy J Ragan, Brian O Smith, Daniel Thompson",
                "Gary S Thompson & Geerten W Vuister")
@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-12-12 13:56:43 +0000 (Thu, December 12, 2024) $"
+__dateModified__ = "$dateModified: 2025-01-03 18:35:02 +0000 (Fri, January 03, 2025) $"
 __version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
@@ -27,8 +27,6 @@ __date__ = "$Date: 2017-04-18 15:19:30 +0100 (Tue, April 18, 2017) $"
 # Start of code
 #=========================================================================================
 
-import contextlib
-from PyQt5 import QtCore
 from ccpn.ui.gui.widgets.Frame import Frame
 from ccpn.ui.gui.widgets.Base import SignalBlocking
 
@@ -128,31 +126,11 @@ class CompoundBaseWidget(Frame, SignalBlocking):
                 notifier.unRegister()
                 del (notifier)
 
-    def __del__(self):
-        # The project and all its things are already disassembled when closing the program;
-        # hence, the de-registering of notifiers fails and needs to be caught
-        with contextlib.suppress(Exception):
-            self.deleteNotifiers()
-
-    def setPreSelect(self, callBack=None):
-        """
-        Add a user callback to the pulldown that fires on a mouse click.
-        facilitates populating the pulldown list just before it opens
-        :param callBack: method to call on click
-        """
-        if callBack:
-            self.pulldownList.installEventFilter(self)
-            self._preSelectCallBack = callBack
-
-    def eventFilter(self, target, event):
-        """
-        call the user callback when the pulldown has been clicked
-        """
-        if target == self.pulldownList and event.type() == QtCore.QEvent.MouseButtonPress:
-            self._preSelectCallBack()
-        return False
-
-    def _close(self):
+    def closeEvent(self, event):
         """Clean up notifiers on closing.
         """
+        from ccpn.ui.gui.lib.WidgetClosingLib import CloseHandler
+
         self.deleteNotifiers()
+        with CloseHandler(self):
+            super().closeEvent(event)

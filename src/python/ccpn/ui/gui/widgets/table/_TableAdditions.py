@@ -4,7 +4,7 @@ Module Documentation here
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2025"
 __credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
                "Timothy J Ragan, Brian O Smith, Daniel Thompson",
                "Gary S Thompson & Geerten W Vuister")
@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-11-20 13:19:04 +0000 (Wed, November 20, 2024) $"
+__dateModified__ = "$dateModified: 2025-01-13 12:40:32 +0000 (Mon, January 13, 2025) $"
 __version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
@@ -37,14 +37,17 @@ import pandas as pd
 from ccpn.ui.gui.widgets import MessageDialog
 from ccpn.ui.gui.widgets.SearchWidget import _SimplerDFTableFilter, _TableFilterABC
 from ccpn.ui.gui.widgets.FileDialog import TablesFileDialog
+from ccpn.ui.gui.widgets.table._TableModel import _TableModel
 from ccpn.util.Path import aPath
 from ccpn.util.Logging import getLogger
 from ccpn.util.Common import copyToClipboard, NOTHING
 from ccpn.util.OrderedSet import OrderedSet
+from ccpn.core.lib.WeakRefLib import WeakRefDescriptor
 
 
 menuItem = namedtuple('menuItem', 'name toolTip')
 TableFilterType = typing.Type[_TableFilterABC]
+TableBaseClass = typing.TypeVar('TableBaseClass', bound='TableABC')
 
 
 #=========================================================================================
@@ -55,13 +58,13 @@ class TableMenuABC(ABC):
     """Class to handle adding options to a right-mouse menu.
     """
     name: typing.Optional[str] = None
-    type: str = 'TableMenu'
+    _menuType: str = 'TableMenu'
     _enabled: bool = False
-    _parent: QtWidgets.QTableView = None
+    _parent: TableBaseClass = WeakRefDescriptor()
 
     # add internal labels here
 
-    def __init__(self, parent: QtWidgets.QTableView, enabled: bool = NOTHING):
+    def __init__(self, parent: TableBaseClass, enabled: bool = NOTHING):
         """Initialise the menu object to the parent-table.
 
         :param parent: QTableView object
@@ -130,7 +133,7 @@ class TableMenuABC(ABC):
     def update(self):
         return self._parent.update()
 
-    def model(self) -> QtCore.QAbstractTableModel:
+    def model(self) -> _TableModel:
         return self._parent.model()
 
     def horizontalHeader(self) -> QtWidgets.QHeaderView:
@@ -147,13 +150,13 @@ class TableHeaderMenuABC(ABC):
     """Class to handle adding options to a right-mouse menu.
     """
     name: typing.Optional[str] = None
-    type: str = 'TableHeaderMenu'
+    _menuType: str = 'TableHeaderMenu'
     _enabled: bool = True
-    _parent: QtWidgets.QTableView = None
+    _parent: TableBaseClass = WeakRefDescriptor()
 
     # add internal labels here
 
-    def __init__(self, parent: QtWidgets.QTableView, enabled: bool = NOTHING):
+    def __init__(self, parent: TableBaseClass, enabled: bool = NOTHING):
         """Initialise the menu object to the parent table.
 
         :param parent: QTableView object
@@ -201,7 +204,7 @@ class TableHeaderMenuABC(ABC):
     def update(self):
         return self._parent.update()
 
-    def model(self) -> QtCore.QAbstractTableModel:
+    def model(self) -> _TableModel:
         return self._parent.model()
 
     def horizontalHeader(self) -> QtWidgets.QHeaderView:
@@ -304,11 +307,7 @@ class TableHeaderMenuColumns(TableHeaderMenuABC):
     """Class to handle column-settings on a header-menu.
     """
     name = "Columns"
-    _parent = None
     _menuItemVisible = True
-
-    def __init__(self, *args, **kwds):
-        super().__init__(*args, **kwds)
 
     def addMenuOptions(self, menu):
         """Add table-header items to the right-mouse menu.
@@ -336,7 +335,7 @@ class TableHeaderMenuColumns(TableHeaderMenuABC):
 
     # pass methods through to the QTableView/QHeaderView
 
-    def model(self) -> QtCore.QAbstractTableModel:
+    def model(self) -> QtCore.QAbstractItemModel:
         return self._parent.model()
 
     def horizontalHeader(self) -> QtWidgets.QHeaderView:

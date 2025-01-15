@@ -4,7 +4,7 @@ Module Documentation here
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2025"
 __credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
                "Timothy J Ragan, Brian O Smith, Daniel Thompson",
                "Gary S Thompson & Geerten W Vuister")
@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-11-28 14:13:58 +0000 (Thu, November 28, 2024) $"
+__dateModified__ = "$dateModified: 2025-01-09 20:41:20 +0000 (Thu, January 09, 2025) $"
 __version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
@@ -37,6 +37,7 @@ import copy
 
 from ccpn.core.lib.ContextManagers import undoBlockWithoutSideBar, catchExceptions
 from ccpn.core.lib.Notifiers import Notifier
+from ccpn.core.lib.WeakRefLib import WeakRefDescriptor
 from ccpn.ui.gui.widgets.Base import Base
 from ccpn.ui.gui.widgets import MessageDialog
 from ccpn.ui.gui.widgets.table._TableCommon import INDEX_ROLE
@@ -93,8 +94,7 @@ class _MIProjectTableABC(MITableABC, Base):
     _columnStatePrefs = None  # state saved-to/restored-from preferences
     _columnStateLocal = None
     # TableHeaderMenuCoreColumns includes functionality for saving state to preferences
-    TableHeaderMenuKlass = TableHeaderMenuCoreColumns
-    _moduleParent = None
+    TableHeaderMenuClass = TableHeaderMenuCoreColumns
 
     _OBJECT = '_object'
     _ISDELETED = 'isDeleted'
@@ -115,7 +115,7 @@ class _MIProjectTableABC(MITableABC, Base):
 
     selectCurrent = True
     callBackClass = None
-    search = False
+    search = None
     enableEditDelegate = True
 
     _enableSelectionCallback = True
@@ -124,8 +124,15 @@ class _MIProjectTableABC(MITableABC, Base):
     # set the queue handling parameters
     _maximumQueueLength = 0
     _logQueue = False
-
     _rowHeightScale = 1.0
+
+    # soft-links to external classes
+    moduleParent = WeakRefDescriptor()
+    mainWindow = WeakRefDescriptor()
+    application = WeakRefDescriptor()
+    project = WeakRefDescriptor()
+    current = WeakRefDescriptor()
+    _droppedNotifier = None
 
     def __init__(self, parent, *, df=None,
                  multiSelect=True, selectRows=True,
@@ -205,9 +212,6 @@ class _MIProjectTableABC(MITableABC, Base):
             self.current = mainWindow.application.current
 
         self.moduleParent = moduleParent
-        self._table = None
-        # self._dataFrameObject = None
-
         self._setTableNotifiers()
 
         self._lastMouseItem = None
@@ -398,7 +402,6 @@ class _MIProjectTableABC(MITableABC, Base):
         """Save the current visible/hidden columns to preferences.
         This will affect new modules that are opened.
         """
-        print('==> SAVETOPREFERENCES')
         tableName = self.className
         if not (prefs := getPreferences()):
             getLogger().debug2(f'Cannot save hidden-columns {tableName}')
@@ -472,7 +475,6 @@ class _MIProjectTableABC(MITableABC, Base):
         """Read the visible/hidden columns from preferences.
         This will affect the current table.
         """
-        getLogger().debug('==> RESTOREFROMPREFERENCES')
         tableName = self.className
         if not (prefs := getPreferences()):
             getLogger().debug2(f'Cannot restore hidden-columns {tableName}')
@@ -492,7 +494,6 @@ class _MIProjectTableABC(MITableABC, Base):
         """Reset the visible/hidden columns in preferences to None.
         This will affect the current table, and new modules, which will open with the internal defaults.
         """
-        getLogger().debug('==> RESETPREFERENCES')
         tableName = self.className
         if not (prefs := getPreferences()):
             getLogger().debug2(f'Cannot reset hidden-columns {tableName}')
@@ -577,8 +578,6 @@ class _MIProjectTableABC(MITableABC, Base):
         objs = selectedObjects if selectedObjects is not None else self.getSelectedObjects()
 
         try:
-            # self._dataFrameObject = self.buildTableDataFrame()
-            # _df = self._dataFrameObject.dataFrame
             _df = self.buildTableDataFrame()
 
             # remember the old sorting-values
@@ -597,10 +596,7 @@ class _MIProjectTableABC(MITableABC, Base):
             model = self.updateDf(_df)
             self._columnHeader.updateDf(_df)
             self._indexHeader.updateDf(_df)
-
-            # NOTE:ED - update headers
             self.resizeColumnsToContents()
-
             try:
                 # get a valid column from integer or string/tuple[multi-index]
                 intCol = sortColumn if isinstance(sortColumn, int) else _df.columns.get_loc(sortColumn)
@@ -636,50 +632,16 @@ class _MIProjectTableABC(MITableABC, Base):
         if self.OBJECTCOLUMN in _df.columns:
             # use the object as the index, object always exists even if isDeleted
             _df.set_index(_df[self.OBJECTCOLUMN], inplace=True, )
-
         self.updateDf(_df, resize=True)
         self._columnHeader.updateDf(_df, resize=True)
         self._indexHeader.updateDf(_df, resize=True)
         self.postUpdateDf()
 
-    # def postUpdateDf(self):
-    #     # update the visible columns - save to preferences?
-    #     # self.headerColumnMenu.saveColumns([col for col in self._df.columns
-    #     #                                    if isinstance(col, tuple) and col[1] in self.defaultHiddenSubgroup])
-    #     # # restore from preferences
-    #     # self.headerColumnMenu.refreshHiddenColumns()
-    #
-    #     self.restoreFromPreferences()
-    #
-    #     hiCols = set(self.hiddenColumns) | self._internalColumns
-    #     # show the columns in the list
-    #     for col, colName in enumerate(self._df.columns):
-    #         # always hide the internal columns
-    #         if colName in hiCols:
-    #             self.hideColumn(col)
-    #         else:
-    #             self.showColumn(col)
-    #
-    #     if self._columnStatePrefs:
-    #         for col in self._columnStatePrefs.traverse(includeParents=False):
-    #             try:
-    #                 if (colNum := self._df.columns.get_loc(col.name)) is not None:
-    #                     if col.visible:
-    #                         self.showColumn(colNum)
-    #                     else:
-    #                         self.hideColumn(colNum)
-    #             except Exception as es:
-    #                 getLogger().debug(f'{self.__class__.__name__}.postUpdateDf failed: {str(es)}')
-    #
-    #     super().postUpdateDf()
-    #     # # update the search filter
-    #     # self.searchMenu.refreshFilter()
-
     #-----------------------------------------------------------------------------------------
     # Build the dataFrame for the table
     #-----------------------------------------------------------------------------------------
 
-    def buildTableDataFrame(self):
+    def buildTableDataFrame(self) -> pd.DataFrame:
         """Return a Pandas dataFrame from an internal list of objects
         """
         # MUST BE SUBCLASSED
@@ -760,28 +722,31 @@ class _MIProjectTableABC(MITableABC, Base):
         if self._tableNotifier is not None:
             self._tableNotifier.unRegister()
             self._tableNotifier = None
-
         if self._rowNotifier is not None:
             self._rowNotifier.unRegister()
             self._rowNotifier = None
-
         if self._cellNotifiers:
             for cell in self._cellNotifiers:
                 if cell is not None:
                     cell.unRegister()
             self._cellNotifiers = []
-
         if self._selectCurrentNotifier is not None:
             self._selectCurrentNotifier.unRegister()
             self._selectCurrentNotifier = None
-
         if self._searchNotifier is not None:
             self._searchNotifier.unRegister()
             self._searchNotifier = None
+        if self._droppedNotifier:
+            self._droppedNotifier.unRegister()
+            self._droppedNotifier = None
 
-    def _close(self):
+    def _preClose(self):
+        from ccpn.ui.gui.lib.WidgetClosingLib import _debugAttrib, _PRECLOSE as MSG
+
+        _debugAttrib(self, MSG)
+
         self._clearTableNotifiers()
-        super()._close()
+        super()._preClose()
 
     def clearCurrentCallback(self):
         """Clear the callback function for current object/list change
@@ -904,7 +869,6 @@ class _MIProjectTableABC(MITableABC, Base):
                 if multipleAttr := getattr(self.current, multiple, []):
                     # need to remove objList from multipleAttr - fires only one current change
                     setattr(self.current, multiple, tuple(set(multipleAttr) - set(objList)))
-
             self._lastSelection = [None]
 
     #-----------------------------------------------------------------------------------------
@@ -938,19 +902,15 @@ class _MIProjectTableABC(MITableABC, Base):
         # skip if the table is empty
         if self._df is None or self._df.empty:
             return
-
         with self._blockTableSignals('_highLightObjs'):
-
             selectionModel = self.selectionModel()
             model = self.model()
             selectionModel.clearSelection()
-
             if selection:
                 if len(selection) > 0 and isinstance(selection[0], pd.Series):
                     # not sure how to handle this
                     return
                 uniqObjs = set(selection)
-
                 _sortIndex = model._sortIndex
                 dfTemp = self._df.reset_index(drop=True)
                 data = [dfTemp[dfTemp[self._OBJECT] == obj] for obj in uniqObjs]
@@ -959,7 +919,6 @@ class _MIProjectTableABC(MITableABC, Base):
                     for row in rows:
                         rowIndex = model.index(row, 0)
                         selectionModel.select(rowIndex, selectionModel.Select | selectionModel.Rows)
-
                     if scrollToSelection and not self._scrollOverride and minInd is not None:
                         self.scrollTo(minInd, self.EnsureVisible)
 
@@ -967,19 +926,15 @@ class _MIProjectTableABC(MITableABC, Base):
         """Highlight a list of objects in the table
         """
         objs = []
-
         if objectList:
             # get the list of objects, exclude deleted
             for obj in objectList:
                 if isinstance(obj, str):
                     objFromPid = self.project.getByPid(obj)
-
                     if objFromPid and not objFromPid.isDeleted:
                         objs.append(objFromPid)
-
                 else:
                     objs.append(obj)
-
         if objs:
             self._highLightObjs(objs, scrollToSelection=scrollToSelection)
         else:
