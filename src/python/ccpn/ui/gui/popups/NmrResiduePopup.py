@@ -13,7 +13,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Daniel Thompson $"
-__dateModified__ = "$dateModified: 2025-01-13 14:57:18 +0000 (Mon, January 13, 2025) $"
+__dateModified__ = "$dateModified: 2025-01-15 15:02:12 +0000 (Wed, January 15, 2025) $"
 __version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
@@ -302,6 +302,7 @@ class NmrResidueEditPopup(AttributeEditorPopupABC):
                             self.obj.residueType = resType
                         except ValueError as err:
                             errors.append(f'• {err}')
+
                     if seqCode != curSeq:
                         try:
                             self.obj.sequenceCode = seqCode
@@ -336,9 +337,10 @@ class NmrResidueEditPopup(AttributeEditorPopupABC):
                 elif comment != (self.obj.comment or None):
                     self.obj.comment = comment
 
-            # move to the correct chain if required
-            if _nmrChain is not self.obj.nmrChain:
-                self.obj.moveToNmrChain(_chainPid, seqCode, resType)
+                # move to the correct chain if required
+                if _nmrChain is not self.obj.nmrChain:
+                    self.obj.moveToNmrChain(_chainPid, seqCode, resType)
+
 
     def storeWidgetState(self):
         """Store the state of the checkBoxes between popups
