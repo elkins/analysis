@@ -3,10 +3,11 @@ import numpy as np
 from matplotlib.ticker import FuncFormatter
 from ccpn.util.Path import fetchDir, joinPath
 import ccpn.AnalysisScreen.lib.experimentAnalysis.matching.MatchingVariables as mv
-from ccpn.util.pptxWriter.PPTxWriter import *
+from ccpn.util.pptx.PPTxTemplateABC import PPTxTemplateMapperABC
+from ccpn.util.pptx.PPTxWriter import *
 
 
-class HitReportPresentation(PresentationTemplateABC):
+class ScreeningReportTemplateMapper(PPTxTemplateMapperABC):
     """
      slideMapping = {
                                 'Title Slide':   <-- Slide master layout slide Name. Defined in the actual PPTx file
@@ -331,8 +332,8 @@ class HitReportPresentation(PresentationTemplateABC):
 
     @staticmethod
     def _setRegionDataCache(peaks, extraPointLimit=25):
-        peaksRegionData = HitReportPresentation.getRegionDatafForPeaks(peaks, extraPointLimit)
-        HitReportPresentation._regionDataCache.update(peaksRegionData)
+        peaksRegionData = ScreeningReportTemplateMapper.getRegionDatafForPeaks(peaks, extraPointLimit)
+        ScreeningReportTemplateMapper._regionDataCache.update(peaksRegionData)
 
     @staticmethod
     def getRegionDatafForPeaks(peaks, extraPointLimit=25):
