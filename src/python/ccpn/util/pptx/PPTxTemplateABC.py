@@ -1,5 +1,7 @@
 import importlib
+import importlib.util
 from abc import ABC
+import sys
 from ccpn.framework.Application import getProject, getApplication, getCurrent
 from ccpn.util.Path import aPath, joinPath
 from ccpn.util.pptx.PPTxTemplateSettings import PPTxTemplateSettingsHandler
@@ -97,3 +99,32 @@ class PPTxTemplateMapperABC(ABC):
             else:
                 formattedText += f"{indent}{key}: {value}\n"
         return formattedText
+
+
+def loadPPTxTemplateMapperObjects(filePath):
+    """
+    Dynamically loads all PPTxTemplateMapperABC subclasses from a  given .py filePath
+    :param filePath: The full path to the .py file.
+    :return: List of objects that are subclasses of the PPTxTemplateMapperABC.
+    """
+    # Extract module name from file path
+    moduleName = aPath(filePath).basename
+    parentClass = PPTxTemplateMapperABC
+    # Check if the module is already imported
+    if moduleName in sys.modules:
+        module = sys.modules[moduleName]
+    else:
+        # If the module is not already imported, load it dynamically
+        spec = importlib.util.spec_from_file_location(moduleName, filePath)
+        module = importlib.util.module_from_spec(spec)
+        sys.modules[moduleName] = module
+        spec.loader.exec_module(module)
+
+    # Find all classes in the module that are subclasses of the parentClass
+    subclassObjects = [
+        getattr(module, name)
+        for name in dir(module)
+        if isinstance(getattr(module, name), type) and issubclass(getattr(module, name), parentClass) and getattr(module, name) is not parentClass
+        ]
+
+    return subclassObjects
