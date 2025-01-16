@@ -8,19 +8,13 @@ from xml.etree.ElementTree import parse, register_namespace
 
 class PPTStyleManager():
 
-    # ccpn colours
-    CCPNpurple = (106, 59, 113) #6A3B71
-    CCPNgreen = (47, 112, 92) #2F705C
-    CCPNyellow = (189, 157, 70) #BD9D46
-    CCPNblue = (12, 79, 131) #0C4F83'
-
-    tableStyle = {
+    _deafultTableStyle = {
         "header_font_size"                              : 10,
         "header_font_name"                           : "Helvetica",
         "header_font_color"                            : (255, 255, 255),  # White text color for the header
         "header_bold"                                     : True,
         "header_alignment"                            : "center",
-        "header_background_color"               : CCPNpurple,
+        "header_background_color"               : (106, 59, 113), # CCPNpurple
         "font_size"                                          : 10,
         "font_name"                                       : "Helvetica",
         "font_color"                                        : (0, 0, 0),  # Black text color for both rows
@@ -42,6 +36,9 @@ class PPTStyleManager():
         """
         self.pptPresenation = pptPresenation
         self._accentColours = self._extractThemeAccents()
+        template = self.pptPresenation._presentationTemplate
+        self.tableStyleOptions = template.settingsHandler.getValue('table_style', self._deafultTableStyle)
+        print('STYLE:', self.tableStyleOptions)
 
     def _extractThemeAccents(self):
         """Extracts accent colors from a PowerPoint presentation's theme.xml."""
@@ -315,7 +312,7 @@ class PPTStyleManager():
     def applyTableStyle(self, table):
         # Apply style for header row (first row)
         headerRow = table.rows[0]
-        styleDict = self.tableStyle
+        styleDict = self.tableStyleOptions
         for cell in headerRow.cells:
             cell.text_frame.paragraphs[0].font.size = Pt(styleDict["header_font_size"])
             cell.text_frame.paragraphs[0].font.name = styleDict["header_font_name"]

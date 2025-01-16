@@ -45,5 +45,23 @@
         "format": "png",
         "show_peak_labels": true,
         "show_peak_symbols": true
-    }
+    },
+    "TableStyle" : {
+                            "header_font_size": 10,
+                            "header_font_name": "Helvetica",
+                            "header_font_color": [255, 255, 255],
+                            "header_bold": true,
+                            "header_alignment": "center",
+                            "header_background_color": [106, 59, 113],
+                            "font_size": 10,
+                            "font_name": "Helvetica",
+                            "font_color": [0, 0, 0],
+                            "bold": false,
+                            "alignment": "center",
+                            "border_color": [0, 0, 0],
+                            "border_width": 1,
+                            "cell_padding": 1,
+                            "cell_background_color": [239, 235, 240],
+                            "cell_background_alternate_color": [200, 193, 201]
+                            }
 }
