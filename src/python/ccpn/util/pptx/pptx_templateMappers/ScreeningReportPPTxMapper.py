@@ -382,14 +382,18 @@ class _MatchingPeaksPlotter():
         spectrum = peak.spectrum
         color = spectrum.sliceColour
         x, y = self._regionDataCache.get(peak.pid, ([], []))
+        plotSettings = self._plotSettings.get('spectrum_line')
+        try: # try just in case some options from the settings file  are not allowed/wrong
+            ax.plot(x, y, color=color, label=peak.id, **plotSettings)
+        except Exception as err:
+            getLogger().debug(f'PPTx report. Plotting error: {err}')
 
-        ax.plot(x, y, color=color, label=peak.id, **self._plotSettings["spectrum_line"])
 
         if self._showPeakSymbols:
-            ax.scatter(float(peak.position[0]), float(peak.height), color=color, **self._plotSettings["peak_symbol"])
+            ax.scatter(float(peak.position[0]), float(peak.height), color=color, **self._plotSettings.get('peak_symbol', {}))
 
         if self._showPeakLabels:
-            peakLegendSettings =  self.settingsHandler.getValue(['plot_settings', 'peak_legend_settings'])
+            peakLegendSettings =  self._plotSettings.get('peak_legend_settings', {})
             ax.legend(**peakLegendSettings)
 
     def _adjustAxisLimits(self, ax, row, globalMin, globalMax):
@@ -414,11 +418,11 @@ class _MatchingPeaksPlotter():
         ax.spines['right'].set_visible(False)
         ax.spines['left'].set_visible(False)
         ax.invert_xaxis()
-        ax.tick_params(**self._plotSettings['tick_params'])
-        ax.set_xlabel(**self._plotSettings['xlabel'])
+        ax.tick_params(**self._plotSettings.get('tick_params', {}))
+        ax.set_xlabel(**self._plotSettings.get('xlabel', {}))
 
         for spine in ax.spines.values():
-            spine.set_linewidth(self._plotSettings['spine_width'])
+            spine.set_linewidth(self._plotSettings.get('spine_width', 0.2))
 
     def _hideUnusedAxes(self, axes, numPlots):
         """Hide any unused axes in the plot grid."""
@@ -476,26 +480,3 @@ class _MatchingPeaksPlotter():
             globalMax = flattened.max()
             return globalMin, globalMax
         return -np.inf, np.inf
-
-    def _filterMatplotlibKwargs(self, method, settingsDict):
-        """
-        Filters out invalid keys from the settings dictionary based on the method signature.
-        Logs discarded arguments.
-        :param method: The method to inspect (e.g., set_xlabel).
-        :param settingsDict: The dictionary containing the settings to be filtered.
-        :return: A filtered dictionary with only valid keys.
-        """
-        # Get the signature of the method
-        sig = inspect.signature(method)
-        # Extract the valid parameters (excluding 'self' and 'args')
-        validKeys = {param.name for param in sig.parameters.values() if param.kind in {inspect.Parameter.POSITIONAL_OR_KEYWORD, inspect.Parameter.KEYWORD_ONLY}}
-        # Identify discarded arguments
-        discardedKeys = [key for key in settingsDict if key not in validKeys]
-        # Log discarded arguments
-        discardedKeyStr = ', '.join(discardedKeys)
-        if discardedKeyStr and discardedKeyStr not in self._loggedDiscarded:
-            getLogger().warn(f'Discarded arguments: {discardedKeyStr}')
-            self._loggedDiscarded.add(discardedKeyStr)
-
-        # Return only the valid settings from the dictionary
-        return {key: value for key, value in settingsDict.items() if key in validKeys}
