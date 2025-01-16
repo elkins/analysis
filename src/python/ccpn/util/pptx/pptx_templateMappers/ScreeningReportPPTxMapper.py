@@ -1,10 +1,12 @@
 import warnings
+import inspect
 import numpy as np
 from matplotlib.ticker import FuncFormatter
 from ccpn.util.Path import fetchDir, joinPath
-import ccpn.AnalysisScreen.lib.experimentAnalysis.matching.MatchingVariables as mv
 from ccpn.util.pptx.PPTxTemplateABC import PPTxTemplateMapperABC
 from ccpn.util.pptx.PPTxWriter import *
+from ccpn.util.Logging import getLogger
+import ccpn.AnalysisScreen.lib.experimentAnalysis.matching.MatchingVariables as mv
 
 
 class ScreeningReportTemplateMapper(PPTxTemplateMapperABC):
@@ -23,7 +25,8 @@ class ScreeningReportTemplateMapper(PPTxTemplateMapperABC):
     """
 
     templateResourcesFileName = 'Screening_report_template.pptx'
-    templateName = 'Screening PPTx Report'
+    templateSettingsFileName = 'Screening_report_template_settings.json'
+    templateMapperName = 'Screening PPTx Report'
     scratchDirName = 'screenReport' # the directory name created inside the ccpn temporary directory. And Cleared up after the report is generated
     slideMapping = {
                                 'Title Slide': [
@@ -311,56 +314,18 @@ class ScreeningReportTemplateMapper(PPTxTemplateMapperABC):
 class _MatchingPeaksPlotter():
     """A class that handles the 1D matching peaks region data and plots to a matplotlib plt instance.
      Private and specialised class to the PPTX screening reporter only. """
-
-    # Plot settings
-    PLOT_SETTINGS = {
-                                        "font"       : {
-                                            "family": "Helvetica",
-                                            "size"  : 6,
-                                            },
-                                        "spectrum_line"       : {
-                                            "linewidth": 0.5,
-                                            },
-                                        "label_line": { # peak labels
-                                            "linewidth": 0.5,
-                                            "linestyle": "dotted",
-                                            },
-                                        "label"      : {
-                                            "fontsize": 4,
-                                            "rotation": 0,
-                                            "x_offset(ppm)": 0.2,
-                                            "ha"      : "left",
-                                            "va"      : "bottom",
-                                            },
-                                        "tick_params": {
-                                            "axis"     : "x",
-                                            "labelsize": 4,
-                                            "width"    : 0.5,
-                                            },
-                                        "xlabel"     : {
-                                            "fontsize": 4,
-                                            "ha"      : "right",
-                                            "x"       : 1.0,
-                                            "labelpad": -15,
-                                            },
-                                        "peak_symbol": {
-                                            "marker": 'x',
-                                            "s"      : 10, # size
-                                            "alpha" : 0.8,
-                                            "linewidths":0.3,
-                                            },
-                                        "spine_width": 0.2,
-                                        "dpi"        : 300,
-                                        "format"     : "png",
-                                        }
-
-    REGION_DATA_WIDTH_IN_POINTS = 100 # take this value to crop the data left-right of a peak point position and determine the plotting area
-    ADD_PEAK_LABELS = True
-    ADD_PEAK_SYMBOLS =True
     _regionDataCache = {}
 
     def __init__(self, templateMapper):
         self.templateMapper = templateMapper
+        self.settingsHandler = self.templateMapper.settingsHandler
+        self._regionDataPointsWidth = self.settingsHandler.getValue('region_data_points_width', 100)
+        self._maxAxesPerSlide = self.settingsHandler.getValue('max_axes_per_slide', 4)
+        self._plotSettings = self.settingsHandler.getValue('plot_settings', {})
+        self._showPeakLabels =  self.settingsHandler.getValue(['plot_settings', 'show_peak_labels'], True)
+        self._showPeakSymbols =  self.settingsHandler.getValue(['plot_settings', 'show_peak_symbols'], True)
+        self._maxAxesPerSlide = self.settingsHandler.getValue('max_axes_per_slide', 4)
+        self._loggedDiscarded = set() #j store this info just in case some settings where discarded, so that we log this only once and not for every axis/spectrum etc...
 
 
     def _getReportPlots(self, substanceTableIndex, substanceTableRow, matchingTableForSubstance):
@@ -370,7 +335,7 @@ class _MatchingPeaksPlotter():
         fig, axes = self._initializePlotGrid(len(dataset))
 
         allPeaks = self._getPeaksFromDataSet(dataset)
-        self._setRegionDataCache(allPeaks, self.REGION_DATA_WIDTH_IN_POINTS)
+        self._setRegionDataCache(allPeaks, self._regionDataPointsWidth)
         globalMin, globalMax = self._getGlobalYPlotLimits(allPeaks)
 
         for i, (ind, row) in enumerate(dataset.iterrows()):
@@ -384,9 +349,8 @@ class _MatchingPeaksPlotter():
     # --- helper methods for the plotting ---
 
     def _getDatasetSubset(self, matchingTable):
-        """Limit the DataFrame to the maximum number of plots."""
-        maxPlots = 4  # Max rows * max columns (2x2)
-        return matchingTable.head(maxPlots)
+        """Limit the DataFrame to the maximum number of plots. In otherwords, if there are multiple matches to be plotted, limit the amount to show to a fix number"""
+        return matchingTable.head(self._maxAxesPerSlide)
 
     def _initializePlotGrid(self, numPlots):
         """Create and configure the figure and subplot grid."""
@@ -419,13 +383,14 @@ class _MatchingPeaksPlotter():
         color = spectrum.sliceColour
         x, y = self._regionDataCache.get(peak.pid, ([], []))
 
-        ax.plot(x, y, color=color, label=peak.id, **self.PLOT_SETTINGS["spectrum_line"])
+        ax.plot(x, y, color=color, label=peak.id, **self._plotSettings["spectrum_line"])
 
-        if self.ADD_PEAK_SYMBOLS:
-            ax.scatter(float(peak.position[0]), float(peak.height), color=color, **self.PLOT_SETTINGS["peak_symbol"])
+        if self._showPeakSymbols:
+            ax.scatter(float(peak.position[0]), float(peak.height), color=color, **self._plotSettings["peak_symbol"])
 
-        if self.ADD_PEAK_LABELS:
-            ax.legend(loc=1, fontsize=4, ncol=1, numpoints=3, frameon=False)
+        if self._showPeakLabels:
+            peakLegendSettings =  self.settingsHandler.getValue(['plot_settings', 'peak_legend_settings'])
+            ax.legend(**peakLegendSettings)
 
     def _adjustAxisLimits(self, ax, row, globalMin, globalMax):
         """Adjust the Y-axis limits for the plot."""
@@ -449,11 +414,11 @@ class _MatchingPeaksPlotter():
         ax.spines['right'].set_visible(False)
         ax.spines['left'].set_visible(False)
         ax.invert_xaxis()
-        ax.tick_params(**self.PLOT_SETTINGS["tick_params"])
-        ax.set_xlabel("[ppm]", **self.PLOT_SETTINGS["xlabel"])
+        ax.tick_params(**self._plotSettings['tick_params'])
+        ax.set_xlabel(**self._plotSettings['xlabel'])
 
         for spine in ax.spines.values():
-            spine.set_linewidth(self.PLOT_SETTINGS["spine_width"])
+            spine.set_linewidth(self._plotSettings['spine_width'])
 
     def _hideUnusedAxes(self, axes, numPlots):
         """Hide any unused axes in the plot grid."""
@@ -464,14 +429,14 @@ class _MatchingPeaksPlotter():
         """Save the figure to a temporary path and close the figure."""
         td = fetchDir(self.templateMapper.application._temporaryDirectory.name, self.templateMapper.scratchDirName)
         tempPlotPath = joinPath(td, f'{substancePid}-plot.png')
-        fig.savefig(tempPlotPath, dpi=300, bbox_inches='tight', format="png")
+        fig.savefig(tempPlotPath, dpi=300, bbox_inches='tight', format='png')
         plt.close(fig)
         return tempPlotPath
 
     @staticmethod
     def _formatPlotXTicks(value, _):
         """  Ensure plain style, no scientific notation. 2 decimal places for the ppm scale"""
-        return f"{value:.2f}"
+        return f'{value:.2f}'
 
     ## ---- Region Data helpers ---- ##
 
@@ -511,3 +476,26 @@ class _MatchingPeaksPlotter():
             globalMax = flattened.max()
             return globalMin, globalMax
         return -np.inf, np.inf
+
+    def _filterMatplotlibKwargs(self, method, settingsDict):
+        """
+        Filters out invalid keys from the settings dictionary based on the method signature.
+        Logs discarded arguments.
+        :param method: The method to inspect (e.g., set_xlabel).
+        :param settingsDict: The dictionary containing the settings to be filtered.
+        :return: A filtered dictionary with only valid keys.
+        """
+        # Get the signature of the method
+        sig = inspect.signature(method)
+        # Extract the valid parameters (excluding 'self' and 'args')
+        validKeys = {param.name for param in sig.parameters.values() if param.kind in {inspect.Parameter.POSITIONAL_OR_KEYWORD, inspect.Parameter.KEYWORD_ONLY}}
+        # Identify discarded arguments
+        discardedKeys = [key for key in settingsDict if key not in validKeys]
+        # Log discarded arguments
+        discardedKeyStr = ', '.join(discardedKeys)
+        if discardedKeyStr and discardedKeyStr not in self._loggedDiscarded:
+            getLogger().warn(f'Discarded arguments: {discardedKeyStr}')
+            self._loggedDiscarded.add(discardedKeyStr)
+
+        # Return only the valid settings from the dictionary
+        return {key: value for key, value in settingsDict.items() if key in validKeys}
