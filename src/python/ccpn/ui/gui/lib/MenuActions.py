@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Daniel Thompson $"
-__dateModified__ = "$dateModified: 2025-01-16 14:59:35 +0000 (Thu, January 16, 2025) $"
+__dateModified__ = "$dateModified: 2025-01-16 15:10:54 +0000 (Thu, January 16, 2025) $"
 __version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
@@ -922,8 +922,6 @@ class _openItemChemicalShiftListTable(OpenItemABC):
             with undoBlockWithoutSideBar():
                 for cs in orphanList:
                     csl.deleteChemicalShift(uniqueId=cs.uniqueId)
-
-
 
     @staticmethod
     def _collectSpectra(objs):
