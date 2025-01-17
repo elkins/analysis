@@ -38,7 +38,6 @@ class PPTStyleManager():
         self._accentColours = self._extractThemeAccents()
         template = self.pptPresenation._presentationTemplate
         self.tableStyleOptions = template.settingsHandler.getValue('table_style', self._deafultTableStyle)
-        print('STYLE:', self.tableStyleOptions)
 
     def _extractThemeAccents(self):
         """Extracts accent colors from a PowerPoint presentation's theme.xml."""
@@ -313,12 +312,25 @@ class PPTStyleManager():
         # Apply style for header row (first row)
         headerRow = table.rows[0]
         styleDict = self.tableStyleOptions
+        h_alignment_map = {
+            "left"      : PP_ALIGN.LEFT,
+            "right"     : PP_ALIGN.RIGHT,
+            "center"    : PP_ALIGN.CENTER,
+            "justify"   : PP_ALIGN.JUSTIFY,
+            "distribute": PP_ALIGN.DISTRIBUTE
+            }
+        v_alignment_map = {
+            "top"        : MSO_ANCHOR.TOP,
+            "middle"     : MSO_ANCHOR.MIDDLE,
+            "bottom"     : MSO_ANCHOR.BOTTOM,
+            }
         for cell in headerRow.cells:
             cell.text_frame.paragraphs[0].font.size = Pt(styleDict["header_font_size"])
             cell.text_frame.paragraphs[0].font.name = styleDict["header_font_name"]
             cell.text_frame.paragraphs[0].font.color.rgb = RGBColor(*styleDict["header_font_color"])
             cell.text_frame.paragraphs[0].font.bold = styleDict["header_bold"]
-            cell.text_frame.paragraphs[0].alignment = PP_ALIGN.CENTER if styleDict["header_alignment"] == "center" else PP_ALIGN.LEFT
+            alignment = h_alignment_map.get(styleDict.get('header_h_alignment', 'center'), PP_ALIGN.CENTER) # center default
+            cell.text_frame.paragraphs[0].alignment = alignment
             cell.fill.solid()
             cell.fill.fore_color.rgb = RGBColor(*styleDict["header_background_color"])
             # Apply padding for header cells
@@ -326,6 +338,8 @@ class PPTStyleManager():
             cell.margin_bottom = styleDict["cell_padding"]
             cell.margin_left = styleDict["cell_padding"]
             cell.margin_right = styleDict["cell_padding"]
+            vertical_anchor = v_alignment_map.get(styleDict.get('header_v_alignment', 'middle'), MSO_ANCHOR.MIDDLE)  # middle default
+            cell.vertical_anchor = vertical_anchor
             #  border styling seems not working
 
         # Apply style for all rows except the header
@@ -337,9 +351,8 @@ class PPTStyleManager():
                 cell.text_frame.paragraphs[0].font.name = styleDict["font_name"]
                 cell.text_frame.paragraphs[0].font.color.rgb = RGBColor(*styleDict["font_color"])
                 cell.text_frame.paragraphs[0].font.bold = styleDict["bold"]
-                cell.text_frame.paragraphs[0].alignment = PP_ALIGN.CENTER if styleDict["alignment"] == "center" else PP_ALIGN.LEFT
-                # Set vertical alignment to center for cells
-                cell.text_frame.vertical_anchor = MSO_ANCHOR.MIDDLE
+                cell.text_frame.paragraphs[0].alignment = h_alignment_map.get(styleDict.get('h_alignment', 'center'), PP_ALIGN.CENTER)  # center default
+
                 # Alternating row background colors
                 if rowIndex % 2 == 0:
                     cell.fill.solid()
@@ -353,3 +366,7 @@ class PPTStyleManager():
                 cell.margin_bottom = styleDict["cell_padding"]
                 cell.margin_left = styleDict["cell_padding"]
                 cell.margin_right = styleDict["cell_padding"]
+
+                # Set vertical alignment  for cells
+                cell.vertical_anchor = v_alignment_map.get(styleDict.get('v_alignment', 'middle'), MSO_ANCHOR.MIDDLE)  # middle default
+
