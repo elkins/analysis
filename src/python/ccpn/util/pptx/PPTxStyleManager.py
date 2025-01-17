@@ -8,7 +8,7 @@ from xml.etree.ElementTree import parse, register_namespace
 
 class PPTStyleManager():
 
-    _deafultTableStyle = {
+    _defaultTableStyle = {
         "header_font_size"                              : 10,
         "header_font_name"                           : "Helvetica",
         "header_font_color"                            : (255, 255, 255),  # White text color for the header
@@ -37,7 +37,8 @@ class PPTStyleManager():
         self.pptPresenation = pptPresenation
         self._accentColours = self._extractThemeAccents()
         template = self.pptPresenation._presentationTemplate
-        self.tableStyleOptions = template.settingsHandler.getValue('table_style', self._deafultTableStyle)
+        styleUserSettings = template.settingsHandler.getValue('table_style', self._defaultTableStyle)
+        self.tableStyleOptions = {**self._defaultTableStyle, **(styleUserSettings or {})}  # Merge defaults with provided styles
 
     def _extractThemeAccents(self):
         """Extracts accent colors from a PowerPoint presentation's theme.xml."""
@@ -324,49 +325,46 @@ class PPTStyleManager():
             "middle"     : MSO_ANCHOR.MIDDLE,
             "bottom"     : MSO_ANCHOR.BOTTOM,
             }
-        for cell in headerRow.cells:
-            cell.text_frame.paragraphs[0].font.size = Pt(styleDict["header_font_size"])
-            cell.text_frame.paragraphs[0].font.name = styleDict["header_font_name"]
-            cell.text_frame.paragraphs[0].font.color.rgb = RGBColor(*styleDict["header_font_color"])
-            cell.text_frame.paragraphs[0].font.bold = styleDict["header_bold"]
-            alignment = h_alignment_map.get(styleDict.get('header_h_alignment', 'center'), PP_ALIGN.CENTER) # center default
+        # Apply header row styles
+        for cell in table.rows[0].cells:
+            cell.text_frame.paragraphs[0].font.size = Pt(styleDict.get("header_font_size"))
+            cell.text_frame.paragraphs[0].font.name = styleDict.get("header_font_name")
+            cell.text_frame.paragraphs[0].font.color.rgb = RGBColor(*styleDict.get("header_font_color"))
+            cell.text_frame.paragraphs[0].font.bold = styleDict.get("header_bold")
+            alignment = h_alignment_map.get(styleDict.get("header_h_alignment", "center"), PP_ALIGN.CENTER)
             cell.text_frame.paragraphs[0].alignment = alignment
             cell.fill.solid()
-            cell.fill.fore_color.rgb = RGBColor(*styleDict["header_background_color"])
+            cell.fill.fore_color.rgb = RGBColor(*styleDict.get("header_background_color"))
+
             # Apply padding for header cells
-            cell.margin_top = styleDict["cell_padding"]
-            cell.margin_bottom = styleDict["cell_padding"]
-            cell.margin_left = styleDict["cell_padding"]
-            cell.margin_right = styleDict["cell_padding"]
-            vertical_anchor = v_alignment_map.get(styleDict.get('header_v_alignment', 'middle'), MSO_ANCHOR.MIDDLE)  # middle default
+            padding = styleDict.get("cell_padding", 1)
+            cell.margin_top = cell.margin_bottom = cell.margin_left = cell.margin_right = padding
+
+            # Vertical alignment for header
+            vertical_anchor = v_alignment_map.get(styleDict.get("header_v_alignment", "middle"), MSO_ANCHOR.MIDDLE)
             cell.vertical_anchor = vertical_anchor
-            #  border styling seems not working
 
         # Apply style for all rows except the header
         for rowIndex, row in enumerate(list(table.rows)[1:], start=1):
-            for colIndex, cell in enumerate(row.cells):
-                # cell.text_frame.word_wrap = True
-                # cell.text_frame.auto_size = None  # Disable auto-size
-                cell.text_frame.paragraphs[0].font.size = Pt(styleDict["font_size"])
-                cell.text_frame.paragraphs[0].font.name = styleDict["font_name"]
-                cell.text_frame.paragraphs[0].font.color.rgb = RGBColor(*styleDict["font_color"])
-                cell.text_frame.paragraphs[0].font.bold = styleDict["bold"]
-                cell.text_frame.paragraphs[0].alignment = h_alignment_map.get(styleDict.get('h_alignment', 'center'), PP_ALIGN.CENTER)  # center default
+            for cell in row.cells:
+                cell.text_frame.paragraphs[0].font.size = Pt(styleDict.get("font_size"))
+                cell.text_frame.paragraphs[0].font.name = styleDict.get("font_name")
+                cell.text_frame.paragraphs[0].font.color.rgb = RGBColor(*styleDict.get("font_color"))
+                cell.text_frame.paragraphs[0].font.bold = styleDict.get("bold")
+                cell.text_frame.paragraphs[0].alignment = h_alignment_map.get(styleDict.get("h_alignment", "center"), PP_ALIGN.CENTER)
 
                 # Alternating row background colors
                 if rowIndex % 2 == 0:
                     cell.fill.solid()
-                    cell.fill.fore_color.rgb = RGBColor(*styleDict["cell_background_alternate_color"])
+                    cell.fill.fore_color.rgb = RGBColor(*styleDict.get("cell_background_alternate_color"))
                 else:
                     cell.fill.solid()
-                    cell.fill.fore_color.rgb = RGBColor(*styleDict["cell_background_color"])
+                    cell.fill.fore_color.rgb = RGBColor(*styleDict.get("cell_background_color"))
 
                 # Apply padding for table cells
-                cell.margin_top = styleDict["cell_padding"]
-                cell.margin_bottom = styleDict["cell_padding"]
-                cell.margin_left = styleDict["cell_padding"]
-                cell.margin_right = styleDict["cell_padding"]
+                padding = styleDict.get("cell_padding", 1)
+                cell.margin_top = cell.margin_bottom = cell.margin_left = cell.margin_right = padding
 
-                # Set vertical alignment  for cells
-                cell.vertical_anchor = v_alignment_map.get(styleDict.get('v_alignment', 'middle'), MSO_ANCHOR.MIDDLE)  # middle default
-
+                # Set vertical alignment for cells
+                vertical_anchor = v_alignment_map.get(styleDict.get("v_alignment", "middle"), MSO_ANCHOR.MIDDLE)
+                cell.vertical_anchor = vertical_anchor
