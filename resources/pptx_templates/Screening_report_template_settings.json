@@ -47,6 +47,7 @@
         "show_peak_symbols": true
     },
     "TableStyle" : {
+                            "header_row_height": 30,
                             "header_font_size": 10,
                             "header_font_name": "Helvetica",
                             "header_font_color": [255, 255, 255],
@@ -54,6 +55,7 @@
                             "header_h_alignment": "center",
                             "header_v_alignment": "middle",
                             "header_background_color": [106, 59, 113],
+                            "row_height": 20,
                             "font_size": 10,
                             "font_name": "Helvetica",
                             "font_color": [0, 0, 0],
@@ -65,5 +67,7 @@
                             "cell_padding": 1,
                             "cell_background_color": [239, 235, 240],
                             "cell_background_alternate_color": [200, 193, 201]
-                            }
+                            },
+  "substances_summary_max_rows_per_table":  20
+
 }

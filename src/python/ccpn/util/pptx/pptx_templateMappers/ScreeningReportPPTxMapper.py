@@ -76,6 +76,26 @@ class ScreeningReportTemplateMapper(PPTxTemplateMapperABC):
                                         PLACEHOLDER_GETTER: 'getTitleComment',
                                     },
                                 ],
+
+                            'Substances Summary': [
+                                {
+                                    PLACEHOLDER_NAME  : 'Title',
+                                    PLACEHOLDER_TYPE  : PLACEHOLDER_TYPE_TEXT,
+                                    PLACEHOLDER_GETTER: 'getSummaryTitle',
+                                    },
+                                {
+                                    PLACEHOLDER_NAME  : 'Subtitle',
+                                    PLACEHOLDER_TYPE  : PLACEHOLDER_TYPE_TEXT,
+                                    PLACEHOLDER_GETTER: 'getSummarySubtitle',
+                                    },
+
+                                {
+                                    PLACEHOLDER_NAME  : 'SummaryTable',
+                                    PLACEHOLDER_TYPE  : PLACEHOLDER_TYPE_TABLE,
+                                    PLACEHOLDER_GETTER: 'getSummaryTable',
+                                    },
+
+                                ],
                                 'Report Slide': [
                                     {
                                         PLACEHOLDER_NAME: 'Title',
@@ -118,10 +138,20 @@ class ScreeningReportTemplateMapper(PPTxTemplateMapperABC):
         'Matching Score'             : {'column': mv.Reference_PeakMatchScore, 'round': 0},
         'Displacement Score'      : {'column': mv.SpectrumHit_PeakDisplacementScore, 'round': 2},
         'Control S/N'                   : {'column': mv.Control_PeakSNR, 'round': 2},
-
         'Reference Position (ppm)': {'column': mv.Reference_PeakPosition, 'round': 3},
         'Label'                              : {'column': mv.Reference_Flag_Label, 'round': None},
         'Comment'                       : {'column': mv.Reference_Comment, 'round': None},
+        }
+
+    substancesTableColumnsMap = {
+        'Index'                              : {'column': mv.Serial, 'round': None},
+        'Sample Name'                : {'column': mv.Sample_Name, 'round': None},
+        'Substance Name'           : {'column': mv.Reference_SubstanceName, 'round': None},
+        'Binding Score'                : {'column': mv.Reference_Score, 'round': 2},
+        'Displacement Score'      : {'column': mv.Reference_DisplacementScore, 'round': 2},
+        'Matching Score'             : {'column': mv.Reference_MatchScore, 'round': 0},
+        'Control S/N'                   :  {'column': mv.Control_PeakSNR, 'round': 2},
+        'Flag'                               : {'column': mv.Reference_Flag_Label, 'round': None},
         }
 
     def setData(self, **kwargs):
@@ -198,6 +228,24 @@ class ScreeningReportTemplateMapper(PPTxTemplateMapperABC):
         """Stub method for getTitleComment."""
         pass
 
+    # ~~~~~~ Summary Substance Slide ~~~~~~~
+
+    def getSummaryTitle(self, slideIndex, totalSummarySlides, substancesTableData):
+        title = 'Substances  Summary'
+        return title
+
+    def getSummarySubtitle(self, slideIndex, totalSummarySlides, substancesTableData):
+        subtitle = ''
+        if totalSummarySlides > 1:
+            subtitle = f'Part {slideIndex} of {totalSummarySlides}'
+        return subtitle
+
+    def getSummaryTable(self, slideIndex, totalSummarySlides, substancesTableData):
+
+        df = self._formatDataFrameForTable(substancesTableData,  self.substancesTableColumnsMap)
+        return df
+
+    # ~~~~~~ Single Substance Slide ~~~~~~~
     def getReportTitle(self, substanceTableIndex, substanceTableRow, matchingTableForSubstance):
         """Add the title from the Substance"""
         df = matchingTableForSubstance
@@ -242,36 +290,11 @@ class ScreeningReportTemplateMapper(PPTxTemplateMapperABC):
 
     def getReportTable(self, substanceTableIndex, substanceTableRow, matchingTableForSubstance):
         """Method to generate the report table with dynamic rounding."""
-        columnMap = self.matchesTableColumnsMap
-        validColumnMap = {}
 
-        # First, build a valid column map from the matching table
-        for newCol, properties in columnMap.items():
-            oldCol = properties['column']
-            if oldCol in matchingTableForSubstance.columns:
-                validColumnMap[newCol] = oldCol
-            else:
-                warnings.warn(f"Column '{oldCol}' not found in the original DataFrame. Skipping.")
-
-        # Construct the new DataFrame with valid columns
-        df = pd.DataFrame({newCol: matchingTableForSubstance[oldCol] for newCol, oldCol in validColumnMap.items()})
-
-        # Apply rounding based on the 'round' values in the columnMap
-        for newCol, properties in columnMap.items():
-            if properties['round'] is not None and newCol in df.columns:
-                if properties['round'] == 0:
-                    # Convert to int if round is 0
-                    df[newCol] = df[newCol].astype('Int64')  # Using 'Int64' to support NaN values
-                else:
-                    # Apply rounding
-                    df[newCol] = df[newCol].round(properties['round'])
-
-        # Fill NaN values with empty strings
+        df = self._formatDataFrameForTable(matchingTableForSubstance,  self.matchesTableColumnsMap)
         df = df.fillna('')
-
         # Transpose the DataFrame and reset index
         df = df.T.reset_index(drop=False)
-
         # The first row values in the transposed DataFrame become the column headers
         df.columns = df.iloc[0]
         df.drop(0, inplace=True)
@@ -293,6 +316,33 @@ class ScreeningReportTemplateMapper(PPTxTemplateMapperABC):
     def _getSubstancePid(self, substanceTableRow):
         substancePid = substanceTableRow[mv.Reference_SubstancePid]
         return substancePid
+
+    @staticmethod
+    def _formatDataFrameForTable(dataframe, columnMap):
+        validColumnMap = {}
+
+        # First, build a valid column map from the matching table
+        for newCol, properties in columnMap.items():
+            oldCol = properties['column']
+            if oldCol in dataframe.columns:
+                validColumnMap[newCol] = oldCol
+            else:
+                warnings.warn(f"Column '{oldCol}' not found in the original DataFrame. Skipping.")
+
+        # Construct the new DataFrame with valid columns
+        df = pd.DataFrame({newCol: dataframe[oldCol] for newCol, oldCol in validColumnMap.items()})
+
+        # Apply rounding based on the 'round' values in the columnMap
+        for newCol, properties in columnMap.items():
+            if properties['round'] is not None and newCol in df.columns:
+                if properties['round'] == 0:
+                    # Convert to int if round is 0
+                    df[newCol] = df[newCol].astype('Int64')  # Using 'Int64' to support NaN values
+                else:
+                    # Apply rounding
+                    df[newCol] = df[newCol].round(properties['round'])
+
+        return df
 
     @staticmethod
     def _smilesToImage(smiles, path):

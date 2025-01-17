@@ -326,6 +326,7 @@ class PPTStyleManager():
             "bottom"     : MSO_ANCHOR.BOTTOM,
             }
         # Apply header row styles
+        table.rows[0].height = Pt(styleDict.get("header_row_height", 30))
         for cell in table.rows[0].cells:
             cell.text_frame.paragraphs[0].font.size = Pt(styleDict.get("header_font_size"))
             cell.text_frame.paragraphs[0].font.name = styleDict.get("header_font_name")
@@ -346,6 +347,8 @@ class PPTStyleManager():
 
         # Apply style for all rows except the header
         for rowIndex, row in enumerate(list(table.rows)[1:], start=1):
+            row.height = Pt(styleDict.get("row_height", 20))
+
             for cell in row.cells:
                 cell.text_frame.paragraphs[0].font.size = Pt(styleDict.get("font_size"))
                 cell.text_frame.paragraphs[0].font.name = styleDict.get("font_name")

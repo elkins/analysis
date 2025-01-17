@@ -389,44 +389,84 @@ class ScreeningPresentationWriter(PPTxPresentationWriter):
     WRITER_NAME = 'SCREENING'
 
     def buildFromTemplate(self):
-        import ccpn.AnalysisScreen.lib.experimentAnalysis.matching.MatchingVariables as mv
         self._presentationTemplate.setData(**self.data)
         isValidTemplate, templateErrors = self._validateTemplate()
         if not isValidTemplate and self._placeholderErrorPolicy == 'raise':
             raise RuntimeError(f'Detected errors while building a new Presentation from Template \n{self._formatDefaultDict(templateErrors)}')
-        else:
-            slideMapping = self._presentationTemplate.slideMapping
-            # build the title (first slide)
-            if not slideMapping:
-                raise RuntimeError(f'Detected errors while building a new Presentation from Template \n{self._formatDefaultDict(templateErrors)}')
-            titleLayoutName = list(slideMapping.keys())[0]
+
+        self._buildTitleSlide()
+        self._buildSubstancesSummarySlides()
+        self._buildSubstanceSlides()
+
+
+    def _buildTitleSlide(self):
+        """
+        Build the first Page with title and project summary
+        """
+        slideMapping = self._presentationTemplate.slideMapping
+        isValidTemplate, templateErrors = self._validateTemplate()
+        # build the title (first slide)
+        if not slideMapping:
+            raise RuntimeError(f'Detected errors while building a new Presentation from Template \n{self._formatDefaultDict(templateErrors)}')
+        titleLayoutName = 'Title Slide' #need to put this in the json settings so to don't hardcode here
+        titlePlaceholderDefs = slideMapping[titleLayoutName]
+        layout = self.getLayout(titleLayoutName)
+        newSlide = self.newSlide(layout, removePlaceholders=True)
+        for placeholderDef in titlePlaceholderDefs:
+            try:
+                self._handlePlaceholder(newSlide, layout, placeholderDef)
+            except Exception as ex:
+                print(f'Some Error in filling the placeholder occurred: {ex}')
+
+    def _buildSubstancesSummarySlides(self):
+        """
+        Build the Substances Summary Slide(s). This will create a slides containing a summary table. Table will be split in multiple pages to ensure readability and fit the slide margins.
+        """
+
+        slideMapping = self._presentationTemplate.slideMapping
+        isValidTemplate, templateErrors = self._validateTemplate()
+        substanceTable = self.data.get('substanceTable')
+        if substanceTable is None:
+            return
+
+        # split the data in chunks
+        maxRowsKey = 'substances_summary_max_rows_per_table'
+        chunkSize = self._presentationTemplate.settingsHandler.getValue(maxRowsKey, 20)
+        chunks = [substanceTable.iloc[i:i + chunkSize] for i in range(0, len(substanceTable), chunkSize)]
+        for idx, chunk in enumerate(chunks, 1):
+            titleLayoutName = 'Substances Summary'
             titlePlaceholderDefs = slideMapping[titleLayoutName]
             layout = self.getLayout(titleLayoutName)
             newSlide = self.newSlide(layout, removePlaceholders=True)
             for placeholderDef in titlePlaceholderDefs:
                 try:
-                    self._handlePlaceholder(newSlide, layout, placeholderDef)
+                    self._handlePlaceholder(newSlide, layout, placeholderDef,  slideIndex=idx, totalSummarySlides=len(chunks), substancesTableData=chunk)
                 except Exception as ex:
                     print(f'Some Error in filling the placeholder occurred: {ex}')
 
-            # build the substances Slides
-            substanceTable = self.data.get('substanceTable')
-            matchingTable = self.data.get('matchingTable')
-            if substanceTable is None:
-                return
+    def _buildSubstanceSlides(self):
+        """
+        Build all dedicated Substances Pages in order
+        """
+        import ccpn.AnalysisScreen.lib.experimentAnalysis.matching.MatchingVariables as mv
 
-            for i, (tableIndex, substanceTableRow) in enumerate(substanceTable.iterrows()):
-                substancePid = substanceTableRow[mv.Reference_SubstancePid]
-                matchingTableForSubstance = matchingTable[matchingTable[mv.Reference_SubstancePid]==substancePid]
-                titleLayoutName = list(slideMapping.keys())[1]
-                titlePlaceholderDefs = slideMapping[titleLayoutName]
-                layout = self.getLayout(titleLayoutName)
-                newSlide = self.newSlide(layout, removePlaceholders=True)
-                for placeholderDef in titlePlaceholderDefs:
-                    self._handlePlaceholder(newSlide, layout, placeholderDef,
-                                            substanceTableIndex = i+1,
-                                            substanceTableRow=substanceTableRow,
-                                            matchingTableForSubstance=matchingTableForSubstance)
+        slideMapping = self._presentationTemplate.slideMapping
+        isValidTemplate, templateErrors = self._validateTemplate()
 
+        substanceTable = self.data.get('substanceTable')
+        matchingTable = self.data.get('matchingTable')
+        if substanceTable is None:
+            return
 
-
+        for i, (tableIndex, substanceTableRow) in enumerate(substanceTable.iterrows()):
+            substancePid = substanceTableRow[mv.Reference_SubstancePid]
+            matchingTableForSubstance = matchingTable[matchingTable[mv.Reference_SubstancePid] == substancePid]
+            titleLayoutName = 'Report Slide'
+            titlePlaceholderDefs = slideMapping[titleLayoutName]
+            layout = self.getLayout(titleLayoutName)
+            newSlide = self.newSlide(layout, removePlaceholders=True)
+            for placeholderDef in titlePlaceholderDefs:
+                self._handlePlaceholder(newSlide, layout, placeholderDef,
+                                        substanceTableIndex=i + 1,
+                                        substanceTableRow=substanceTableRow,
+                                        matchingTableForSubstance=matchingTableForSubstance)
