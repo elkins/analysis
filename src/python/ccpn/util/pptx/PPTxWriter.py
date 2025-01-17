@@ -422,13 +422,14 @@ class ScreeningPresentationWriter(PPTxPresentationWriter):
         """
         Build the Substances Summary Slide(s). This will create a slides containing a summary table. Table will be split in multiple pages to ensure readability and fit the slide margins.
         """
+        import ccpn.AnalysisScreen.lib.experimentAnalysis.matching.MatchingVariables as mv
 
         slideMapping = self._presentationTemplate.slideMapping
         isValidTemplate, templateErrors = self._validateTemplate()
         substanceTable = self.data.get('substanceTable')
         if substanceTable is None:
             return
-
+        substanceTable[mv.Serial] = range(1, len(substanceTable) + 1)
         # split the data in chunks
         maxRowsKey = 'substances_summary_max_rows_per_table'
         chunkSize = self._presentationTemplate.settingsHandler.getValue(maxRowsKey, 20)

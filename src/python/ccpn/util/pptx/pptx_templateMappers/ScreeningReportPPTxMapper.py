@@ -150,7 +150,7 @@ class ScreeningReportTemplateMapper(PPTxTemplateMapperABC):
         'Binding Score'                : {'column': mv.Reference_Score, 'round': 2},
         'Displacement Score'      : {'column': mv.Reference_DisplacementScore, 'round': 2},
         'Matching Score'             : {'column': mv.Reference_MatchScore, 'round': 0},
-        'Control S/N'                   :  {'column': mv.Control_PeakSNR, 'round': 2},
+        'Control S/N'                   :  {'column': mv.Control_Relative_SNR, 'round': 2},
         'Flag'                               : {'column': mv.Reference_Flag_Label, 'round': None},
         }
 
