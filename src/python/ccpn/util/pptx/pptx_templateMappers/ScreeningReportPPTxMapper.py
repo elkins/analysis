@@ -18,6 +18,7 @@ class ScreeningReportTemplateMapper(PPTxTemplateMapperABC):
     templateSettingsFileName = 'Screening_report_template_settings.json'
     templateMapperName = 'Screening PPTx Report'
     scratchDirName = 'screenReport' # the directory name created inside the ccpn temporary directory. And Cleared up after the report is generated
+    _SUMMARYTABLE = 'SummaryTable'
     slideMapping = {
                                 'Title Slide': {
                                     LAYOUT_GETTER: 'buildTitleSlide',
@@ -85,7 +86,7 @@ class ScreeningReportTemplateMapper(PPTxTemplateMapperABC):
                                                                             },
 
                                                                         {
-                                                                            PLACEHOLDER_NAME: 'SummaryTable',
+                                                                            PLACEHOLDER_NAME: _SUMMARYTABLE,
                                                                             PLACEHOLDER_TYPE: PLACEHOLDER_TYPE_TABLE,
                                                                             PLACEHOLDER_GETTER: 'getSummaryTable',
                                                                             },
@@ -160,6 +161,13 @@ class ScreeningReportTemplateMapper(PPTxTemplateMapperABC):
         'Flag'                               : {'column': mv.Reference_Flag_Label, 'round': None},
         }
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self._hyperlinkSubstancesDict = {} # internal - used for creating the hyperlinks -
+        self._hyperlinkSubstancesSummaryTables = []  # internal - used for creating the hyperlinks -
+
+
 
     # ~~~~~~ Layout Title Slide getter  ~~~~~~~~
 
@@ -167,7 +175,7 @@ class ScreeningReportTemplateMapper(PPTxTemplateMapperABC):
         """
         Build the first Page with title and project summary
         """
-        writer._buildPlaceholdersForLayout(slideLayoutName)
+        slide, shapesDict = writer._buildPlaceholdersForLayout(slideLayoutName)
 
     # ~~~~~~ Placeholders Title Slide getters  ~~~~~~~
 
@@ -254,7 +262,12 @@ class ScreeningReportTemplateMapper(PPTxTemplateMapperABC):
         chunkSize = self.settingsHandler.getValue(maxRowsKey, 20)
         chunks = [substanceTable.iloc[i:i + chunkSize] for i in range(0, len(substanceTable), chunkSize)]
         for idx, chunk in enumerate(chunks, 1):
-            writer._buildPlaceholdersForLayout(slideLayoutName, slideIndex=idx, totalSummarySlides=len(chunks), substancesTableData=chunk)
+            slide, shapesDict = writer._buildPlaceholdersForLayout(slideLayoutName, slideIndex=idx, totalSummarySlides=len(chunks), substancesTableData=chunk)
+            tableShape = shapesDict.get(self._SUMMARYTABLE)
+            if tableShape is not None:
+                table = tableShape.table
+                self._hyperlinkSubstancesSummaryTables.append(table)
+
 
     # ~~~~~~ Placeholders Substance Summary Slide getters  ~~~~~~~
 
@@ -288,11 +301,12 @@ class ScreeningReportTemplateMapper(PPTxTemplateMapperABC):
 
         for i, (tableIndex, substanceTableRow) in enumerate(substanceTable.iterrows()):
             substancePid = substanceTableRow[mv.Reference_SubstancePid]
+            substanceName = substanceTableRow[mv.Reference_SubstanceName]
             matchingTableForSubstance = matchingTable[matchingTable[mv.Reference_SubstancePid] == substancePid]
-            writer._buildPlaceholdersForLayout(slideLayoutName, substanceTableIndex=i + 1,
+            slide, shapesDict = writer._buildPlaceholdersForLayout(slideLayoutName, substanceTableIndex=i + 1,
                                         substanceTableRow=substanceTableRow,
                                         matchingTableForSubstance=matchingTableForSubstance)
-
+            self._hyperlinkSubstancesDict[substanceName] = writer.getSlideIndex(slide)
     # ~~~~~~ Placeholders Substance Slide getters  ~~~~~~~
 
     def getSubstanceTitle(self, substanceTableIndex, substanceTableRow, matchingTableForSubstance):
@@ -368,6 +382,23 @@ class ScreeningReportTemplateMapper(PPTxTemplateMapperABC):
         return ''
 
     # ~~~ helper methods ~~~~
+
+    def postBuildLayouts(self, writer, *args, **kwargs):
+        self._addHyperLinksToSubstanceTable()
+
+    def _addHyperLinksToSubstanceTable(self):
+        """  add the hyperlinks on the table"""
+        for substancesTable in self._hyperlinkSubstancesSummaryTables:
+            for row in substancesTable.rows:
+                for cell in row.cells:
+                    text = cell.text
+                    if text in self._hyperlinkSubstancesDict:
+                        for paragraph in cell.text_frame.paragraphs:
+                            for run in paragraph.runs:
+                                slideID = self._hyperlinkSubstancesDict[run.text]  # Get the Slide ID from the mapping
+                                run.hyperlink.address = f'#{slideID}'  # Link to the slide ID
+                                break
+                            break
 
     def _getSubstancePid(self, substanceTableRow):
         substancePid = substanceTableRow[mv.Reference_SubstancePid]

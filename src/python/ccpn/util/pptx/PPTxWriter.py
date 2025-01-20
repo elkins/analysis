@@ -111,6 +111,12 @@ class PPTxPresentationWriter():
         self._presentation.part.rename_slide_parts([cast("CT_SlideId", sldId).rId for sldId in sldIdLst])
         return tuple([slide for slide in Slides(sldIdLst, self._presentation)])
 
+    def getSlideIndex(self, slide):
+        for idx, s in enumerate(self.getSlides()):
+            if s == slide:
+                return idx+1
+        return None  # Return None if slide is not found
+
     def getLayout(self, identifier: int | str = 0) -> SlideLayout:
         """
         Retrieve a slide layout by index or name.
@@ -195,6 +201,7 @@ class PPTxPresentationWriter():
                 table.cell(rowIndex, colIndex).text = str(val)
         # Set style for all cells
         self.styleManager.applyTableStyle(table)
+        return tableShape
 
     def insertImage(self, targetSlide, templateLayout, placeholderName, imagePath):
 
@@ -224,13 +231,14 @@ class PPTxPresentationWriter():
         centeredTop = top + (height - scaledHeight) // 2
 
         # Add the scaled and centered image to the slide
-        targetSlide.shapes.add_picture(
+        shape = targetSlide.shapes.add_picture(
                 imagePath,
                 centeredLeft,
                 centeredTop,
                 width=scaledWidth,
                 height=scaledHeight,
                 )
+        return shape
 
     @staticmethod
     def _getImageSize(filePath):
@@ -346,30 +354,35 @@ class PPTxPresentationWriter():
         placeholderType = placeholderDef.get(PLACEHOLDER_TYPE)
         placeholderGetter = placeholderDef.get(PLACEHOLDER_GETTER)
         # Dynamically retrieve the content for the placeholder
+        shape = None
         getterFunc = getattr(self.presentationTemplate, placeholderGetter, None)
         if getterFunc is None:
-            return
+            return shape
         value = getterFunc(**getterKwargs)
         if placeholderType == PLACEHOLDER_TYPE_TEXT:
-            self.insertText(slide, layout, placeholderName, value or '')
+            shape = self.insertText(slide, layout, placeholderName, value or '')
         elif placeholderType == PLACEHOLDER_TYPE_IMAGE:
             isPathOk, msgErr = checkFilePath(aPath(value))
             if isPathOk:
-                self.insertImage(slide, layout, placeholderName, value)
+                shape = self.insertImage(slide, layout, placeholderName, value)
         elif placeholderType == PLACEHOLDER_TYPE_TABLE:
             try:
-                self.insertDataFrame(slide, layout, placeholderName, value)
+                shape = self.insertDataFrame(slide, layout, placeholderName, value)
             except Exception as err:
                 getLogger().warn(f'PPTX writer. Cannot add table. {err}')
+        return shape
 
     def _buildPlaceholdersForLayout(self, slideLayoutName, **placeholderKwargs):
         """ Internal. Helper method to build the placeholders from the slideMapping definitions"""
-
+        shapesDict = {}
         placeholderDefs = self.presentationTemplate.slideMapping[slideLayoutName].get(PLACEHOLDER_DEFS)
         layout = self.getLayout(slideLayoutName)
         newSlide = self.newSlide(layout, removePlaceholders=True)
         for placeholderDef in placeholderDefs:
             # try:
-                self._handlePlaceholder(newSlide, layout, placeholderDef, **placeholderKwargs)
+                shape = self._handlePlaceholder(newSlide, layout, placeholderDef, **placeholderKwargs)
+                shapeName = placeholderDef.get(PLACEHOLDER_NAME)
+                shapesDict[shapeName] = shape
             # except Exception as ex:
             #     getLogger().warn(f'An error occurred while filling the placeholder in the slide layout "{slideLayoutName}" for the placeholder "{placeholderDef}". Error details: {ex}')
+        return newSlide, shapesDict

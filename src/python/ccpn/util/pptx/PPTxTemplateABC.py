@@ -42,7 +42,7 @@ class PPTxTemplateMapperABC(ABC):
         self.settingsHandler = PPTxTemplateSettingsHandler(self.getAbsoluteResourcesTemplateSettingsPath())
         self.dataHandler = PPTxDataHandler(**dataDict)
 
-    # @abc.abstractmethod
+
     def buildLayouts(self, writer):
         """
         Builds the slides based on the template mapping definitions
@@ -56,6 +56,10 @@ class PPTxTemplateMapperABC(ABC):
                 layoutFunc = getattr(self, layoutFuncName)
                 if layoutFunc is not None:
                     layoutFunc(writer, slideLayoutName)
+        self.postBuildLayouts(writer)
+
+    def postBuildLayouts(self, writer, *args, **kwargs):
+        pass
 
     def getAbsoluteResourcesTemplatePath(self):
         """The templates  should live in the resources' folder. The default template is in distribution folder.
