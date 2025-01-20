@@ -377,4 +377,4 @@ class PPTxPresentationWriter():
             try:
                 self._handlePlaceholder(newSlide, layout, placeholderDef, **placeholderKwargs)
             except Exception as ex:
-                getLogger().warn(f'Some Error in filling the placeholder occurred: {ex}')
+                getLogger().warn(f'An error occurred while filling the placeholder in the slide layout "{slideLayoutName}" for the placeholder "{placeholderDef}". Error details: {ex}')

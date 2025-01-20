@@ -103,18 +103,18 @@ class ScreeningReportTemplateMapper(PPTxTemplateMapperABC):
                                 ],
                             },
 
-                            'Report Slide': {
+                            'Substance Slide': {
                                 LAYOUT_GETTER: 'buildSubstanceSlides',
                                 PLACEHOLDER_DEFS: [
                                                                     {
                                                                         PLACEHOLDER_NAME: 'Title',
                                                                         PLACEHOLDER_TYPE: PLACEHOLDER_TYPE_TEXT,
-                                                                        PLACEHOLDER_GETTER: 'getReportTitle',
+                                                                        PLACEHOLDER_GETTER: 'getSubstanceTitle',
                                                                     },
                                                                     {
                                                                         PLACEHOLDER_NAME: 'Subtitle',
                                                                         PLACEHOLDER_TYPE: PLACEHOLDER_TYPE_TEXT,
-                                                                        PLACEHOLDER_GETTER: 'getReportSubtitle',
+                                                                        PLACEHOLDER_GETTER: 'getSubstanceSubtitle',
                                                                     },
                                                                     {
                                                                         PLACEHOLDER_NAME: 'MolStructure',
@@ -124,17 +124,17 @@ class ScreeningReportTemplateMapper(PPTxTemplateMapperABC):
                                                                     {
                                                                         PLACEHOLDER_NAME: 'Table',
                                                                         PLACEHOLDER_TYPE: PLACEHOLDER_TYPE_TABLE,
-                                                                        PLACEHOLDER_GETTER: 'getReportTable',
+                                                                        PLACEHOLDER_GETTER: 'getSubstanceTable',
                                                                     },
                                                                     {
                                                                         PLACEHOLDER_NAME: 'Plots',
                                                                         PLACEHOLDER_TYPE: PLACEHOLDER_TYPE_IMAGE,
-                                                                        PLACEHOLDER_GETTER: 'getReportPlots',
+                                                                        PLACEHOLDER_GETTER: 'getSubstancePlots',
                                                                     },
                                                                     {
                                                                         PLACEHOLDER_NAME: 'Comment',
                                                                         PLACEHOLDER_TYPE: PLACEHOLDER_TYPE_TEXT,
-                                                                        PLACEHOLDER_GETTER: 'getReportComment',
+                                                                        PLACEHOLDER_GETTER: 'getSubstanceComment',
                                                                     },
                                 ],
                             }
@@ -306,15 +306,14 @@ class ScreeningReportTemplateMapper(PPTxTemplateMapperABC):
 
     # ~~~~~~ Placeholders Substance Slide getters  ~~~~~~~
 
-    def getReportTitle(self, substanceTableIndex, substanceTableRow, matchingTableForSubstance):
+    def getSubstanceTitle(self, substanceTableIndex, substanceTableRow, matchingTableForSubstance):
         """Add the title from the Substance"""
         df = matchingTableForSubstance
         sampleName = df[mv.Sample_Name].unique()[-1]
         substanceName = df[mv.Reference_SubstanceName].unique()[-1]
         return f'{substanceName} ({sampleName})'
 
-    def getReportSubtitle(self, substanceTableIndex, substanceTableRow, matchingTableForSubstance):
-        """Stub method for getReportSubtitle."""
+    def getSubstanceSubtitle(self, substanceTableIndex, substanceTableRow, matchingTableForSubstance):
         substanceBindScore = substanceTableRow[mv.Reference_Score]
         substanceDisplScore = substanceTableRow[mv.Reference_DisplacementScore]
         substanceMatchScore = substanceTableRow[mv.Reference_MatchScore]
@@ -348,10 +347,11 @@ class ScreeningReportTemplateMapper(PPTxTemplateMapperABC):
             print(f'Error creating Mol from Smiles. {substancePid} - {smiles}. Exit with error: {err}')
         return None
 
-    def getReportTable(self, substanceTableIndex, substanceTableRow, matchingTableForSubstance):
+    def getSubstanceTable(self, substanceTableIndex, substanceTableRow, matchingTableForSubstance):
         """Method to generate the report table with dynamic rounding."""
 
         df = self._formatDataFrameForTable(matchingTableForSubstance,  self.matchesTableColumnsMap)
+        df = df.astype(object) # we need to convert to object to fill nans with ''
         df = df.fillna('')
         # Transpose the DataFrame and reset index
         df = df.T.reset_index(drop=False)
@@ -361,13 +361,13 @@ class ScreeningReportTemplateMapper(PPTxTemplateMapperABC):
 
         return df
 
-    def getReportComment(self, substanceTableIndex, substanceTableRow, matchingTableForSubstance):
+    def getSubstanceComment(self, substanceTableIndex, substanceTableRow, matchingTableForSubstance):
         """Stub method for getReportComment."""
         pass
 
-    def getReportPlots(self, substanceTableIndex, substanceTableRow, matchingTableForSubstance):
+    def getSubstancePlots(self, substanceTableIndex, substanceTableRow, matchingTableForSubstance):
         plotter = _MatchingPeaksPlotter(self)
-        tempPlotPath =  plotter._getReportPlots(substanceTableIndex, substanceTableRow, matchingTableForSubstance)
+        tempPlotPath =  plotter._getSubstancePlots(substanceTableIndex, substanceTableRow, matchingTableForSubstance)
         del plotter
         return tempPlotPath
 
@@ -438,7 +438,7 @@ class _MatchingPeaksPlotter():
         self._loggedDiscarded = set() #j store this info just in case some settings where discarded, so that we log this only once and not for every axis/spectrum etc...
 
 
-    def _getReportPlots(self, substanceTableIndex, substanceTableRow, matchingTableForSubstance):
+    def _getSubstancePlots(self, substanceTableIndex, substanceTableRow, matchingTableForSubstance):
         """Generate report plots for a given substance."""
         substancePid = self.templateMapper._getSubstancePid(substanceTableRow)
         dataset = self._getDatasetSubset(matchingTableForSubstance)
