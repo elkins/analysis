@@ -36,7 +36,7 @@ class PPTStyleManager():
         """
         self.pptPresenation = pptPresenation
         self._accentColours = self._extractThemeAccents()
-        template = self.pptPresenation._presentationTemplate
+        template = self.pptPresenation.presentationTemplate
         styleUserSettings = template.settingsHandler.getValue('table_style', self._defaultTableStyle)
         self.tableStyleOptions = {**self._defaultTableStyle, **(styleUserSettings or {})}  # Merge defaults with provided styles
 

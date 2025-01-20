@@ -31,7 +31,8 @@ from ccpn.util.Path import aPath, checkFilePath
 from ccpn.util.Logging import getLogger
 from ccpn.util.pptx.PPTxStyleManager import PPTStyleManager
 
-
+LAYOUT_GETTER = 'layout_getter'
+PLACEHOLDER_DEFS = 'placeholder_defs'
 PLACEHOLDER_NAME = 'placeholder_name'
 PLACEHOLDER_TYPE = 'placeholder_type'
 PLACEHOLDER_GETTER = 'placeholder_getter'
@@ -53,8 +54,8 @@ class PPTxPresentationWriter():
         :param pptxPath: The path to an existing PPTx presentation containing a single slide master and layout(s) with appropriately
                                      named placeholders to use as a template for a new presentation.
         """
-        self._presentationTemplate = presentationTemplate
-        self._pptxPath = self._presentationTemplate.getAbsoluteResourcesTemplatePath()
+        self.presentationTemplate = presentationTemplate
+        self._pptxPath = self.presentationTemplate.getAbsoluteResourcesTemplatePath()
         self._presentation = _presentation(self._pptxPath)
         self._placeholderErrorPolicy = placeholderErrorPolicy
         self._data = None
@@ -76,8 +77,8 @@ class PPTxPresentationWriter():
         Builds a new presentation based on the template, dynamically applying content to placeholders
         as defined in the slide mapping.
         """
-        self._presentationTemplate.setData(**self.data)
-        self._presentationTemplate.buildLayouts(writer=self)
+        self.presentationTemplate.setData(**self.data)
+        self.presentationTemplate.buildLayouts(writer=self)
 
 
     def save(self, filePath):
@@ -256,14 +257,15 @@ class PPTxPresentationWriter():
         Examine the template SlideMapping and ensure names are properly defined and any getter/setter exists
         """
         errorMsgDict = defaultdict(list)
-        slideMapping = self._presentationTemplate.slideMapping
-        for slideLayoutName, placeholderDefs in slideMapping.items():
+        slideMapping = self.presentationTemplate.slideMapping
+        for slideLayoutName in slideMapping:
             layout = None
             try:
                 layout = self.getLayout(slideLayoutName)
             except ValueError as err:
                 errorMsgDict[slideLayoutName].append(err)
             if layout is not None:
+                placeholderDefs =slideMapping[slideLayoutName].get(PLACEHOLDER_DEFS)
                 for placeholderDef in placeholderDefs:
                     placeholderName = placeholderDef.get(PLACEHOLDER_NAME)
                     placeholderType = placeholderDef.get(PLACEHOLDER_TYPE)
@@ -275,7 +277,7 @@ class PPTxPresentationWriter():
                         errorMsgDict[(slideLayoutName, placeholderName)].append(phErr)
 
                     if ph:
-                        getterFunc = getattr(self._presentationTemplate, placeholderGetter, None)
+                        getterFunc = getattr(self.presentationTemplate, placeholderGetter, None)
                         if getterFunc is None:
                             errorMsgDict[(slideLayoutName, placeholderName)].append(f'Could not find a valid getter: {placeholderGetter} is not defined in the template Class')
                         #  we have getter  in the class . now er need to check  the value returned is the same type from the one defined in the mapping
@@ -349,11 +351,11 @@ class PPTxPresentationWriter():
         placeholderType = placeholderDef.get(PLACEHOLDER_TYPE)
         placeholderGetter = placeholderDef.get(PLACEHOLDER_GETTER)
         # Dynamically retrieve the content for the placeholder
-        getterFunc = getattr(self._presentationTemplate, placeholderGetter, None)
+        getterFunc = getattr(self.presentationTemplate, placeholderGetter, None)
         if getterFunc is None:
             return
         value = getterFunc(**getterKwargs)
-        if placeholderType == 'Text':
+        if placeholderType == PLACEHOLDER_TYPE_TEXT:
             self.insertText(slide, layout, placeholderName, value or '')
         elif placeholderType == PLACEHOLDER_TYPE_IMAGE:
             isPathOk, msgErr = checkFilePath(aPath(value))
@@ -363,6 +365,16 @@ class PPTxPresentationWriter():
             try:
                 self.insertDataFrame(slide, layout, placeholderName, value)
             except Exception as err:
-                print('Cannot add table', err)
+                getLogger().warn(f'PPTX writer. Cannot add table. {err}')
 
+    def _buildPlaceholdersForLayout(self, slideLayoutName, **placeholderKwargs):
+        """ Internal. Helper method to build the placeholders from the slideMapping definitions"""
 
+        placeholderDefs = self.presentationTemplate.slideMapping[slideLayoutName].get(PLACEHOLDER_DEFS)
+        layout = self.getLayout(slideLayoutName)
+        newSlide = self.newSlide(layout, removePlaceholders=True)
+        for placeholderDef in placeholderDefs:
+            try:
+                self._handlePlaceholder(newSlide, layout, placeholderDef, **placeholderKwargs)
+            except Exception as ex:
+                getLogger().warn(f'Some Error in filling the placeholder occurred: {ex}')

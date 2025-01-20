@@ -6,6 +6,7 @@ import sys
 from ccpn.framework.Application import getProject, getApplication, getCurrent
 from ccpn.util.Path import aPath, joinPath
 from ccpn.util.pptx.PPTxTemplateSettings import PPTxTemplateSettingsHandler
+from ccpn.util.pptx.PPTxWriter import *
 
 TEMPLATE_DIR_NAME = 'pptx_templates'
 
@@ -35,7 +36,7 @@ class PPTxTemplateMapperABC(ABC):
     def settingsData(self):
         return self.settingsHandler.data
 
-    @abc.abstractmethod
+    # @abc.abstractmethod
     def buildLayouts(self, writer):
         """
         Builds the slides based on the template mapping definitions
@@ -45,16 +46,11 @@ class PPTxTemplateMapperABC(ABC):
         if not isValidTemplate and writer._placeholderErrorPolicy == 'raise':
             raise RuntimeError(f'Detected errors while building a new Presentation from Template \n{writer._formatDefaultDict(templateErrors)}')
         else:
-
-            slideMapping = self.slideMapping
-            for slideLayoutName, placeholderDefs in slideMapping.items():
-                layout = writer.getLayout(slideLayoutName)
-                newSlide = writer.newSlide(layout, removePlaceholders=True)
-                for placeholderDef in placeholderDefs:
-                    try:
-                        writer._handlePlaceholder(newSlide, layout, placeholderDef)
-                    except Exception as ex:
-                        print(f'Some Error in filling the placeholder occurred: {ex}')
+            for slideLayoutName in self.slideMapping:
+                layoutFuncName = self.slideMapping[slideLayoutName].get(LAYOUT_GETTER, '')
+                layoutFunc = getattr(self, layoutFuncName)
+                if layoutFunc is not None:
+                    layoutFunc(writer, slideLayoutName)
 
     def getAbsoluteResourcesTemplatePath(self):
         """The templates  should live in the resources' folder. The default template is in distribution folder.

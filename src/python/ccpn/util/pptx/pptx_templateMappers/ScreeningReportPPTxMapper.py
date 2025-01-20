@@ -29,105 +29,115 @@ class ScreeningReportTemplateMapper(PPTxTemplateMapperABC):
     templateMapperName = 'Screening PPTx Report'
     scratchDirName = 'screenReport' # the directory name created inside the ccpn temporary directory. And Cleared up after the report is generated
     slideMapping = {
-                                'Title Slide': [
-                                    {
-                                        PLACEHOLDER_NAME  : 'Title',
-                                        PLACEHOLDER_TYPE  : PLACEHOLDER_TYPE_TEXT,
-                                        PLACEHOLDER_GETTER: 'getTitle',
-                                        },
-                                    {
-                                        PLACEHOLDER_NAME  : 'Subtitle',
-                                        PLACEHOLDER_TYPE  : PLACEHOLDER_TYPE_TEXT,
-                                        PLACEHOLDER_GETTER: 'getSubtitle',
-                                        },
-                                    {
-                                        PLACEHOLDER_NAME: 'Operator',
-                                        PLACEHOLDER_TYPE: PLACEHOLDER_TYPE_TEXT,
-                                        PLACEHOLDER_GETTER: 'getOperator',
-                                    },
-                                    {
-                                        PLACEHOLDER_NAME: 'Date-Time',
-                                        PLACEHOLDER_TYPE: PLACEHOLDER_TYPE_TEXT,
-                                        PLACEHOLDER_GETTER: 'getDateTime',
-                                    },
-                                    {
-                                        PLACEHOLDER_NAME: 'Data Paths',
-                                        PLACEHOLDER_TYPE: PLACEHOLDER_TYPE_TEXT,
-                                        PLACEHOLDER_GETTER: 'getDataPaths',
-                                    },
-                                    {
-                                        PLACEHOLDER_NAME: 'Program Info',
-                                        PLACEHOLDER_TYPE: PLACEHOLDER_TYPE_TEXT,
-                                        PLACEHOLDER_GETTER: 'getProgramInfo',
-                                    },
-                                    {
-                                        PLACEHOLDER_NAME: 'Pipeline Settings',
-                                        PLACEHOLDER_TYPE: PLACEHOLDER_TYPE_TEXT,
-                                        PLACEHOLDER_GETTER: 'getPipelineSettings',
-                                    },
-                                    {
-                                        PLACEHOLDER_NAME: 'Calculation Settings',
-                                        PLACEHOLDER_TYPE: PLACEHOLDER_TYPE_TEXT,
-                                        PLACEHOLDER_GETTER: 'getCalculationSettings',
-                                    },
-                                    {
-                                        PLACEHOLDER_NAME: 'Comment',
-                                        PLACEHOLDER_TYPE: PLACEHOLDER_TYPE_TEXT,
-                                        PLACEHOLDER_GETTER: 'getTitleComment',
-                                    },
-                                ],
+                                'Title Slide': {
+                                    LAYOUT_GETTER: 'buildTitleSlide',
+                                    PLACEHOLDER_DEFS: [
+                                                                            {
+                                                                                PLACEHOLDER_NAME  : 'Title',
+                                                                                PLACEHOLDER_TYPE  : PLACEHOLDER_TYPE_TEXT,
+                                                                                PLACEHOLDER_GETTER: 'getTitle',
+                                                                                },
+                                                                            {
+                                                                                PLACEHOLDER_NAME  : 'Subtitle',
+                                                                                PLACEHOLDER_TYPE  : PLACEHOLDER_TYPE_TEXT,
+                                                                                PLACEHOLDER_GETTER: 'getSubtitle',
+                                                                                },
+                                                                            {
+                                                                                PLACEHOLDER_NAME: 'Operator',
+                                                                                PLACEHOLDER_TYPE: PLACEHOLDER_TYPE_TEXT,
+                                                                                PLACEHOLDER_GETTER: 'getOperator',
+                                                                            },
+                                                                            {
+                                                                                PLACEHOLDER_NAME: 'Date-Time',
+                                                                                PLACEHOLDER_TYPE: PLACEHOLDER_TYPE_TEXT,
+                                                                                PLACEHOLDER_GETTER: 'getDateTime',
+                                                                            },
+                                                                            {
+                                                                                PLACEHOLDER_NAME: 'Data Paths',
+                                                                                PLACEHOLDER_TYPE: PLACEHOLDER_TYPE_TEXT,
+                                                                                PLACEHOLDER_GETTER: 'getDataPaths',
+                                                                            },
+                                                                            {
+                                                                                PLACEHOLDER_NAME: 'Program Info',
+                                                                                PLACEHOLDER_TYPE: PLACEHOLDER_TYPE_TEXT,
+                                                                                PLACEHOLDER_GETTER: 'getProgramInfo',
+                                                                            },
+                                                                            {
+                                                                                PLACEHOLDER_NAME: 'Pipeline Settings',
+                                                                                PLACEHOLDER_TYPE: PLACEHOLDER_TYPE_TEXT,
+                                                                                PLACEHOLDER_GETTER: 'getPipelineSettings',
+                                                                            },
+                                                                            {
+                                                                                PLACEHOLDER_NAME: 'Calculation Settings',
+                                                                                PLACEHOLDER_TYPE: PLACEHOLDER_TYPE_TEXT,
+                                                                                PLACEHOLDER_GETTER: 'getCalculationSettings',
+                                                                            },
+                                                                            {
+                                                                                PLACEHOLDER_NAME: 'Comment',
+                                                                                PLACEHOLDER_TYPE: PLACEHOLDER_TYPE_TEXT,
+                                                                                PLACEHOLDER_GETTER: 'getTitleComment',
+                                                                            },
+                                    ],
+                                },
 
-                            'Substances Summary': [
-                                {
-                                    PLACEHOLDER_NAME  : 'Title',
-                                    PLACEHOLDER_TYPE  : PLACEHOLDER_TYPE_TEXT,
-                                    PLACEHOLDER_GETTER: 'getSummaryTitle',
-                                    },
-                                {
-                                    PLACEHOLDER_NAME  : 'Subtitle',
-                                    PLACEHOLDER_TYPE  : PLACEHOLDER_TYPE_TEXT,
-                                    PLACEHOLDER_GETTER: 'getSummarySubtitle',
-                                    },
+                            'Substances Summary': {
+                                LAYOUT_GETTER: 'buildSubstancesSummarySlides',
+                                PLACEHOLDER_DEFS: [
+                                                                        {
+                                                                            PLACEHOLDER_NAME  : 'Title',
+                                                                            PLACEHOLDER_TYPE  : PLACEHOLDER_TYPE_TEXT,
+                                                                            PLACEHOLDER_GETTER: 'getSummaryTitle',
+                                                                            },
+                                                                        {
+                                                                            PLACEHOLDER_NAME  : 'Subtitle',
+                                                                            PLACEHOLDER_TYPE  : PLACEHOLDER_TYPE_TEXT,
+                                                                            PLACEHOLDER_GETTER: 'getSummarySubtitle',
+                                                                            },
 
-                                {
-                                    PLACEHOLDER_NAME  : 'SummaryTable',
-                                    PLACEHOLDER_TYPE  : PLACEHOLDER_TYPE_TABLE,
-                                    PLACEHOLDER_GETTER: 'getSummaryTable',
-                                    },
+                                                                        {
+                                                                            PLACEHOLDER_NAME  : 'SummaryTable',
+                                                                            PLACEHOLDER_TYPE  : PLACEHOLDER_TYPE_TABLE,
+                                                                            PLACEHOLDER_GETTER: 'getSummaryTable',
+                                                                            },
 
                                 ],
-                                'Report Slide': [
-                                    {
-                                        PLACEHOLDER_NAME: 'Title',
-                                        PLACEHOLDER_TYPE: PLACEHOLDER_TYPE_TEXT,
-                                        PLACEHOLDER_GETTER: 'getReportTitle',
-                                    },
-                                    {
-                                        PLACEHOLDER_NAME: 'Subtitle',
-                                        PLACEHOLDER_TYPE: PLACEHOLDER_TYPE_TEXT,
-                                        PLACEHOLDER_GETTER: 'getReportSubtitle',
-                                    },
-                                    {
-                                        PLACEHOLDER_NAME: 'MolStructure',
-                                        PLACEHOLDER_TYPE: PLACEHOLDER_TYPE_IMAGE,
-                                        PLACEHOLDER_GETTER: 'getMolStructure',
-                                    },
-                                    {
-                                        PLACEHOLDER_NAME: 'Table',
-                                        PLACEHOLDER_TYPE: PLACEHOLDER_TYPE_TABLE,
-                                        PLACEHOLDER_GETTER: 'getReportTable',
-                                    },
-                                    {
-                                        PLACEHOLDER_NAME: 'Plots',
-                                        PLACEHOLDER_TYPE: PLACEHOLDER_TYPE_IMAGE,
-                                        PLACEHOLDER_GETTER: 'getReportPlots',
-                                    },
-                                    {
-                                        PLACEHOLDER_NAME: 'Comment',
-                                        PLACEHOLDER_TYPE: PLACEHOLDER_TYPE_TEXT,
-                                        PLACEHOLDER_GETTER: 'getReportComment',
-                                    },
+                            },
+
+                            'Report Slide': {
+                                LAYOUT_GETTER: 'buildSubstanceSlides',
+                                PLACEHOLDER_DEFS: [
+                                                                    {
+                                                                        PLACEHOLDER_NAME: 'Title',
+                                                                        PLACEHOLDER_TYPE: PLACEHOLDER_TYPE_TEXT,
+                                                                        PLACEHOLDER_GETTER: 'getReportTitle',
+                                                                    },
+                                                                    {
+                                                                        PLACEHOLDER_NAME: 'Subtitle',
+                                                                        PLACEHOLDER_TYPE: PLACEHOLDER_TYPE_TEXT,
+                                                                        PLACEHOLDER_GETTER: 'getReportSubtitle',
+                                                                    },
+                                                                    {
+                                                                        PLACEHOLDER_NAME: 'MolStructure',
+                                                                        PLACEHOLDER_TYPE: PLACEHOLDER_TYPE_IMAGE,
+                                                                        PLACEHOLDER_GETTER: 'getMolStructure',
+                                                                    },
+                                                                    {
+                                                                        PLACEHOLDER_NAME: 'Table',
+                                                                        PLACEHOLDER_TYPE: PLACEHOLDER_TYPE_TABLE,
+                                                                        PLACEHOLDER_GETTER: 'getReportTable',
+                                                                    },
+                                                                    {
+                                                                        PLACEHOLDER_NAME: 'Plots',
+                                                                        PLACEHOLDER_TYPE: PLACEHOLDER_TYPE_IMAGE,
+                                                                        PLACEHOLDER_GETTER: 'getReportPlots',
+                                                                    },
+                                                                    {
+                                                                        PLACEHOLDER_NAME: 'Comment',
+                                                                        PLACEHOLDER_TYPE: PLACEHOLDER_TYPE_TEXT,
+                                                                        PLACEHOLDER_GETTER: 'getReportComment',
+                                                                    },
                                 ],
+                            }
                             }
 
     # Table settings
@@ -167,7 +177,16 @@ class ScreeningReportTemplateMapper(PPTxTemplateMapperABC):
         self._haModuleSettings = kwargs.get(mv.HitAnalysisSettings, {})
         self._data = {**kwargs}
 
-    # ~~~~~~ slideMapping getters ~~~~~~~~
+
+    # ~~~~~~ Layout Title Slide getter  ~~~~~~~~
+
+    def buildTitleSlide(self, writer, slideLayoutName):
+        """
+        Build the first Page with title and project summary
+        """
+        writer._buildPlaceholdersForLayout(slideLayoutName)
+
+    # ~~~~~~ Placeholders Title Slide getters  ~~~~~~~
 
     def getTitle(self):
         title = 'CcpNmr Screening Report'
@@ -229,7 +248,26 @@ class ScreeningReportTemplateMapper(PPTxTemplateMapperABC):
         """Stub method for getTitleComment."""
         pass
 
-    # ~~~~~~ Summary Substance Slide ~~~~~~~
+    # ~~~~~~ Layout Summary Substance Slide getter  ~~~~~~~~
+
+    def buildSubstancesSummarySlides(self, writer, slideLayoutName):
+        """
+        Build the Substances Summary Slide(s). This will create a slides containing a summary table. Table will be split in multiple pages to ensure readability and fit the slide margins.
+        """
+        import ccpn.AnalysisScreen.lib.experimentAnalysis.matching.MatchingVariables as mv
+
+        substanceTable = self.data.get('substanceTable')
+        if substanceTable is None:
+            return
+        substanceTable[mv.Serial] = range(1, len(substanceTable) + 1)
+        # split the data in chunks
+        maxRowsKey = 'substances_summary_max_rows_per_table'
+        chunkSize = self.settingsHandler.getValue(maxRowsKey, 20)
+        chunks = [substanceTable.iloc[i:i + chunkSize] for i in range(0, len(substanceTable), chunkSize)]
+        for idx, chunk in enumerate(chunks, 1):
+            writer._buildPlaceholdersForLayout(slideLayoutName, slideIndex=idx, totalSummarySlides=len(chunks), substancesTableData=chunk)
+
+    # ~~~~~~ Placeholders Substance Summary Slide getters  ~~~~~~~
 
     def getSummaryTitle(self, slideIndex, totalSummarySlides, substancesTableData):
         title = 'Substances  Summary'
@@ -246,7 +284,28 @@ class ScreeningReportTemplateMapper(PPTxTemplateMapperABC):
         df = self._formatDataFrameForTable(substancesTableData,  self.substancesTableColumnsMap)
         return df
 
-    # ~~~~~~ Single Substance Slide ~~~~~~~
+    # ~~~~~~ Layout Substance Slide getter  ~~~~~~~~
+
+    def buildSubstanceSlides(self, writer, slideLayoutName):
+        """
+        Build all dedicated Substances Pages in order
+        """
+        import ccpn.AnalysisScreen.lib.experimentAnalysis.matching.MatchingVariables as mv
+
+        substanceTable = self.data.get('substanceTable')
+        matchingTable = self.data.get('matchingTable')
+        if substanceTable is None:
+            return
+
+        for i, (tableIndex, substanceTableRow) in enumerate(substanceTable.iterrows()):
+            substancePid = substanceTableRow[mv.Reference_SubstancePid]
+            matchingTableForSubstance = matchingTable[matchingTable[mv.Reference_SubstancePid] == substancePid]
+            writer._buildPlaceholdersForLayout(slideLayoutName, substanceTableIndex=i + 1,
+                                        substanceTableRow=substanceTableRow,
+                                        matchingTableForSubstance=matchingTableForSubstance)
+
+    # ~~~~~~ Placeholders Substance Slide getters  ~~~~~~~
+
     def getReportTitle(self, substanceTableIndex, substanceTableRow, matchingTableForSubstance):
         """Add the title from the Substance"""
         df = matchingTableForSubstance
@@ -359,87 +418,6 @@ class ScreeningReportTemplateMapper(PPTxTemplateMapperABC):
             return False
         Draw.MolToFile(molecule, path, format='PNG')
         return True
-
-    #~~~~ build layouts methods of ABC
-
-    def buildLayouts(self, writer):
-
-        isValidTemplate, templateErrors = writer._validateTemplate()
-        if not isValidTemplate and writer._placeholderErrorPolicy == 'raise':
-            raise RuntimeError(f'Detected errors while building a new Presentation from Template \n{writer._formatDefaultDict(templateErrors)}')
-
-        self._buildTitleSlide(writer)
-        self._buildSubstancesSummarySlides(writer)
-        self._buildSubstanceSlides(writer)
-
-    def _buildTitleSlide(self, writer):
-        """
-        Build the first Page with title and project summary
-        """
-        slideMapping = self.slideMapping
-        # TODO  add validations
-        titleLayoutName = 'Title Slide'  #need to put this in the json settings so to don't hardcode here
-        titlePlaceholderDefs = slideMapping[titleLayoutName]
-        layout = writer.getLayout(titleLayoutName)
-        newSlide = writer.newSlide(layout, removePlaceholders=True)
-        for placeholderDef in titlePlaceholderDefs:
-            try:
-                writer._handlePlaceholder(newSlide, layout, placeholderDef)
-            except Exception as ex:
-                print(f'Some Error in filling the placeholder occurred: {ex}')
-
-    def _buildSubstancesSummarySlides(self, writer):
-        """
-        Build the Substances Summary Slide(s). This will create a slides containing a summary table. Table will be split in multiple pages to ensure readability and fit the slide margins.
-        """
-        import ccpn.AnalysisScreen.lib.experimentAnalysis.matching.MatchingVariables as mv
-
-        slideMapping = self.slideMapping
-        substanceTable = self.data.get('substanceTable')
-        if substanceTable is None:
-            return
-        substanceTable[mv.Serial] = range(1, len(substanceTable) + 1)
-        # split the data in chunks
-        maxRowsKey = 'substances_summary_max_rows_per_table'
-        chunkSize = self.settingsHandler.getValue(maxRowsKey, 20)
-        chunks = [substanceTable.iloc[i:i + chunkSize] for i in range(0, len(substanceTable), chunkSize)]
-        for idx, chunk in enumerate(chunks, 1):
-            titleLayoutName = 'Substances Summary'
-            titlePlaceholderDefs = slideMapping[titleLayoutName]
-            layout = writer.getLayout(titleLayoutName)
-            newSlide = writer.newSlide(layout, removePlaceholders=True)
-            for placeholderDef in titlePlaceholderDefs:
-                try:
-                    writer._handlePlaceholder(newSlide, layout, placeholderDef, slideIndex=idx, totalSummarySlides=len(chunks), substancesTableData=chunk)
-                except Exception as ex:
-                    print(f'Some Error in filling the placeholder occurred: {ex}')
-
-    def _buildSubstanceSlides(self, writer):
-        """
-        Build all dedicated Substances Pages in order
-        """
-        import ccpn.AnalysisScreen.lib.experimentAnalysis.matching.MatchingVariables as mv
-
-        slideMapping = self.slideMapping
-
-        substanceTable = self.data.get('substanceTable')
-        matchingTable = self.data.get('matchingTable')
-        if substanceTable is None:
-            return
-
-        for i, (tableIndex, substanceTableRow) in enumerate(substanceTable.iterrows()):
-            substancePid = substanceTableRow[mv.Reference_SubstancePid]
-            matchingTableForSubstance = matchingTable[matchingTable[mv.Reference_SubstancePid] == substancePid]
-            titleLayoutName = 'Report Slide'
-            titlePlaceholderDefs = slideMapping[titleLayoutName]
-            layout = writer.getLayout(titleLayoutName)
-            newSlide = writer.newSlide(layout, removePlaceholders=True)
-            for placeholderDef in titlePlaceholderDefs:
-                writer._handlePlaceholder(newSlide, layout, placeholderDef,
-                                        substanceTableIndex=i + 1,
-                                        substanceTableRow=substanceTableRow,
-                                        matchingTableForSubstance=matchingTableForSubstance)
-
 
 
 
