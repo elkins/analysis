@@ -69,5 +69,5 @@
                             "cell_background_alternate_color": [200, 193, 201]
                             },
   "substances_summary_max_rows_per_table":  20,
-  "substance_slide_include_page_number":  true,
+  "substance_slide_include_page_number":  true
 }
