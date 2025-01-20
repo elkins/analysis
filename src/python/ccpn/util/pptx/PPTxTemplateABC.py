@@ -6,42 +6,47 @@ import sys
 from ccpn.framework.Application import getProject, getApplication, getCurrent
 from ccpn.util.Path import aPath, joinPath
 from ccpn.util.pptx.PPTxTemplateSettings import PPTxTemplateSettingsHandler
-from ccpn.util.pptx.PPTxWriter import *
+from ccpn.util.pptx.PPTxWriter import LAYOUT_GETTER
+from ccpn.util.pptx.PPTxDataHandlerABC import PPTxDataHandler
 
 TEMPLATE_DIR_NAME = 'pptx_templates'
 
 class PPTxTemplateMapperABC(ABC):
+    """
+        The slideMapping is the fundamental section of this object. It connects the variables defined in the Microsoft PPTx file to the methods defined in this class.
+        The dict structure is defined as:
+        slideMapping = {
+                                'Title Slide': {
+                                    LAYOUT_GETTER: 'buildTitleSlide',  <-- the layout name (Defined in Microsoft PPTx slide master. To set: Menus > View > Slide Master, on slides sidebar >  right-click on the slide > rename)
+                                    PLACEHOLDER_DEFS: [
+                                                                            {
+                                                                            PLACEHOLDER_NAME: ' my placeholder name',                      <--  Slide master Placeholder Name.  (Defined in Microsoft PPTx slide master. To set [Macos at least]:  Menus > Home > Arrange >  Selection Panel...
+                                                                            PLACEHOLDER_TYPE: PLACEHOLDER_TYPE_TEXT,         <-- The Placeholder type created in the PPTx file. E.g.: Text, Image, Table
+                                                                            PLACEHOLDER_GETTER: 'getMethod',                                 <-- The method name defined in this  .py file and needed to get the value to be filled in the Placeholder
+                                                                        },
+                                    ]
+                                }
 
+
+    """
     templateMapperName = 'PresentationTemplateABC' # the name that will appear in the GUI selections
     templateEntryOrder = -1 # the order in which will appear in the GUI selections
     templateResourcesFileName = '' # the template file name .pptx . The file must be in one of the resources' directory. See getAbsoluteResourcesTemplatePath
     templateSettingsFileName = '' # the path for the Settings File, .json. The file must be in one of the resources' directory. See getAbsoluteResourcesTemplatePath
-    slideMapping = {}
+    slideMapping = {} # See above docs
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, dataDict={}, *args, **kwargs):
         self.project = getProject()
         self.application = getApplication()
         self.current = getCurrent()
-        self._data = None
         self.settingsHandler = PPTxTemplateSettingsHandler(self.getAbsoluteResourcesTemplateSettingsPath())
-
-    @property
-    def data(self):
-        return self._data
-
-    def setData(self, **kwargs):
-        self._data = {**kwargs}
-
-    @property
-    def settingsData(self):
-        return self.settingsHandler.data
+        self.dataHandler = PPTxDataHandler(**dataDict)
 
     # @abc.abstractmethod
     def buildLayouts(self, writer):
         """
         Builds the slides based on the template mapping definitions
         """
-
         isValidTemplate, templateErrors = writer._validateTemplate() # move this method from writer to this class.
         if not isValidTemplate and writer._placeholderErrorPolicy == 'raise':
             raise RuntimeError(f'Detected errors while building a new Presentation from Template \n{writer._formatDefaultDict(templateErrors)}')

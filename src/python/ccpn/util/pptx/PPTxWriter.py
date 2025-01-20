@@ -66,12 +66,6 @@ class PPTxPresentationWriter():
             raise RuntimeWarning('Multiple slide masters are not supported. This  Presentation will use only the first slide master')
         self.styleManager = PPTStyleManager(self)
 
-    @property
-    def data(self):
-        return self._data
-
-    def setData(self, **kwargs):
-        self._data = {**kwargs} # This creates a shallow copy of the kwargs dictionary instead of data = kwargs (that points to the same passed in dict)
 
     @abstractmethod
     def buildFromTemplate(self):
@@ -79,7 +73,6 @@ class PPTxPresentationWriter():
         Builds a new presentation based on the template, dynamically applying content to placeholders
         as defined in the slide mapping.
         """
-        self.presentationTemplate.setData(**self.data)
         self.presentationTemplate.buildLayouts(writer=self)
 
 
@@ -376,7 +369,7 @@ class PPTxPresentationWriter():
         layout = self.getLayout(slideLayoutName)
         newSlide = self.newSlide(layout, removePlaceholders=True)
         for placeholderDef in placeholderDefs:
-            try:
+            # try:
                 self._handlePlaceholder(newSlide, layout, placeholderDef, **placeholderKwargs)
-            except Exception as ex:
-                getLogger().warn(f'An error occurred while filling the placeholder in the slide layout "{slideLayoutName}" for the placeholder "{placeholderDef}". Error details: {ex}')
+            # except Exception as ex:
+            #     getLogger().warn(f'An error occurred while filling the placeholder in the slide layout "{slideLayoutName}" for the placeholder "{placeholderDef}". Error details: {ex}')

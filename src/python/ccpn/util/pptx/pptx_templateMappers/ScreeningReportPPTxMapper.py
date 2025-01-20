@@ -4,24 +4,14 @@ import numpy as np
 from matplotlib.ticker import FuncFormatter
 from ccpn.util.Path import fetchDir, joinPath
 from ccpn.util.pptx.PPTxTemplateABC import PPTxTemplateMapperABC
-from ccpn.util.pptx.PPTxWriter import *
+from ccpn.util.pptx.PPTxWriter import * # they are just the various module variable like LAYOUT_GETTER, etc
 from ccpn.util.Logging import getLogger
 import ccpn.AnalysisScreen.lib.experimentAnalysis.matching.MatchingVariables as mv
 
 
 class ScreeningReportTemplateMapper(PPTxTemplateMapperABC):
     """
-     slideMapping = {
-                                'Title Slide':   <-- Slide master layout slide Name. Defined in the actual PPTx file
-                                [
-                                    {
-                                        PLACEHOLDER_NAME: ' Any name',                                       <--  Slide master Placeholder Name. Defined in the actual PPTx file from the Selection Panel options
-                                        PLACEHOLDER_TYPE: PLACEHOLDER_TYPE_TEXT,         <-- The Placeholder type created in the PPTx file. E.g.: Text, Image, Table
-                                        PLACEHOLDER_GETTER: 'getMethod',                                 <-- The method name defined in this  .py file and needed to get the value to be filled in the Placeholder
-                                    },
-                                ]
-
-
+     See ABC for documentation
     """
 
     templateResourcesFileName = 'Screening_report_template.pptx'
@@ -146,7 +136,7 @@ class ScreeningReportTemplateMapper(PPTxTemplateMapperABC):
                             }
                             }
 
-    # Table settings
+    # Table settings. Add Remove from here. Definitions in the mv module (AnalysisScreen/lib/experimentAnalysis/matching/MatchingVariables.py)
 
     matchesTableColumnsMap = {
         'Reference Peak Pid'      : {'column': mv.Reference_PeakPid, 'round': None},
@@ -170,19 +160,6 @@ class ScreeningReportTemplateMapper(PPTxTemplateMapperABC):
         'Flag'                               : {'column': mv.Reference_Flag_Label, 'round': None},
         }
 
-    def setData(self, **kwargs):
-        self.dataTableName = kwargs.get('dataTableName', '')
-        self._hitAnalysisSourcePipeline = kwargs.get(mv._HitAnalysisSourcePipeline, {})
-        self._spectrumGroupDataPaths = kwargs.get(mv.SGDataPaths, {})
-        if self._hitAnalysisSourcePipeline:
-            self._pipelineRunName = next(iter(self._hitAnalysisSourcePipeline), None)
-            if self._pipelineRunName:
-                self.pipelineSettingsDict = self._hitAnalysisSourcePipeline.get(self._pipelineRunName, {})
-            else:
-                self.pipelineSettingsDict = {}
-        self._haModuleSettings = kwargs.get(mv.HitAnalysisSettings, {})
-        self._data = {**kwargs}
-
 
     # ~~~~~~ Layout Title Slide getter  ~~~~~~~~
 
@@ -199,7 +176,8 @@ class ScreeningReportTemplateMapper(PPTxTemplateMapperABC):
         return title
 
     def getSubtitle(self):
-        subtitle = f'{self.dataTableName} (Project: {self.project.name})'
+        dataTableName = self.dataHandler.getData('dataTableName', '')
+        subtitle = f'{dataTableName} (Project: {self.project.name})'
         return subtitle
 
     def getOperator(self):
@@ -219,15 +197,15 @@ class ScreeningReportTemplateMapper(PPTxTemplateMapperABC):
 
     def getDataPaths(self):
         """Get the spectrumGroups data paths"""
+        spectrumGroupDataPaths = self.dataHandler.getData(mv.SGDataPaths, {})
         text = 'Data Paths:\n'
         text +=  '\n'.join(f'- {sgName}: {" ".join(sgDataPath)}'
-                         for sgName, sgDataPath in self._spectrumGroupDataPaths.items())
+                         for sgName, sgDataPath in spectrumGroupDataPaths.items())
         return text
 
     def getProgramInfo(self):
         text = 'CcpNmr Version: '
         if self.application is not None:
-            # text += f' {self.application.applicationName}'
             text += f' {self.application.applicationVersion}'
         return text
 
@@ -235,17 +213,22 @@ class ScreeningReportTemplateMapper(PPTxTemplateMapperABC):
         """Get the pipes as text with proper indentation."""
         from textwrap import indent
         text = 'Pipeline Settings:\n'
-        for i, (pipeName, pipeSettings) in enumerate(self.pipelineSettingsDict.items()):
-            line = f'• {pipeName}:\n'
-            innerText = '\n'.join(f'- {key}: {value}' for key, value in pipeSettings.items())
-            indentedInnerText = indent(innerText, ' ' * 4)  # Add 4 spaces of indentation
-            text += line + indentedInnerText + '\n'
+        pipelineSettingsDict = self.dataHandler.getData(mv._HitAnalysisSourcePipeline, {})
+        for pipelineName in pipelineSettingsDict:
+            pipelineDict = pipelineSettingsDict[pipelineName]
+            for i, (pipeName, pipeSettings) in enumerate(pipelineDict.items()):
+                line = f'• {pipeName}:\n'
+                innerText = '\n'.join(f'- {key}: {value}' for key, value in pipeSettings.items())
+                indentedInnerText = indent(innerText, ' ' * 4)  # Add 4 spaces of indentation
+                text += line + indentedInnerText + '\n'
+            break # use only the first (if multiple than one, which is unlikely)
         return text
 
     def getCalculationSettings(self):
         """ Get the Hit Analysis Calculation settings """
+        haModuleSettings = self.dataHandler.getData(mv.HitAnalysisSettings, {})
         text = 'Hit Analysis Calculation Settings:\n'
-        for i, (calcName, calcSettings) in enumerate(self._haModuleSettings.items()):
+        for i, (calcName, calcSettings) in enumerate(haModuleSettings.items()):
             line = f'• {calcName}: {str(calcSettings)} \n'
             text += line
         return text
@@ -262,7 +245,7 @@ class ScreeningReportTemplateMapper(PPTxTemplateMapperABC):
         """
         import ccpn.AnalysisScreen.lib.experimentAnalysis.matching.MatchingVariables as mv
 
-        substanceTable = self.data.get('substanceTable')
+        substanceTable = self.dataHandler.getData('substanceTable')
         if substanceTable is None:
             return
         substanceTable[mv.Serial] = range(1, len(substanceTable) + 1)
@@ -298,8 +281,8 @@ class ScreeningReportTemplateMapper(PPTxTemplateMapperABC):
         """
         import ccpn.AnalysisScreen.lib.experimentAnalysis.matching.MatchingVariables as mv
 
-        substanceTable = self.data.get('substanceTable')
-        matchingTable = self.data.get('matchingTable')
+        substanceTable = self.dataHandler.getData('substanceTable')
+        matchingTable = self.dataHandler.getData('matchingTable')
         if substanceTable is None:
             return
 
