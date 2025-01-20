@@ -17,6 +17,8 @@ The first , PresentationWriter, is the general handler, and wraps/interacts to t
 The second, PPTxTemplateMapper,  translates the actual .pptx file template to the final user .pptx report. So it will have methods to fetch the placeholder names
  and fill the new .pptx  file  with elements from ccpn.
 
+Python-pptx does not provide direct API support for setting footers globally through the PowerPoint “Insert Footer” feature. You need to create normal placeholders
+
 """
 
 import pandas as pd

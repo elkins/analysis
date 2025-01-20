@@ -84,19 +84,19 @@ class ScreeningReportTemplateMapper(PPTxTemplateMapperABC):
                                 LAYOUT_GETTER: 'buildSubstancesSummarySlides',
                                 PLACEHOLDER_DEFS: [
                                                                         {
-                                                                            PLACEHOLDER_NAME  : 'Title',
-                                                                            PLACEHOLDER_TYPE  : PLACEHOLDER_TYPE_TEXT,
+                                                                            PLACEHOLDER_NAME: 'Title',
+                                                                            PLACEHOLDER_TYPE: PLACEHOLDER_TYPE_TEXT,
                                                                             PLACEHOLDER_GETTER: 'getSummaryTitle',
                                                                             },
                                                                         {
-                                                                            PLACEHOLDER_NAME  : 'Subtitle',
-                                                                            PLACEHOLDER_TYPE  : PLACEHOLDER_TYPE_TEXT,
+                                                                            PLACEHOLDER_NAME: 'Subtitle',
+                                                                            PLACEHOLDER_TYPE: PLACEHOLDER_TYPE_TEXT,
                                                                             PLACEHOLDER_GETTER: 'getSummarySubtitle',
                                                                             },
 
                                                                         {
-                                                                            PLACEHOLDER_NAME  : 'SummaryTable',
-                                                                            PLACEHOLDER_TYPE  : PLACEHOLDER_TYPE_TABLE,
+                                                                            PLACEHOLDER_NAME: 'SummaryTable',
+                                                                            PLACEHOLDER_TYPE: PLACEHOLDER_TYPE_TABLE,
                                                                             PLACEHOLDER_GETTER: 'getSummaryTable',
                                                                             },
 
@@ -136,6 +136,12 @@ class ScreeningReportTemplateMapper(PPTxTemplateMapperABC):
                                                                         PLACEHOLDER_TYPE: PLACEHOLDER_TYPE_TEXT,
                                                                         PLACEHOLDER_GETTER: 'getSubstanceComment',
                                                                     },
+                                                                    # Footer - pptx footer is not supported as it is in PPTx, therefore is a normal placeholder masked as footer
+                                                                    {
+                                                                        PLACEHOLDER_NAME: 'Slide Number',
+                                                                        PLACEHOLDER_TYPE: PLACEHOLDER_TYPE_TEXT,
+                                                                        PLACEHOLDER_GETTER: 'getSlideNumber',
+                                                                        },
                                 ],
                             }
                             }
@@ -358,7 +364,6 @@ class ScreeningReportTemplateMapper(PPTxTemplateMapperABC):
         # The first row values in the transposed DataFrame become the column headers
         df.columns = df.iloc[0]
         df.drop(0, inplace=True)
-
         return df
 
     def getSubstanceComment(self, substanceTableIndex, substanceTableRow, matchingTableForSubstance):
@@ -370,6 +375,14 @@ class ScreeningReportTemplateMapper(PPTxTemplateMapperABC):
         tempPlotPath =  plotter._getSubstancePlots(substanceTableIndex, substanceTableRow, matchingTableForSubstance)
         del plotter
         return tempPlotPath
+
+    # ~~~~~ Footer ~~~~~~~~
+
+    def getSlideNumber(self, substanceTableIndex, substanceTableRow, matchingTableForSubstance):
+        include_page_number = self.settingsHandler.getValue('substance_slide_include_page_number', True)
+        if include_page_number:
+            return f'{substanceTableIndex}'
+        return ''
 
     # ~~~ helper methods ~~~~
 
