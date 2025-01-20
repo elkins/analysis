@@ -77,20 +77,8 @@ class PPTxPresentationWriter():
         as defined in the slide mapping.
         """
         self._presentationTemplate.setData(**self.data)
-        isValidTemplate, templateErrors = self._validateTemplate()
-        if not isValidTemplate and self._placeholderErrorPolicy == 'raise':
-            raise RuntimeError(f'Detected errors while building a new Presentation from Template \n{self._formatDefaultDict(templateErrors)}')
-        else:
+        self._presentationTemplate.buildLayouts(writer=self)
 
-            slideMapping = self._presentationTemplate.slideMapping
-            for slideLayoutName, placeholderDefs in slideMapping.items():
-                layout = self.getLayout(slideLayoutName)
-                newSlide = self.newSlide(layout, removePlaceholders=True)
-                for placeholderDef in placeholderDefs:
-                    try:
-                        self._handlePlaceholder(newSlide, layout, placeholderDef)
-                    except Exception as ex:
-                        print(f'Some Error in filling the placeholder occurred: {ex}')
 
     def save(self, filePath):
         self._presentation.save(filePath)
@@ -378,96 +366,3 @@ class PPTxPresentationWriter():
                 print('Cannot add table', err)
 
 
-
-
-
-
-class ScreeningPresentationWriter(PPTxPresentationWriter):
-    """The top layer  object to create presentations from a PPTX template.  This subclass  allows to write slides using its specialised
-    slide writer and additionally add a custom first page summary. """
-
-    WRITER_NAME = 'SCREENING'
-
-    def buildFromTemplate(self):
-        self._presentationTemplate.setData(**self.data)
-        isValidTemplate, templateErrors = self._validateTemplate()
-        if not isValidTemplate and self._placeholderErrorPolicy == 'raise':
-            raise RuntimeError(f'Detected errors while building a new Presentation from Template \n{self._formatDefaultDict(templateErrors)}')
-
-        self._buildTitleSlide()
-        self._buildSubstancesSummarySlides()
-        self._buildSubstanceSlides()
-
-
-    def _buildTitleSlide(self):
-        """
-        Build the first Page with title and project summary
-        """
-        slideMapping = self._presentationTemplate.slideMapping
-        isValidTemplate, templateErrors = self._validateTemplate()
-        # build the title (first slide)
-        if not slideMapping:
-            raise RuntimeError(f'Detected errors while building a new Presentation from Template \n{self._formatDefaultDict(templateErrors)}')
-        titleLayoutName = 'Title Slide' #need to put this in the json settings so to don't hardcode here
-        titlePlaceholderDefs = slideMapping[titleLayoutName]
-        layout = self.getLayout(titleLayoutName)
-        newSlide = self.newSlide(layout, removePlaceholders=True)
-        for placeholderDef in titlePlaceholderDefs:
-            try:
-                self._handlePlaceholder(newSlide, layout, placeholderDef)
-            except Exception as ex:
-                print(f'Some Error in filling the placeholder occurred: {ex}')
-
-    def _buildSubstancesSummarySlides(self):
-        """
-        Build the Substances Summary Slide(s). This will create a slides containing a summary table. Table will be split in multiple pages to ensure readability and fit the slide margins.
-        """
-        import ccpn.AnalysisScreen.lib.experimentAnalysis.matching.MatchingVariables as mv
-
-        slideMapping = self._presentationTemplate.slideMapping
-        isValidTemplate, templateErrors = self._validateTemplate()
-        substanceTable = self.data.get('substanceTable')
-        if substanceTable is None:
-            return
-        substanceTable[mv.Serial] = range(1, len(substanceTable) + 1)
-        # split the data in chunks
-        maxRowsKey = 'substances_summary_max_rows_per_table'
-        chunkSize = self._presentationTemplate.settingsHandler.getValue(maxRowsKey, 20)
-        chunks = [substanceTable.iloc[i:i + chunkSize] for i in range(0, len(substanceTable), chunkSize)]
-        for idx, chunk in enumerate(chunks, 1):
-            titleLayoutName = 'Substances Summary'
-            titlePlaceholderDefs = slideMapping[titleLayoutName]
-            layout = self.getLayout(titleLayoutName)
-            newSlide = self.newSlide(layout, removePlaceholders=True)
-            for placeholderDef in titlePlaceholderDefs:
-                try:
-                    self._handlePlaceholder(newSlide, layout, placeholderDef,  slideIndex=idx, totalSummarySlides=len(chunks), substancesTableData=chunk)
-                except Exception as ex:
-                    print(f'Some Error in filling the placeholder occurred: {ex}')
-
-    def _buildSubstanceSlides(self):
-        """
-        Build all dedicated Substances Pages in order
-        """
-        import ccpn.AnalysisScreen.lib.experimentAnalysis.matching.MatchingVariables as mv
-
-        slideMapping = self._presentationTemplate.slideMapping
-        isValidTemplate, templateErrors = self._validateTemplate()
-
-        substanceTable = self.data.get('substanceTable')
-        matchingTable = self.data.get('matchingTable')
-        if substanceTable is None:
-            return
-
-        for i, (tableIndex, substanceTableRow) in enumerate(substanceTable.iterrows()):
-            substancePid = substanceTableRow[mv.Reference_SubstancePid]
-            matchingTableForSubstance = matchingTable[matchingTable[mv.Reference_SubstancePid] == substancePid]
-            titleLayoutName = 'Report Slide'
-            titlePlaceholderDefs = slideMapping[titleLayoutName]
-            layout = self.getLayout(titleLayoutName)
-            newSlide = self.newSlide(layout, removePlaceholders=True)
-            for placeholderDef in titlePlaceholderDefs:
-                self._handlePlaceholder(newSlide, layout, placeholderDef,
-                                        substanceTableIndex=i + 1,
-                                        substanceTableRow=substanceTableRow,
-                                        matchingTableForSubstance=matchingTableForSubstance)

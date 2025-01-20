@@ -1,3 +1,4 @@
+import abc
 import importlib
 import importlib.util
 from abc import ABC
@@ -27,12 +28,33 @@ class PPTxTemplateMapperABC(ABC):
     def data(self):
         return self._data
 
+    def setData(self, **kwargs):
+        self._data = {**kwargs}
+
     @property
     def settingsData(self):
         return self.settingsHandler.data
 
-    def setData(self, **kwargs):
-        self._data = {**kwargs}
+    @abc.abstractmethod
+    def buildLayouts(self, writer):
+        """
+        Builds the slides based on the template mapping definitions
+        """
+
+        isValidTemplate, templateErrors = writer._validateTemplate() # move this method from writer to this class.
+        if not isValidTemplate and writer._placeholderErrorPolicy == 'raise':
+            raise RuntimeError(f'Detected errors while building a new Presentation from Template \n{writer._formatDefaultDict(templateErrors)}')
+        else:
+
+            slideMapping = self.slideMapping
+            for slideLayoutName, placeholderDefs in slideMapping.items():
+                layout = writer.getLayout(slideLayoutName)
+                newSlide = writer.newSlide(layout, removePlaceholders=True)
+                for placeholderDef in placeholderDefs:
+                    try:
+                        writer._handlePlaceholder(newSlide, layout, placeholderDef)
+                    except Exception as ex:
+                        print(f'Some Error in filling the placeholder occurred: {ex}')
 
     def getAbsoluteResourcesTemplatePath(self):
         """The templates  should live in the resources' folder. The default template is in distribution folder.

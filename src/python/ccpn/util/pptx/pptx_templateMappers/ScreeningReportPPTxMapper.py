@@ -165,6 +165,7 @@ class ScreeningReportTemplateMapper(PPTxTemplateMapperABC):
             else:
                 self.pipelineSettingsDict = {}
         self._haModuleSettings = kwargs.get(mv.HitAnalysisSettings, {})
+        self._data = {**kwargs}
 
     # ~~~~~~ slideMapping getters ~~~~~~~~
 
@@ -358,6 +359,87 @@ class ScreeningReportTemplateMapper(PPTxTemplateMapperABC):
             return False
         Draw.MolToFile(molecule, path, format='PNG')
         return True
+
+    #~~~~ build layouts methods of ABC
+
+    def buildLayouts(self, writer):
+
+        isValidTemplate, templateErrors = writer._validateTemplate()
+        if not isValidTemplate and writer._placeholderErrorPolicy == 'raise':
+            raise RuntimeError(f'Detected errors while building a new Presentation from Template \n{writer._formatDefaultDict(templateErrors)}')
+
+        self._buildTitleSlide(writer)
+        self._buildSubstancesSummarySlides(writer)
+        self._buildSubstanceSlides(writer)
+
+    def _buildTitleSlide(self, writer):
+        """
+        Build the first Page with title and project summary
+        """
+        slideMapping = self.slideMapping
+        # TODO  add validations
+        titleLayoutName = 'Title Slide'  #need to put this in the json settings so to don't hardcode here
+        titlePlaceholderDefs = slideMapping[titleLayoutName]
+        layout = writer.getLayout(titleLayoutName)
+        newSlide = writer.newSlide(layout, removePlaceholders=True)
+        for placeholderDef in titlePlaceholderDefs:
+            try:
+                writer._handlePlaceholder(newSlide, layout, placeholderDef)
+            except Exception as ex:
+                print(f'Some Error in filling the placeholder occurred: {ex}')
+
+    def _buildSubstancesSummarySlides(self, writer):
+        """
+        Build the Substances Summary Slide(s). This will create a slides containing a summary table. Table will be split in multiple pages to ensure readability and fit the slide margins.
+        """
+        import ccpn.AnalysisScreen.lib.experimentAnalysis.matching.MatchingVariables as mv
+
+        slideMapping = self.slideMapping
+        substanceTable = self.data.get('substanceTable')
+        if substanceTable is None:
+            return
+        substanceTable[mv.Serial] = range(1, len(substanceTable) + 1)
+        # split the data in chunks
+        maxRowsKey = 'substances_summary_max_rows_per_table'
+        chunkSize = self.settingsHandler.getValue(maxRowsKey, 20)
+        chunks = [substanceTable.iloc[i:i + chunkSize] for i in range(0, len(substanceTable), chunkSize)]
+        for idx, chunk in enumerate(chunks, 1):
+            titleLayoutName = 'Substances Summary'
+            titlePlaceholderDefs = slideMapping[titleLayoutName]
+            layout = writer.getLayout(titleLayoutName)
+            newSlide = writer.newSlide(layout, removePlaceholders=True)
+            for placeholderDef in titlePlaceholderDefs:
+                try:
+                    writer._handlePlaceholder(newSlide, layout, placeholderDef, slideIndex=idx, totalSummarySlides=len(chunks), substancesTableData=chunk)
+                except Exception as ex:
+                    print(f'Some Error in filling the placeholder occurred: {ex}')
+
+    def _buildSubstanceSlides(self, writer):
+        """
+        Build all dedicated Substances Pages in order
+        """
+        import ccpn.AnalysisScreen.lib.experimentAnalysis.matching.MatchingVariables as mv
+
+        slideMapping = self.slideMapping
+
+        substanceTable = self.data.get('substanceTable')
+        matchingTable = self.data.get('matchingTable')
+        if substanceTable is None:
+            return
+
+        for i, (tableIndex, substanceTableRow) in enumerate(substanceTable.iterrows()):
+            substancePid = substanceTableRow[mv.Reference_SubstancePid]
+            matchingTableForSubstance = matchingTable[matchingTable[mv.Reference_SubstancePid] == substancePid]
+            titleLayoutName = 'Report Slide'
+            titlePlaceholderDefs = slideMapping[titleLayoutName]
+            layout = writer.getLayout(titleLayoutName)
+            newSlide = writer.newSlide(layout, removePlaceholders=True)
+            for placeholderDef in titlePlaceholderDefs:
+                writer._handlePlaceholder(newSlide, layout, placeholderDef,
+                                        substanceTableIndex=i + 1,
+                                        substanceTableRow=substanceTableRow,
+                                        matchingTableForSubstance=matchingTableForSubstance)
+
 
 
 
