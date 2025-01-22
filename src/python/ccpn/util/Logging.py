@@ -4,7 +4,7 @@
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2025"
 __credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
                "Timothy J Ragan, Brian O Smith, Daniel Thompson",
                "Gary S Thompson & Geerten W Vuister")
@@ -16,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-11-20 13:19:04 +0000 (Wed, November 20, 2024) $"
-__version__ = "$Revision: 3.2.11 $"
+__dateModified__ = "$dateModified: 2025-01-22 16:34:08 +0000 (Wed, January 22, 2025) $"
+__version__ = "$Revision: 3.2.12 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -59,10 +59,10 @@ defaultLogLevel = logging.INFO
 # the default logger
 
 MAX_LOG_FILE_DAYS = 7
-LOG_FIELD_WIDTH = 90
+LOG_FIELD_WIDTH = 128
 
-logger = None
-defaultLogger = logging.getLogger('defaultLogger')
+logger: logging.Logger | None = None
+defaultLogger: logging.Logger | None = logging.getLogger('defaultLogger')
 defaultLogger.propagate = False
 
 
@@ -104,7 +104,7 @@ def getLogger():
     return logger
 
 
-def _logCaller(logger, fmsg, stacklevel=1):
+def _logCaller(logger, fmsg, *, stacklevel=1):
     # create the postfix to the error message as (Module:function:lineNo)
     # this replaces the formatting which contains the wrong information for decorated functions
     _file, _line, _func, _ = logger.findCaller(stack_info=False, stacklevel=stacklevel)
@@ -113,23 +113,29 @@ def _logCaller(logger, fmsg, stacklevel=1):
     return f'{_msg:<{LOG_FIELD_WIDTH + _countAnsi(_msg)}}    {_fileLine}'
 
 
-def _debugGLError(MESSAGE, logger, msg, stacklevel=1, *args, **kwargs):
+def _debugGLError(MESSAGE, logger, msg, *args, stacklevel=1, **kwargs):
+    if logger._loggingCommandBlock:
+        # ignore nested logging
+        return
     # inspect.stack can be very slow - but needs more stack info than below
     stk = inspect.stack()
     stk = [stk[st][3] for st in range(min(3, len(stk)), 0, -1)]
     fmsg = ['[' + '/'.join(stk) + '] ' + msg]
     if args: fmsg.append(', '.join([str(arg) for arg in args]))
     if kwargs: fmsg.append(', '.join([str(ky) + '=' + str(kwargs[ky]) for ky in kwargs.keys()]))
-    _msg = _logCaller(logger, fmsg, stacklevel)
+    _msg = _logCaller(logger, fmsg, stacklevel=stacklevel)
     # increase the stack level to account for the partial wrapper
     logger.log(MESSAGE, _msg, stacklevel=stacklevel)
 
 
-def _message(MESSAGE, logger, msg, includeInspection=True, stacklevel=1, *args, **kwargs):
+def _message(MESSAGE, logger, msg, *args, includeInspection=True, stacklevel=1, **kwargs):
+    if logger._loggingCommandBlock:
+        # ignore nested logging
+        return
     fmsg = [msg]
     if args: fmsg.append(', '.join([str(arg) for arg in args]))
     if kwargs: fmsg.append(', '.join([str(ky) + '=' + str(kwargs[ky]) for ky in kwargs.keys()]))
-    _msg = _logCaller(logger, fmsg, stacklevel) if includeInspection else '; '.join(fmsg)
+    _msg = _logCaller(logger, fmsg, stacklevel=stacklevel) if includeInspection else '; '.join(fmsg)
     # increase the stack level to account for the partial wrapper
     logger.log(MESSAGE, _msg, stacklevel=stacklevel)
 
@@ -162,7 +168,6 @@ def createLogger(loggerName,
 
     today = datetime.date.today()
     fileName = f'log_{loggerName}_{today.year:02d}{today.month:02d}{today.day:02d}_{now}.txt'
-
     logPath = _logDirectory / fileName
 
     # _removeOldLogFiles(logPath, removeOldLogsDays)
@@ -179,11 +184,10 @@ def createLogger(loggerName,
 
     logger.logPath = logPath  # just for convenience
     logger.shutdown = logging.shutdown  # just for convenience but tricky
-
     if level is None:
         level = defaultLogLevel
-
     logger.setLevel(level)
+    # create attributes to store the file/stream state when enabling/disabling loggers
     logger._streamHandler = None
     logger._fileHandler = None
 
@@ -251,7 +255,6 @@ def updateLogger(loggerName,
 
     today = datetime.date.today()
     fileName = f'log_{loggerName}_{today.year:02d}{today.month:02d}{today.day:02d}_{now}.txt'
-
     logPath = _logDirectory / fileName
 
     # there seems no way to close the logger itself
@@ -355,19 +358,18 @@ class DeferredFileHandler(logging.FileHandler):
         if self._readOnly:
             # append to the queue of records
             self._queued.append(record)
+            return
 
-        else:
-            try:
-                # emit all queued items first, then new item
-                for rcd in self._queued:
-                    super().emit(rcd)
-                self._queued = []
+        try:
+            # emit all queued items first, then new item
+            for rcd in self._queued:
+                super().emit(rcd)
+            self._queued = []
+            super().emit(record)
 
-                super().emit(record)
-
-            except (PermissionError, FileNotFoundError):
-                # any write-error, keep queue and add new item to the end
-                self._queued.append(record)
+        except (PermissionError, FileNotFoundError):
+            # any write-error, keep queue and add new item to the end
+            self._queued.append(record)
 
     def close(self) -> None:
         if not self._readOnly:
