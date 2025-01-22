@@ -16,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2025-01-03 18:01:24 +0000 (Fri, January 03, 2025) $"
-__version__ = "$Revision: 3.2.11 $"
+__dateModified__ = "$dateModified: 2025-01-22 16:34:08 +0000 (Wed, January 22, 2025) $"
+__version__ = "$Revision: 3.2.12 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -104,7 +104,7 @@ def getLogger():
     return logger
 
 
-def _logCaller(logger, fmsg, stacklevel=1):
+def _logCaller(logger, fmsg, *, stacklevel=1):
     # create the postfix to the error message as (Module:function:lineNo)
     # this replaces the formatting which contains the wrong information for decorated functions
     _file, _line, _func, _ = logger.findCaller(stack_info=False, stacklevel=stacklevel)
@@ -113,7 +113,7 @@ def _logCaller(logger, fmsg, stacklevel=1):
     return f'{_msg:<{LOG_FIELD_WIDTH + _countAnsi(_msg)}}    {_fileLine}'
 
 
-def _debugGLError(MESSAGE, logger, msg, stacklevel=1, *args, **kwargs):
+def _debugGLError(MESSAGE, logger, msg, *args, stacklevel=1, **kwargs):
     if logger._loggingCommandBlock:
         # ignore nested logging
         return
@@ -123,7 +123,7 @@ def _debugGLError(MESSAGE, logger, msg, stacklevel=1, *args, **kwargs):
     fmsg = ['[' + '/'.join(stk) + '] ' + msg]
     if args: fmsg.append(', '.join([str(arg) for arg in args]))
     if kwargs: fmsg.append(', '.join([str(ky) + '=' + str(kwargs[ky]) for ky in kwargs.keys()]))
-    _msg = _logCaller(logger, fmsg, stacklevel)
+    _msg = _logCaller(logger, fmsg, stacklevel=stacklevel)
     # increase the stack level to account for the partial wrapper
     logger.log(MESSAGE, _msg, stacklevel=stacklevel)
 
@@ -135,7 +135,7 @@ def _message(MESSAGE, logger, msg, *args, includeInspection=True, stacklevel=1, 
     fmsg = [msg]
     if args: fmsg.append(', '.join([str(arg) for arg in args]))
     if kwargs: fmsg.append(', '.join([str(ky) + '=' + str(kwargs[ky]) for ky in kwargs.keys()]))
-    _msg = _logCaller(logger, fmsg, stacklevel) if includeInspection else '; '.join(fmsg)
+    _msg = _logCaller(logger, fmsg, stacklevel=stacklevel) if includeInspection else '; '.join(fmsg)
     # increase the stack level to account for the partial wrapper
     logger.log(MESSAGE, _msg, stacklevel=stacklevel)
 
