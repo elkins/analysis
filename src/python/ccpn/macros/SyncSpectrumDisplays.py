@@ -20,8 +20,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2025-01-09 20:41:16 +0000 (Thu, January 09, 2025) $"
-__version__ = "$Revision: 3.2.11 $"
+__dateModified__ = "$dateModified: 2025-01-24 13:05:07 +0000 (Fri, January 24, 2025) $"
+__version__ = "$Revision: 3.3.1 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -1037,8 +1037,8 @@ class SpectrumDisplaysSyncEditorModule(CcpnModule):
         self.settingsWidget.setContentsMargins(5, 5, 5, 5)
         ## Add core notifiers
         if self.project:
-            self._spectrumDisplayNotifier = Notifier(self.project, [Notifier.DELETE], 'SpectrumDisplay', self._onSpectrumDisplayDeleted)
-
+            self.setNotifier(self.project, [Notifier.DELETE], 'SpectrumDisplay',
+                             self._onSpectrumDisplayDeleted)
         self.setGuiNotifier(self.mainWidget, [GuiNotifier.DROPEVENT], [DropBase.PIDS],
                             callback=self._handleDrops)
 
