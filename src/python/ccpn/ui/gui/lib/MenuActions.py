@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Daniel Thompson $"
-__dateModified__ = "$dateModified: 2025-01-16 15:10:54 +0000 (Thu, January 16, 2025) $"
+__dateModified__ = "$dateModified: 2025-01-24 15:56:48 +0000 (Fri, January 24, 2025) $"
 __version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
@@ -872,7 +872,7 @@ class _openItemChemicalShiftListTable(OpenItemABC):
         contextMenu.addSeparator()
         contextMenu.addAction('Create Synthetic PeakList', partial(self._openCreateSyntheticPeakListFromCSLPopup, objs))
         contextMenu.addSeparator()
-        contextMenu.addAction('Delete Orphaned ChemicalShift', partial(self._deleteOrphanedChemicalShifts, objs))
+        contextMenu.addAction('Delete Orphaned ChemicalShifts', partial(self._deleteOrphanedChemicalShifts, objs))
         contextMenu.addSeparator()
         contextMenu.addAction('Copy Pid to Clipboard', partial(self._copyPidsToClipboard, objs))
         self._addCollectionMenu(contextMenu, objs)
@@ -914,9 +914,8 @@ class _openItemChemicalShiftListTable(OpenItemABC):
                         'Chemical Shifts')
             return
 
-        ok = showYesNoWarning('Delete Orphaned Chemical Shifts', f'Do you wish to delete the '
-                                                                 f'following Chemical Shifts:'
-                                                                 f'{orphanList}')
+        ok = showYesNoWarning('Delete Orphaned Chemical Shifts', f'Do you wish to delete {len(orphanList)} '
+                              f'orphaned Chemical Shift{"s" if len(orphanList) > 1 else ""}?')
 
         if ok:
             with undoBlockWithoutSideBar():
