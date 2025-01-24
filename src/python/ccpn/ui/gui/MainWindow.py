@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2025-01-24 14:54:17 +0000 (Fri, January 24, 2025) $"
+__dateModified__ = "$dateModified: 2025-01-24 15:06:13 +0000 (Fri, January 24, 2025) $"
 __version__ = "$Revision: 3.3.1 $"
 #=========================================================================================
 # Created
@@ -138,7 +138,7 @@ class GuiMainWindow(QtWidgets.QMainWindow, Shortcuts):
     # allows type-checking to recognise attributes
     application = WeakRefDescriptor()
     current = WeakRefDescriptor()
-    namespace: dict = None
+    namespace: weakref.WeakValueDictionary = None
 
     def __init__(self, application=None):
 
