@@ -4,7 +4,7 @@ This module contains the code for the ValidateSpectra popup
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2025"
 __credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
                "Timothy J Ragan, Brian O Smith, Daniel Thompson",
                "Gary S Thompson & Geerten W Vuister")
@@ -16,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Daniel Thompson $"
-__dateModified__ = "$dateModified: 2024-12-09 11:36:19 +0000 (Mon, December 09, 2024) $"
-__version__ = "$Revision: 3.2.7 $"
+__dateModified__ = "$dateModified: 2025-01-28 17:30:00 +0000 (Tue, January 28, 2025) $"
+__version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -596,12 +596,6 @@ class SpectrumPathRow(PathRowABC):
             showWarning(f'Auto-detect dataFormat for {self.obj.name}',
                         f'Undefined path'
                         )
-            return
-
-        ok = showOkCancel(f'Auto-detect dataFormat for {self.obj.name}',
-                          f'This will try to open "{_path}" and determine the dataFormat')
-
-        if not ok:
             return
 
         dataStore, dataSource = self._reopen(path=_path, dataFormat=None)
