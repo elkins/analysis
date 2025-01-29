@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2025-01-24 15:06:13 +0000 (Fri, January 24, 2025) $"
+__dateModified__ = "$dateModified: 2025-01-29 12:42:31 +0000 (Wed, January 29, 2025) $"
 __version__ = "$Revision: 3.3.1 $"
 #=========================================================================================
 # Created
@@ -31,6 +31,7 @@ import os
 import time
 from functools import partial, partialmethod
 import weakref
+from typing import TypeVar
 
 from PyQt5 import QtWidgets, QtCore, QtGui
 from PyQt5.QtGui import QKeySequence
@@ -42,6 +43,7 @@ from ccpn.core.Project import Project
 
 from ccpn.core.lib.Notifiers import Notifier
 from ccpn.core.lib.ContextManagers import undoBlock, undoBlockWithoutSideBar, notificationEchoBlocking
+from ccpn.core.lib.Pid import Pid
 
 ## MainWindow class
 from ccpn.ui._implementation.Window import Window as _CoreClassMainWindow
@@ -64,7 +66,7 @@ from ccpn.ui.gui.widgets.Action import Action
 from ccpn.ui.gui.widgets.IpythonConsole import IpythonConsole
 from ccpn.ui.gui.widgets.Menu import Menu, MenuBar, SHOWMODULESMENU, CCPNMACROSMENU, \
     USERMACROSMENU, TUTORIALSMENU, PLUGINSMENU, CCPNPLUGINSMENU, HOWTOSMENU
-from ccpn.ui.gui.widgets.SideBar import SideBar  #,SideBar
+from ccpn.ui.gui.widgets.SideBar import SideBar
 from ccpn.ui.gui.widgets.Frame import Frame
 from ccpn.ui.gui.widgets.CcpnModuleArea import CcpnModuleArea
 from ccpn.ui.gui.widgets.Splitter import Splitter
@@ -76,11 +78,13 @@ from ccpn.util.Logging import getLogger
 from ccpn.util.decorators import logCommand
 from ccpn.util.Colour import colorSchemeTable
 
-#from collections import OrderedDict
 from ccpn.ui.gui.widgets.DropBase import DropBase
 from ccpn.ui.gui.lib.MenuActions import _openItemObject
 
 from ccpn.framework.lib.DataLoaders.DirectoryDataLoader import DirectoryDataLoader
+from ccpn.framework.Application import getApplication
+from ccpn.core._implementation.AbstractWrapperObject import AbstractWrapperObject
+from ccpn.core._implementation.V3CoreObjectABC import V3CoreObjectABC
 
 
 # For readability there should be a class:
@@ -100,7 +104,6 @@ _MULTIPLET_PEAKS = 16
 
 READONLYCHANGED = 'readOnlyChanged'
 _transparent = QtGui.QColor('orange')
-
 
 # def _paintEvent(widget: QtWidgets.QWidget, event: QtGui.QPaintEvent, func=None) -> None:
 #     result = func(widget, event)
@@ -130,6 +133,141 @@ _transparent = QtGui.QColor('orange')
 # QtWidgets.QToolButton.paintEvent = partialmethod(_paintEvent, func=_pp)
 
 
+V3CoreInstance = TypeVar('V3CoreInstance', bound=AbstractWrapperObject | V3CoreObjectABC)  # could be mixed
+TypeV3Core = V3CoreInstance.__bound__
+
+
+def getFunction(identifier: str | Pid) -> V3CoreInstance:
+    """General method to obtain object (either gui or data) from identifier (pid, gid,
+    obj-string)
+    :param identifier: a Pid, Gid or string object identifier
+    :return a Version-3 core data or graphics object
+    """
+    if app := getApplication():
+        return app.get(identifier)
+
+
+def getByPidFunction(pid: str | Pid) -> V3CoreInstance:
+    """Legacy; obtain data object from identifier (pid or obj-string)
+    replaced by get(identifier).
+    :param pid: a Pid or string object identifier
+    :return a Version-3 core data object
+    """
+    if app := getApplication():
+        return app.get(pid)
+
+
+def getByGidFunction(gid: str | Pid) -> V3CoreInstance:
+    """Legacy; obtain graphics object from identifier (gid or obj-string)
+    replaced by get(identifier).
+    :param gid: a Gid or string object identifier
+    :return a Version-3 graphics object
+    """
+    if app := getApplication():
+        return app.ui.getByGid(gid)
+
+
+def infoFunction(msg: str, *args, includeInspection: bool = True, stacklevel: int = 1, **kwargs):
+    """
+    Logs a formatted message using the specified logger.
+
+    This function constructs a message with the provided `msg`, optional arguments (`args`, `kwargs`),
+    and logs it using the given logger. If `includeInspection` is True, the message includes additional
+    caller inspection information. The `stacklevel` can be adjusted to control the stack trace depth.
+
+    :param msg: The main message to be logged.
+    :type msg: str
+    :param args: Optional positional arguments that are formatted and appended to the message.
+    :param includeInspection: Whether to include inspection details in the message. Defaults to True.
+    :type includeInspection: bool, optional
+    :param stacklevel: The stack level to include in the log entry. Defaults to 1.
+    :type stacklevel: Optional int
+    :param kwargs: Optional keyword arguments that are formatted as key-value pairs and appended to the message.
+    :type kwargs: dict, optional
+
+    :return: None
+
+    :note:
+        If `logger._loggingCommandBlock` is True, the message will not be logged to prevent nested logging.
+        If `includeInspection` is False, no additional caller inspection details are included in the message.
+    """
+    if logger := getLogger():
+        logger.info(msg, *args, includeInspection=includeInspection, stacklevel=stacklevel, **kwargs)
+
+
+def warningFunction(msg: str, *args, includeInspection: bool = True, stacklevel: int = 1, **kwargs):
+    """
+    Logs a formatted message using the specified logger.
+
+    This function constructs a message with the provided `msg`, optional arguments (`args`, `kwargs`),
+    and logs it using the given logger. If `includeInspection` is True, the message includes additional
+    caller inspection information. The `stacklevel` can be adjusted to control the stack trace depth.
+
+    :param msg: The main message to be logged.
+    :type msg: str
+    :param args: Optional positional arguments that are formatted and appended to the message.
+    :param includeInspection: Whether to include inspection details in the message. Defaults to True.
+    :type includeInspection: bool, optional
+    :param stacklevel: The stack level to include in the log entry. Defaults to 1.
+    :type stacklevel: Optional int
+    :param kwargs: Optional keyword arguments that are formatted as key-value pairs and appended to the message.
+    :type kwargs: dict, optional
+
+    :return: None
+
+    :note:
+        If `logger._loggingCommandBlock` is True, the message will not be logged to prevent nested logging.
+        If `includeInspection` is False, no additional caller inspection details are included in the message.
+    """
+    if logger := getLogger():
+        logger.warning(msg, *args, includeInspection=includeInspection, stacklevel=stacklevel, **kwargs)
+
+
+def undoFunction():
+    """Undo one operation - or one waypoint if waypoints are set
+    """
+    if app := getApplication():
+        app.undo()
+
+
+def redoFunction():
+    """Redo one operation - or one waypoint if waypoints are set
+    """
+    if app := getApplication():
+        app.redo()
+
+
+def newProjectFunction(name: str = 'default') -> Project:
+    """Create new, empty project with name
+    :return a Project instance
+    """
+    if app := getApplication():
+        result = app.newProject(name)
+        return result
+
+
+def loadProjectFunction(path=None) -> Project:
+    """Load project defined by path
+    :return a Project instance
+    """
+    if app := getApplication():
+        result = app.loadProject(path)
+        return result
+
+
+def runMacroFunction(path: str = None, extraCommands=None):
+    """Runs a macro file defined by path
+    :param path: path to Python macro file
+    :param extraCommands:
+    """
+    if app := getApplication():
+        app.runMacro(path=path, extraCommands=extraCommands)
+
+
+#=========================================================================================
+# GuiMainWindow
+#=========================================================================================
+
 class GuiMainWindow(QtWidgets.QMainWindow, Shortcuts):
     # inherits NotifierBase from _Implementation.Window
 
@@ -138,7 +276,7 @@ class GuiMainWindow(QtWidgets.QMainWindow, Shortcuts):
     # allows type-checking to recognise attributes
     application = WeakRefDescriptor()
     current = WeakRefDescriptor()
-    namespace: weakref.WeakValueDictionary = None
+    namespace: weakref.WeakValueDictionary | None = None
 
     def __init__(self, application=None):
 
@@ -394,14 +532,6 @@ class GuiMainWindow(QtWidgets.QMainWindow, Shortcuts):
         else:
             self.setWindowFilePath("")
 
-        ## Why do we need to set this icons? Very odd behaviour.
-        # if self.project.isTemporary:
-        #     self.setWindowIcon(QtGui.QIcon())
-        # elif amDirty:
-        #     self.setWindowIcon(self.disabledFileIcon)
-        # else:
-        #     self.setWindowIcon(self.fileIcon)
-
     @pyqtSlot()
     def _screenChangedEvent(self, *args):
         self._screenChanged(*args)
@@ -577,22 +707,24 @@ class GuiMainWindow(QtWidgets.QMainWindow, Shortcuts):
         self.namespace = weakref.WeakValueDictionary({'application'             : self.application,
                                                       'current'                 : self.application.current,
                                                       'preferences'             : self.application.preferences,
-                                                      'redo'                    : self.application.redo,
-                                                      'undo'                    : self.application.undo,
-                                                      'get'                     : self.application.get,
-                                                      'getByPid'                : self.application.get,
-                                                      'getByGid'                : self.application.ui.getByGid,
                                                       'ui'                      : self.application.ui,
                                                       'mainWindow'              : self,
                                                       'project'                 : self.application.project,
-                                                      'loadProject'             : self.application.loadProject,
-                                                      # 'newProject' : self.application.newProject, this is a crash!
-                                                      'info'                    : getLogger().info,
-                                                      'warning'                 : getLogger().warning,
+                                                      # application functions
+                                                      'redo'                    : redoFunction,
+                                                      'undo'                    : undoFunction,
+                                                      'get'                     : getFunction,
+                                                      'getByPid'                : getByPidFunction,
+                                                      'getByGid'                : getByGidFunction,
+                                                      'newProject'              : newProjectFunction,
+                                                      'loadProject'             : loadProjectFunction,
+                                                      'runMacro'                : runMacroFunction,
+                                                      'info'                    : infoFunction,
+                                                      'warning'                 : warningFunction,
                                                       'showWarning'             : showWarning,
                                                       'showInfo'                : showInfo,
                                                       'showError'               : showError,
-                                                      #### context managers
+                                                      # context managers
                                                       'undoBlock'               : undoBlockWithoutSideBar,
                                                       'notificationEchoBlocking': notificationEchoBlocking,
                                                       'plotter'                 : plotter
