@@ -4,7 +4,7 @@
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2025"
 __credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
                "Timothy J Ragan, Brian O Smith, Daniel Thompson",
                "Gary S Thompson & Geerten W Vuister")
@@ -15,8 +15,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-12-12 18:31:40 +0000 (Thu, December 12, 2024) $"
+__modifiedBy__ = "$modifiedBy: Daniel Thompson $"
+__dateModified__ = "$dateModified: 2025-01-28 16:31:42 +0000 (Tue, January 28, 2025) $"
 __version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
@@ -2624,7 +2624,7 @@ class GuiSpectrumDisplay(CcpnModule):
             strip._toggleCrosshair()
 
     def _cycleSymbolLabelling(self):
-        """Toggles peak labelling of current strip.
+        """Cycles peak symbols of current strip.
         """
         try:
             if not self.current.strip:
@@ -2634,11 +2634,11 @@ class GuiSpectrumDisplay(CcpnModule):
             for strip in self.strips:
                 strip.cycleSymbolLabelling()
 
-        except:
+        except Exception:
             getLogger().warning('Error cycling peak labelling')
 
     def _cyclePeakSymbols(self):
-        """toggles peak labelling of current strip.
+        """Cycles peak labelling of current strip.
         """
         try:
             if not self.current.strip:
@@ -2647,8 +2647,35 @@ class GuiSpectrumDisplay(CcpnModule):
 
             for strip in self.strips:
                 strip.cyclePeakSymbols()
-        except:
+        except Exception:
             getLogger().warning('Error cycling peak symbols')
+
+    def _togglePeakSymbolVisibility(self):
+        """Shortcut callback for toggling Peak Symbol visibility
+        """
+        try:
+            if not self.current.strip:
+                showWarning('Toggle Peak Symbols', 'No strip selected')
+                return
+
+            for strip in self.strips:
+                strip.togglePeakSymbolVisibility()
+        except Exception:
+            getLogger().warning('Error toggling peak symbols')
+
+
+    def _togglePeakLabelVisibility(self):
+        """Shortcut callback for toggling Peak Label visibility
+        """
+        try:
+            if not self.current.strip:
+                showWarning('Toggle Peak Labels', 'No strip selected')
+                return
+
+            for strip in self.strips:
+                strip.togglePeakLabelVisibility()
+        except Exception:
+            getLogger().warning('Error toggling peak Labels')
 
     @logCommand(get='self')
     def displaySpectrum(self, spectrum):

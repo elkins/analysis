@@ -4,7 +4,7 @@ Module Documentation here
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2025"
 __credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
                "Timothy J Ragan, Brian O Smith, Daniel Thompson",
                "Gary S Thompson & Geerten W Vuister")
@@ -15,9 +15,9 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-10-18 14:25:34 +0100 (Fri, October 18, 2024) $"
-__version__ = "$Revision: 3.2.7 $"
+__modifiedBy__ = "$modifiedBy: Daniel Thompson $"
+__dateModified__ = "$dateModified: 2025-01-28 16:31:42 +0000 (Tue, January 28, 2025) $"
+__version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -1831,6 +1831,16 @@ class GuiStrip(Frame):
         """set the peak symbol type.
         """
         self.symbolType = value
+
+    def togglePeakSymbolVisibility(self):
+        """Toggle the peak symbol visibility.
+        """
+        self.peakSymbolsEnabled = not self.peakSymbolsEnabled
+
+    def togglePeakLabelVisibility(self):
+        """Toggle the peak symbol visibility.
+        """
+        self.peakLabelsEnabled = not self.peakLabelsEnabled
 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # multipletLabelling

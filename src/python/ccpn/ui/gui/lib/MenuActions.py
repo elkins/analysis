@@ -4,7 +4,7 @@ Module Documentation here
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2025"
 __credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
                "Timothy J Ragan, Brian O Smith, Daniel Thompson",
                "Gary S Thompson & Geerten W Vuister")
@@ -15,8 +15,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-12-12 16:47:15 +0000 (Thu, December 12, 2024) $"
+__modifiedBy__ = "$modifiedBy: Daniel Thompson $"
+__dateModified__ = "$dateModified: 2025-01-24 15:56:48 +0000 (Fri, January 24, 2025) $"
 __version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
@@ -872,6 +872,8 @@ class _openItemChemicalShiftListTable(OpenItemABC):
         contextMenu.addSeparator()
         contextMenu.addAction('Create Synthetic PeakList', partial(self._openCreateSyntheticPeakListFromCSLPopup, objs))
         contextMenu.addSeparator()
+        contextMenu.addAction('Delete Orphaned ChemicalShifts', partial(self._deleteOrphanedChemicalShifts, objs))
+        contextMenu.addSeparator()
         contextMenu.addAction('Copy Pid to Clipboard', partial(self._copyPidsToClipboard, objs))
         self._addCollectionMenu(contextMenu, objs)
         contextMenu.addAction('Duplicate', partial(self._duplicateAction, objs))
@@ -900,6 +902,25 @@ class _openItemChemicalShiftListTable(OpenItemABC):
             popup = ChemicalShiftList2SpectrumPopup(chemicalShiftList=objs[0])
             popup.show()
             popup.raise_()
+
+    @staticmethod
+    def _deleteOrphanedChemicalShifts(objs):
+        csl = objs[0]
+        orphanList = [cs for cs in list(csl.chemicalShifts) if cs.orphan]
+
+        if not orphanList:
+            showWarning('Delete Orphaned Chemical Shifts',
+                        'This Chemical Shift List contains no orphaned '
+                        'Chemical Shifts')
+            return
+
+        ok = showYesNoWarning('Delete Orphaned Chemical Shifts', f'Do you wish to delete {len(orphanList)} '
+                              f'orphaned Chemical Shift{"s" if len(orphanList) > 1 else ""}?')
+
+        if ok:
+            with undoBlockWithoutSideBar():
+                for cs in orphanList:
+                    csl.deleteChemicalShift(uniqueId=cs.uniqueId)
 
     @staticmethod
     def _collectSpectra(objs):
