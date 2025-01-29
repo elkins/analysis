@@ -15,8 +15,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2025-01-03 18:50:58 +0000 (Fri, January 03, 2025) $"
+__modifiedBy__ = "$modifiedBy: Daniel Thompson $"
+__dateModified__ = "$dateModified: 2025-01-28 16:31:41 +0000 (Tue, January 28, 2025) $"
 __version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
@@ -2461,7 +2461,7 @@ class GuiMainWindow(QtWidgets.QMainWindow, Shortcuts):
 
     def cycleSymbolLabelling(self):
         """
-        restore the zoom of the currently selected strip to the top item of the queue
+        Cycles the peak labels in the current Spectrum Display
         """
         if self.current.strip:
             self.current.strip.spectrumDisplay._cycleSymbolLabelling()
@@ -2470,12 +2470,31 @@ class GuiMainWindow(QtWidgets.QMainWindow, Shortcuts):
 
     def cyclePeakSymbols(self):
         """
-        restore the zoom of the currently selected strip to the top item of the queue
+        Cycles the peak symbols in the current Spectrum Display
         """
         if self.current.strip:
             self.current.strip.spectrumDisplay._cyclePeakSymbols()
         else:
             getLogger().warning('No current strip. Select a strip first.')
+
+    def togglePeakSymbolVisibility(self):
+        """
+        Toggles visibility of the peak symbols in the current Spectrum Display
+        """
+        if self.current.strip:
+            self.current.strip.spectrumDisplay._togglePeakSymbolVisibility()
+        else:
+            getLogger().warning('No current strip. Select a strip first.')
+
+    def togglePeakLabelVisibility(self):
+        """
+        Toggles visibility of the peak labels in the current Spectrum Display
+        """
+        if self.current.strip:
+            self.current.strip.spectrumDisplay._togglePeakLabelVisibility()
+        else:
+            getLogger().warning('No current strip. Select a strip first.')
+
 
     def _setMouseMode(self, mode):
         if mode in MouseModes:
