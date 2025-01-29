@@ -914,11 +914,12 @@ class Spectrum(AbstractWrapperObject):
     def dataFormat(self, value):
         self._openFile(path=self.filePath, dataFormat=value, checkParameters=True)
 
-    def _openFile(self, path: str, dataFormat: str, checkParameters: bool = True) -> bool:
+    def _openFile(self, path: str, dataFormat: str, checkParameters: bool = True, requireValid: bool = True) -> bool:
         """Open the spectrum as defined by path, creating a dataSource object
         :param path: a path to the spectrum; may contain redirections (e.g. $DATA)
         :param dataFormat: a dataFormat defined by one of the SpectrumDataSource types
-        :return True if opened succesfully
+        :param requireValid: a bool to allow the saving of invalid filepaths.
+        :return True if opened successfully
 
         CCPNMRINTERNAL: also used in nef loader; ValidateSpectraPopup
         """
@@ -932,14 +933,25 @@ class Spectrum(AbstractWrapperObject):
         newDataStore = DataStore.newFromPath(path=path, dataFormat=dataFormat)
         newDataStore.spectrum = self
 
-        if (newDataSource := self._getDataSource(dataStore=newDataStore)) is None:
-            getLogger().warning('Spectrum._openFile: unable to open "%s"' % path)
-            return False
+        try :
+            if (newDataSource := self._getDataSource(dataStore=newDataStore)) is None:
+                getLogger().warning(f'Spectrum._openFile: unable to open "{path}"')
+                return False
 
-        # optionally check the parameters
-        if checkParameters and not newDataSource.checkParameters(self):
-            getLogger().warning(f'{newDataSource.errorString}')
-            return False
+            # optionally check the parameters
+            if checkParameters and not newDataSource.checkParameters(self):
+                getLogger().warning(f'{newDataSource.errorString}')
+                return False
+        except RuntimeError as e:
+            # Allows filepaths for spectras to be saved
+            # without them being valid. As per issue #474.
+            if not requireValid:
+                self._spectrumTraits.dataStore = newDataStore
+                self._dataStore._saveInternal()
+                return False
+            else:
+                getLogger().error(f'Spectrum._openFile error: {e}')
+                return False
 
         # we defined a new file
         self._close()

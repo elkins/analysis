@@ -2594,7 +2594,7 @@ class GuiMainWindow(QtWidgets.QMainWindow, Shortcuts):
 
     def cycleSymbolLabelling(self):
         """
-        restore the zoom of the currently selected strip to the top item of the queue
+        Cycles the peak labels in the current Spectrum Display
         """
         if self.current.strip:
             self.current.strip.spectrumDisplay._cycleSymbolLabelling()
@@ -2603,12 +2603,31 @@ class GuiMainWindow(QtWidgets.QMainWindow, Shortcuts):
 
     def cyclePeakSymbols(self):
         """
-        restore the zoom of the currently selected strip to the top item of the queue
+        Cycles the peak symbols in the current Spectrum Display
         """
         if self.current.strip:
             self.current.strip.spectrumDisplay._cyclePeakSymbols()
         else:
             getLogger().warning('No current strip. Select a strip first.')
+
+    def togglePeakSymbolVisibility(self):
+        """
+        Toggles visibility of the peak symbols in the current Spectrum Display
+        """
+        if self.current.strip:
+            self.current.strip.spectrumDisplay._togglePeakSymbolVisibility()
+        else:
+            getLogger().warning('No current strip. Select a strip first.')
+
+    def togglePeakLabelVisibility(self):
+        """
+        Toggles visibility of the peak labels in the current Spectrum Display
+        """
+        if self.current.strip:
+            self.current.strip.spectrumDisplay._togglePeakLabelVisibility()
+        else:
+            getLogger().warning('No current strip. Select a strip first.')
+
 
     def _setMouseMode(self, mode):
         if mode in MouseModes:
