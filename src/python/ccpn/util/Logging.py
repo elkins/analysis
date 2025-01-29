@@ -1,6 +1,9 @@
 """CCPN logger handling
 
 """
+from __future__ import annotations
+
+
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
@@ -16,8 +19,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2025-01-22 16:34:08 +0000 (Wed, January 22, 2025) $"
-__version__ = "$Revision: 3.2.12 $"
+__dateModified__ = "$dateModified: 2025-01-29 12:39:43 +0000 (Wed, January 29, 2025) $"
+__version__ = "$Revision: 3.3.1 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -35,6 +38,7 @@ import time
 import inspect
 import sys
 import re
+from typing import cast
 from ccpn.util.Path import aPath
 
 
@@ -61,59 +65,121 @@ defaultLogLevel = logging.INFO
 MAX_LOG_FILE_DAYS = 7
 LOG_FIELD_WIDTH = 128
 
-logger: logging.Logger | None = None
+
+# Define a custom logger subclass with _loggingCommandBlock
+# No object is actually created from this, it acts more like a Protocol to expose the
+# extra attributes to the type-checker
+class CustomLogger(logging.Logger):
+    _loggingCommandBlock: int  # Specify the type of _loggingCommandBlock
+    _fileHandler: DeferredFileHandler | None
+    _streamHandler: logging.StreamHandler | None
+
+    debugGL: _message
+    echoInfo: _message
+    info: _message
+    debug1: _message
+    debug: _message
+    debug2: _message
+    debug3: _message
+    debug3_backup_thread: _message
+    warning: _message
+
+
+logger: CustomLogger | None = None
 defaultLogger: logging.Logger | None = logging.getLogger('defaultLogger')
 defaultLogger.propagate = False
+ANSIESCAPEPATTERN = re.compile(r'\033\[[0-9;]*m')  # Matches ANSI escape sequences
 
 
 def _countAnsi(text: str) -> int:
-    """Count the number of ANSI escape sequences (color control characters) in the string.
     """
-    ansiEscapePattern = re.compile(r'\033\[[0-9;]*m')  # Matches ANSI escape sequences
-    return sum(len(match.group(0)) for match in ansiEscapePattern.finditer(text))
+    Count the number of ANSI escape sequences (color control characters) in the string.
+
+    :param text: The input string containing ANSI escape sequences.
+    :type text: str
+    :return: The total length of all ANSI escape sequences in the string.
+    :rtype: int
+    """
+    return sum(map(len, ANSIESCAPEPATTERN.findall(text)))
 
 
-def getLogger():
+def getLogger() -> CustomLogger:
     global logger, defaultLogger
 
-    if not logger:
-        defaultLogger._loggingCommandBlock = 0
+    if logger:
+        # logger._loggingCommandBlock = 0
+        return logger
 
-        logger = defaultLogger
-        if not hasattr(logger, 'echoInfo'):
-            # add the new methods
-            # required because default logger called before correct instantiated
-            # but needed for loading from command line
-            logger.debugGL = functools.partial(_debugGLError, DEBUG1, logger)
-            logger.echoInfo = functools.partial(_message, INFO, logger, includeInspection=False)
-            logger.info = functools.partial(_message, INFO, logger)
-            logger.debug1 = functools.partial(_message, DEBUG1, logger)
-            logger.debug = logger.debug1
-            logger.debug2 = functools.partial(_message, DEBUG2, logger)
-            logger.debug3 = functools.partial(_message, DEBUG3, logger)
-            logger.debug3_backup_thread = logger.debug3
-            logger.warning = functools.partial(_message, WARNING, logger)
+    defaultLogger._loggingCommandBlock = 0
 
-            logging.addLevelName(DEBUG2, 'DEBUG2')
-            logging.addLevelName(DEBUG3, 'DEBUG3')
+    # Cast to the expected type that includes _loggingCommandBlock
+    logger = cast(CustomLogger, defaultLogger)
 
-        return defaultLogger
+    if not hasattr(logger, 'echoInfo'):
+        # add the new methods
+        # required because default logger called before correct instantiated
+        # but needed for loading from command line
+        logger.debugGL = functools.partial(_debugGLError, DEBUG1, logger)
+        logger.echoInfo = functools.partial(_message, INFO, logger, includeInspection=False)
+        logger.info = functools.partial(_message, INFO, logger)
+        logger.debug1 = functools.partial(_message, DEBUG1, logger)
+        logger.debug = logger.debug1
+        logger.debug2 = functools.partial(_message, DEBUG2, logger)
+        logger.debug3 = functools.partial(_message, DEBUG3, logger)
+        logger.debug3_backup_thread = logger.debug3
+        logger.warning = functools.partial(_message, WARNING, logger)
 
-    logger._loggingCommandBlock = 0
+        logging.addLevelName(DEBUG2, 'DEBUG2')
+        logging.addLevelName(DEBUG3, 'DEBUG3')
 
     return logger
 
 
-def _logCaller(logger, fmsg, *, stacklevel=1):
-    # create the postfix to the error message as (Module:function:lineNo)
-    # this replaces the formatting which contains the wrong information for decorated functions
+def _logCaller(logger: CustomLogger, fmsg: list[str], *, stacklevel: int = 1):
+    """
+    Create the postfix to the error message as (Module:function:lineNo).
+
+    This function replaces the formatting which contains the wrong information for decorated functions.
+
+    :param logger: CustomLogger instance used to find the caller.
+    :type logger: CustomLogger
+    :param fmsg: List of strings representing the formatted message.
+    :type fmsg: list[str]
+    :param stacklevel: The stack level to use when finding the caller, defaults to 1.
+    :type stacklevel: int, optional
+    :return: Formatted log message with the correct caller information.
+    :rtype: str
+    """
     _file, _line, _func, _ = logger.findCaller(stack_info=False, stacklevel=stacklevel)
     _fileLine = f'({aPath(_file).basename}.{_func}:{_line})'
     _msg = '; '.join(fmsg)
     return f'{_msg:<{LOG_FIELD_WIDTH + _countAnsi(_msg)}}    {_fileLine}'
 
 
-def _debugGLError(MESSAGE, logger, msg, *args, stacklevel=1, **kwargs):
+def _debugGLError(MESSAGE: int, logger: CustomLogger, msg: str, *args, stacklevel: int = 1, **kwargs):
+    """
+    Logs a formatted message using the specified logger.
+
+    This function constructs a message with the provided `msg`, optional arguments (`args`, `kwargs`),
+    and logs it using the given logger. The `stacklevel` can be adjusted to control the stack trace depth.
+
+    :param MESSAGE: The log level/message type (e.g., logging.DEBUG, logging.INFO).
+    :type MESSAGE: int
+    :param logger: The logger instance used to log the message.
+    :type logger: CustomLogger
+    :param msg: The main message to be logged.
+    :type msg: str
+    :param args: Optional positional arguments that are formatted and appended to the message.
+    :param stacklevel: The stack level to include in the log entry. Defaults to 1.
+    :type stacklevel: Optional int
+    :param kwargs: Optional keyword arguments that are formatted as key-value pairs and appended to the message.
+    :type kwargs: dict, optional
+
+    :return: None
+
+    :note:
+        If `logger._loggingCommandBlock` is True, the message will not be logged to prevent nested logging.
+    """
     if logger._loggingCommandBlock:
         # ignore nested logging
         return
@@ -128,7 +194,35 @@ def _debugGLError(MESSAGE, logger, msg, *args, stacklevel=1, **kwargs):
     logger.log(MESSAGE, _msg, stacklevel=stacklevel)
 
 
-def _message(MESSAGE, logger, msg, *args, includeInspection=True, stacklevel=1, **kwargs):
+def _message(MESSAGE: int, logger: CustomLogger, msg: str, *args,
+             includeInspection: bool = True, stacklevel: int = 1, **kwargs):
+    """
+    Logs a formatted message using the specified logger.
+
+    This function constructs a message with the provided `msg`, optional arguments (`args`, `kwargs`),
+    and logs it using the given logger. If `includeInspection` is True, the message includes additional
+    caller inspection information. The `stacklevel` can be adjusted to control the stack trace depth.
+
+    :param MESSAGE: The log level/message type (e.g., logging.DEBUG, logging.INFO).
+    :type MESSAGE: int
+    :param logger: The logger instance used to log the message.
+    :type logger: CustomLogger
+    :param msg: The main message to be logged.
+    :type msg: str
+    :param args: Optional positional arguments that are formatted and appended to the message.
+    :param includeInspection: Whether to include inspection details in the message. Defaults to True.
+    :type includeInspection: bool, optional
+    :param stacklevel: The stack level to include in the log entry. Defaults to 1.
+    :type stacklevel: Optional int
+    :param kwargs: Optional keyword arguments that are formatted as key-value pairs and appended to the message.
+    :type kwargs: dict, optional
+
+    :return: None
+
+    :note:
+        If `logger._loggingCommandBlock` is True, the message will not be logged to prevent nested logging.
+        If `includeInspection` is False, no additional caller inspection details are included in the message.
+    """
     if logger._loggingCommandBlock:
         # ignore nested logging
         return
@@ -147,7 +241,8 @@ def createLogger(loggerName,
                  mode='a',
                  readOnly=True,
                  now='',
-                 removeOldLogsDays=MAX_LOG_FILE_DAYS):
+                 # removeOldLogsDays=MAX_LOG_FILE_DAYS
+                 ) -> CustomLogger:
     """Return a (unique) logger for this memopsRoot and with given programName, if any.
        Puts log output into a log file but also optionally can have output go to
        another, specified, stream (e.g. a console)
