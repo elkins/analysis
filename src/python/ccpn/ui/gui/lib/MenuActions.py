@@ -16,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Daniel Thompson $"
-__dateModified__ = "$dateModified: 2025-01-24 15:56:48 +0000 (Fri, January 24, 2025) $"
-__version__ = "$Revision: 3.2.11 $"
+__dateModified__ = "$dateModified: 2025-01-31 16:45:19 +0000 (Fri, January 31, 2025) $"
+__version__ = "$Revision: 3.3.1 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -1011,6 +1011,28 @@ class _openItemNmrChainTable(_openItemNmrClass):
     openItemMethod = 'showNmrResidueTable'
     objectArgumentName = 'nmrChain'
 
+    def _openContextMenu(self, parentWidget, position, thisObj, objs, deferExec=False):
+        """Open a context menu.
+        """
+        contextMenu = Menu('', parentWidget, isFloatWidget=True)
+        if self.openAction:
+            contextMenu.addAction(self.contextMenuText, self.openAction)
+        contextMenu.addSeparator()
+        contextMenu.addAction('Renumber NmrResidues', partial(self._renumberChain, objs))
+        contextMenu.addSeparator()
+        contextMenu.addAction('Copy Pid to Clipboard', partial(self._copyPidsToClipboard, objs))
+        self._addCollectionMenu(contextMenu, objs)
+        contextMenu.addAction('Delete', partial(self._deleteItemObject, thisObj, objs))
+        contextMenu.addSeparator()
+        contextMenu.addAction('Edit Properties', partial(parentWidget._raiseObjectProperties, self.node.widget))
+        contextMenu.move(position)
+        contextMenu.exec()
+
+    def _renumberChain(self, objs):
+        from ccpn.ui.gui.popups.ChainRenumberPopup import ChainRenumberPopup
+        popup = ChainRenumberPopup(mainWindow=self.mainWindow, chain=objs[0])
+        popup.show()
+        popup.raise_()
 
 class _openItemNmrResidueItem(_openItemNmrClass):
     objectArgumentName = 'nmrResidue'
@@ -1088,10 +1110,19 @@ class _openItemChainTable(OpenItemABC):
         """Open a context menu.
         """
         contextMenu = super()._openContextMenu(parentWidget, position, thisObj, objs, deferExec=True)
+        contextMenu.addSeparator()
+        contextMenu.addAction('Renumber Residues', partial(self._renumberChain, objs))
+        contextMenu.addSeparator()
         newFromAction = contextMenu.addAction('New Chain from selected...', partial(self._newFromSelected, objs))
         contextMenu.moveActionBelowName(newFromAction, 'Clone')
         contextMenu.move(position)
         contextMenu.exec()
+
+    def _renumberChain(self, objs):
+        from ccpn.ui.gui.popups.ChainRenumberPopup import ChainRenumberPopup
+        popup = ChainRenumberPopup(mainWindow=self.mainWindow, chain=objs[0])
+        popup.show()
+        popup.raise_()
 
     def _cloneObject(self, objs):
         objs = [obj for obj in objs if isinstance(obj, Chain)]
