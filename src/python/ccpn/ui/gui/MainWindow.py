@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2025-01-29 12:42:31 +0000 (Wed, January 29, 2025) $"
+__dateModified__ = "$dateModified: 2025-02-03 13:33:53 +0000 (Mon, February 03, 2025) $"
 __version__ = "$Revision: 3.3.1 $"
 #=========================================================================================
 # Created
@@ -605,7 +605,7 @@ class GuiMainWindow(QtWidgets.QMainWindow, Shortcuts):
 
         path = project.path
         self.namespace['project'] = project
-        self.namespace['runMacro'] = self.pythonConsole._runMacro
+        # self.namespace['runMacro'] = self.pythonConsole._runMacro
 
         msg = path + (' created' if isNew else ' opened')
         self.statusBar().showMessage(msg)
