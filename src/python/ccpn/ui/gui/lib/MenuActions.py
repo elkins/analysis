@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Daniel Thompson $"
-__dateModified__ = "$dateModified: 2025-01-31 16:45:19 +0000 (Fri, January 31, 2025) $"
+__dateModified__ = "$dateModified: 2025-02-04 15:33:47 +0000 (Tue, February 04, 2025) $"
 __version__ = "$Revision: 3.3.1 $"
 #=========================================================================================
 # Created
@@ -1018,7 +1018,7 @@ class _openItemNmrChainTable(_openItemNmrClass):
         if self.openAction:
             contextMenu.addAction(self.contextMenuText, self.openAction)
         contextMenu.addSeparator()
-        contextMenu.addAction('Renumber NmrResidues', partial(self._renumberChain, objs))
+        contextMenu.addAction('Renumber NmrChain', partial(self._renumberChain, objs))
         contextMenu.addSeparator()
         contextMenu.addAction('Copy Pid to Clipboard', partial(self._copyPidsToClipboard, objs))
         self._addCollectionMenu(contextMenu, objs)
@@ -1111,7 +1111,7 @@ class _openItemChainTable(OpenItemABC):
         """
         contextMenu = super()._openContextMenu(parentWidget, position, thisObj, objs, deferExec=True)
         contextMenu.addSeparator()
-        contextMenu.addAction('Renumber Residues', partial(self._renumberChain, objs))
+        contextMenu.addAction('Renumber Chain', partial(self._renumberChain, objs))
         contextMenu.addSeparator()
         newFromAction = contextMenu.addAction('New Chain from selected...', partial(self._newFromSelected, objs))
         contextMenu.moveActionBelowName(newFromAction, 'Clone')
