@@ -28,7 +28,7 @@ set /a _count=0
     if defined _SYM if defined _FOUND call :AbsPath CCPNMR_TOP_DIR "%_FOUND%"
     call :AbsPath CCPNMR_TOP_DIR "%CCPNMR_TOP_DIR%\.."
 
-    set /a _count=_count+1
+    set /a _count+=1
     if !_count! lss 2 goto _countLoop
 
 rem get the required paths
@@ -46,6 +46,8 @@ set ENTRY_MODULE=%CCPNMR_TOP_DIR%\%MODULE%
 "%CONDA%\python.exe" -i -O -W ignore "%ENTRY_MODULE%" %argval%
 endlocal
 
+PAUSE
+rem return the exit code
 exit /b !errorlevel!
 
 :AbsPath

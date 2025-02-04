@@ -59,6 +59,8 @@ for /l %%c in (1,1,!MAX_COUNT!) do (
 )
 
 :_done
+endlocal
+
 rem return the exit code from the update
 exit /b !errorlevel!
 

@@ -1,10 +1,10 @@
 @echo off
-setlocal
+setlocal enabledelayedexpansion
 
 set MODULE=src\python\ccpn\ui\gui\modules\MacroEditor.py
 
 set CCPNMR_TOP_DIR=%~dpnx0
-set /a "_count=0"
+set /a _count=0
 :_countLoop
     call :isLink _SYM "%CCPNMR_TOP_DIR%"
     call :fileName _PATH "%CCPNMR_TOP_DIR%"
@@ -14,7 +14,7 @@ set /a "_count=0"
     if defined _SYM if defined _FOUND call :AbsPath CCPNMR_TOP_DIR "%_FOUND%"
     call :AbsPath CCPNMR_TOP_DIR "%CCPNMR_TOP_DIR%\.."
 
-    set /a "_count=_count+1"
+    set /a _count+=1
     if !_count! lss 2 goto _countLoop
 
 call "%CCPNMR_TOP_DIR%\bat\paths"
