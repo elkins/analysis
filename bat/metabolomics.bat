@@ -4,13 +4,24 @@ setlocal enabledelayedexpansion
 set MODULE=src\python\ccpn\AnalysisMetabolomics
 set /a FAIL_UNEXPECTED=32
 
-rem extract command-line parameters to pass to ./update
+rem List of parameters and their corresponding actions
+rem     example: metabolomics.bat --auto-update
+rem     --auto-update - perform update before opening module
+rem     --no-pause - ignore pause before closing shell (e.g., if running .bat from pycharm)
+set "params=auto-update no-pause"
 set args=
 set /a n=0
+
+rem loop through command-line arguments, extract parameters to pass to ./update
 for %%a in (%*) do (
-    if "%%a"=="--auto-update" (
-        set autoUpdate=true
-    ) else (
+    set found=false
+    for %%p in (%params%) do (
+        if "%%a"=="--%%p" (
+            set %%p=true
+            set found=true
+        )
+    )
+    if "!found!"=="false" (
         set /a n+=1
         set args=!args! %%a
     )
@@ -35,7 +46,7 @@ rem get the required paths
 call "%CCPNMR_TOP_DIR%\bat\paths"
 
 rem update if required
-if "%autoUpdate%"=="true" (
+if defined auto-update (
     call "%CCPNMR_TOP_DIR%\bat\update" %args%
     if !errorlevel! geq %FAIL_UNEXPECTED% (
         echo there was an issue auto-updating: !errorlevel!
@@ -43,10 +54,12 @@ if "%autoUpdate%"=="true" (
 )
 
 set ENTRY_MODULE=%CCPNMR_TOP_DIR%\%MODULE%
-"%CONDA%\python.exe" -i -O -W ignore "%ENTRY_MODULE%" %argval%
-endlocal
+"%CONDA%\python.exe" -i -O -W ignore "%ENTRY_MODULE%" %args%
 
-PAUSE
+rem ignore pause if running from pycharm
+if not defined no-pause PAUSE
+
+endlocal
 rem return the exit code
 exit /b !errorlevel!
 
