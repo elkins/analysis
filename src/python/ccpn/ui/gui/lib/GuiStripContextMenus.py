@@ -20,8 +20,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Daniel Thompson $"
-__dateModified__ = "$dateModified: 2025-01-28 16:31:42 +0000 (Tue, January 28, 2025) $"
-__version__ = "$Revision: 3.2.11 $"
+__dateModified__ = "$dateModified: 2025-02-04 16:39:40 +0000 (Tue, February 04, 2025) $"
+__version__ = "$Revision: 3.3.1 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -176,14 +176,14 @@ def _togglePeakSymbolsItem(strip):
     return _SCMitem(name='Peak Symbols',
                     typeItem=ItemTypes.get(ITEM), toolTip='Toggle Peak Symbols On/Off',
                     callback=strip.togglePeakSymbolVisibility,
-                    checkable=True, checked=strip.peakSymbolsEnabled, shortcut='SX', stripMethodName='')
+                    checkable=True, checked=True, shortcut='SX', stripMethodName='peakSymbolAction')
 
 
 def _togglePeakLabelsItem(strip):
     return _SCMitem(name='Peak Labels',
                     typeItem=ItemTypes.get(ITEM), toolTip='Toggle Peak Labels On/Off',
                     callback=strip.togglePeakLabelVisibility,
-                    checkable=True, checked=strip.peakLabelsEnabled, shortcut='LX', stripMethodName='')
+                    checkable=True, checked=True, shortcut='LX', stripMethodName='peakLabelAction')
 
 
 def _shareYAxisItem(strip):

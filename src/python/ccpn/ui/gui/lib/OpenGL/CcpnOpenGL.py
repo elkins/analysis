@@ -56,9 +56,9 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2025-01-03 18:56:47 +0000 (Fri, January 03, 2025) $"
-__version__ = "$Revision: 3.2.11 $"
+__modifiedBy__ = "$modifiedBy: Daniel Thompson $"
+__dateModified__ = "$dateModified: 2025-02-04 16:39:41 +0000 (Tue, February 04, 2025) $"
+__version__ = "$Revision: 3.3.1 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -6598,6 +6598,9 @@ class CcpnGLWidget(QOpenGLWidget):
             strip.crosshairAction.setChecked(self._crosshairVisible)
 
         strip.gridAction.setChecked(self._gridVisible)
+        strip.peakSymbolAction.setChecked(self._peakSymbolsEnabled)
+        strip.peakLabelAction.setChecked(self._peakLabelsEnabled)
+
         if hasattr(strip, 'lastAxisOnlyCheckBox'):
             strip.lastAxisOnlyCheckBox.setChecked(strip.spectrumDisplay.lastAxisOnly)
 
