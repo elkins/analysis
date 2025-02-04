@@ -43,7 +43,9 @@ class ChainRenumberPopup(CcpnDialogMainWidget):
         self.setDefaultButton(self.CLOSEBUTTON)
 
     def _postInit(self):
-        # initialise the buttons and dialog size
+        """
+        initialise the buttons and dialog size
+        """
         super()._postInit()
 
         self._applyAndCloseButton = self.getButton(self.USERBUTTON)
@@ -54,13 +56,27 @@ class ChainRenumberPopup(CcpnDialogMainWidget):
         self._applyButton.setEnabled(False)
 
     def _setWidgets(self, initialChain: NmrChain | Chain = None):
+        """
+        Create and place the widgets.
+        :param initialChain: The chain initially selected for the popup to open to.
+        """
         widget = self.mainWidget
         widget.layout().setAlignment(QtCore.Qt.AlignTop)
 
         row = 0
-        self._initPulldown(widget, chain=initialChain)
+        if isinstance(initialChain, NmrChain):
+            from ccpn.ui.gui.widgets.PulldownListsForObjects import NmrChainPulldown
+            self.pulldown = NmrChainPulldown(parent=widget, mainWindow=self.mainWindow,
+                                             default=initialChain, grid=(0, 0), callback=self._chainChangedCallback)
 
-        row += 2
+        elif isinstance(initialChain, Chain):
+            from ccpn.ui.gui.widgets.PulldownListsForObjects import ChainPulldown
+            self.pulldown = ChainPulldown(parent=widget, mainWindow=self.mainWindow,
+                                          default=initialChain, grid=(0, 0), callback=self._chainChangedCallback)
+        else:
+            getLogger().warning('Pulldown not initialised, no NmrChain or Chain given.')
+
+        row += 1
         Label(widget, 'Offset', grid=(row, 0), )
         self.offsetSpinBox = Spinbox(widget, value=0, step=1, grid=(row, 0), hAlign='r')
         self.offsetSpinBox.valueChanged.connect(self._valueChanged)
@@ -79,23 +95,15 @@ class ChainRenumberPopup(CcpnDialogMainWidget):
         self.correspondingLabel = Label(widget, f'Renumber corresponding Chain', grid=(row, 0), )
         self.correspondingCheckbox = CheckBox(widget, value=True, grid=(row, 0), hAlign='r')
 
-        self._chainChanged()
-
-    def _initPulldown(self, widget, chain: NmrChain | Chain = None):
-        if isinstance(chain, NmrChain):
-            from ccpn.ui.gui.widgets.PulldownListsForObjects import NmrChainPulldown
-            self.pulldown = NmrChainPulldown(parent=widget, mainWindow=self.mainWindow,
-                                             default=chain, grid=(0, 0), callback=self._chainChanged)
-
-        elif isinstance(chain, Chain):
-            from ccpn.ui.gui.widgets.PulldownListsForObjects import ChainPulldown
-            self.pulldown = ChainPulldown(parent=widget, mainWindow=self.mainWindow,
-                                          default=chain, grid=(0, 0), callback=self._chainChanged)
-        else:
-            getLogger().warning('Pulldown not initialised, no NmrChain or Chain given.')
+        self._chainChangedCallback()
 
     @staticmethod
-    def _checkCorresponding(currentChain):
+    def _checkCorresponding(currentChain) -> bool:
+        """
+        Check is a Chain/NmrChain has a corresponding NmrChain/Chain
+        :param currentChain: The Chain/NmrChain to check.
+        :return: True if there is a corresponding NmrChain/Chain
+        """
         corresponding = False
 
         if isinstance(currentChain, Chain):
@@ -107,7 +115,12 @@ class ChainRenumberPopup(CcpnDialogMainWidget):
 
         return corresponding
 
-    def _chainChanged(self, obj=None):
+    def _chainChangedCallback(self, obj=None):
+        """
+        Callback for the chain pulldown.
+        Sets checkbox visible based on if there is a corresponding chain available.
+        :param obj: required for correct signature (ignore)
+        """
         currentChain = self.project.getByPid(self.pulldown.getText())
 
         # just in case it somehow changes to between classes
@@ -120,6 +133,9 @@ class ChainRenumberPopup(CcpnDialogMainWidget):
         self.correspondingLabel.setVisible(self._checkCorresponding(currentChain))
 
     def _valueChanged(self):
+        """
+        Enables/disables apply buttons based on if any values have changed
+        """
         offset = self.offsetSpinBox.value()
         start = self.startSpinBox.value()
         stop = self.stopSpinBox.value()
@@ -132,6 +148,12 @@ class ChainRenumberPopup(CcpnDialogMainWidget):
             self._applyButton.setEnabled(True)
 
     def _applyChanges(self):
+        """
+        Applies the changes
+
+        Checks if the Chain/NmrChain has a corresponding NmrChain/Chain and
+        applies the renumber.
+        """
         offset = self.offsetSpinBox.value()
         start = self.startSpinBox.value() or None
         stop = self.stopSpinBox.value() or None
@@ -142,6 +164,7 @@ class ChainRenumberPopup(CcpnDialogMainWidget):
         correspondingBox = self.correspondingCheckbox.isChecked()
         checkCorresponding = self._checkCorresponding(currentChain)
 
+        # Required so we can have 1 popup for both Chain and NmrChain
         if isinstance(currentChain, Chain):
             chain = currentChain
             if correspondingBox and checkCorresponding:
@@ -166,9 +189,15 @@ class ChainRenumberPopup(CcpnDialogMainWidget):
             self.offsetSpinBox.setValue(0)
 
     def _applyClicked(self):
+        """
+        Apply button callback
+        """
         self._applyChanges()
 
     def _applyAndCloseClicked(self):
+        """
+        Apply and Close button callback
+        """
         self._applyChanges()
         self.close()
 
@@ -179,6 +208,10 @@ class ChainRenumberPopup(CcpnDialogMainWidget):
 
 
 def main():
+    """Popup test
+
+    .. note:: This currently does not work,
+    as the required chain/project is never created."""
     from ccpn.ui.gui.widgets.Application import TestApplication
     app = TestApplication()
 
