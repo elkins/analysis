@@ -13,7 +13,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2025-02-05 11:27:56 +0000 (Wed, February 05, 2025) $"
+__dateModified__ = "$dateModified: 2025-02-05 11:30:46 +0000 (Wed, February 05, 2025) $"
 __version__ = "$Revision: 3.3.1 $"
 #=========================================================================================
 # Created
@@ -1629,7 +1629,15 @@ class Framework(NotifierBase, GuiBase):
 
     @logCommand('application.')
     def undo(self):
-        # checks whether undo is actually being performed before creating qt-popup
+        """
+        Undo the last action.
+
+        This method attempts to undo the last action in the undo stack. If there is nothing
+        to undo, it logs a warning message. It also ensures that the undo/redo handler is not
+        blocked before proceeding with the undo operation.
+
+        :raises: Logs a warning if there is nothing to undo.
+        """
         if undoStack := self._getUndo():
             if not undoStack.canUndo():
                 getLogger().warning('nothing to undo')
@@ -1640,7 +1648,15 @@ class Framework(NotifierBase, GuiBase):
 
     @logCommand('application.')
     def redo(self):
-        # checks whether redo is actually being performed before creating qt-popup
+        """
+        Redo the last undone action.
+
+        This method attempts to redo the last undone action in the undo stack. If there is nothing
+        to redo, it logs a warning message. It also ensures that the undo/redo handler is not
+        blocked before proceeding with the redo operation.
+
+        :raises: Logs a warning if there is nothing to redo.
+        """
         if undoStack := self._getUndo():
             if not undoStack.canRedo():
                 getLogger().warning('nothing to redo')
