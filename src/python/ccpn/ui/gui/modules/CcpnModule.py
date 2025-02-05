@@ -16,9 +16,9 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2025-01-13 17:16:15 +0000 (Mon, January 13, 2025) $"
-__version__ = "$Revision: 3.2.11 $"
+__modifiedBy__ = "$modifiedBy: Luca Mureddu $"
+__dateModified__ = "$dateModified: 2025-02-05 10:14:12 +0000 (Wed, February 05, 2025) $"
+__version__ = "$Revision: 3.3.1 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -530,7 +530,6 @@ class CcpnModule(Dock, DropBase, NotifierBase):
             # only ccpnModule should call super-close here
             super().close()
 
-    @staticmethod
     def _detach(self):
         """Remove the module from the Drop-Area into a new window
         """
