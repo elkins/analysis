@@ -1,11 +1,14 @@
 from PyQt5 import QtCore
 
 from ccpn.core import NmrChain, Chain
+from ccpn.core.lib.ContextManagers import undoBlockWithoutSideBar
 from ccpn.ui.gui.popups.Dialog import CcpnDialogMainWidget
 from ccpn.ui.gui.widgets.CheckBox import CheckBox
 from ccpn.util.Logging import getLogger
 from ccpn.ui.gui.widgets.Label import Label
 from ccpn.ui.gui.widgets.Spinbox import Spinbox
+
+SPIN_BOX_MIN = -2147483648
 
 
 class ChainRenumberPopup(CcpnDialogMainWidget):
@@ -78,18 +81,8 @@ class ChainRenumberPopup(CcpnDialogMainWidget):
 
         row += 1
         Label(widget, 'Offset', grid=(row, 0), )
-        self.offsetSpinBox = Spinbox(widget, value=0, step=1, grid=(row, 0), hAlign='r')
+        self.offsetSpinBox = Spinbox(widget, min=SPIN_BOX_MIN,  value=0, step=1, grid=(row, 0), hAlign='r')
         self.offsetSpinBox.valueChanged.connect(self._valueChanged)
-
-        row += 1
-        Label(widget, 'Start', grid=(row, 0), )
-        self.startSpinBox = Spinbox(widget, value=0, step=1, grid=(row, 0), hAlign='r')
-        self.startSpinBox.valueChanged.connect(self._valueChanged)
-
-        row += 1
-        Label(widget, 'Stop', grid=(row, 0), )
-        self.stopSpinBox = Spinbox(widget, value=0, step=1, grid=(row, 0), hAlign='r')
-        self.stopSpinBox.valueChanged.connect(self._valueChanged)
 
         row += 1
         self.correspondingLabel = Label(widget, f'Renumber corresponding Chain', grid=(row, 0), )
@@ -125,7 +118,7 @@ class ChainRenumberPopup(CcpnDialogMainWidget):
 
         # just in case it somehow changes to between classes
         prefix = "" if isinstance(currentChain, NmrChain) else "Nmr"
-        self.correspondingLabel.setText(f'Renumber corresponding {prefix}Chain')
+        self.correspondingLabel.setText(f'Renumber corresponding\n{prefix}Chain')
 
         # if there is a corresponding Chain/NmrChain enable/disable checkbox
         self.correspondingCheckbox.setEnabled(self._checkCorresponding(currentChain))
@@ -134,13 +127,9 @@ class ChainRenumberPopup(CcpnDialogMainWidget):
 
     def _valueChanged(self):
         """
-        Enables/disables apply buttons based on if any values have changed
+        Enables/disables apply buttons based on if the offset has changed
         """
-        offset = self.offsetSpinBox.value()
-        start = self.startSpinBox.value()
-        stop = self.stopSpinBox.value()
-
-        if offset == 0 and start == 0 and stop == 0:
+        if self.offsetSpinBox.value() == 0:
             self._applyAndCloseButton.setEnabled(False)
             self._applyButton.setEnabled(False)
         else:
@@ -155,8 +144,6 @@ class ChainRenumberPopup(CcpnDialogMainWidget):
         applies the renumber.
         """
         offset = self.offsetSpinBox.value()
-        start = self.startSpinBox.value() or None
-        stop = self.stopSpinBox.value() or None
 
         nmrChain = chain = None
 
@@ -174,15 +161,16 @@ class ChainRenumberPopup(CcpnDialogMainWidget):
             if correspondingBox and checkCorresponding:
                 chain = nmrChain.chain
 
-        reset = False
-        if nmrChain:
-            nmrChain.renumberNmrResidues(offset=offset, start=start, stop=stop)
-            reset = True
-        if chain:
-            chain.renumberResidues(offset=offset, start=start, stop=stop)
-            reset = True
-        if not (nmrChain or chain):
-            getLogger().warning('chain is not a NmrChain or Chain')
+        with undoBlockWithoutSideBar():
+            reset = False
+            if nmrChain:
+                nmrChain.renumberNmrResidues(offset=offset)
+                reset = True
+            if chain:
+                chain.renumberResidues(offset=offset)
+                reset = True
+            if not (nmrChain or chain):
+                getLogger().warning('chain is not a NmrChain or Chain')
 
         # reset offset box
         if reset:
