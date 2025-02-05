@@ -8,9 +8,10 @@ from ccpn.core.lib.Undo import _deleteAllApiObjects, restoreOriginalLinks, no_op
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
-__credits__ = ("Ed Brooksbank, Joanna Fox, Morgan Hayward, Victoria A Higman, Luca Mureddu",
-               "Eliza Płoskoń, Timothy J Ragan, Brian O Smith, Gary S Thompson & Geerten W Vuister")
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2025"
+__credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
+               "Timothy J Ragan, Brian O Smith, Daniel Thompson",
+               "Gary S Thompson & Geerten W Vuister")
 __licence__ = ("CCPN licence. See https://ccpn.ac.uk/software/licensing/")
 __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, L.G., & Vuister, G.W.",
                  "CcpNmr AnalysisAssign: a flexible platform for integrated NMR analysis",
@@ -19,8 +20,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-03-21 16:29:25 +0000 (Thu, March 21, 2024) $"
-__version__ = "$Revision: 3.2.4 $"
+__dateModified__ = "$dateModified: 2025-02-05 11:27:56 +0000 (Wed, February 05, 2025) $"
+__version__ = "$Revision: 3.3.1 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -468,63 +469,67 @@ class Undo(deque):
 
         self._allowNoApplication = value
 
+    #-----------------------------------------------------------------------------------------
+    # undo
+    #-----------------------------------------------------------------------------------------
+
+    def canUndo(self) -> bool:
+        """True if an undo operation can be performed
+        """
+        return self.nextIndex > 0
+
     def undo(self):
         """Undo one operation - or one waypoint if waypoints are set
 
         For now errors are handled by printing a warning and clearing the undo object
         """
-
-        if self._lock.locked():
+        if self.nextIndex == 0 or self._blocked:
             return
-        with self._lock:
-            if self.nextIndex == 0:
-                return
+        elif self.maxWaypoints:
+            undoTo = -1
+            for val in self.waypoints:
+                if val < self.nextIndex - 1:
+                    undoTo = val
+                else:
+                    break
+        else:
+            undoTo = max(self.nextIndex - 2, -1)
 
-            elif self.maxWaypoints:
-                undoTo = -1
-                for val in self.waypoints:
-                    if val < self.nextIndex - 1:
-                        undoTo = val
-                    else:
-                        break
+        # block addition of items while operating
+        self._blocked = True
+        self._lastFuncCall = None
 
-            else:
-                undoTo = max(self.nextIndex - 2, -1)
+        if self.application and self.application._disableUndoException:
+            # mode is activated with switch --disable-undo-exception
+            # allows the program to crash with a full error-trace
+            # this is dangerous as it may crash and leave _blocked in a compromised state
 
-            # block addition of items while operating
-            self._blocked = True
-            self._lastFuncCall = None
+            self._processUndos(undoTo)
 
-            if self.application and self.application._disableUndoException:
-                # mode is activated with switch --disable-undo-exception
-                # allows the program to crash with a full error-trace
+            # Added by Rasmus March 2015. Surely we need to reset self._blocked?
+            self._blocked = False
 
+        else:
+            try:
                 self._processUndos(undoTo)
 
+            except Exception as es:
+                from ccpn.util.Logging import getLogger
+
+                getLogger().warning(f'Error while undoing ({es}): aborting undo-operation.')
+                if self.application and self.application._ccpnLogging:
+                    self._logObjects()
+                if self._debug:
+                    sys.stderr.write(f'UNDO DEBUG: error in undo. Last undo function was: {self._lastFuncCall}\n')
+                    raise es
+
+                # self.clear()
+                # Skipping undo-block
+                self.nextIndex = undoTo + 1
+
+            finally:
                 # Added by Rasmus March 2015. Surely we need to reset self._blocked?
                 self._blocked = False
-
-            else:
-                try:
-                    self._processUndos(undoTo)
-
-                except Exception as es:
-                    from ccpn.util.Logging import getLogger
-
-                    getLogger().warning(f'Error while undoing ({es}): aborting undo-operation.')
-                    if self.application and self.application._ccpnLogging:
-                        self._logObjects()
-                    if self._debug:
-                        sys.stderr.write(f'UNDO DEBUG: error in undo. Last undo function was: {self._lastFuncCall}\n')
-                        raise es
-
-                    # self.clear()
-                    # Skipping undo-block
-                    self.nextIndex = undoTo + 1
-
-                finally:
-                    # Added by Rasmus March 2015. Surely we need to reset self._blocked?
-                    self._blocked = False
 
         self.undoChanged.call(lambda x: x(UndoEvents.UNDO_UNDO))
 
@@ -553,60 +558,65 @@ class Undo(deque):
 
         self.nextIndex = undoTo + 1
 
+    #-----------------------------------------------------------------------------------------
+    # redo
+    #-----------------------------------------------------------------------------------------
+
+    def canRedo(self) -> bool:
+        """True if a redo operation can be performed
+        """
+        return self.nextIndex < len(self)
+
     def redo(self):
         """Redo one waypoint - or one operation if waypoints are not set.
 
         For now errors are handled by printing a warning and clearing the undo object
         """
-        if self._lock.locked():
+        if self.nextIndex >= len(self) or self._blocked:
             return
-        with self._lock:
-            if self.nextIndex >= len(self):
-                return
+        elif self.maxWaypoints:
+            redoTo = len(self) - 1
+            for val in reversed(self.waypoints):
+                if val >= self.nextIndex:
+                    redoTo = val
+                else:
+                    break
+        else:
+            redoTo = min(self.nextIndex, len(self))
 
-            elif self.maxWaypoints:
-                redoTo = len(self) - 1
-                for val in reversed(self.waypoints):
-                    if val >= self.nextIndex:
-                        redoTo = val
-                    else:
-                        break
+        # block addition of items while operating
+        self._blocked = True
+        self._lastFuncCall = None
 
-            else:
-                redoTo = min(self.nextIndex, len(self))
+        if self.application and self.application._disableUndoException:
+            # mode is activated with switch --disable-undo-exception
+            # allows the program to crash with a full error-trace
+            # this is dangerous as it may crash and leave _blocked in a compromised state
 
-            # block addition of items while operating
-            self._blocked = True
-            self._lastFuncCall = None
+            self._processRedos(redoTo)
 
-            if self.application and self.application._disableUndoException:
-                # mode is activated with switch --disable-undo-exception
-                # allows the program to crash with a full error-trace
+            # Added by Rasmus March 2015. Surely we need to reset self._blocked?
+            self._blocked = False
 
+        else:
+            try:
                 self._processRedos(redoTo)
 
+            except Exception as es:
+                from ccpn.util.Logging import getLogger
+
+                getLogger().warning(f'Error while redoing ({es}). Aborting redo operation.')
+                if self.application and self.application._ccpnLogging:
+                    self._logObjects()
+                if self._debug:
+                    sys.stderr.write(f'REDO DEBUG: error in redo. Last redo call was: {self._lastFuncCall}\n')
+                    raise es
+                # self.clear()
+                self.nextIndex = redoTo + 1
+
+            finally:
                 # Added by Rasmus March 2015. Surely we need to reset self._blocked?
                 self._blocked = False
-
-            else:
-                try:
-                    self._processRedos(redoTo)
-
-                except Exception as es:
-                    from ccpn.util.Logging import getLogger
-
-                    getLogger().warning(f'Error while redoing ({es}). Aborting redo operation.')
-                    if self.application and self.application._ccpnLogging:
-                        self._logObjects()
-                    if self._debug:
-                        sys.stderr.write(f'REDO DEBUG: error in redo. Last redo call was: {self._lastFuncCall}\n')
-                        raise es
-                    # self.clear()
-                    self.nextIndex = redoTo + 1
-
-                finally:
-                    # Added by Rasmus March 2015. Surely we need to reset self._blocked?
-                    self._blocked = False
 
         self.undoChanged.call(lambda x: x(UndoEvents.UNDO_REDO))
 
@@ -638,6 +648,24 @@ class Undo(deque):
 
         return redoCall
 
+    def clearRedoItems(self):
+        """Clear the items above the current next index, if there has been an error adding items
+        """
+        # remove unwanted items from the top of the undo deque
+        while len(self) > self.nextIndex:
+            self.pop()
+
+        # fix waypoints - remove any that are left beyond the new end of the undo deque:
+        ll = self.waypoints
+        while ll and ll[-1] >= self.nextIndex - 1:
+            ll.pop()
+
+        self._newItemCount = 0
+
+    #-----------------------------------------------------------------------------------------
+    # other
+    #-----------------------------------------------------------------------------------------
+
     def clear(self):
         """Clear and reset undo object
         """
@@ -652,16 +680,6 @@ class Undo(deque):
     def locked(self):
         return self._lock.locked()
 
-    def canUndo(self) -> bool:
-        """True if an undo operation can be performed
-        """
-        return self.nextIndex > 0
-
-    def canRedo(self) -> bool:
-        """True if a redo operation can be performed
-        """
-        return self.nextIndex < len(self)
-
     def numItems(self):
         """Return the number of undo items currently on the undo deque
         """
@@ -673,20 +691,6 @@ class Undo(deque):
         the last new waypoint was created
         """
         return self._newItemCount
-
-    def clearRedoItems(self):
-        """Clear the items above the current next index, if there has been an error adding items
-        """
-        # remove unwanted items from the top of the undo deque
-        while len(self) > self.nextIndex:
-            self.pop()
-
-        # fix waypoints - remove any that are left beyond the new end of the undo deque:
-        ll = self.waypoints
-        while ll and ll[-1] >= self.nextIndex - 1:
-            ll.pop()
-
-        self._newItemCount = 0
 
     def _logObjects(self):
         """Ccpn Internal - log objects under review to the logger

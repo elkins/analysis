@@ -1,7 +1,7 @@
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2025"
 __credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
                "Timothy J Ragan, Brian O Smith, Daniel Thompson",
                "Gary S Thompson & Geerten W Vuister")
@@ -13,8 +13,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-12-12 13:43:34 +0000 (Thu, December 12, 2024) $"
-__version__ = "$Revision: 3.2.11 $"
+__dateModified__ = "$dateModified: 2025-02-05 11:27:56 +0000 (Wed, February 05, 2025) $"
+__version__ = "$Revision: 3.3.1 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -67,9 +67,7 @@ from typing import List
 
 from PyQt5 import QtWidgets
 from PyQt5.QtWidgets import QApplication
-from PyQt5.QtCore import QTimer
-
-from distutils.dir_util import copy_tree
+from PyQt5.QtCore import QTimer, QEvent
 
 from ccpn.core.IntegralList import IntegralList
 from ccpn.core.PeakList import PeakList
@@ -105,7 +103,7 @@ from ccpn.ui.gui.popups.RegisterPopup import RegisterPopup
 from ccpn.ui.gui import Layout
 
 from ccpn.util import Logging
-from ccpn.util.Path import Path, aPath, fetchDir
+from ccpn.util.Path import Path, aPath
 from ccpn.util.AttrDict import AttrDict
 from ccpn.util.Common import uniquify, isWindowsOS, isMacOS, isIterable, getProcess
 from ccpn.util.Logging import getLogger
@@ -226,6 +224,7 @@ class Framework(NotifierBase, GuiBase):
         self._process = getProcess()
 
         self._autoBackupThread = None
+        self._undoRedoHandlerBlocked = False
 
         self._tip_of_the_day = None
         self._initial_show_timer = None
@@ -337,9 +336,10 @@ class Framework(NotifierBase, GuiBase):
     def getRegistrationDetails(self):
         """Get the Registration details for the current User as a dict """
         from ccpn.util import Register
+
         registrationDict = Register.loadDict()
         skipValues = ['termsConditions', 'hashcode']
-        return {k:v for k,v in registrationDict.items() if k not in skipValues}
+        return {k: v for k, v in registrationDict.items() if k not in skipValues}
 
     #-----------------------------------------------------------------------------------------
     # Useful (?) directories as Path instances
@@ -1583,28 +1583,71 @@ class Framework(NotifierBase, GuiBase):
     # undo/redo
     #-----------------------------------------------------------------------------------------
 
-    @logCommand('application.')
-    def undo(self):
+    @contextlib.contextmanager
+    def _undoRedoHandler(self, text='INSERT MESSAGE'):
+        """
+        Context manager to handle undo/redo operations with a busy handler.
+
+        This context manager blocks the handler, displays a busy message, and pauses
+        auto-backups to prevent clashes with the current save operation. It also removes
+        specific posted events from the QApplication instance.
+
+        :param text: The message to display in the busy handler.
+        :type text: str
+        """
         from ccpn.core.lib.ContextManagers import busyHandler
 
-        if self.project._undo.canUndo():
-            if not self.project._undo.locked:
-                # may need to put some more information in this busy popup
-                with busyHandler(title='Busy', text='Undo ...', raiseErrors=True):
-                    self.project._undo.undo()
-        else:
-            getLogger().warning('nothing to undo')
+        # Define a set of event-types to remove at exit
+        eventTypes = {QEvent.KeyPress,
+                      QEvent.KeyRelease,
+                      QEvent.Shortcut,
+                      QEvent.ShortcutOverride,
+                      QEvent.MouseButtonPress,
+                      QEvent.MouseButtonRelease,
+                      QEvent.MouseButtonDblClick,
+                      }
+
+        self._undoRedoHandlerBlocked = True
+        qtApp = QApplication.instance()
+        try:
+            if self.hasGui:
+                # Create a busy-popup for long events
+                with busyHandler(title='Busy', text=text, raiseErrors=True):
+                    # Stop the auto-backups so they don't clash with current save
+                    with self.pauseAutoBackups():
+                        yield
+            else:
+                yield
+        finally:
+            if qtApp:
+                # Remove all keypress/key-release/shortcut/shortcut-override events
+                # to prevent multiple undo/redo events accumulating on the event-stack
+                for eventType in eventTypes:
+                    # Remove each event-type in the set
+                    qtApp.removePostedEvents(qtApp, eventType)
+            self._undoRedoHandlerBlocked = False
+
+    @logCommand('application.')
+    def undo(self):
+        # checks whether undo is actually being performed before creating qt-popup
+        if undoStack := self._getUndo():
+            if not undoStack.canUndo():
+                getLogger().warning('nothing to undo')
+            if self._undoRedoHandlerBlocked:
+                return
+            with self._undoRedoHandler('Undo ...'):
+                undoStack.undo()
 
     @logCommand('application.')
     def redo(self):
-        from ccpn.core.lib.ContextManagers import busyHandler
-
-        if self.project._undo.canRedo():
-            if not self.project._undo.locked:
-                with busyHandler(title='Busy', text='Redo...', raiseErrors=True):
-                    self.project._undo.redo()
-        else:
-            getLogger().warning('nothing to redo.')
+        # checks whether redo is actually being performed before creating qt-popup
+        if undoStack := self._getUndo():
+            if not undoStack.canRedo():
+                getLogger().warning('nothing to redo')
+            if self._undoRedoHandlerBlocked:
+                return
+            with self._undoRedoHandler('Redo ...'):
+                undoStack.redo()
 
     def _getUndo(self):
         """Return the undo object for the project
@@ -2406,7 +2449,8 @@ class Framework(NotifierBase, GuiBase):
         return self.showChemicalShiftPerturbationModule(position=position, relativeTo=relativeTo)
 
     def showChemicalShiftPerturbationModule(self, position: str = 'top', relativeTo: CcpnModule = None):
-        from ccpn.ui.gui.modules.experimentAnalysis.ChemicalShiftPerturbationGuiModule import ChemicalShiftPerturbationGuiModule
+        from ccpn.ui.gui.modules.experimentAnalysis.ChemicalShiftPerturbationGuiModule import \
+            ChemicalShiftPerturbationGuiModule
 
         mainWindow = self.ui.mainWindow
         if not relativeTo:
