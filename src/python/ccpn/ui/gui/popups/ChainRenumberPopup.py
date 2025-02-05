@@ -1,20 +1,11 @@
-from PyQt5 import QtWidgets, QtGui, QtCore
+from PyQt5 import QtCore
 
 from ccpn.core import NmrChain, Chain
-from ccpn.ui.gui.modules.experimentAnalysis.ExperimentAnalysisGuiNamespaces import tipText_
 from ccpn.ui.gui.popups.Dialog import CcpnDialogMainWidget
-from ccpn.ui.gui.widgets.PulldownListsForObjects import ChainPulldown
+from ccpn.ui.gui.widgets.CheckBox import CheckBox
 from ccpn.util.Logging import getLogger
-from ccpn.util.Path import aPath
 from ccpn.ui.gui.widgets.Label import Label
-from ccpn.ui.gui.widgets.Button import Button
 from ccpn.ui.gui.widgets.Spinbox import Spinbox
-
-
-COLWIDTH = 140
-LineEditsMinimumWidth = 195
-DEFAULTSPACING = 3
-DEFAULTMARGINS = (14, 14, 14, 14)
 
 
 class ChainRenumberPopup(CcpnDialogMainWidget):
@@ -47,12 +38,14 @@ class ChainRenumberPopup(CcpnDialogMainWidget):
 
         self._setWidgets(initialChain=chain)
         self.setUserButton2(callback=self._applyClicked, text='Apply')
-        self.setUserButton(callback=self._applyClicked, text='Apply and Close')
+        self.setUserButton(callback=self._applyAndCloseClicked, text='Apply and Close')
         self.setCloseButton(callback=self.reject)
         self.setDefaultButton(self.CLOSEBUTTON)
 
     def _postInit(self):
-        # initialise the buttons and dialog size
+        """
+        initialise the buttons and dialog size
+        """
         super()._postInit()
 
         self._applyAndCloseButton = self.getButton(self.USERBUTTON)
@@ -63,13 +56,27 @@ class ChainRenumberPopup(CcpnDialogMainWidget):
         self._applyButton.setEnabled(False)
 
     def _setWidgets(self, initialChain: NmrChain | Chain = None):
+        """
+        Create and place the widgets.
+        :param initialChain: The chain initially selected for the popup to open to.
+        """
         widget = self.mainWidget
         widget.layout().setAlignment(QtCore.Qt.AlignTop)
 
         row = 0
-        self._initPulldown(widget, chain=initialChain)
+        if isinstance(initialChain, NmrChain):
+            from ccpn.ui.gui.widgets.PulldownListsForObjects import NmrChainPulldown
+            self.pulldown = NmrChainPulldown(parent=widget, mainWindow=self.mainWindow,
+                                             default=initialChain, grid=(0, 0), callback=self._chainChangedCallback)
 
-        row += 2
+        elif isinstance(initialChain, Chain):
+            from ccpn.ui.gui.widgets.PulldownListsForObjects import ChainPulldown
+            self.pulldown = ChainPulldown(parent=widget, mainWindow=self.mainWindow,
+                                          default=initialChain, grid=(0, 0), callback=self._chainChangedCallback)
+        else:
+            getLogger().warning('Pulldown not initialised, no NmrChain or Chain given.')
+
+        row += 1
         Label(widget, 'Offset', grid=(row, 0), )
         self.offsetSpinBox = Spinbox(widget, value=0, step=1, grid=(row, 0), hAlign='r')
         self.offsetSpinBox.valueChanged.connect(self._valueChanged)
@@ -84,18 +91,51 @@ class ChainRenumberPopup(CcpnDialogMainWidget):
         self.stopSpinBox = Spinbox(widget, value=0, step=1, grid=(row, 0), hAlign='r')
         self.stopSpinBox.valueChanged.connect(self._valueChanged)
 
-    def _initPulldown(self, widget, chain: NmrChain | Chain = None):
-        if isinstance(chain, NmrChain):
-            from ccpn.ui.gui.widgets.PulldownListsForObjects import NmrChainPulldown
-            self.pulldown = NmrChainPulldown(parent=widget, default=chain, grid=(0, 0))
+        row += 1
+        self.correspondingLabel = Label(widget, f'Renumber corresponding Chain', grid=(row, 0), )
+        self.correspondingCheckbox = CheckBox(widget, value=True, grid=(row, 0), hAlign='r')
 
-        elif isinstance(chain, Chain):
-            from ccpn.ui.gui.widgets.PulldownListsForObjects import ChainPulldown
-            self.pulldown = ChainPulldown(parent=widget, default=chain, grid=(0, 0))
-        else:
-            getLogger().warning('Pulldown not initialised, no NmrChain or Chain given.')
+        self._chainChangedCallback()
+
+    @staticmethod
+    def _checkCorresponding(currentChain) -> bool:
+        """
+        Check is a Chain/NmrChain has a corresponding NmrChain/Chain
+        :param currentChain: The Chain/NmrChain to check.
+        :return: True if there is a corresponding NmrChain/Chain
+        """
+        corresponding = False
+
+        if isinstance(currentChain, Chain):
+            if currentChain.nmrChain:
+                corresponding = True
+        if isinstance(currentChain, NmrChain):
+            if currentChain.chain:
+                corresponding = True
+
+        return corresponding
+
+    def _chainChangedCallback(self, obj=None):
+        """
+        Callback for the chain pulldown.
+        Sets checkbox visible based on if there is a corresponding chain available.
+        :param obj: required for correct signature (ignore)
+        """
+        currentChain = self.project.getByPid(self.pulldown.getText())
+
+        # just in case it somehow changes to between classes
+        prefix = "" if isinstance(currentChain, NmrChain) else "Nmr"
+        self.correspondingLabel.setText(f'Renumber corresponding {prefix}Chain')
+
+        # if there is a corresponding Chain/NmrChain enable/disable checkbox
+        self.correspondingCheckbox.setEnabled(self._checkCorresponding(currentChain))
+        self.correspondingCheckbox.setVisible(self._checkCorresponding(currentChain))
+        self.correspondingLabel.setVisible(self._checkCorresponding(currentChain))
 
     def _valueChanged(self):
+        """
+        Enables/disables apply buttons based on if any values have changed
+        """
         offset = self.offsetSpinBox.value()
         start = self.startSpinBox.value()
         stop = self.stopSpinBox.value()
@@ -108,25 +148,56 @@ class ChainRenumberPopup(CcpnDialogMainWidget):
             self._applyButton.setEnabled(True)
 
     def _applyChanges(self):
+        """
+        Applies the changes
+
+        Checks if the Chain/NmrChain has a corresponding NmrChain/Chain and
+        applies the renumber.
+        """
         offset = self.offsetSpinBox.value()
         start = self.startSpinBox.value() or None
         stop = self.stopSpinBox.value() or None
 
-        currentChain = self.project.getByPid(self.pulldown.getText())
+        nmrChain = chain = None
 
+        currentChain = self.project.getByPid(self.pulldown.getText())
+        correspondingBox = self.correspondingCheckbox.isChecked()
+        checkCorresponding = self._checkCorresponding(currentChain)
+
+        # Required so we can have 1 popup for both Chain and NmrChain
+        if isinstance(currentChain, Chain):
+            chain = currentChain
+            if correspondingBox and checkCorresponding:
+                nmrChain = chain.nmrChain
         if isinstance(currentChain, NmrChain):
-            currentChain.renumberNmrResidues(offset=offset, start=start, stop=stop)
-        elif isinstance(currentChain, Chain):
-            currentChain.renumberResidues(offset=offset, start=start, stop=stop)
-        else:
+            nmrChain = currentChain
+            if correspondingBox and checkCorresponding:
+                chain = nmrChain.chain
+
+        reset = False
+        if nmrChain:
+            nmrChain.renumberNmrResidues(offset=offset, start=start, stop=stop)
+            reset = True
+        if chain:
+            chain.renumberResidues(offset=offset, start=start, stop=stop)
+            reset = True
+        if not (nmrChain or chain):
             getLogger().warning('chain is not a NmrChain or Chain')
 
-        self.offsetSpinBox.setValue(0)
+        # reset offset box
+        if reset:
+            self.offsetSpinBox.setValue(0)
 
     def _applyClicked(self):
+        """
+        Apply button callback
+        """
         self._applyChanges()
 
     def _applyAndCloseClicked(self):
+        """
+        Apply and Close button callback
+        """
         self._applyChanges()
         self.close()
 
@@ -137,6 +208,10 @@ class ChainRenumberPopup(CcpnDialogMainWidget):
 
 
 def main():
+    """Popup test
+
+    .. note:: This currently does not work,
+    as the required chain/project is never created."""
     from ccpn.ui.gui.widgets.Application import TestApplication
     app = TestApplication()
 
