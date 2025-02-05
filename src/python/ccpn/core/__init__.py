@@ -477,72 +477,43 @@ _uiImportOrder = (
     'Mark',
     )
 
-from ccpn.ui.gui.MainWindow import MainWindow
+from ccpn.ui.gui.MainWindow import MainWindow as _MainWindow
+_MainWindow._registerCoreClass()
 
+from ccpn.ui._implementation.Mark import Mark as _Mark
+_Mark._registerCoreClass()
 
-MainWindow._registerCoreClass()
+from ccpn.ui.gui.modules.SpectrumDisplay import SpectrumDisplay as _SpectrumDisplay
+_SpectrumDisplay._registerCoreClass()
 
-from ccpn.ui._implementation.Mark import Mark
+from ccpn.ui.gui.lib.Strip import Strip as _Strip
+_Strip._registerCoreClass()
 
+from ccpn.ui._implementation.Axis import Axis as _Axis
+_Axis._registerCoreClass()
 
-Mark._registerCoreClass()
+from ccpn.ui.gui.lib.SpectrumView import SpectrumView as _SpectrumView
+_SpectrumView._registerCoreClass()
 
-from ccpn.ui.gui.modules.SpectrumDisplay import SpectrumDisplay
+from ccpn.ui.gui.lib.PeakListView import PeakListView as _PeakListView
+_PeakListView._registerCoreClass()
 
+from ccpn.ui._implementation.PeakView import PeakView as _PeakView
+_PeakView._registerCoreClass()
 
-SpectrumDisplay._registerCoreClass()
+from ccpn.ui.gui.lib.MultipletListView import MultipletListView as _MultipletListView
+_MultipletListView._registerCoreClass()
 
-from ccpn.ui.gui.lib.Strip import Strip
+from ccpn.ui._implementation.MultipletView import MultipletView as _MultipletView
+_MultipletView._registerCoreClass()
 
+from ccpn.ui.gui.lib.IntegralListView import IntegralListView as _IntegralListView
+_IntegralListView._registerCoreClass()
 
-Strip._registerCoreClass()
-
-from ccpn.ui._implementation.Axis import Axis
-
-
-Axis._registerCoreClass()
-
-from ccpn.ui.gui.lib.SpectrumView import SpectrumView
-
-
-SpectrumView._registerCoreClass()
-
-from ccpn.ui.gui.lib.PeakListView import PeakListView
-
-
-PeakListView._registerCoreClass()
-
-from ccpn.ui._implementation.PeakView import PeakView
-
-
-# from ccpn.ui.gui.lib.PeakView import PeakView
-
-
-PeakView._registerCoreClass()
-
-from ccpn.ui.gui.lib.MultipletListView import MultipletListView
-
-
-MultipletListView._registerCoreClass()
-
-from ccpn.ui._implementation.MultipletView import MultipletView
-
-
-MultipletView._registerCoreClass()
-
-from ccpn.ui.gui.lib.IntegralListView import IntegralListView
-
-
-IntegralListView._registerCoreClass()
-
-from ccpn.ui._implementation.IntegralView import IntegralView
-
-
-IntegralView._registerCoreClass()
+from ccpn.ui._implementation.IntegralView import IntegralView as _IntegralView
+_IntegralView._registerCoreClass()
 
 from ccpn.core._implementation._PeakCluster import _PeakCluster
-
-
 _PeakCluster._registerCoreClass()
 
 _allGetters = {}
