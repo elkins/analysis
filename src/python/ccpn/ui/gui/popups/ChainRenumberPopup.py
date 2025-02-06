@@ -9,6 +9,7 @@ from ccpn.ui.gui.widgets.Label import Label
 from ccpn.ui.gui.widgets.Spinbox import Spinbox
 
 SPIN_BOX_MIN = -2147483648
+SPIN_BOX_MAX = 2147483647
 
 
 class ChainRenumberPopup(CcpnDialogMainWidget):
@@ -81,7 +82,7 @@ class ChainRenumberPopup(CcpnDialogMainWidget):
 
         row += 1
         Label(widget, 'Offset', grid=(row, 0), )
-        self.offsetSpinBox = Spinbox(widget, min=SPIN_BOX_MIN,  value=0, step=1, grid=(row, 0), hAlign='r')
+        self.offsetSpinBox = Spinbox(widget, min=SPIN_BOX_MIN, max=SPIN_BOX_MAX, value=0, step=1, grid=(row, 0), hAlign='r')
         self.offsetSpinBox.valueChanged.connect(self._valueChanged)
 
         row += 1
