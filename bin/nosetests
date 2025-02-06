@@ -2,39 +2,44 @@
 
 # Function to display usage information
 usage() {
-    echo "Usage: $0 [-o <output_folder>] <test_files>"
+    echo "Usage: $0 [-o <output folder>] [-g <group id>] <test_files>"
     exit 1
 }
 
 # Parse command-line options
-while getopts ":o:" opt; do
-    case ${opt} in
-        o )
+while getopts ":o:g:" OPT; do
+    case $OPT in
+        o)
             outputDir=$OPTARG
             outputDir="${outputDir%/}/"
             ;;
-        \? )
+        g)
+            groupId=$OPTARG
+            ;;
+        \? | :)
+            echo "Invalid option or missing argument: -$OPTARG" >&2
             usage
             ;;
     esac
 done
 
-# Shift the arguments to get the test files
-shift $((OPTIND -1))
+# Shift the arguments to get the test-files
+shift $((OPTIND - 1))
 
-# Check if test files are provided
-if [ "$#" -lt 1 ]; then
-    usage
-fi
+# Check if test-files are provided
+[[ $# -eq 0 ]] && usage
 
-# Get the script file if symbolic
+# Get the script-file if symbolic
 _path="${BASH_SOURCE[0]}"
 
 # Iterate through the symbolic links if needed
 for _ in {1..3}; do
     if [[ -d ${_path} ]]; then
         # Change to absolute path
-        _path="$(cd "${_path}" || exit; pwd -P)"
+        _path="$(
+            cd "${_path}" || exit
+            pwd -P
+        )"
     fi
     _pathlink="$(readlink "${_path}")"
     _pathlink="${_pathlink:-${_path}}"
@@ -48,7 +53,8 @@ source "${CCPNMR_TOP_DIR}"/bin/paths.sh
 NOSETESTS="${CONDA}"/bin/nosetests
 
 FILENAME=$*
-FILENAME=${FILENAME##*/};FILENAME=${FILENAME%.*}
+FILENAME=${FILENAME##*/}
+FILENAME=${FILENAME%.*}
 STAMP="$(date +%Y%m%d_%H%M%S)"
 
 # Create the output directory if it doesn't exist
@@ -57,7 +63,7 @@ if [[ -n $outputDir && ! -d $outputDir ]]; then
 fi
 
 # Execute nose-tests and redirect all output to file in the specified output folder
-"${NOSETESTS}" -vs "$@" > "${outputDir}TESTOUT_$(basename "$FILENAME")_${STAMP}.txt" 2>&1
+"${NOSETESTS}" -vs "$@" > "${outputDir}TESTOUT_$(basename "$FILENAME")${groupId:+_$groupId}_${STAMP}.txt" 2>&1
 
 ## write out any lines that contain the fail code
 #while read -r p; do
