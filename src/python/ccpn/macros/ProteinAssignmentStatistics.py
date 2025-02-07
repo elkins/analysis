@@ -16,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2025-01-07 16:32:25 +0000 (Tue, January 07, 2025) $"
-__version__ = "$Revision: 3.2.11 $"
+__dateModified__ = "$dateModified: 2025-02-07 16:21:22 +0000 (Fri, February 07, 2025) $"
+__version__ = "$Revision: 3.2.12 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -26,7 +26,6 @@ __date__ = "$Date: 2021-04-27 16:04:57 +0100 (Tue, April 27, 2021) $"
 #=========================================================================================
 # Start of code
 #=========================================================================================
-
 import numpy as np
 import pandas as pd
 from datetime import datetime
@@ -415,16 +414,23 @@ class calculateAssignments():
 
     def checkMaxLen(self, residue, maxLen, i):
         # i is the atomset index as specified in the list in line 332
+        #self.AtomTypeList = ['C', 'CA', 'CB', 'CG', 'CD', 'CE', 'CZ', 'CH', 'H', 'HA', 'HB', 'HG', 'HD',
+        #                     'HE', 'HZ', 'HH', 'N']
+
+
         if residue.name == "ALA" and i == 10:
             maxLen = 1
 
-        if residue.name == "ILE" and i == 11:
+        if residue.name == "ILE" and i == self.AtomTypeList.index('HG'):
             maxLen = 3
+
+        if residue.name == "ILE" and i == self.AtomTypeList.index('HD'):
+            maxLen = 1
 
         if residue.name == "VAL" and i == 11:
             maxLen = 2
 
-        if residue.name == "LEU" and i == 12:
+        if residue.name == "LEU" and i == self.AtomTypeList.index('HD'):
             maxLen = 2
 
         if residue.name == "THR" and i == 11:
