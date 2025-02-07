@@ -15,9 +15,9 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2025-01-03 18:35:02 +0000 (Fri, January 03, 2025) $"
-__version__ = "$Revision: 3.2.11 $"
+__modifiedBy__ = "$modifiedBy: Daniel Thompson $"
+__dateModified__ = "$dateModified: 2025-02-07 12:02:50 +0000 (Fri, February 07, 2025) $"
+__version__ = "$Revision: 3.3.1 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -1291,7 +1291,7 @@ class StripPlot(Widget, _commonSettings, SignalBlocking):
             self.spectrumDisplayPulldown = SpectrumDisplaySelectionWidget(
                     parent=self.spectrumDisplayOptionsFrame,
                     mainWindow=self.mainWindow, grid=(0, 0),
-                    gridSpan=(1, 0), texts=texts, displayText=[],
+                    gridSpan=(1, 0), texts=texts, displayText=[ALL],
                     objectWidgetChangedCallback=self._spectrumDisplaySelectionPulldownCallback,
                     labelText='Pick Peaks in\n'
                               'Display')
@@ -1309,6 +1309,9 @@ class StripPlot(Widget, _commonSettings, SignalBlocking):
 
         self.maxRows = rows
         self._registerNotifiers()
+
+        # ensure a refresh of the listWidget.
+        self._spectrumDisplaySelectionPulldownCallback()
 
     def storeWidgetState(self):
         """Store the state of the checkBoxes between popups
@@ -1734,7 +1737,7 @@ class ObjectSelectionWidget(ListCompoundWidget):
         super().__init__(parent=parent,
                          vAlign=vAlign, stretch=stretch, hAlign=hAlign, vPolicy=vPolicy,
                          fixedWidths=fixedWidths, orientation=orientation,
-                         labelText=labelText, tipText=tipText, texts=texts,
+                         labelText=labelText, tipText=tipText, texts=texts, defaults=displayText,
                          callback=self._selectObjectInList, **kwds)
 
         # default to 5 rows
