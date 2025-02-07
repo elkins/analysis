@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2025-02-07 16:21:22 +0000 (Fri, February 07, 2025) $"
+__dateModified__ = "$dateModified: 2025-02-12 14:26:38 +0000 (Wed, February 12, 2025) $"
 __version__ = "$Revision: 3.2.12 $"
 #=========================================================================================
 # Created
@@ -949,10 +949,6 @@ class CalculateAssignmentDataPopup(CcpnDialogMainWidget):
                                                   comment='Problematic Chemical Shift')
 
             self.accept()
-
-    def _cleanupDialog(self):
-        self.chainListWidget.unRegister()
-        self.chemicalShiftListWidget.unRegister()
 
 
 def main():
