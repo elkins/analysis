@@ -1,7 +1,7 @@
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2025"
 __credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
                "Timothy J Ragan, Brian O Smith, Daniel Thompson",
                "Gary S Thompson & Geerten W Vuister")
@@ -12,9 +12,9 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-05-30 15:51:32 +0100 (Thu, May 30, 2024) $"
-__version__ = "$Revision: 3.2.3 $"
+__modifiedBy__ = "$modifiedBy: Luca Mureddu $"
+__dateModified__ = "$dateModified: 2025-02-11 15:57:08 +0000 (Tue, February 11, 2025) $"
+__version__ = "$Revision: 3.3.1 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -255,6 +255,9 @@ class SequenceHandler():
 
         # ~~~~ error checking done ~~~~ #
         result[INPUT] = sequence
+        if self.moleculeType in [RNA, DNA]: # these are allowed only in ccpCode to be safe and avoid ambiguities
+            result = self._parseCCPsequence(result, sequence, standardsOnly=False, conversionErrorMode='skip')
+            return result
         ##  deal with 1CodeLetter
         is1Code = self._isCode1LetterSequence(sequence)
         if is1Code:
@@ -276,22 +279,23 @@ class SequenceHandler():
             result[CCPCODE] = self.threeToCcpCode(sequence, standardsOnly=standardsOnly)
             result[ERRORS] = errorIndices
             return result
-
         ##  deal with a CcpCode format.
         else:
-            isValid, errorIndices = self._isValidSequence(sequence, CCPCODE, standardsOnly=False)
-            result[CCPCODE] = self._validateCcpCode(sequence)
-            result[ISVALID] = isValid
-            result[ERRORS] = errorIndices
-            ## temporarily switch to warning mode to try the conversion to 1-3 letter code.
-            errorMode = self._errorMode
-            self._errorMode = 'warning' # only because the conversion to 1-3 letter code is not guaranteed to be available, but still be a valid sequence
-            result[CODE1LETTER] = self.ccpCodeToOneCode(sequence, standardsOnly=True) #1letter is only for standards!
-            result[CODE3LETTER] = self.ccpCodeToThreeCode(sequence, standardsOnly=standardsOnly)
-            self._errorMode = errorMode
-
+            self. _parseCCPsequence(result, sequence, standardsOnly=False, conversionErrorMode = 'warning' )
         return result
 
+    def _parseCCPsequence(self, result, sequence, standardsOnly=False, conversionErrorMode = 'warning' ):
+        # result = self._getSequenceMapTemplate()
+        isValid, errorIndices = self._isValidSequence(sequence, CCPCODE, standardsOnly=standardsOnly)
+        result[CCPCODE] = self._validateCcpCode(sequence)
+        result[ISVALID] = isValid
+        result[ERRORS] = errorIndices
+        ## temporarily switch to warning mode to try the conversion to 1-3 letter code.
+        self._errorMode = conversionErrorMode  # only because the conversion to 1-3 letter code is not guaranteed to be available, but still be a valid sequence
+        result[CODE1LETTER] = self.ccpCodeToOneCode(sequence, standardsOnly=True)  #1letter is only for standards!
+        result[CODE3LETTER] = self.ccpCodeToThreeCode(sequence, standardsOnly=standardsOnly)
+        self._errorMode = conversionErrorMode
+        return result
 
     def _getSequenceMapTemplate(self):
         """ The dictionary template used for conversions and parsing"""
@@ -337,10 +341,12 @@ class SequenceHandler():
                 msg = f'Cannot convert {code} from {columnOrigin} to {columnTarget}.'
                 if self._errorMode in ['raise', 'strict', 'ValueError']:
                     raise RuntimeError(msg)
-                else:
+                elif self._errorMode in ['warn', 'warning']:
                     convertedCode = None
                     if not self._supressWarning:
                         warnings.warn(msg)
+                else:
+                    continue
             else:
                 convertedCode = foundDf[columnTarget].values[-1]
             result.append(convertedCode)
