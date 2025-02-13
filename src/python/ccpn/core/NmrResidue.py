@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Daniel Thompson $"
-__dateModified__ = "$dateModified: 2025-02-12 16:58:34 +0000 (Wed, February 12, 2025) $"
+__dateModified__ = "$dateModified: 2025-02-13 11:57:10 +0000 (Thu, February 13, 2025) $"
 __version__ = "$Revision: 3.3.1 $"
 #=========================================================================================
 # Created
@@ -1244,11 +1244,12 @@ class NmrResidue(AbstractWrapperObject):
                     existingNmrAtom = self.getNmrAtom(nmrAtom.name)
                     if existingNmrAtom is None:
                         # move resonance
-                        # resonance = nmrAtom._wrappedData
-                        # resonance.resonanceGroup = apiResonanceGroup
-                        # DT: unsure if this solution is bad practice.
-                        tempAtom = self.fetchNmrAtom(nmrAtom.name, isotopeCode=nmrAtom.isotopeCode)
-                        absorbResonance(tempAtom, nmrAtom)
+                        resonance = nmrAtom._wrappedData
+                        resonance.resonanceGroup = apiResonanceGroup
+                        # hotfix to ensure correct pid
+                        oldName = nmrAtom.name
+                        nmrAtom.rename(None)
+                        nmrAtom.rename(oldName)
                     else:
                         absorbResonance(existingNmrAtom, nmrAtom)
 
