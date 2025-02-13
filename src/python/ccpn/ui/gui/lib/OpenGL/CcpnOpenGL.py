@@ -56,8 +56,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: Daniel Thompson $"
-__dateModified__ = "$dateModified: 2025-02-04 16:39:41 +0000 (Tue, February 04, 2025) $"
+__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
+__dateModified__ = "$dateModified: 2025-02-13 12:55:38 +0000 (Thu, February 13, 2025) $"
 __version__ = "$Revision: 3.3.1 $"
 #=========================================================================================
 # Created
@@ -5600,10 +5600,7 @@ class CcpnGLWidget(QOpenGLWidget):
     def _widthsChangedEnough(r1, r2, tol=1e-5):
         if len(r1) != len(r2):
             raise ValueError('WidthsChanged must be the same length')
-
-        for ii in zip(r1, r2):
-            if abs(ii[0] - ii[1]) > tol:
-                return True
+        return any(abs(a - b) > tol for a, b in zip(r1, r2))
 
     def getAxisPosition(self, axisIndex):
         position = None
@@ -6594,18 +6591,19 @@ class CcpnGLWidget(QOpenGLWidget):
 
         # set the checkboxes to the correct settings
         strip.toolbarAction.setChecked(strip.spectrumDisplay.spectrumUtilToolBar.isVisible())
-        if hasattr(strip, 'crosshairAction'):
-            strip.crosshairAction.setChecked(self._crosshairVisible)
-
-        strip.gridAction.setChecked(self._gridVisible)
-        strip.peakSymbolAction.setChecked(self._peakSymbolsEnabled)
-        strip.peakLabelAction.setChecked(self._peakLabelsEnabled)
-
-        if hasattr(strip, 'lastAxisOnlyCheckBox'):
-            strip.lastAxisOnlyCheckBox.setChecked(strip.spectrumDisplay.lastAxisOnly)
-
+        if attrib := getattr(strip, 'crosshairAction', None):
+            attrib.setChecked(self._crosshairVisible)
+        if attrib := getattr(strip, 'gridAction', None):
+            attrib.setChecked(self._gridVisible)
+        if attrib := getattr(strip, 'peakSymbolAction', None):
+            attrib.setChecked(self._peakSymbolsEnabled)
+        if attrib := getattr(strip, 'peakLabelAction', None):
+            attrib.setChecked(self._peakLabelsEnabled)
+        if attrib := getattr(strip, 'lastAxisOnlyCheckBox', None):
+            attrib.setChecked(strip.spectrumDisplay.lastAxisOnly)
         if not strip.spectrumDisplay.is1D:
-            strip.sideBandsAction.setChecked(self._sideBandsVisible)
+            if attrib := getattr(strip, 'sideBandsAction', None):
+                attrib.setChecked(self._sideBandsVisible)
 
         if strip._isPhasingOn:
             menu = strip._contextMenus.get(PhasingMenu)
@@ -6930,9 +6928,9 @@ class CcpnGLWidget(QOpenGLWidget):
 
                             addUndoItem(undo=partial(setattr, obj, VALUES, preValues),
                                         redo=partial(setattr, obj, VALUES, postValues), )
-                        if hasattr(obj, 'editingFinished'):  #fire callback when drag is finished
+                        if attrib := getattr(obj, 'editingFinished', None):  #fire callback when drag is finished
                             _d = {VALUES: getattr(obj, VALUES), 'obj': obj}
-                            obj.editingFinished.emit(_d)
+                            attrib.emit(_d)
 
             self._dragValues = {}
 
