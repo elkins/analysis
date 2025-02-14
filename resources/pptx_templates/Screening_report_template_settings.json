@@ -22,6 +22,7 @@
         },
         "xlabel": {
             "xlabel": "[ppm]",
+            "family": "Helvetica",
             "fontsize": 4,
             "ha": "right",
             "x": 1.0,

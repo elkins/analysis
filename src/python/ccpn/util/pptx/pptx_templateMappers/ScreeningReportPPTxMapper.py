@@ -508,23 +508,34 @@ class _MatchingPeaksPlotter():
         peakPids = row[[mv.Reference_PeakPid, mv.Control_PeakPid, mv.Target_PeakPid, mv.Displacer_PeakPid]].values
         peaks = self.templateMapper.project.getByPids(peakPids)
 
+        labelAdded = False  # To track if the label has already been added
+
         for peak in peaks:
-            self._plotPeak(ax, peak)
+            x, y = self._regionDataCache.get(peak.pid, (np.array([]), np.array([])))
+            # Set addNoDataLabel to True only for the first peak with y == 0
+            addNoDataLabel = np.all(y == 0) and not labelAdded
+            if addNoDataLabel:
+                labelAdded = True  # Ensure the label is added only once
+            self._plotPeak(ax, peak, addNoDataLabel=addNoDataLabel)
 
         self._adjustAxisLimits(ax, row, globalMin, globalMax)
         self._customizeAxis(ax)
 
-    def _plotPeak(self, ax, peak):
+    def _plotPeak(self, ax, peak, addNoDataLabel=False):
         """Plot each single 1D peak on the given axis."""
         spectrum = peak.spectrum
         color = spectrum.sliceColour
-        x, y = self._regionDataCache.get(peak.pid, ([], []))
+        x, y = self._regionDataCache.get(peak.pid, (np.array([]), np.array([])))
         plotSettings = self._plotSettings.get('spectrum_line')
         try: # try just in case some options from the settings file  are not allowed/wrong
-            ax.plot(x, y, color=color, label=peak.id, **plotSettings)
+            if np.all(y == 0): # we don't have spectral data
+                ax.plot(x, y, color='grey', label=peak.id, **plotSettings)
+                if addNoDataLabel: # we don't need to add many times the same label!
+                    self._plotDataNotAvailable(ax, peak, plotSettings, x, y)
+            else:
+                ax.plot(x, y, color=color, label=peak.id, **plotSettings)
         except Exception as err:
             getLogger().debug(f'PPTx report. Plotting error: {err}')
-
 
         if self._showPeakSymbols:
             ax.scatter(float(peak.position[0]), float(peak.height), color=color, **self._plotSettings.get('peak_symbol', {}))
@@ -532,6 +543,12 @@ class _MatchingPeaksPlotter():
         if self._showPeakLabels:
             peakLegendSettings =  self._plotSettings.get('peak_legend_settings', {})
             ax.legend(**peakLegendSettings)
+
+    def _plotDataNotAvailable(self, ax, peak, plotSettings, x, y):
+        userFontSettings = self._plotSettings.get('xlabel', {})
+        fontSettings = {'fontsize': userFontSettings.get('size', 5), 'family': userFontSettings.get('family', 'Helvetica'), 'ha': 'left', 'va': 'center',  'color':  'grey'}
+        plt.text(x[0], 1, '[Spectral data not available]', **fontSettings)  #add text
+
 
     def _adjustAxisLimits(self, ax, row, globalMin, globalMax):
         """Adjust the Y-axis limits for the plot."""
@@ -594,9 +611,13 @@ class _MatchingPeaksPlotter():
             pointLimits = peakPointPosition - extraPointLimit, peakPointPosition + extraPointLimit
             pointsRange = abs(pointLimits[1] - pointLimits[0]) + 1
             ppmLimits = [spectrum.point2ppm(pointLimit, axisCode) for pointLimit in pointLimits]
-            regionData = spectrum.getRegion(**{axisCode: ppmLimits})
-            regionData *= spectrum.scale
             ppmRange = np.linspace(*ppmLimits, pointsRange)
+            regionData = np.zeros(len(ppmRange)) # init with Zeros just in case regionData is not available (e.g.: no spectra path etc)
+            try:
+                regionData = spectrum.getRegion(**{axisCode: ppmLimits})
+                regionData *= spectrum.scale
+            except Exception as err:
+                getLogger().warning(f'No region data available for spectrum {spectrum}. {err}')
             peaksRegionData[peak.pid] = (ppmRange, regionData)
         return peaksRegionData
 
