@@ -17,7 +17,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2025-02-05 10:14:12 +0000 (Wed, February 05, 2025) $"
+__dateModified__ = "$dateModified: 2025-02-14 17:36:57 +0000 (Fri, February 14, 2025) $"
 __version__ = "$Revision: 3.3.1 $"
 #=========================================================================================
 # Created
@@ -680,7 +680,7 @@ class CcpnModule(Dock, DropBase, NotifierBase):
     def enterEvent(self, event):
         super().enterEvent(event)
         if not getBlockingDialogs('enter-event'):
-            if self.mainWindow.application.preferences.general.focusFollowsMouse:
+            if (self.mainWindow and self.mainWindow.application.preferences.general.focusFollowsMouse):
                 if self.area is not None:
                     if not self.area._isNameEditing():
                         self.setFocus()

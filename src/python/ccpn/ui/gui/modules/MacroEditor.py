@@ -1,7 +1,7 @@
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2025"
 __credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
                "Timothy J Ragan, Brian O Smith, Daniel Thompson",
                "Gary S Thompson & Geerten W Vuister")
@@ -13,8 +13,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-11-13 13:22:52 +0000 (Wed, November 13, 2024) $"
-__version__ = "$Revision: 3.2.10 $"
+__dateModified__ = "$dateModified: 2025-02-14 17:36:57 +0000 (Fri, February 14, 2025) $"
+__version__ = "$Revision: 3.3.1 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -53,7 +53,7 @@ from collections import OrderedDict
 
 DoubleUnderscore = '__'
 _filenameLineEdit = 'filenameLineEdit'
-SaveMsgTipText = 'Note: macros are automatically saved at every changes'
+SaveMsgTipText = 'Note: Files are automatically saved after every change if this option is enabled in General Preferences.'
 
 
 PROFILING_SORTINGS = OrderedDict([ # (arg to go on script, tipText)
@@ -108,10 +108,7 @@ class MacroEditor(CcpnModule):
     _includeInLastSeen = False
 
     def __init__(self, mainWindow=None, name='MacroEditor', filePath=None, restore=True):
-        paths = [aPath(path) for path in mainWindow.current.macroFiles]
-        if aPath(filePath) in paths:
-            MessageDialog.showMessage('Already Opened.', 'This file is already opened in the project')
-            raise TypeError('This Macro is already opened in the project')
+
 
         CcpnModule.__init__(self, mainWindow=mainWindow, name=name)
 
@@ -122,6 +119,7 @@ class MacroEditor(CcpnModule):
         self.preferences = None
         self._pythonConsole = None
         self.ccpnMacroPath = ccpnMacroPath
+        self._genericFile = False
         self._editor_windows = []  # used when running the macro externally on Analysis
         self.autoOpenPythonConsole = False  # When run: always open the PythonConsole module to see the output.
         self._preEditorText = ''  # text as appeared the first time the file was opened
@@ -131,6 +129,9 @@ class MacroEditor(CcpnModule):
         self._tempFile = None  # a temp file holder, used when the filePath is not specified
         self._restore = restore  # will not restore the widget state if opened from a menu.
         self.userMacroDirPath = None  # dir path containing user Macros. from preferences if defined otherwise from .ccpn/macros
+        self.macroSaveProfile = True
+        self.autoOpenPythonConsole = True
+        self.macroAutosave = True
 
         if self.mainWindow:  # is running in Analysis
             self.application = mainWindow.application
@@ -143,9 +144,17 @@ class MacroEditor(CcpnModule):
 
         if self.preferences:
             self.userMacroDirPath = self.preferences.general.userMacroPath
+            self.macroSaveProfile = self.preferences.general.macroSaveProfile
             self.autoOpenPythonConsole = self.preferences.appearance.autoOpenPythonConsoleOnMacroEditor
+            self.macroAutosave = self.preferences.general.macroAutosave
         if self.userMacroDirPath is None and self.application:
             self.userMacroDirPath = self.application.tempMacrosPath
+
+        if self.mainWindow:
+            paths = [aPath(path) for path in mainWindow.current.macroFiles]
+            if aPath(filePath) in paths:
+                MessageDialog.showMessage('Already Opened.', 'This file is already opened in the project')
+                raise TypeError('This File is already opened in the project')
 
         if not self.filePath:
             if self.userMacroDirPath is None:
@@ -218,7 +227,7 @@ class MacroEditor(CcpnModule):
         from ccpn.ui.gui.widgets import CompoundWidgets as CW
         self.safeProfileFileCheckBox = CW.CheckBoxCompoundWidget(self.settingsWidget,
                                                        labelText='Save Profiler to disk',
-                                                       checked=self.preferences.general.macroSaveProfile, # True,
+                                                       checked=self.macroSaveProfile, # True,
                                                        orientation='left', hAlign='left',
                                                        tipText='When running with the Profiler, save the stats to disk '
                                                                '(in the same dir as the running macro)',
@@ -226,7 +235,7 @@ class MacroEditor(CcpnModule):
         hGrid += 1
         self.autoSaveCheckBox = CW.CheckBoxCompoundWidget(self.settingsWidget,
                                                        labelText='Autosave',
-                                                       checked=self.preferences.general.macroAutosave,  # True,
+                                                       checked=self.macroAutosave,  # True,
                                                        orientation='left', hAlign='left',
                                                        tipText='Code written in the macro editor will automatically save',
                                                        grid=(hGrid, 0), gridSpan=(1, 1))
@@ -350,12 +359,12 @@ class MacroEditor(CcpnModule):
         """
         Opens a save file dialog and saves the text inside the textbox to a file specified in the dialog.
         """
-        fType = '*.py'
+        fType = '*.py' if not self._genericFile else None
         dialog = MacrosFileDialog(parent=self, acceptMode='save', selectFile=self.filePath, fileFilter=fType)
         dialog._show()
         filePath = dialog.selectedFile()
         if filePath is not None:
-            if not filePath.endswith('.py'):
+            if not filePath.endswith('.py') and not self._genericFile:
                 filePath += '.py'
             if self.filePath != filePath:
                 self._removeMacroFromCurrent()
@@ -369,12 +378,35 @@ class MacroEditor(CcpnModule):
     def exportToPdf(self):
         self.textEditor.saveToPDF()
 
+    def _toggleRunActions(self, enabled):
+        actionNames = ['Run', 'Run-Profile', 'Add to shortcut']
+        for actionName in actionNames:
+            if action := self._getToolbarAction(actionName):
+                action.setEnabled(enabled)
+
     def openPath(self, filePath):
-        if not filePath.endswith('.py'):
-            MessageDialog.showMessage('Format Not Supported.', 'On MacroEditor you can only use a *.py file type')
+        if filePath.endswith('.py'):
+            self._genericFile = False
+            self._toggleRunActions(True)
+            self.textEditor._unloadStarSynthax()
+            self.textEditor._loadPySynthax()
+
+        elif filePath.endswith('.nef'):
+            self.textEditor._unloadPySynthax()
+            self.textEditor._loadStarSynthax()
+            self._genericFile = True
+            self._toggleRunActions(False)
+        else:
+            self._genericFile = True
+            self._toggleRunActions(False)
+            self.textEditor._unloadStarSynthax()
+            self.textEditor._loadPySynthax()
 
         with open(aPath(filePath), 'r') as f:
-            self.textEditor.textChanged.disconnect()
+            try:
+                self.textEditor.textChanged.disconnect()
+            except TypeError:
+                getLogger().debug3('textEditor has no connected signals')
             self.textEditor.setUndoRedoEnabled(False)
             self.textEditor.clear()
             # for line in f.readlines():  # changed to f.read() instead of line by line.
@@ -389,6 +421,8 @@ class MacroEditor(CcpnModule):
             self._setCurrentMacro()
             self._setFileName()
             self.textEditor.textChanged.connect(self._textedChanged)
+            self._lastSaved = self.textEditor.toPlainText()
+            self.textEditor.syntax_highlighter.rehighlight()
 
     def revertChanges(self):
         # revert to initial text. If the initial state is empty. a pop-up will ask to confirm.
@@ -405,7 +439,7 @@ class MacroEditor(CcpnModule):
             self.textEditor.insertPlainText(self._preEditorText)
 
     def _textedChanged(self, *args):
-        if self.autoSaveCheckBox.isChecked():
+        if self.macroAutosave:
             self.saveMacro()
             self.textEditor._on_text_changed()
             self._lastTimestp = os.stat(self.filePath).st_mtime
@@ -542,6 +576,11 @@ class MacroEditor(CcpnModule):
         else:
             MessageDialog.showMessage('Set shortcuts', 'This option is available only within Analysis')
 
+    def _getToolbarAction(self, objectName):
+        for a in self.toolbar.actions():
+            if a.objectName() == objectName:
+                return a
+
     def _processDroppedItems(self, data):
         """
         CallBack for Drop events
@@ -617,14 +656,36 @@ class MacroEditor(CcpnModule):
             getLogger().debug("Trying to remove a temporary Macro file which does not exist")
 
     def _saveTextToFile(self):
+
+        if not self.textEditor.get() and self._lastSaved:
+            answer = MessageDialog.showMulti('You’re about to save an empty macro that was previously written.', 'Do you want to continue?', ['Clear Only', 'Save Empty', 'Undo'])
+            if answer == 'Clear Only':
+                return
+            if answer == 'Undo':
+                self.textEditor.undo()
+                return
+
+        sucess = False
         if filePath := self.filePath:
-            if not filePath.endswith('.py'):
-                filePath += '.py'
-            try:
-                with open(aPath(filePath), 'w') as f:
-                    f.write(self.textEditor.toPlainText())
-            except (PermissionError, FileNotFoundError):
-                getLogger().debug2('folder may be read-only')
+            if self._genericFile:
+                try:
+                    with open(aPath(filePath), 'w') as f:
+                        f.write(self.textEditor.toPlainText())
+                        sucess = True
+                except (PermissionError, FileNotFoundError):
+                    getLogger().debug2('folder may be read-only')
+                    sucess = False
+            else:
+                if not filePath.endswith('.py'):
+                    filePath += '.py'
+                try:
+                    with open(aPath(filePath), 'w') as f:
+                        f.write(self.textEditor.toPlainText())
+                        sucess = True
+
+                except (PermissionError, FileNotFoundError):
+                    getLogger().debug2('folder may be read-only')
+                    sucess = False
 
         if self.filePath:
             self._lastSaved = self.textEditor.toPlainText()
@@ -647,7 +708,12 @@ class MacroEditor(CcpnModule):
     def _setFileName(self):
         if self.filePath:
             self._filenameLineEdit.set(str(self.filePath))
-            self.filePathLabel.set(str(self.filePath))
+            lastTime = self._lastTimestp
+            self.filePathLabel.set(f'{self.filePath}')
+            if lastTime:
+                timestamp = datetime.datetime.fromtimestamp(lastTime).strftime('%d/%m/%y %H:%M:%S')
+                saveMessage = f'Changes saved (Last at {timestamp})'
+                self.filePathLabel.set(f'{self.filePath}\n{saveMessage}')
 
     def _isInCurrent(self, filePath):
         if self.current:
@@ -735,6 +801,7 @@ class MacroEditor(CcpnModule):
 
         self.area._seenModuleStates[self.className] = {MODULENAME: self.moduleName, WIDGETSTATE: widgetsState}
         self._includeInLastSeen = False # otherwise overrides the saved state.
+        self._lastSaved = None
         super()._closeModule()
 
 
@@ -755,7 +822,7 @@ if __name__ == '__main__':
 
     win.setCentralWidget(moduleArea)
     win.resize(1000, 500)
-    win.setWindowTitle('Testing %s' % module.moduleName)
+    win.setWindowTitle(module.moduleName)
     win.show()
 
     app.start()
