@@ -427,6 +427,7 @@ class ScreeningReportTemplateMapper(PPTxTemplateMapperABC):
                     df[newCol] = df[newCol].astype('Int64')  # Using 'Int64' to support NaN values
                 else:
                     # Apply rounding
+                    df[newCol] = pd.to_numeric(df[newCol], errors='coerce')
                     df[newCol] = df[newCol].round(properties['round'])
 
         return df
