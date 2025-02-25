@@ -4,7 +4,7 @@ This file contains the Preference object and related methods;
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2025"
 __credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
                "Timothy J Ragan, Brian O Smith, Daniel Thompson",
                "Gary S Thompson & Geerten W Vuister")
@@ -15,9 +15,9 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-10-16 10:05:19 +0100 (Wed, October 16, 2024) $"
-__version__ = "$Revision: 3.2.7 $"
+__modifiedBy__ = "$modifiedBy: Daniel Thompson $"
+__dateModified__ = "$dateModified: 2025-02-25 14:04:49 +0000 (Tue, February 25, 2025) $"
+__version__ = "$Revision: 3.3.1 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -307,7 +307,7 @@ class Preferences(AttrDict):
             if not (invDir := userPreferencesPathInvalid).exists():
                 invDir.mkdir(parents=True, exist_ok=True)
 
-            invFile = invDir / f'v3settings-{prefs._applicationVersion}.json'
+            invFile = invDir / f'v3settings-{prefs.get("_applicationVersion") or "unknownVer"}.json'
             with invFile.open(mode='w') as fp:
                 json.dump(prefs, fp, indent=4)
 
