@@ -1,6 +1,9 @@
 """
 Module Documentation here
 """
+from __future__ import annotations
+
+
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
@@ -15,8 +18,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: Daniel Thompson $"
-__dateModified__ = "$dateModified: 2025-02-07 12:02:50 +0000 (Fri, February 07, 2025) $"
+__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
+__dateModified__ = "$dateModified: 2025-02-25 15:04:59 +0000 (Tue, February 25, 2025) $"
 __version__ = "$Revision: 3.3.1 $"
 #=========================================================================================
 # Created
@@ -28,6 +31,8 @@ __date__ = "$Date: 2017-04-07 10:28:41 +0000 (Fri, April 07, 2017) $"
 #=========================================================================================
 
 import contextlib
+from functools import partial
+from typing import Callable
 from PyQt5 import QtWidgets
 from PyQt5.QtCore import pyqtSignal as Signal, pyqtSlot as Slot
 from ccpn.ui.gui.widgets.CompoundWidgets import ListCompoundWidget
@@ -48,14 +53,16 @@ from ccpn.ui.gui.widgets.HLine import HLine, LabeledHLine
 from ccpn.ui.gui.widgets.PulldownListsForObjects import NmrChainPulldown
 from ccpn.core.lib.Notifiers import Notifier
 from ccpn.ui._implementation.SpectrumView import SpectrumView
-from functools import partial
 from ccpn.ui.gui.lib.OpenGL.CcpnOpenGLNotifier import GLNotifier
-from ccpn.ui.gui.lib.OpenGL.CcpnOpenGLDefs import AXISXUNITS, AXISYUNITS, \
-    SYMBOLTYPE, SYMBOLSIZE, SYMBOLTHICKNESS, ARROWTYPES, ARROWSIZE, ARROWMINIMUM, \
-    ANNOTATIONTYPE, AXISASPECTRATIOS, \
-    AXISASPECTRATIOMODE, ALIASENABLED, ALIASSHADE, ALIASLABELSENABLED, CONTOURTHICKNESS, \
-    PEAKSYMBOLSENABLED, PEAKLABELSENABLED, PEAKARROWSENABLED, \
-    MULTIPLETSYMBOLSENABLED, MULTIPLETLABELSENABLED, MULTIPLETARROWSENABLED, MULTIPLETANNOTATIONTYPE, MULTIPLETTYPE
+from ccpn.ui.gui.lib.OpenGL.CcpnOpenGLDefs import (AXISXUNITS, AXISYUNITS,
+                                                   SYMBOLTYPE, SYMBOLSIZE, SYMBOLTHICKNESS, ARROWTYPES, ARROWSIZE,
+                                                   ARROWMINIMUM,
+                                                   ANNOTATIONTYPE, AXISASPECTRATIOS,
+                                                   AXISASPECTRATIOMODE, ALIASENABLED, ALIASSHADE, ALIASLABELSENABLED,
+                                                   CONTOURTHICKNESS,
+                                                   PEAKSYMBOLSENABLED, PEAKLABELSENABLED, PEAKARROWSENABLED,
+                                                   MULTIPLETSYMBOLSENABLED, MULTIPLETLABELSENABLED,
+                                                   MULTIPLETARROWSENABLED, MULTIPLETANNOTATIONTYPE, MULTIPLETTYPE)
 from ccpn.ui.gui.widgets.Spinbox import Spinbox
 from ccpn.core.lib.AxisCodeLib import getAxisCodeMatchIndices
 from ccpn.ui.gui.widgets.Base import SignalBlocking
@@ -136,10 +143,7 @@ class SpectrumDisplaySettings(Widget, SignalBlocking):
             self.current = mainWindow.application.current
             self.preferences = mainWindow.application.preferences
         else:
-            self.application = None
-            self.project = None
-            self.current = None
-            self.preferences = None
+            self.application = self.project = self.current = self.preferences = None
 
         # store callbacks
         self.callback = callback
@@ -798,12 +802,26 @@ class SpectrumDisplaySettings(Widget, SignalBlocking):
                     self.aspectData[aspect].setText(aspectValue)
 
 
+#=========================================================================================
+# _commonSettings
+#=========================================================================================
+
 class _commonSettings():
     """
     Not to be used as a stand-alone class
     """
 
     prevNotifierObj = None
+    mainWindow = WeakRefDescriptor()
+    application = WeakRefDescriptor()
+    project = WeakRefDescriptor()
+    current = WeakRefDescriptor()
+
+    _spectraWidget: Widget | None = None
+    spectrumDisplayOptionsFrame: Frame | None = None
+    axisCodeOptionsDict: dict = None
+    spectrumDisplayPulldown: SpectrumDisplaySelectionWidget | None = None
+    _changeAxisCode: Callable = None
 
     # separated from settings widgets below, but only one seems to use it now
 
@@ -862,7 +880,7 @@ class _commonSettings():
                         visibleAxisCodes[ind] = OrderedSet([axis])
 
         ll = len(activeDisplay.axisCodes)
-        axisLabels = [None] * ll
+        axisLabels = ['' for _ in range(ll)]
         for ii in range(ll):
             axisLabels[ii] = ', '.join(visibleAxisCodes[ii])
 
@@ -1052,6 +1070,9 @@ class _commonSettings():
     def _spectrumDisplaySelectionPulldownCallback(self, data=None):
         """Notifier Callback for selecting a spectrumDisplay
         """
+        if not self.spectrumDisplayPulldown:
+            return
+
         texts = self.spectrumDisplayPulldown.getTexts()
         if ALL in texts:
             gids = self.project.spectrumDisplays
@@ -1085,8 +1106,17 @@ STORELIST = 'listButtons'
 STORENMRCHAIN = 'includeNmrChainPullSelection'
 
 
+#=========================================================================================
+# StripPlot
+#=========================================================================================
+
 class StripPlot(Widget, _commonSettings, SignalBlocking):
     _storedState = {}
+
+    mainWindow = WeakRefDescriptor()
+    application = WeakRefDescriptor()
+    project = WeakRefDescriptor()
+    current = WeakRefDescriptor()
 
     def __init__(self, parent=None,
                  mainWindow=None,
@@ -1112,9 +1142,7 @@ class StripPlot(Widget, _commonSettings, SignalBlocking):
             self.current = mainWindow.application.current
             displayText = [display.pid for display in self.application.ui.mainWindow.spectrumDisplays]
         else:
-            self.application = None
-            self.project = None
-            self.current = None
+            self.application = self.project = self.current = None
             displayText = []
 
         self.callback = callback
@@ -1131,8 +1159,6 @@ class StripPlot(Widget, _commonSettings, SignalBlocking):
         # cannot set a notifier for displays, as these are not (yet?) implemented and the Notifier routines
         # underpinning the addNotifier call do not allow for it either
         row = 0
-        colwidth = 180
-
         texts = [defaultSpectrum.pid] if (defaultSpectrum and defaultSpectrum is not NO_STRIP) else (
                 [ALL] + displayText)
 
@@ -1737,7 +1763,7 @@ class ObjectSelectionWidget(ListCompoundWidget):
         super().__init__(parent=parent,
                          vAlign=vAlign, stretch=stretch, hAlign=hAlign, vPolicy=vPolicy,
                          fixedWidths=fixedWidths, orientation=orientation,
-                         labelText=labelText, tipText=tipText, texts=texts, defaults=displayText,
+                         labelText=labelText, tipText=tipText, texts=texts,  #defaults=displayText,
                          callback=self._selectObjectInList, **kwds)
 
         # default to 5 rows

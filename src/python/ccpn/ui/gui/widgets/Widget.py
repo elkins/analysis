@@ -23,8 +23,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2025-01-03 18:35:02 +0000 (Fri, January 03, 2025) $"
-__version__ = "$Revision: 3.2.11 $"
+__dateModified__ = "$dateModified: 2025-02-25 15:04:59 +0000 (Tue, February 25, 2025) $"
+__version__ = "$Revision: 3.3.1 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -100,18 +100,18 @@ class WidgetCorner(Widget):
 
 
 class ScrollableWidget(Widget):
-    "A scrollable Widget"
+    """A scrollable Widget"""
 
     def __init__(self, parent=None, setLayout=False,
                  minimumSizes=(50, 50), scrollBarPolicies=('asNeeded', 'asNeeded'), **kwds):
 
-        # define a scroll area; check kwds if these apply to gridding
+        # define a scroll area; check kwds if these apply to grid
         kw1 = {}
         for key in 'grid gridSpan stretch hAlign vAlign'.split():
             if key in kwds:
                 kw1[key] = kwds[key]
                 del (kwds[key])
-        kw1['setLayout'] = True  ## always assure a layout for the scrollarea
+        kw1['setLayout'] = True  ## always assure a layout for the scroll-area
 
         self.scrollArea = ScrollArea(parent=parent,
                                      scrollBarPolicies=scrollBarPolicies, minimumSizes=minimumSizes,
@@ -131,32 +131,32 @@ class ScrollableWidget(Widget):
         self.setScrollBarPolicies(scrollBarPolicies)
 
     def setMinimumSizes(self, minimumSizes):
-        "Set (minimumWidth, minimumHeight)"
+        """Set (minimumWidth, minimumHeight)"""
         self.setMinimumWidth(minimumSizes[0])
         self.setMinimumHeight(minimumSizes[1])
 
     def getScrollArea(self):
-        "return scroll area (for external usage)"
+        """return scroll area (for external usage)"""
         return self.scrollArea
 
     def setScrollBarPolicies(self, scrollBarPolicies=('asNeeded', 'asNeeded')):
-        "Set the scrolbar policy: always, never, asNeeded"
+        """Set the scrolbar policy: always, never, asNeeded"""
         self.scrollArea.setScrollBarPolicies(scrollBarPolicies)
 
 
-if __name__ == '__main__':
+def main():
     from ccpn.ui.gui.widgets.Application import TestApplication
     from ccpn.ui.gui.widgets.BasePopup import BasePopup
     from ccpn.ui.gui.widgets.Label import Label
-    from ccpn.ui.gui.widgets.Widget import Widget
-
 
     class TestPopup(BasePopup):
         def body(self, parent):
-            widget = Widget(parent, grid=(0, 0))
+            # parent doesn't have a layout
+            widget = Widget(parent, grid=(0, 0), setLayout=True)
             policyDict = dict(
                     hAlign='c',
                     stretch=(1, 0),
+                    setLayout=True,
                     #hPolicy = 'center',
                     #vPolicy = 'center'
                     )
@@ -164,17 +164,21 @@ if __name__ == '__main__':
             #TODO: find the cause of the empty space between the widgets
             #frame3 = ScrollableFrame(parent=parent, showBorder=True, bgColor=(255, 0, 255), grid=(2,0))
             frame1 = Widget(parent=widget, grid=(0, 0), bgColor=(255, 255, 0), **policyDict)
-            label1 = Label(parent=frame1, grid=(0, 0), text="WIDGET-1", bold=True, textColour='black', textSize='32')
+            Label(parent=frame1, grid=(0, 0), text="WIDGET-1", bold=True, textColour='black', textSize=32)
 
             frame2 = Widget(parent=widget, grid=(1, 0), bgColor=(255, 0, 0), **policyDict)
-            label2 = Label(parent=frame2, grid=(0, 0), text="WIDGET-2", bold=True, textColour='black', textSize='32')
+            Label(parent=frame2, grid=(0, 0), text="WIDGET-2", bold=True, textColour='black', textSize=32)
 
-            scroll4 = ScrollableWidget(parent=widget, grid=(2, 0))
-            label4 = Label(parent=scroll4, text="ScrollableWidget", grid=(1, 0), **policyDict,
-                           bold=True, textColour='black', textSize='32')
+            scroll4 = ScrollableWidget(parent=widget, grid=(2, 0), **policyDict)
+            Label(parent=scroll4, text="ScrollableWidget", grid=(1, 0),
+                  bold=True, textColour='black', textSize=32)
 
 
     app = TestApplication()
     popup = TestPopup(title='Test Frame')
     popup.resize(200, 400)
     app.start()
+
+
+if __name__ == '__main__':
+    main()
