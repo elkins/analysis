@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Daniel Thompson $"
-__dateModified__ = "$dateModified: 2025-02-07 12:02:50 +0000 (Fri, February 07, 2025) $"
+__dateModified__ = "$dateModified: 2025-02-25 14:04:19 +0000 (Tue, February 25, 2025) $"
 __version__ = "$Revision: 3.3.1 $"
 #=========================================================================================
 # Created
@@ -30,6 +30,11 @@ __date__ = "$Date: 2017-04-07 10:28:41 +0000 (Fri, April 07, 2017) $"
 import contextlib
 from PyQt5 import QtWidgets
 from PyQt5.QtCore import pyqtSignal as Signal, pyqtSlot as Slot
+
+from ccpn.ui.gui.widgets.Tabs import Tabs
+from ccpn.ui.gui.widgets.Frame import Frame, ScrollableFrame
+
+from ccpn.ui.gui.popups.PreferencesPopup import DEFAULTSPACING
 from ccpn.ui.gui.widgets.CompoundWidgets import ListCompoundWidget
 from ccpn.ui.gui.widgets.Widget import Widget
 from ccpn.ui.gui.widgets.Button import Button
@@ -74,6 +79,8 @@ from ccpn.ui._implementation.SpectrumDisplay import SpectrumDisplay
 from ccpn.util.Logging import getLogger
 
 
+from collections import OrderedDict
+
 ALL = '<Use all>'
 UseCurrent = '<Use active>'
 IncludeCurrent = '<Current Strip>'
@@ -89,7 +96,58 @@ STRIPPLOT_NMRCHAINS = 'nmrChains'
 STRIPPLOT_NMRATOMSFROMPEAKS = 'nmrAtomsPeaks'
 NO_STRIP = 'noStrip'
 LineEditsMinimumWidth = 195
+TABMARGINS = (1, 10, 10, 1)  # l, t, r, b
+ZEROMARGINS = (0, 0, 0, 0) # l, t, r, b
 
+
+class PickAndAssignSettings(Widget):
+    def __init__(self, parent=None, mainWindow=None, **kwds):
+        super().__init__(parent, setLayout=True, **kwds)
+
+        # Derive application, project, and current from mainWindow
+        self.mainWindow = mainWindow
+        if mainWindow:
+            self.application = mainWindow.application
+            self.project = mainWindow.application.project
+            self.current = mainWindow.application.current
+        else:
+            self.application = self.project = self.current = None
+
+        self._setTabs(parent)
+        self.setMinimumWidth(self.sizeHint().width())
+
+    def _setTabs(self, parent):
+        settingsDict = OrderedDict(
+                ((LINKTOPULLDOWNCLASS, {'label'   : f'Link to current {PeakList.className}',
+                                        'tipText' : f'Set/update current {PeakList.className} when selecting from pulldown',
+                                        'callBack': None,
+                                        'enabled' : True,
+                                        'checked' : False,
+                                        '_init'   : None}),
+                 ))
+
+        self.tabWidget = Tabs(parent, grid=(0, 0), gridSpan=(1, 3))
+        self.tabWidget.setContentsMargins(*ZEROMARGINS)
+        self.nmrResidueTableSettingsFrame = ScrollableFrame(parent, setLayout=True, spacing=DEFAULTSPACING,
+                                                            scrollBarPolicies=('never', 'asNeeded'), margins=TABMARGINS)
+        self.peakTableSettingsFrame = ScrollableFrame(parent, setLayout=True, spacing=DEFAULTSPACING,
+                                                      scrollBarPolicies=('never', 'asNeeded'), margins=TABMARGINS)
+
+        self.tabWidget.addTab(self.nmrResidueTableSettingsFrame.scrollArea, 'NmrChain Table')
+        self.tabWidget.addTab(self.peakTableSettingsFrame.scrollArea, 'Peak Table')
+
+        self.nmrResidueTableSettings = StripPlot(parent=self.nmrResidueTableSettingsFrame, mainWindow=self.mainWindow,
+                                                 includeDisplaySettings=True,
+                                                 includePeakLists=False,
+                                                 includeNmrChains=False,
+                                                 includeSpectrumTable=True,
+                                                 activePulldownClass=NmrChain,
+                                                 activePulldownInitialState=False,
+                                                 grid=(1, 0))
+
+        self.peakTableSettings = ModuleSettingsWidget(parent=self.peakTableSettingsFrame, mainWindow=self.mainWindow,
+                                                      settingsDict=settingsDict,
+                                                      grid=(1, 0))
 
 class SpectrumDisplaySettings(Widget, SignalBlocking):
     # signal for parentWidgets to respond to changes in the widget
@@ -1052,6 +1110,9 @@ class _commonSettings():
     def _spectrumDisplaySelectionPulldownCallback(self, data=None):
         """Notifier Callback for selecting a spectrumDisplay
         """
+        if not self.spectrumDisplayPulldown:
+            return
+
         texts = self.spectrumDisplayPulldown.getTexts()
         if ALL in texts:
             gids = self.project.spectrumDisplays
@@ -1199,6 +1260,16 @@ class StripPlot(Widget, _commonSettings, SignalBlocking):
                                            tipText=f'Set/update current {self.activePulldownClass.className} when selecting from pulldown',
                                            checked=activePulldownInitialState
                                            ))
+
+        row += 1
+        self.onlyRestrictedBox = CheckBoxCompoundWidget(
+                self,
+                grid=(row, 0), vAlign='top', stretch=(0, 0), hAlign='left',
+                fixedWidths=(colwidth, None),
+                orientation='left',
+                labelText='Assign restricted axes only',
+                checked=True
+                )
 
         row += 1
         texts = []
@@ -1737,7 +1808,7 @@ class ObjectSelectionWidget(ListCompoundWidget):
         super().__init__(parent=parent,
                          vAlign=vAlign, stretch=stretch, hAlign=hAlign, vPolicy=vPolicy,
                          fixedWidths=fixedWidths, orientation=orientation,
-                         labelText=labelText, tipText=tipText, texts=texts, defaults=displayText,
+                         labelText=labelText, tipText=tipText, texts=texts,
                          callback=self._selectObjectInList, **kwds)
 
         # default to 5 rows
