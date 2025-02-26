@@ -13,7 +13,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2025-02-14 17:36:57 +0000 (Fri, February 14, 2025) $"
+__dateModified__ = "$dateModified: 2025-02-26 16:18:21 +0000 (Wed, February 26, 2025) $"
 __version__ = "$Revision: 3.3.1 $"
 #=========================================================================================
 # Created
@@ -385,44 +385,39 @@ class MacroEditor(CcpnModule):
                 action.setEnabled(enabled)
 
     def openPath(self, filePath):
-        if filePath.endswith('.py'):
-            self._genericFile = False
-            self._toggleRunActions(True)
-            self.textEditor._unloadStarSynthax()
-            self.textEditor._loadPySynthax()
+        with self.textEditor.blockWidgetSignals():
+            if filePath.endswith('.py'):
+                self._genericFile = False
+                self._toggleRunActions(True)
+                self.textEditor._unloadStarSynthax()
+                self.textEditor._loadPySynthax()
 
-        elif filePath.endswith('.nef'):
-            self.textEditor._unloadPySynthax()
-            self.textEditor._loadStarSynthax()
-            self._genericFile = True
-            self._toggleRunActions(False)
-        else:
-            self._genericFile = True
-            self._toggleRunActions(False)
-            self.textEditor._unloadStarSynthax()
-            self.textEditor._loadPySynthax()
+            elif filePath.endswith('.nef'):
+                self.textEditor._unloadPySynthax()
+                self.textEditor._loadStarSynthax()
+                self._genericFile = True
+                self._toggleRunActions(False)
+            else:
+                self._genericFile = True
+                self._toggleRunActions(False)
+                self.textEditor._unloadStarSynthax()
+                self.textEditor._loadPySynthax()
 
-        with open(aPath(filePath), 'r') as f:
-            try:
-                self.textEditor.textChanged.disconnect()
-            except TypeError:
-                getLogger().debug3('textEditor has no connected signals')
-            self.textEditor.setUndoRedoEnabled(False)
-            self.textEditor.clear()
-            # for line in f.readlines():  # changed to f.read() instead of line by line.
-            #     self.textEditor.insertPlainText(line)
-            self.textEditor.insertPlainText(f.read())
-            self.textEditor.setUndoRedoEnabled(True)
-            # self.macroFile = f
-            self._removeMacroFromCurrent()
-            self.filePath = filePath
-            self._preEditorText = self.textEditor.get()
-            self._lastTimestp = None
-            self._setCurrentMacro()
-            self._setFileName()
-            self.textEditor.textChanged.connect(self._textedChanged)
-            self._lastSaved = self.textEditor.toPlainText()
-            self.textEditor.syntax_highlighter.rehighlight()
+            with open(aPath(filePath), 'r') as f:
+
+                self.textEditor.setUndoRedoEnabled(False)
+                self.textEditor.clear()
+                self.textEditor.insertPlainText(f.read())
+                self.textEditor.setUndoRedoEnabled(True)
+                # self.macroFile = f
+                self._removeMacroFromCurrent()
+                self.filePath = filePath
+                self._preEditorText = self.textEditor.get()
+                self._lastTimestp = None
+                self._setCurrentMacro()
+                self._setFileName()
+                self._lastSaved = self.textEditor.toPlainText()
+                self.textEditor.syntax_highlighter.rehighlight()
 
     def revertChanges(self):
         # revert to initial text. If the initial state is empty. a pop-up will ask to confirm.
