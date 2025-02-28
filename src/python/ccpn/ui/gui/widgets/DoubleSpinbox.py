@@ -5,9 +5,10 @@
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
-__credits__ = ("Ed Brooksbank, Joanna Fox, Morgan Hayward, Victoria A Higman, Luca Mureddu",
-               "Eliza Płoskoń, Timothy J Ragan, Brian O Smith, Gary S Thompson & Geerten W Vuister")
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2025"
+__credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
+               "Timothy J Ragan, Brian O Smith, Daniel Thompson",
+               "Gary S Thompson & Geerten W Vuister")
 __licence__ = ("CCPN licence. See https://ccpn.ac.uk/software/licensing/")
 __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, L.G., & Vuister, G.W.",
                  "CcpNmr AnalysisAssign: a flexible platform for integrated NMR analysis",
@@ -16,8 +17,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-04-23 22:03:03 +0100 (Tue, April 23, 2024) $"
-__version__ = "$Revision: 3.2.5 $"
+__dateModified__ = "$dateModified: 2025-02-28 15:53:53 +0000 (Fri, February 28, 2025) $"
+__version__ = "$Revision: 3.3.1 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -34,8 +35,9 @@ from functools import partial
 from contextlib import contextmanager, suppress
 from PyQt5 import QtGui, QtWidgets, QtCore
 from PyQt5.QtCore import pyqtSignal
-from ccpn.ui.gui.widgets.Base import Base
 from math import floor, log10, isclose
+from ccpn.ui.gui.widgets.Base import Base
+from ccpn.util.Logging import getLogger
 
 
 SPINBOXSTEP = 10
@@ -155,7 +157,6 @@ class DoubleSpinbox(QtWidgets.QDoubleSpinBox, Base):
             self.setValue(value)
 
         # must be set after setting value/limits
-        self._callback = None
         self.setCallback(callback)
         self.setContextMenuPolicy(QtCore.Qt.DefaultContextMenu)
 
@@ -254,11 +255,15 @@ class DoubleSpinbox(QtWidgets.QDoubleSpinBox, Base):
     def setCallback(self, callback):
         """Sets callback; disconnects if callback=None
         """
-        if self._callback is not None:
+        try:
+            # shouldn't be any external connections
             self.valueChanged.disconnect()
+        except Exception:
+            getLogger().debug2(f"No callback to disconnect {self}:{self.valueChanged.signal}")
+        else:
+            getLogger().debug2(f"{self}:{self.valueChanged.signal} disconnected")
         if callback:
             self.valueChanged.connect(callback)
-        self._callback = callback
 
     def textFromValue(self, v: typing.Union[float, int]) -> str:
         """Subclass to remove extra zeroes
@@ -266,7 +271,8 @@ class DoubleSpinbox(QtWidgets.QDoubleSpinBox, Base):
         if isinstance(v, int):
             return super(DoubleSpinbox, self).textFromValue(v)
 
-        string = self._qLocale.toString(round(v, self.decimals()), 'g', QtCore.QLocale.FloatingPointShortest).replace("e+", "e")
+        string = self._qLocale.toString(round(v, self.decimals()), 'g',
+                                        QtCore.QLocale.FloatingPointShortest).replace("e+", "e")
         string = re.sub("e(-?)0*(\d+)", r"e\1\2", string)
         return string
 
@@ -335,6 +341,10 @@ class DoubleSpinbox(QtWidgets.QDoubleSpinBox, Base):
         # set the warning colour and then set back to background colour
         self._flashColour(self._validationInvalid)
         QtCore.QTimer.singleShot(timer, partial(self._flashColour, self.baseColour))
+
+    def close(self):
+        self.setCallback(None)
+        super().close()
 
 
 # Regular expression to find floats. Match groups are the whole string, the

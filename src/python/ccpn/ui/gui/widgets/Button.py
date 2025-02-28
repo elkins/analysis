@@ -4,7 +4,7 @@ This module implements the Button class
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2025"
 __credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
                "Timothy J Ragan, Brian O Smith, Daniel Thompson",
                "Gary S Thompson & Geerten W Vuister")
@@ -16,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-12-19 14:46:11 +0000 (Thu, December 19, 2024) $"
-__version__ = "$Revision: 3.2.11 $"
+__dateModified__ = "$dateModified: 2025-02-28 15:53:53 +0000 (Fri, February 28, 2025) $"
+__version__ = "$Revision: 3.3.1 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -32,6 +32,7 @@ from ccpn.framework.Translation import translator
 from ccpn.ui.gui.widgets.Base import Base
 from ccpn.ui.gui.widgets.Icon import Icon
 from ccpn.ui.gui.widgets.Font import getFontHeight
+from ccpn.util.Logging import getLogger
 
 
 CHECKED = QtCore.Qt.Checked
@@ -67,7 +68,6 @@ class Button(QtWidgets.QPushButton, Base):
         self.setProperty('focusBorderField', bool(enableFocusBorder))
         self.setProperty('toggleField', bool(toggle))
 
-        self._callback = None
         self.setCallback(callback)
 
         # set the initial enabled state of the button
@@ -125,12 +125,15 @@ class Button(QtWidgets.QPushButton, Base):
 
     def setCallback(self, callback=None):
         """Sets callback; disconnects if callback=None"""
-        if self._callback is not None:
+        try:
+            # shouldn't be any external connections
             self.clicked.disconnect()
+        except Exception:
+            getLogger().debug2(f"No callback to disconnect {self}:{self.clicked.signal}")
+        else:
+            getLogger().debug2(f"{self}:{self.clicked.signal} disconnected")
         if callback:
             self.clicked.connect(callback)
-            # self.clicked.connect doesn't work with lambda, yet...
-        self._callback = callback
 
     def setText(self, text):
         """Set the text of the button, applying the translator first"""
@@ -157,6 +160,10 @@ class Button(QtWidgets.QPushButton, Base):
 
         if self.toggle:
             return self.set(value)
+
+    def close(self):
+        self.setCallback(None)
+        super().close()
 
 
 if __name__ == '__main__':
