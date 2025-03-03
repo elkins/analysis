@@ -13,7 +13,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2025-02-11 15:57:08 +0000 (Tue, February 11, 2025) $"
+__dateModified__ = "$dateModified: 2025-03-03 14:38:47 +0000 (Mon, March 03, 2025) $"
 __version__ = "$Revision: 3.3.1 $"
 #=========================================================================================
 # Created
@@ -255,7 +255,7 @@ class SequenceHandler():
 
         # ~~~~ error checking done ~~~~ #
         result[INPUT] = sequence
-        if self.moleculeType in [RNA, DNA]: # these are allowed only in ccpCode to be safe and avoid ambiguities
+        if self.moleculeType== RNA: # these are allowed only in ccpCode to be safe and avoid ambiguities
             result = self._parseCCPsequence(result, sequence, standardsOnly=False, conversionErrorMode='skip')
             return result
         ##  deal with 1CodeLetter
