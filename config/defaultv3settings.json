@@ -362,6 +362,10 @@
         "_ProjectTableABC": {
             "columnHeader": null,
             "hiddenColumns": null
+        },
+        "_AssignmentInspectorPeakTable": {
+            "columnHeader": null,
+            "hiddenColumns": null
         }
     },
     "modules": {
