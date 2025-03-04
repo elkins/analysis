@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Daniel Thompson $"
-__dateModified__ = "$dateModified: 2025-02-25 14:04:19 +0000 (Tue, February 25, 2025) $"
+__dateModified__ = "$dateModified: 2025-03-04 15:39:02 +0000 (Tue, March 04, 2025) $"
 __version__ = "$Revision: 3.3.1 $"
 #=========================================================================================
 # Created
@@ -33,6 +33,7 @@ from PyQt5.QtCore import pyqtSignal as Signal, pyqtSlot as Slot
 
 from ccpn.ui.gui.widgets.Tabs import Tabs
 from ccpn.ui.gui.widgets.Frame import Frame, ScrollableFrame
+from ccpn.ui.gui.lib.alignWidgets import alignWidgets
 
 from ccpn.ui.gui.popups.PreferencesPopup import DEFAULTSPACING
 from ccpn.ui.gui.widgets.CompoundWidgets import ListCompoundWidget
@@ -114,7 +115,7 @@ class PickAndAssignSettings(Widget):
             self.application = self.project = self.current = None
 
         self._setTabs(parent)
-        self.setMinimumWidth(self.sizeHint().width())
+        self._initSettings()
 
     def _setTabs(self, parent):
         settingsDict = OrderedDict(
@@ -128,9 +129,9 @@ class PickAndAssignSettings(Widget):
 
         self.tabWidget = Tabs(parent, grid=(0, 0), gridSpan=(1, 3))
         self.tabWidget.setContentsMargins(*ZEROMARGINS)
-        self.nmrResidueTableSettingsFrame = ScrollableFrame(parent, setLayout=True, spacing=DEFAULTSPACING,
+        self.nmrResidueTableSettingsFrame = ScrollableFrame(parent, mainWindow=self.mainWindow, setLayout=True, spacing=DEFAULTSPACING,
                                                             scrollBarPolicies=('never', 'asNeeded'), margins=TABMARGINS)
-        self.peakTableSettingsFrame = ScrollableFrame(parent, setLayout=True, spacing=DEFAULTSPACING,
+        self.peakTableSettingsFrame = ScrollableFrame(parent, mainWindow=self.mainWindow, setLayout=True, spacing=DEFAULTSPACING,
                                                       scrollBarPolicies=('never', 'asNeeded'), margins=TABMARGINS)
 
         self.tabWidget.addTab(self.nmrResidueTableSettingsFrame.scrollArea, 'NmrChain Table')
@@ -148,6 +149,27 @@ class PickAndAssignSettings(Widget):
         self.peakTableSettings = ModuleSettingsWidget(parent=self.peakTableSettingsFrame, mainWindow=self.mainWindow,
                                                       settingsDict=settingsDict,
                                                       grid=(1, 0))
+
+    def _initSettings(self):
+        # change default-settings inherited from NmrResidueTableModule
+        self.nmrResidueTableSettings.sequentialStripsWidget.checkBox.setChecked(False)
+
+        if self.nmrResidueTableSettings.displaysWidget:
+            self.nmrResidueTableSettings.displaysWidget.addPulldownItem(0)  # select the <all> option
+
+        self.nmrResidueTableSettings.setLabelText('Navigate to\nDisplay(s)')
+
+        # # these need to change whenever different spectrumDisplays are selected
+        if self.nmrResidueTableSettings.axisCodeOptions:
+            self.nmrResidueTableSettings.axisCodeOptions.selectAll()
+
+            # just clear the 'C' axes - this is the usual configuration
+            for ii, box in enumerate(self.nmrResidueTableSettings.axisCodeOptions.checkBoxes):
+                if box.text().upper().startswith('C'):
+                    self.nmrResidueTableSettings.axisCodeOptions.clearIndex(ii)
+
+        # fix the second column to stop extra widgets flickering
+        alignWidgets(self.nmrResidueTableSettings, columnScale=1.2)
 
 class SpectrumDisplaySettings(Widget, SignalBlocking):
     # signal for parentWidgets to respond to changes in the widget
@@ -1346,26 +1368,14 @@ class StripPlot(Widget, _commonSettings, SignalBlocking):
             self.spectrumDisplayOptionsFrame = Frame(self, setLayout=True, showBorder=False, fShape='noFrame',
                                                      grid=(row, 0), gridSpan=(row + 2, 0),
                                                      vAlign='top', hAlign='left')
-            # Spectrum Display Options Frame
-            # important part
-            # add a new pullDown to select the active spectrumDisplay
-            # self.spectrumDisplayPulldown = SpectrumDisplayPulldown(parent=self.spectrumDisplayOptionsFrame,
-            #                                                        mainWindow=self.mainWindow, default=None,
-            #                                                        grid=(0, 0), gridSpan=(1, 0),
-            #                                                        minimumWidths=(0, colwidth),
-            #                                                        showSelectName=True,
-            #                                                        sizeAdjustPolicy=QtWidgets.QComboBox.AdjustToContents,
-            #                                                        callback=self._spectrumDisplaySelectionPulldownCallback,
-            #                                                        labelText='Pick Peaks in Display'
-            #                                                        )
 
             self.spectrumDisplayPulldown = SpectrumDisplaySelectionWidget(
                     parent=self.spectrumDisplayOptionsFrame,
                     mainWindow=self.mainWindow, grid=(0, 0),
                     gridSpan=(1, 0), texts=texts, displayText=[ALL],
                     objectWidgetChangedCallback=self._spectrumDisplaySelectionPulldownCallback,
-                    labelText='Pick Peaks in\n'
-                              'Display')
+                    labelText='Pick Peaks\n'
+                              'in Display')
         else:
             # just to be sure
             self.spectrumDisplayPulldown = None
@@ -1380,9 +1390,6 @@ class StripPlot(Widget, _commonSettings, SignalBlocking):
 
         self.maxRows = rows
         self._registerNotifiers()
-
-        # ensure a refresh of the listWidget.
-        self._spectrumDisplaySelectionPulldownCallback()
 
     def storeWidgetState(self):
         """Store the state of the checkBoxes between popups
