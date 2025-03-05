@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Daniel Thompson $"
-__dateModified__ = "$dateModified: 2025-03-04 15:39:02 +0000 (Tue, March 04, 2025) $"
+__dateModified__ = "$dateModified: 2025-03-05 15:51:45 +0000 (Wed, March 05, 2025) $"
 __version__ = "$Revision: 3.3.1 $"
 #=========================================================================================
 # Created
@@ -114,10 +114,10 @@ class PickAndAssignSettings(Widget):
         else:
             self.application = self.project = self.current = None
 
-        self._setTabs(parent)
+        self._setWidgets(parent)
         self._initSettings()
 
-    def _setTabs(self, parent):
+    def _setWidgets(self, parent):
         settingsDict = OrderedDict(
                 ((LINKTOPULLDOWNCLASS, {'label'   : f'Link to current {PeakList.className}',
                                         'tipText' : f'Set/update current {PeakList.className} when selecting from pulldown',
@@ -127,28 +127,29 @@ class PickAndAssignSettings(Widget):
                                         '_init'   : None}),
                  ))
 
-        self.tabWidget = Tabs(parent, grid=(0, 0), gridSpan=(1, 3))
-        self.tabWidget.setContentsMargins(*ZEROMARGINS)
-        self.nmrResidueTableSettingsFrame = ScrollableFrame(parent, mainWindow=self.mainWindow, setLayout=True, spacing=DEFAULTSPACING,
-                                                            scrollBarPolicies=('never', 'asNeeded'), margins=TABMARGINS)
-        self.peakTableSettingsFrame = ScrollableFrame(parent, mainWindow=self.mainWindow, setLayout=True, spacing=DEFAULTSPACING,
-                                                      scrollBarPolicies=('never', 'asNeeded'), margins=TABMARGINS)
+        # self.tabWidget = Tabs(parent, grid=(0, 0), gridSpan=(1, 3))
+        # self.tabWidget.setContentsMargins(*ZEROMARGINS)
+        # self.nmrResidueTableSettingsFrame = ScrollableFrame(parent, mainWindow=self.mainWindow, setLayout=True,
+        #                                                     scrollBarPolicies=('never', 'asNeeded'), grid=(0, 0), gridSpan=(1, 3))
+        # self.peakTableSettingsFrame = ScrollableFrame(parent, mainWindow=self.mainWindow, setLayout=True, spacing=DEFAULTSPACING,
+        #                                               scrollBarPolicies=('never', 'asNeeded'), margins=TABMARGINS)
 
-        self.tabWidget.addTab(self.nmrResidueTableSettingsFrame.scrollArea, 'NmrChain Table')
-        self.tabWidget.addTab(self.peakTableSettingsFrame.scrollArea, 'Peak Table')
+        # self.tabWidget.addTab(self.nmrResidueTableSettingsFrame.scrollArea, 'NmrChain Table')
+        # self.tabWidget.addTab(self.peakTableSettingsFrame.scrollArea, 'Peak Table')
 
-        self.nmrResidueTableSettings = StripPlot(parent=self.nmrResidueTableSettingsFrame, mainWindow=self.mainWindow,
+        self.nmrResidueTableSettings = StripPlot(parent=parent, mainWindow=self.mainWindow,
                                                  includeDisplaySettings=True,
                                                  includePeakLists=False,
                                                  includeNmrChains=False,
                                                  includeSpectrumTable=True,
                                                  activePulldownClass=NmrChain,
                                                  activePulldownInitialState=False,
-                                                 grid=(1, 0))
+                                                 grid=(0, 0))
 
-        self.peakTableSettings = ModuleSettingsWidget(parent=self.peakTableSettingsFrame, mainWindow=self.mainWindow,
+        self.peakTableSettings = ModuleSettingsWidget(parent=parent, mainWindow=self.mainWindow,
                                                       settingsDict=settingsDict,
-                                                      grid=(1, 0))
+                                                      grid=(0, 0))
+        self.peakTableSettings.setVisible(False)
 
     def _initSettings(self):
         # change default-settings inherited from NmrResidueTableModule
