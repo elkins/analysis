@@ -4,7 +4,7 @@ Module Documentation here
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2025"
 __credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
                "Timothy J Ragan, Brian O Smith, Daniel Thompson",
                "Gary S Thompson & Geerten W Vuister")
@@ -16,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-08-23 19:25:21 +0100 (Fri, August 23, 2024) $"
-__version__ = "$Revision: 3.2.5 $"
+__dateModified__ = "$dateModified: 2025-03-06 16:19:25 +0000 (Thu, March 06, 2025) $"
+__version__ = "$Revision: 3.3.1 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -29,11 +29,16 @@ __date__ = "$Date: 2020-04-03 10:29:12 +0000 (Fri, April 03, 2020) $"
 
 from enum import Enum
 from types import DynamicClassAttribute
-from typing import Any
+from typing import Any, TypeVar, Generic
 from typing_extensions import Self
 
 
-class DataEnum(Enum):
+ValueType = TypeVar("ValueType")  # Type for value
+DataValueType = TypeVar("DataValueType")  # Type for dataValue
+_SENTINEL = object()
+
+
+class DataEnum(Generic[ValueType, DataValueType], Enum):
     """Class to handle enumerated types with associated descriptions and dataValues.
 
     e.g.
@@ -42,12 +47,18 @@ class DataEnum(Enum):
         INTEGER = 1, 'Integer', <dataValue 2>
         STRING = 2, 'String', <dataValue 3>
     """
-    def __new__(cls, value: Any, description: str = None, dataValue: Any = None):
+    # ensure that enums are consistently defined
+    _value_: ValueType
+    _description_: str | None
+    _dataValue_: DataValueType
+
+    def __new__(cls, value: ValueType, description: str = None, dataValue: DataValueType = None) -> Self:
         """Create new instance of enum member."""
         obj = object.__new__(cls)
-        # if (first_member := next(iter(obj.values()), None)) is not None and \
-        #         not isinstance(value, (expected_type := type(first_member))):
-        #     raise TypeError(f"All values in  must be of type {expected_type.__name__}")
+        # Get the first existing member's value-type for consistency check
+        if (first_member := next(iter(cls.__members__.values()), _SENTINEL)) is not _SENTINEL and \
+                not isinstance(value, (expected_type := type(first_member.value))):
+            raise TypeError(f"All values in {cls.__name__} must be of type {expected_type.__name__}")
         obj._value_ = value
         # add optional extra information
         obj._description_ = description
@@ -63,7 +74,7 @@ class DataEnum(Enum):
 
     # ensure the dataValue is read-only
     @DynamicClassAttribute
-    def dataValue(self) -> Any:
+    def dataValue(self) -> DataValueType:
         """Return the dataValue."""
         return self._dataValue_
 
@@ -132,7 +143,7 @@ class DataEnum(Enum):
         return result if any(val is not None for val in result) else None
 
     @classmethod
-    def names(cls) -> tuple[str]:
+    def names(cls) -> tuple[str, ...]:
         """Return a tuple of all names."""
         return tuple(v._name_ for v in cls)
 
@@ -149,6 +160,8 @@ class DataEnum(Enum):
         except KeyError:
             raise ValueError(f'value must be one of {repr(cls.names())}')
 
+
+#=========================================================================================
 
 def main():
     """A few small tests for the labelled Enum
@@ -175,10 +188,6 @@ def main():
     print(Test(1))
     print(Test.STRING)
     print(Test.dataValues() is None)
-    try:
-        print(Test.get(1))
-    except ValueError:
-        ...
     print(Test.get('FLOAT'))
     print(Test.getByDescription(None))
 
