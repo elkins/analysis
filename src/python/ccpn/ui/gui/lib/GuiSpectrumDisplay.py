@@ -15,9 +15,9 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: Daniel Thompson $"
-__dateModified__ = "$dateModified: 2025-01-28 16:31:42 +0000 (Tue, January 28, 2025) $"
-__version__ = "$Revision: 3.2.11 $"
+__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
+__dateModified__ = "$dateModified: 2025-03-06 18:17:32 +0000 (Thu, March 06, 2025) $"
+__version__ = "$Revision: 3.3.1 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -1193,7 +1193,7 @@ class GuiSpectrumDisplay(CcpnModule):
                 self._bottomGLAxis.hide()
                 # self._rightGLAxis._glAxisLockChanged(aDict)
                 self._stripAddMode = None
-                self._rightGLAxis._updateAxes = True
+                self._rightGLAxis._notifyAxesChange = True
             else:
                 self._stripFrameScrollArea.setViewportMargins(0, 0, 0, self._bottomGLAxis.height())
                 # self._stripFrameScrollArea.setViewportMargins(0, 0, self._rightGLAxis.width(), self._bottomGLAxis.height())
@@ -1203,7 +1203,7 @@ class GuiSpectrumDisplay(CcpnModule):
                 self._bottomGLAxis.show()
                 # self._bottomGLAxis._glAxisLockChanged(aDict)
                 self._stripAddMode = None
-                self._bottomGLAxis._updateAxes = True
+                self._bottomGLAxis._notifyAxesChange = True
 
         self.stripFrame.update()
         self._stripFrameScrollArea._updateAxisWidgets()
@@ -1595,33 +1595,6 @@ class GuiSpectrumDisplay(CcpnModule):
                             if not replaceAnnotation:  # if want appending instead of replacing
                                 annotation = ', '.join(filter(None, set([peak.annotation, substance.name])))  # Filter to make sure is not duplicating any existing annotation
                             peak.annotation = annotation
-
-        # # FIXME below still doesn't work if in stack mode
-        # point = QtGui.QCursor.pos()
-        # destStrip = QtWidgets.QApplication.widgetAt(point)
-        #
-        # if destStrip and isinstance(destStrip, CcpnGLWidget):
-        #     objectsClicked = destStrip.getObjectsUnderMouse()
-        #
-        #     if objectsClicked is None:
-        #         return
-        #
-        #     if PEAKSELECT in objectsClicked or MULTIPLETSELECT in objectsClicked:
-        #         # dropped onto a peak or multiplet
-        #         # dropping onto a multiplet will apply to all attached peaks
-        #         # Set substance name to peak.annotation
-        #         peaks = set(self.current.peaks)
-        #         for mult in self.current.multiplets:
-        #             peaks = peaks | set(mult.peaks)
-        #         for substance in substances:
-        #             for peak in peaks:
-        #                 # make sure is not duplicating any existing annotation, and is appending not replacing.
-        #                 annotation = ', '.join(filter(None, set([peak.annotation, substance.name])))
-        #                 peak.annotation = annotation
-        #
-        #     elif not objectsClicked:
-        #         # function not defined yet
-        #         showWarning('Dropped Substance(s).','Action not implemented yet' )
 
     def _handleNmrAtoms(self, nmrAtoms):
 
@@ -2440,7 +2413,7 @@ class GuiSpectrumDisplay(CcpnModule):
                 self.stripFrame.setMinimumHeight(STRIP_MINIMUMHEIGHT)
                 try:
                     self._rightGLAxis.setMinimumHeight(STRIP_MINIMUMHEIGHT - self.strips[0]._stripToolBarWidget.height())
-                    self._rightGLAxis._updateAxes = True
+                    self._rightGLAxis._notifyAxesChange = True
                     self._rightGLAxis.update()
                 except:
                     pass
@@ -2507,7 +2480,7 @@ class GuiSpectrumDisplay(CcpnModule):
                 self.stripFrame.setMinimumWidth(STRIP_MINIMUMWIDTH)
                 if hasattr(self, '_bottomGLAxis'):
                     self._bottomGLAxis.setMinimumWidth(STRIP_MINIMUMWIDTH)
-                    self._bottomGLAxis._updateAxes = True
+                    self._bottomGLAxis._notifyAxesChange = True
                     self._bottomGLAxis.update()
 
             self.stripFrame.show()
@@ -2700,7 +2673,7 @@ class GuiSpectrumDisplay(CcpnModule):
             getLogger().debug('displaySpectrum: Spectrum %s already in display %s' % (spectrum, self))
             return _specViews[0]
 
-        # keep this as may be needed for undo/redo gui operations
+        # NOTE:ED - keep this as may be needed for undo/redo gui operations
         # with undoStackBlocking() as _:  # Do not add to undo/redo stack
         #     # _getDimensionsMapping will check the match for axisCodes
         #     displayOrder = (1, 0) if self.is1D else self._getDimensionsMapping(spectrum)

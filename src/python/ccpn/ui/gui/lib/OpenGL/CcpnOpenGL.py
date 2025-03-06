@@ -57,7 +57,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2025-02-13 12:55:38 +0000 (Thu, February 13, 2025) $"
+__dateModified__ = "$dateModified: 2025-03-06 18:17:32 +0000 (Thu, March 06, 2025) $"
 __version__ = "$Revision: 3.3.1 $"
 #=========================================================================================
 # Created
@@ -74,9 +74,10 @@ import time
 import numpy as np
 from functools import partial
 from typing import Tuple
+from itertools import takewhile
 from pyqtgraph import functions as fn
 from PyQt5 import QtCore, QtGui, QtWidgets
-from PyQt5.QtCore import QPoint, Qt, pyqtSlot
+from PyQt5.QtCore import QPoint, Qt, pyqtSlot as Slot
 from PyQt5.QtWidgets import QApplication, QOpenGLWidget
 from PyQt5.QtGui import QSurfaceFormat
 from ccpn.core.PeakList import PeakList
@@ -91,7 +92,8 @@ from ccpn.ui.gui.guiSettings import (CCPNGLWIDGET_BACKGROUND, CCPNGLWIDGET_FOREG
                                      CCPNGLWIDGET_PHASETRACE, getColours,
                                      CCPNGLWIDGET_HEXBACKGROUND, CCPNGLWIDGET_ZOOMAREA, CCPNGLWIDGET_PICKAREA,
                                      CCPNGLWIDGET_SELECTAREA, CCPNGLWIDGET_ZOOMLINE, CCPNGLWIDGET_MOUSEMOVELINE,
-                                     CCPNGLWIDGET_HARDSHADE, CCPNGLWIDGET_BADAREA, CCPNGLWIDGET_BUTTON_FOREGROUND)
+                                     CCPNGLWIDGET_HARDSHADE, CCPNGLWIDGET_BADAREA, CCPNGLWIDGET_BUTTON_FOREGROUND,
+                                     consoleStyle)
 from ccpn.ui.gui.lib.mouseEvents import (leftMouse, shiftLeftMouse, controlLeftMouse, controlShiftLeftMouse,
                                          controlShiftRightMouse,
                                          middleMouse, shiftMiddleMouse, rightMouse, shiftRightMouse, controlRightMouse,
@@ -120,9 +122,10 @@ from ccpn.ui.gui.lib.GuiStripContextMenus import (_hidePeaksSingleActionItems, _
                                                   _setEnabledAllItems, _ARRANGELABELS,
                                                   _RESETLABELS)
 from ccpn.core.lib.AxisCodeLib import getAxisCodeMatchIndices
-from ccpn.core.lib.ContextManagers import undoBlockWithoutSideBar, notificationEchoBlocking, undoStackBlocking
+from ccpn.core.lib.ContextManagers import undoBlockWithoutSideBar, undoStackBlocking
 from ccpn.core.lib.Notifiers import Notifier
 from ccpn.core.lib import Pid
+from ccpn.util.decorators import profile
 from ccpn.util.Constants import AXIS_FULLATOMNAME
 from ccpn.util.Logging import getLogger
 
@@ -152,7 +155,25 @@ SCROLL_DELTA_LIMIT = 12.0
 SCROLL_DELTA_SCALE = 12.0
 
 AXES_MARKER_MIN_PIXEL = 10
+_DEBUG = False
 
+
+# duplication here :|
+def _buildSingleWildCard(axisCodes: list[str]) -> str:
+    """Build the axisCode appending wildcard as required
+    """
+    if not axisCodes:
+        return '*'
+    shortest = min(axisCodes, key=len)
+    # Check if all words are the same
+    if all(code == shortest for code in axisCodes):
+        return shortest
+    return ''.join(c[0] for c in takewhile(lambda x: len(set(x)) == 1, zip(*axisCodes))) + '*'
+
+
+#=========================================================================================
+# CcpnGLWidget
+#=========================================================================================
 
 class CcpnGLWidget(QOpenGLWidget):
     """Widget to handle all visible spectra/peaks/integrals/multiplets
@@ -176,9 +197,19 @@ class CcpnGLWidget(QOpenGLWidget):
     YAXES = GLDefs.YAXISUNITS
     AXIS_MOUSEYOFFSET = AXIS_MARGINBOTTOM + (0 if AXIS_INSIDE else AXIS_LINE)
 
+    _shaderTextAlias = None
+    _shaderPixelAlias = None
+    _shaderText = None
+    _shaderPixel = None
+    _mouseButton = None
+    _pids = None
+    _dragStartPosition = None
+    tilePosition = None
+    mouseCoordDQ = None
+
     def __init__(self, strip=None, mainWindow=None, stripIDLabel=None, antiAlias=4):
 
-        # add a flag so that scaling cannot be done until the gl attributes are initialised
+        # add a flag so that scaling cannot be done until the gl-attributes are initialised
         self.glReady = False
 
         super().__init__(strip)
@@ -234,6 +265,11 @@ class CcpnGLWidget(QOpenGLWidget):
         self.lastPixelRatio = None
         self._setStyle()
 
+        if _DEBUG:
+            self.aboutToResize.connect(self._aboutToResize)
+            self.resized.connect(self._resized)
+            self.frameSwapped.connect(self._frameSwapped)
+
     def _setStyle(self):
         self._checkPalette(self.palette())
 
@@ -276,7 +312,7 @@ class CcpnGLWidget(QOpenGLWidget):
         self.axisT = 1.0
         self.axisB = -1.0
 
-        self._zoomHistory = [None] * ZOOMHISTORYSTORE
+        self._zoomHistory: list[tuple | None] = [None for _ in range(ZOOMHISTORYSTORE)]
         self._zoomHistoryCurrent = 0
         self._zoomHistoryHead = 0
         self._zoomHistoryTail = 0
@@ -328,9 +364,9 @@ class CcpnGLWidget(QOpenGLWidget):
         self.diagonalGLList = None
         self.diagonalSideBandsGLList = None
         self.boundingBoxes = None
-        self._updateAxes = True
+        self._notifyAxesChange = True
         self.axesChanged = False
-        self.axisLabelling = {'0': [], '1': []}
+        self.axisLabelling: dict[str, dict] = {'0': {}, '1': {}}
 
         self._axesVisible = True
         self._aspectRatioMode = 0
@@ -478,7 +514,8 @@ class CcpnGLWidget(QOpenGLWidget):
         self.visiblePlaneList = {}
         self.visiblePlaneListPointValues = {}
         self.visiblePlaneDimIndices = {}
-        self._visibleSpectrumViewsChange = False
+        self._notifySpectrumViewsChange = False
+        self._notifyContoursChange = False
         self._matchingIsotopeCodes = False
         self._visibleOrderingDict = {}
         self._visibleOrderingAxisCodes = ()
@@ -1148,7 +1185,7 @@ class CcpnGLWidget(QOpenGLWidget):
             self.rescale(rescaleStaticHTraces=False)
 
             # spawn rebuild event for the grid
-            self._updateAxes = True
+            self._notifyAxesChange = True
             if self.gridList:
                 for gr in self.gridList:
                     gr.renderMode = GLRENDERMODE_REBUILD
@@ -1170,7 +1207,7 @@ class CcpnGLWidget(QOpenGLWidget):
             self.rescale(rescaleStaticVTraces=False)
 
             # spawn rebuild event for the grid
-            self._updateAxes = True
+            self._notifyAxesChange = True
             if self.gridList:
                 for gr in self.gridList:
                     gr.renderMode = GLRENDERMODE_REBUILD
@@ -1259,7 +1296,7 @@ class CcpnGLWidget(QOpenGLWidget):
             self.rescale()
 
             # put stuff in here that will change on a resize
-            self._updateAxes = True
+            self._notifyAxesChange = True
             for gr in self.gridList:
                 gr.renderMode = GLRENDERMODE_REBUILD
             self._GLPeaks.rescale()
@@ -1275,8 +1312,11 @@ class CcpnGLWidget(QOpenGLWidget):
         self.rescale(rescaleStaticHTraces=True, rescaleStaticVTraces=True,
                      rescaleSpectra=not mouseMoveOnly)
 
+        if _DEBUG:
+            getLogger().debug(f'{consoleStyle.fg.darkblue}_rescaleAllAxes  '
+                              f'{id(self)}  {update}{consoleStyle.reset}')
         # spawn rebuild event for the grid
-        self._updateAxes = True
+        self._notifyAxesChange = True
         if self.gridList:
             for gr in self.gridList:
                 gr.renderMode = GLRENDERMODE_REBUILD
@@ -2061,19 +2101,7 @@ class CcpnGLWidget(QOpenGLWidget):
             self.globalGL.glAxisFontSize = _size
 
         self.refreshDevicePixelRatio()
-
         self.buildOverlayStrings()
-
-        # # get the updated font
-        # smallFont = self.getSmallFont()
-        #
-        # # change the colour of the selected 'Lock' string
-        # self._lockedStringTrue = GLString(text=GLDefs.LOCKEDSTRING, font=smallFont, x=0, y=0,
-        #                                   colour=self.highlightColour, GLContext=self)
-        #
-        # # change the colour of the selected 'Fixed' string
-        # self._fixedStringTrue = GLString(text=GLDefs.FIXEDSTRING, font=smallFont, x=0, y=0,
-        #                                  colour=self.highlightColour, GLContext=self)
 
     def setBackgroundColour(self, col, silent=False, makeCurrent=False):
         """
@@ -2699,6 +2727,10 @@ class CcpnGLWidget(QOpenGLWidget):
         keyModifiers = QApplication.keyboardModifiers()
 
         cursorCoordinate, dx, dy, mouseMovedDict = self._updateMouseEvent()
+        if not (dx or dy):
+            # ignore if the mouse hasn't moved at least 1 pixel
+            event.ignore()
+            return
 
         if int(event.buttons() & (Qt.LeftButton | Qt.RightButton)):
             # do the complicated key-presses first
@@ -2867,56 +2899,6 @@ class CcpnGLWidget(QOpenGLWidget):
 
         return cursorCoordinate, dx, dy, mouseMovedDict
 
-    # def _updateMouseDict(self, cursorCoordinate):
-    #     try:
-    #         mouseMovedDict = self.current.mouseMovedDict
-    #     except:
-    #         # initialise a new mouse moved dict
-    #         mouseMovedDict = {MOUSEDICTSTRIP          : self.strip,
-    #                           AXIS_MATCHATOMTYPE      : {},
-    #                           AXIS_FULLATOMNAME       : {},
-    #                           }
-    #
-    #     xPos = yPos = 0
-    #     atTypes = mouseMovedDict[AXIS_MATCHATOMTYPE] = {}
-    #     atCodes = mouseMovedDict[AXIS_FULLATOMNAME] = {}
-    #
-    #     # transfer the mouse position from the coords to the mouseMovedDict for the other displays
-    #     for n, (atomType, axis) in enumerate(zip(self.spectrumDisplay.isotopeCodes, self._orderedAxes)):
-    #         ats = atTypes.setdefault(atomType, [])
-    #         atcs = atCodes.setdefault(axis.code, [])
-    #         if n == 0:
-    #             xPos = pos = cursorCoordinate[0]
-    #         elif n == 1:
-    #             yPos = pos = cursorCoordinate[1]
-    #         else:
-    #             # for other Nd dimensions
-    #             pos = axis.position
-    #
-    #         ats.append(pos)
-    #         atcs.append(pos)
-    #
-    #     if self._matchingIsotopeCodes:
-    #         # add a copy to show the reflected ppm values
-    #         for n, (atomType, axis) in enumerate(zip(self.spectrumDisplay.isotopeCodes, self._orderedAxes)):
-    #             ats = atTypes.setdefault(atomType, [])
-    #             atcs = atCodes.setdefault(axis.code, [])
-    #             if n == 0:
-    #                 xPos = pos = cursorCoordinate[1]
-    #             elif n == 1:
-    #                 yPos = pos = cursorCoordinate[0]
-    #             else:
-    #                 # can ignore the rest
-    #                 break
-    #
-    #             ats.append(pos)
-    #             atcs.append(pos)
-    #
-    #     self.current.cursorPosition = (xPos, yPos)
-    #     self.current.mouseMovedDict = mouseMovedDict
-    #
-    #     return mouseMovedDict
-
     @staticmethod
     def sign(x):
         return 1.0 if x >= 0 else -1.0
@@ -2965,19 +2947,19 @@ class CcpnGLWidget(QOpenGLWidget):
         self.update()
 
     def _processPeakNotifier(self, data):
-        self._updateVisibleSpectrumViews()
+        # self._updateVisibleSpectrumViews()
         self._GLPeaks._processNotifier(data)
 
         self.update()
 
     def _processPeakListNotifier(self, data):
-        self._updateVisibleSpectrumViews()
+        # self._updateVisibleSpectrumViews()
         self._GLPeaks._processNotifier(data)
 
         self.update()
 
     def _processNmrAtomNotifier(self, data):
-        self._updateVisibleSpectrumViews()
+        # self._updateVisibleSpectrumViews()
         self._GLPeaks._processNotifier(data)
         self._GLMultiplets._processNotifier(data)
         self._nmrAtomsNotifier(data)
@@ -2985,19 +2967,19 @@ class CcpnGLWidget(QOpenGLWidget):
         self.update()
 
     def _processIntegralNotifier(self, data):
-        self._updateVisibleSpectrumViews()
+        # self._updateVisibleSpectrumViews()
         self._GLIntegrals._processNotifier(data)
 
         self.update()
 
     def _processMultipletNotifier(self, data):
-        self._updateVisibleSpectrumViews()
+        # self._updateVisibleSpectrumViews()
         self._GLMultiplets._processNotifier(data)
 
         self.update()
 
     def _processMultipletListNotifier(self, data):
-        self._updateVisibleSpectrumViews()
+        # self._updateVisibleSpectrumViews()
         self._GLMultiplets._processNotifier(data)
 
         self.update()
@@ -3039,47 +3021,43 @@ class CcpnGLWidget(QOpenGLWidget):
         shader.setProjection(0.0, 1.0, 0, 1.0, -1.0, 1.0)
 
     def updateVisibleSpectrumViews(self):
-        self._visibleSpectrumViewsChange = True
+        self._notifySpectrumViewsChange = True
         self.update()
-
-    # @contextmanager
-    def glBlocking(self):
-        try:
-            # stop notifiers and logging interfering with paint event
-            self.project.blankNotification()
-            self.application._increaseNotificationBlocking()
-
-            yield
-
-        finally:
-            # re-enable notifiers
-            self.application._decreaseNotificationBlocking()
-            self.project.unblankNotification()
 
     def _buildGL(self):
         """Separate the building of the display from the paint event; not sure that this is required
         """
-        # if abs(self.axisL - self.axisR) < 1e-9 or abs(self.axisT - self.axisB) < 1e-9:
-        #     return
-
+        # check whether the visible spectra list needs updating
+        if self._notifySpectrumViewsChange:
+            self._updateVisibleSpectrumViews()
+            self._buildAxisCodesWithWildCards()
+        if self._notifyContoursChange or self._notifySpectrumViewsChange:
+            # build spectrumSettings
+            self.buildSpectra()
         self.buildCursors()
         if self.underMouse():
             self.buildMouseCoords()
-
-        # build spectrumSettings, spectrumView visibility
-        self.buildSpectra()
-
         # only call if the axes have changed, and after spectra
-        if self._updateAxes:
+        if self._notifyAxesChange:
             self.buildGrid()
             self.buildDiagonals()
-            self._updateAxes = False
+
+        # clear update flags
+        self._notifySpectrumViewsChange = False
+        self._notifyContoursChange = False
+        self._notifyAxesChange = False
 
         # self.buildBoundingBoxes()
 
+        # CHECK:ED - check if peak-/multiplet-/integral-lists have changed
         self._GLPeaks._spectrumSettings = self._spectrumSettings
         self._GLMultiplets._spectrumSettings = self._spectrumSettings
         self._GLIntegrals._spectrumSettings = self._spectrumSettings
+
+        # HACK:ED - create simple speed-caches for the current peaks/multiplets/integrals
+        for objList in [self._GLPeaks, self._GLMultiplets, self._GLIntegrals]:
+            objList._caching = True
+            objList._objCache = None
 
         self._GLPeaks.buildSymbols()
         self._GLPeaks.buildArrows()
@@ -3100,11 +3078,14 @@ class CcpnGLWidget(QOpenGLWidget):
         if not self._stackingMode:
             self._GLIntegrals.buildLabels()
 
+        # HACK:ED - create simple speed-caches for the current peaks/multiplets/integrals
+        for objList in [self._GLPeaks, self._GLMultiplets, self._GLIntegrals]:
+            objList._caching = False
+            objList._objCache = None
+
         phasingFrame = self.spectrumDisplay.phasingFrame
         if phasingFrame.isVisible():
             self.buildStaticTraces()
-
-    from ccpn.util.decorators import profile
 
     @profile()
     def _buildGLWithProfile(self):
@@ -3119,64 +3100,21 @@ class CcpnGLWidget(QOpenGLWidget):
             return
         if self.strip.isDeleted:
             return
-        # if self.visibleRegion().isEmpty():
-        #     return
-        # print(f'--> paintGL   {id(self)}   {self.strip}   {not self.visibleRegion()}')
-
-        # NOTE:ED - testing, remove later
-        # self._paintMode = PaintModes.PAINT_ALL
-
         if self._paintMode == PaintModes.PAINT_NONE:
-
             # do nothing
-            pass
+            return
 
         elif self._paintMode == PaintModes.PAINT_ALL or self._leavingWidget:
-
             # NOTE:ED - paint all content to the GL widget - need to work on this
             self._clearGLCursorQueue()
 
-            # check whether the visible spectra list needs updating
-            if self._visibleSpectrumViewsChange:
-                self._visibleSpectrumViewsChange = False
-                self._updateVisibleSpectrumViews()
-
+            if getattr(self.project, '_buildWithProfile', False) is True:
+                self.project._buildWithProfile = False
+                self._buildGLWithProfile()
+            else:
+                self._buildGL()
             # if there are no spectra then skip the paintGL event
-            if not self._ordering:
-                return
-
-            for _ in self.glBlocking():
-                # simple profile of building all
-
-                # NOTE:ED - this should be updated to explicit build calls
-                #   and the _buildGL only moves it to the graphics card
-
-                if hasattr(self.project, '_buildWithProfile') and self.project._buildWithProfile is True:
-                    self.project._buildWithProfile = False
-
-                    # create simple speed-caches for the current peaks/multiplets/integrals
-                    for objList in [self._GLPeaks, self._GLMultiplets, self._GLIntegrals]:
-                        objList._caching = True
-                        objList._objCache = None
-
-                    self._buildGLWithProfile()
-
-                    for objList in [self._GLPeaks, self._GLMultiplets, self._GLIntegrals]:
-                        objList._caching = False
-                        objList._objCache = None
-
-                else:
-                    # create simple speed-caches for the current peaks/multiplets/integrals
-                    for objList in [self._GLPeaks, self._GLMultiplets, self._GLIntegrals]:
-                        objList._caching = True
-                        objList._objCache = None
-
-                    self._buildGL()
-
-                    for objList in [self._GLPeaks, self._GLMultiplets, self._GLIntegrals]:
-                        objList._caching = False
-                        objList._objCache = None
-
+            if self._ordering:
                 self._paintGL()
 
             # make all following paint events into mouse only
@@ -3513,6 +3451,10 @@ class CcpnGLWidget(QOpenGLWidget):
         GL.glEnable(GL.GL_BLEND)
         GL.glLineWidth(GLDefs.GLDEFAULTLINETHICKNESS * self.viewports.devicePixelRatio)
 
+        if _DEBUG:
+            getLogger().debug(f'{consoleStyle.fg.blue}DrawGridMAIN {id(self)}   {self._paintMode}  '
+                              f'{self.axisT}{consoleStyle.reset}')
+
         # draw the main grid
         if self._gridVisible:
             self.viewports.setViewport(self._currentView)
@@ -3540,7 +3482,8 @@ class CcpnGLWidget(QOpenGLWidget):
                 self.viewports.setViewport(self._currentBottomAxisView)
                 self.gridList[2].drawIndexVBO()
 
-    def _floatFormat(self, f=0.0, prec=3):
+    @staticmethod
+    def _floatFormat(f=0.0, prec=3):
         """return a float string, remove trailing zeros after decimal
         """
         return (('%.' + str(prec) + 'f') % f).rstrip('0').rstrip('.')
@@ -3551,7 +3494,8 @@ class CcpnGLWidget(QOpenGLWidget):
         return self._floatFormat(ii, 1)
         # return '%i' % ii
 
-    def _eFormat(self, f=0.0, prec=4):
+    @staticmethod
+    def _eFormat(f=0.0, prec=4):
         """return an exponential with trailing zeroes removed
         """
         s = '%.*e' % (prec, f)
@@ -3572,69 +3516,49 @@ class CcpnGLWidget(QOpenGLWidget):
         else:
             return ''
 
-    def _buildSingleWildCard(self, _axisCodes):
-        """Buld the axisCode appending wildcard as required
-        """
-        _code = ''
-        if _axisCodes:
-            _maxLen = max(len(ax) for ax in _axisCodes)
-            _chs = [a for a in zip(*_axisCodes)]
-            for ch in _chs:
-                chSet = set(ch)
-                if len(chSet) == 1:
-                    _code += ch[0]
-                else:
-                    _code += '*'
-                    break
-            else:
-                if len(_code) < _maxLen:
-                    _code += '*'
-        _code = _code or '*'
-
-        return _code
-
     def _buildAxisCodesWithWildCards(self):
         """Build the visible axis codes from the visible spectra appending wildcard as required
         """
-        _visibleSpec = [(specView, self._spectrumSettings[specView])
-                        for specView in self._ordering
-                        if not specView.isDeleted and specView.isDisplayed and
-                        specView in self._spectrumSettings]
-        _firstVisible = ((self._ordering[0], self._spectrumSettings[self._ordering[0]]),) \
-            if self._ordering and not self._ordering[0].isDeleted and \
-               self._ordering[0] in self._spectrumSettings else ()
-        self._visibleOrderingDict = _visibleSpec or _firstVisible
+        if _DEBUG:
+            getLogger().debug(f'{consoleStyle.fg.magenta}_buildAxisCodesWithWildCards  {id(self)}'
+                              f'{consoleStyle.reset}')
+        if not self._ordering:
+            self._visibleOrderingAxisCodes = None
+            return
+        specViews = self._visibleOrdering or [self._firstVisible]
+        if not self._firstVisible:
+            self._visibleOrderingAxisCodes = None
+            return
 
-        # quick fix to take the set of matching letters from the spectrum axisCodes - append a '*' to denote trailing differences
+        # take the set of matching letters from the spectrum axisCodes - append a '*' to denote trailing differences
         if self.spectrumDisplay.is1D:
-            # get the x-axis codes for 1d
             dim = self.spectrumDisplay._flipped
 
-            _axisCodes = [spec.spectrum.axisCodes[0] for spec, settings in self._visibleOrderingDict]
+            # get the x-axis codes for 1d
+            _axisCodes = [specView.spectrum.axisCodes[0] for specView in specViews]
             if dim:
                 _axisWildCards = (
                     self.axisCodes[1 - dim] or '*',
-                    self._buildSingleWildCard(_axisCodes),
+                    _buildSingleWildCard(_axisCodes),
                     )
             else:
                 _axisWildCards = (
-                    self._buildSingleWildCard(_axisCodes),
+                    _buildSingleWildCard(_axisCodes),
                     self.axisCodes[1 - dim] or '*',
                     )
-
         else:
             dim = len(self.spectrumDisplay.axisCodes)
             _axisWildCards = []
             for axis in range(dim):
                 # get the correct x-axis mapped axis codes for Nd
                 _axisCodes = []
-                for spec, settings in self._visibleOrderingDict:
+                for specView in specViews:
                     try:
-                        _axisCodes.append(spec.spectrum.axisCodes[settings.dimensionIndices[axis]])
-                    except Exception as es:
+                        _axisCodes.append(specView.spectrum.axisCodes[specView.dimensionIndices[axis]])
+                    except Exception:
                         # can skip for now
                         pass
-                _code = self._buildSingleWildCard(_axisCodes)
+                _code = _buildSingleWildCard(_axisCodes)
                 _axisWildCards.append(_code)
 
         self._visibleOrderingAxisCodes = _axisWildCards
@@ -4036,134 +3960,6 @@ class CcpnGLWidget(QOpenGLWidget):
                 ((values[1] - self.axisB) / (self.axisT - self.axisB))
                 if values[1] is not None and abs(self.axisT - self.axisB) > 1e-9 else 0.0]
 
-    # def buildCursors(self):
-    #     """Build and draw the cursors/doubleCursors
-    #     """
-    #     if not self._disableCursorUpdate and self._crosshairVisible:
-    #
-    #         # get the next cursor drawList
-    #         self._advanceGLCursor()
-    #         drawList = self._glCursorQueue[self._glCursorHead]
-    #         vertices = []
-    #         indices = []
-    #         index = 0
-    #
-    #         # map the cursor to the ratio coordinates - double cursor is flipped about the line x=y
-    #
-    #         cursorCoordinate = self.getCurrentCursorCoordinate()
-    #
-    #         newCoords = self._scaleAxisToRatio(cursorCoordinate[0:2])
-    #         # doubleCoords = self._scaleAxisToRatio(self.getCurrentDoubleCursorCoordinates()[0:2])
-    #
-    #         if getCurrentMouseMode() == PICK and self.underMouse():
-    #
-    #             x = self.deltaX * 8
-    #             y = self.deltaY * 8
-    #
-    #             vertices = [newCoords[0] - x, newCoords[1] - y,
-    #                         newCoords[0] + x, newCoords[1] - y,
-    #                         newCoords[0] + x, newCoords[1] - y,
-    #                         newCoords[0] + x, newCoords[1] + y,
-    #                         newCoords[0] + x, newCoords[1] + y,
-    #                         newCoords[0] - x, newCoords[1] + y,
-    #                         newCoords[0] - x, newCoords[1] + y,
-    #                         newCoords[0] - x, newCoords[1] - y
-    #                         ]
-    #             indices = [0, 1, 2, 3, 4, 5, 6, 7]
-    #             col = self.mousePickColour
-    #             index = 8
-    #
-    #         else:
-    #             col = self.foreground
-    #
-    #         phasingFrame = self.spectrumDisplay.phasingFrame
-    #         if not phasingFrame.isVisible():
-    #             if (coords := self.current.mouseMovedDict):
-    #
-    #                 # read values from isotopeCode or axisCode
-    #                 if self._preferences.matchAxisCode == 0:  # default - match atom type
-    #                     atomTypes = self.spectrumDisplay.isotopeCodes
-    #                     xPosList = coords[AXIS_MATCHATOMTYPE].get(atomTypes[0], [])
-    #                     if not self.spectrumDisplay.is1D:
-    #                         yPosList = coords[AXIS_MATCHATOMTYPE].get(atomTypes[1], [])
-    #                 else:
-    #                     atCodes = self._orderedAxes
-    #                     xPosList = coords[AXIS_FULLATOMNAME].get(atCodes[0].code, [])
-    #                     if not self.spectrumDisplay.is1D:
-    #                         yPosList = coords[AXIS_FULLATOMNAME].get(atCodes[1].code, [])
-    #
-    #                 foundX = []
-    #                 foundY = []
-    #                 if not self._updateVTrace and newCoords[0] is not None:
-    #                     for pos in xPosList:
-    #                         x, _y = self._scaleAxisToRatio([pos, 0])
-    #                         if all(abs(x - val) > self.deltaX for val in foundX):
-    #
-    #                             # store the found value so that overlaying lines are not drawn - OpenGL uses an XOR draw mode
-    #                             foundX.append(x)
-    #                             vertices.extend([x, 1.0, x, 0.0])
-    #                             indices.extend([index, index + 1])
-    #                             index += 2
-    #
-    #                         if self._matchingIsotopeCodes:
-    #                             # draw the cursor reflected about the x=y line (need to check gammaRatio)
-    #                             _x, y = self._scaleAxisToRatio([0, pos])
-    #                             if all(abs(y - val) > self.deltaY for val in foundY):
-    #                                 foundY.append(y)
-    #                                 vertices.extend([0.0, y, 1.0, y])
-    #                                 indices.extend([index, index + 1])
-    #                                 index += 2
-    #
-    #                 if not self._updateHTrace and newCoords[1] is not None and not self.spectrumDisplay.is1D:
-    #                     for pos in yPosList:
-    #                         _x, y = self._scaleAxisToRatio([0, pos])
-    #                         if all(abs(y - val) > self.deltaY for val in foundY):
-    #                             foundY.append(y)
-    #                             vertices.extend([0.0, y, 1.0, y])
-    #                             indices.extend([index, index + 1])
-    #                             index += 2
-    #
-    #                         if self._matchingIsotopeCodes:
-    #                             # draw the cursor reflected about the x=y line (need to check gammaRatio)
-    #                             x, _y = self._scaleAxisToRatio([pos, 0])
-    #                             if all(abs(x - val) > self.deltaX for val in foundX):
-    #                                 foundX.append(x)
-    #                                 vertices.extend([x, 1.0, x, 0.0])
-    #                                 indices.extend([index, index + 1])
-    #                                 index += 2
-    #
-    #             # _drawDouble = True  # self._doubleCrosshairVisible  # any([specView.spectrum.showDoubleCrosshair == True for specView in self._ordering])
-    #             #
-    #             # if not self._updateVTrace and newCoords[0] is not None:
-    #             #     vertices.extend([newCoords[0], 1.0, newCoords[0], 0.0])
-    #             #     indices.extend([index, index + 1])
-    #             #     index += 2
-    #             #
-    #             #     # add the double cursor
-    #             #     if _drawDouble and self._matchingIsotopeCodes and doubleCoords[0] is not None and abs(doubleCoords[0] - newCoords[0]) > self.deltaX:
-    #             #         vertices.extend([doubleCoords[0], 1.0, doubleCoords[0], 0.0])
-    #             #         indices.extend([index, index + 1])
-    #             #         index += 2
-    #             #
-    #             # if not self._updateHTrace and newCoords[1] is not None:
-    #             #     vertices.extend([0.0, newCoords[1], 1.0, newCoords[1]])
-    #             #     indices.extend([index, index + 1])
-    #             #     index += 2
-    #             #
-    #             #     # add the double cursor
-    #             #     if _drawDouble and self._matchingIsotopeCodes and doubleCoords[1] is not None and abs(doubleCoords[1] - newCoords[1]) > self.deltaY:
-    #             #         vertices.extend([0.0, doubleCoords[1], 1.0, doubleCoords[1]])
-    #             #         indices.extend([index, index + 1])
-    #             #         index += 2
-    #
-    #         drawList.vertices = np.array(vertices, dtype=np.float32)
-    #         drawList.indices = np.array(indices, dtype=np.int32)
-    #         drawList.numVertices = len(vertices) // 2
-    #         drawList.colors = np.array(col * drawList.numVertices, dtype=np.float32)
-    #
-    #         # build and draw the VBO
-    #         drawList.defineIndexVBO()
-
     def drawLastCursors(self):
         """Draw the cursors/doubleCursors
         """
@@ -4199,20 +3995,6 @@ class CcpnGLWidget(QOpenGLWidget):
             result = self.cursorCoordinate
 
         return result
-
-    # def getCurrentDoubleCursorCoordinates(self):
-    #     if self.cursorSource in (CURSOR_SOURCE_NONE, CURSOR_SOURCE_SELF):
-    #         cursorCoordinate = self.getCurrentCursorCoordinate()
-    #
-    #         # flip cursor about x=y to get double cursor
-    #         result = [cursorCoordinate[1],
-    #                   cursorCoordinate[0],
-    #                   cursorCoordinate[2],
-    #                   cursorCoordinate[3]]
-    #     else:
-    #         result = self.doubleCursorCoordinate
-    #
-    #     return result
 
     def drawDottedCursor(self):
         # draw the cursors
@@ -4512,8 +4294,8 @@ class CcpnGLWidget(QOpenGLWidget):
         else:
             return 0.0
 
-    def _ensureOnScreen(self, mx, my, xROff : float = 0, xLOff : float = 0,
-                        yTOff : float = 0, yBOff : float = 0) -> tuple[float, float]:
+    def _ensureOnScreen(self, mx, my, xROff: float = 0, xLOff: float = 0,
+                        yTOff: float = 0, yBOff: float = 0) -> tuple[float, float]:
         """Check the string is constraint to the bounds of the strip
         :param mx: Crosshair x coordinate
         :param my: Crosshair y coordinate
@@ -4702,7 +4484,6 @@ class CcpnGLWidget(QOpenGLWidget):
             if self.mouseStringDQ is not None:
                 self.mouseStringDQ.drawTextArrayVBO()
 
-
     def drawSelectionBox(self):
         # should really use the proper VBOs for this
         if self._drawSelectionBox:
@@ -4760,27 +4541,9 @@ class CcpnGLWidget(QOpenGLWidget):
             GL.glVertex2d(cursCoord[0], cursCoord[1])
             GL.glEnd()
 
-    def _getSliceDataTest(self, spectrumView, points, sliceDim, ppmPositions, range):
-        # quick method for testing
-        # need to block logging
-        with notificationEchoBlocking(self.application):
-            code = spectrumView.spectrum.axisCodes[0]
-            vpps = spectrumView.spectrum.ppmPerPoints
-            axisCodes = spectrumView.spectrum.axisCodes
-
-            _region = {axis: (ppmPosition + 0.5 * vpp, ppmPosition + 0.5 * vpp)
-                       for axis, ppmPosition, vpp, in zip(axisCodes, ppmPositions, vpps)}
-            _region[code] = sorted(range)
-
-            data = spectrumView.spectrum.getRegion(**_region)
-
-            if spectrumView._traceScale is None:
-                spectrumView._traceScale = 1.0 / max(data) * 0.5
-        return data
-
-    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    #-----------------------------------------------------------------------------------------
     # Code for traces
-    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    #-----------------------------------------------------------------------------------------
 
     def _newStaticHTraceData(self, spectrumView, tracesDict,
                              point, dim, positionPixel):
@@ -5314,16 +5077,14 @@ class CcpnGLWidget(QOpenGLWidget):
         if current:
             self.highlighted = True
 
-            self._updateAxes = True
+            self._notifyAxesChange = True
             for gr in self.gridList:
                 gr.renderMode = GLRENDERMODE_REBUILD
             if self.stripIDString:
                 self.stripIDString.renderMode = GLRENDERMODE_REBUILD
-
         else:
             self.highlighted = False
-
-            self._updateAxes = True
+            self._notifyAxesChange = True
             for gr in self.gridList:
                 gr.renderMode = GLRENDERMODE_REBUILD
             if self.stripIDString:
@@ -5514,7 +5275,8 @@ class CcpnGLWidget(QOpenGLWidget):
                                                        abs(p1[1] - int(p1[1])) > d[1] / 2.0)
 
                                 if includeGrid:
-                                    if '%.5f' % p1[0] == '%.5f' % p2[0]:  # check whether a vertical line - x axis
+                                    # check whether a vertical line - x-axis
+                                    if '%.5f' % float(p1[0]) == '%.5f' % float(p2[0]):
                                         pp = self._round_sig(p1[0], sig=10)
 
                                         # xLabel = str(int(p1[0])) if d[0] >=1 else self.XMode % p1[0]
@@ -5689,7 +5451,7 @@ class CcpnGLWidget(QOpenGLWidget):
             if rescale:
                 self._rescaleYAxis(rescale=rescale, update=update)
 
-    @pyqtSlot(dict)
+    @Slot(dict)
     def _glXAxisChanged(self, aDict):
         if self._aspectRatioMode:
             self._glAllAxesChanged(aDict)
@@ -5737,7 +5499,7 @@ class CcpnGLWidget(QOpenGLWidget):
                 self._rescaleXAxis()
                 self._storeZoomHistory()
 
-    @pyqtSlot(dict)
+    @Slot(dict)
     def _glAxisLockChanged(self, aDict):
         if self.strip.isDeleted:
             return
@@ -5772,16 +5534,12 @@ class CcpnGLWidget(QOpenGLWidget):
                 # paint to update lock button colours
                 self.update()
 
-    @pyqtSlot(dict)
+    @Slot(dict)
     def _glAxisUnitsChanged(self, aDict):
         if self.strip.isDeleted:
             return
 
-        # update the list of visible spectra
-        self._updateVisibleSpectrumViews()
-
         if aDict[GLNotifier.GLSOURCE] != self and aDict[GLNotifier.GLSPECTRUMDISPLAY] == self.spectrumDisplay:
-
             # read values from dataDict and set units
             if aDict[GLNotifier.GLVALUES]:  # and aDict[GLNotifier.GLVALUES][GLDefs.AXISLOCKASPECTRATIO]:
 
@@ -5804,13 +5562,13 @@ class CcpnGLWidget(QOpenGLWidget):
                             self._rescaleAllZoom(rescale=True)
 
             # spawn rebuild event for the grid
-            self._updateAxes = True
+            self._notifyAxesChange = True
             if self.gridList:
                 for gr in self.gridList:
                     gr.renderMode = GLRENDERMODE_REBUILD
             self.update()
 
-    @pyqtSlot(dict)
+    @Slot(dict)
     def _glYAxisChanged(self, aDict):
         if self._aspectRatioMode:
             self._glAllAxesChanged(aDict)
@@ -5859,7 +5617,7 @@ class CcpnGLWidget(QOpenGLWidget):
                 self._rescaleYAxis()
                 self._storeZoomHistory()
 
-    @pyqtSlot(dict)
+    @Slot(dict)
     def _glAllAxesChanged(self, aDict):
         if self.strip.isDeleted:
             return
@@ -5945,7 +5703,7 @@ class CcpnGLWidget(QOpenGLWidget):
                 self._rescaleAllAxes()
                 self._storeZoomHistory()
 
-    @pyqtSlot(dict)
+    @Slot(dict)
     def _glMouseMoved(self, aDict):
         if self.strip.isDeleted:
             return
@@ -5956,30 +5714,12 @@ class CcpnGLWidget(QOpenGLWidget):
 
             if self._crosshairVisible:
                 exactMatch = (self._preferences.matchAxisCode == AXIS_FULLATOMNAME)
-                # indices = getAxisCodeMatchIndices(self._axisCodes[:2], mouseMovedDict[AXIS_ACTIVEAXES], exactMatch=exactMatch)
-                #
-                # if indices and len(indices) > 1:
-                #     for n in range(2):
-                #         if indices[n] is not None:
-                #
-                #             axis = mouseMovedDict[AXIS_ACTIVEAXES][indices[n]]
-                #             self.cursorSource = CURSOR_SOURCE_OTHER
-                #             self.cursorCoordinate[n] = mouseMovedDict[AXIS_FULLATOMNAME][axis]
-                #
-                #             # coordinates have already been flipped
-                #             self.doubleCursorCoordinate[1 - n] = self.cursorCoordinate[n]
-                #
-                #         else:
-                #             self.cursorSource = CURSOR_SOURCE_OTHER
-                #             self.cursorCoordinate[n] = None
-                #             self.doubleCursorCoordinate[1 - n] = None
-
                 self.update(mode=PaintModes.PAINT_MOUSEONLY)
 
-    @pyqtSlot(dict)
+    @Slot(dict)
     def _glKeyEvent(self, aDict):
         """Process Key events from the application/popups and other strips
-        :param aDict - dictionary containing event flags:
+        :param aDict: - dictionary containing event flags
         """
         if self.strip.isDeleted:
             return
@@ -5989,14 +5729,13 @@ class CcpnGLWidget(QOpenGLWidget):
 
         self.glKeyPressEvent(aDict)
 
-    @pyqtSlot(dict)
+    @Slot(dict)
     def _glEvent(self, aDict):
         """Process events from the application/popups and other strips
-        :param aDict - dictionary containing event flags:
+        :param aDict: - dictionary containing event flags
         """
         if self.strip.isDeleted:
             return
-
         if not self.globalGL:
             return
 
@@ -6950,9 +6689,131 @@ class CcpnGLWidget(QOpenGLWidget):
     def exportToPS(self, filename='default.ps', params=None):
         return GLExporter(self, self.strip, filename, params)
 
+    @Slot()
+    def _aboutToResize(self):
+        if _DEBUG:
+            getLogger().debug(f'{consoleStyle.fg.darkgrey}Resizing  {id(self)}  {self.size()}'
+                              f'{consoleStyle.reset}')
 
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# need to use the class below to make everything more generic
+    @Slot()
+    def _resized(self):
+        if _DEBUG:
+            getLogger().debug(f'{consoleStyle.fg.darkgrey}_resized  {id(self)}  {self.size()}'
+                              f'{consoleStyle.reset}')
+
+    @Slot()
+    def _aboutToChangeAxes(self):
+        # not sure yet :)
+        ...
+
+    @Slot()
+    def _frameSwapped(self):
+        if _DEBUG:
+            tt = round(time.perf_counter() * 20) % 1000
+            getLogger().debug(f'{consoleStyle.fg.darkmagenta}_frameSwapped  '
+                              f'{id(self)}  -  {tt}{consoleStyle.reset}')
+
+    #=========================================================================================
+
+    @staticmethod
+    def _updateMouseDict(cursorCoordinate):
+        raise NotImplementedError("Code error: function not implemented")
+
+    @staticmethod
+    def buildCursors():
+        raise NotImplementedError("Code error: function not implemented")
+
+    @staticmethod
+    def buildDiagonals():
+        raise NotImplementedError("Code error: function not implemented")
+
+    @staticmethod
+    def drawSpectra():
+        raise NotImplementedError("Code error: function not implemented")
+
+    @staticmethod
+    def drawBoundingBoxes():
+        raise NotImplementedError("Code error: function not implemented")
+
+    @staticmethod
+    def drawAliasedLabels():
+        raise NotImplementedError("Code error: function not implemented")
+
+    @staticmethod
+    def drawAliasedSymbols(peakSymbolsEnabled, peakArrowsEnabled, multipletSymbolsEnabled,
+                           multipletArrowsEnabled):
+        raise NotImplementedError("Code error: function not implemented")
+
+    @staticmethod
+    def drawIntegralLabels():
+        raise NotImplementedError("Code error: function not implemented")
+
+    @staticmethod
+    def _buildSpectrumSetting(spectrumView, stackCount=None):
+        raise NotImplementedError("Code error: function not implemented")
+
+    @staticmethod
+    def _updateVisibleSpectrumViews():
+        raise NotImplementedError("Code error: function not implemented")
+
+    @staticmethod
+    def _movePeak(peak, deltaPosition):
+        raise NotImplementedError("Code error: function not implemented")
+
+    # @staticmethod
+    # def _moveIntegral(integral, deltaPosition):
+    #     raise NotImplementedError("Code error: function not implemented")
+    #
+    # @staticmethod
+    # def _moveMultiplet(multiplet, deltaPosition):
+    #     raise NotImplementedError("Code error: function not implemented")
+
+    @staticmethod
+    def _mouseInPeak(xPosition, yPosition, firstOnly=False):
+        raise NotImplementedError("Code error: function not implemented")
+
+    @staticmethod
+    def _mouseInIntegral(xPosition, yPosition, firstOnly=False):
+        raise NotImplementedError("Code error: function not implemented")
+
+    @staticmethod
+    def _mouseInMultiplet(xPosition, yPosition, firstOnly=False):
+        raise NotImplementedError("Code error: function not implemented")
+
+    @staticmethod
+    def _mouseInPeakLabel(xPosition, yPosition, firstOnly=False):
+        raise NotImplementedError("Code error: function not implemented")
+
+    # @staticmethod
+    # def _mouseInIntegralLabel(xPosition, yPosition, firstOnly=False):
+    #     raise NotImplementedError("Code error: function not implemented")
+
+    @staticmethod
+    def _mouseInMultipletLabel(xPosition, yPosition, firstOnly=False):
+        raise NotImplementedError("Code error: function not implemented")
+
+    @staticmethod
+    def getPeakPositionFromMouse(peak, lastStartCoordinate, cursorPosition=None):
+        raise NotImplementedError("Code error: function not implemented")
+
+    @staticmethod
+    def _tracesNeedUpdating(spectrumView):
+        raise NotImplementedError("Code error: function not implemented")
+
+    @staticmethod
+    def _newStatic1DTraceData(spectrumView, tracesDict, positionPixel,
+                              ph0=None, ph1=None, pivot=None):
+        raise NotImplementedError("Code error: function not implemented")
+
+    # @staticmethod
+    # def is1D():
+    #     raise NotImplementedError("Code error: function not implemented")
+
+
+#=========================================================================================
+# may need to use the class below to make everything more generic,
+# not sure where this came from  :|
+
 GLOptions = {
     'opaque'     : {GL.GL_DEPTH_TEST: True,
                     GL.GL_BLEND     : False,
