@@ -16,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2025-01-13 12:40:11 +0000 (Mon, January 13, 2025) $"
-__version__ = "$Revision: 3.2.11 $"
+__dateModified__ = "$dateModified: 2025-03-06 11:26:40 +0000 (Thu, March 06, 2025) $"
+__version__ = "$Revision: 3.3.1 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -406,14 +406,6 @@ class TableABC(QtWidgets.QTableView, metaclass=_TableABCMeta):
         # update the search filter
         self.searchMenu.refreshFilter()
         self.resetHiddenColumns()
-
-    def resetHiddenColumns(self):
-        """Reset the visibility to original default and internal-columns.
-        """
-        hiCols = set(self.defaultHidden or []) | set(self._internalColumns or [])
-        # update the hidden-columns, always hiding _internalColumns
-        for col, colName in enumerate(self._df.columns):
-            self.setColumnHidden(col, colName in hiCols)
 
     def model(self) -> _TableModel:
         """
@@ -1230,7 +1222,7 @@ class TableABC(QtWidgets.QTableView, metaclass=_TableABCMeta):
 
         self._tableMenuOptions = value
 
-    def setTableMenu(self, tableMenuEnabled: bool = NOTHING) -> typing.Optional[Menu]:
+    def setTableMenu(self, tableMenuEnabled: bool = NOTHING) -> Menu | None:
         """Set up the context menu for the main table.
         """
         if tableMenuEnabled is not NOTHING:
@@ -1244,7 +1236,7 @@ class TableABC(QtWidgets.QTableView, metaclass=_TableABCMeta):
             # disconnect any previous menus
             with suppress(TypeError):
                 self.customContextMenuRequested.disconnect(self._raiseTableContextMenu)
-            return
+            return None
 
         self._thisTableMenu = menu = Menu('', self, isFloatWidget=True)
         setWidgetFont(menu, )
@@ -1357,12 +1349,6 @@ class TableABC(QtWidgets.QTableView, metaclass=_TableABCMeta):
         if len(menu.actions()):
             menu.exec_(self.mapToGlobal(pos))
 
-    def showColumn(self, column: int) -> None:
-        width = self.columnWidth(column)
-        super().showColumn(column)
-        if not width:
-            self.resizeColumnToContents(column)
-
     #-----------------------------------------------------------------------------------------
     # Table functions
     #-----------------------------------------------------------------------------------------
@@ -1404,8 +1390,14 @@ class TableABC(QtWidgets.QTableView, metaclass=_TableABCMeta):
         self.copyCellMenu.enabled = value
 
     #-----------------------------------------------------------------------------------------
-    # Table hidden-column functions
+    # Table column/hidden-column functions
     #-----------------------------------------------------------------------------------------
+
+    def showColumn(self, column: int) -> None:
+        width = self.columnWidth(column)
+        super().showColumn(column)
+        if not width:
+            self.resizeColumnToContents(column)
 
     @property
     def columns(self) -> list[str]:
@@ -1425,8 +1417,6 @@ class TableABC(QtWidgets.QTableView, metaclass=_TableABCMeta):
     def setHiddenColumns(self, columns: list[str]):
         header = list(self._df.columns)
         internal = set(self._internalColumns or [])
-        if any(col not in header for col in columns):
-            raise ValueError(f'{self.__class__.__name__}.setHiddenColumns: columns contains bad column-names')
         # show/hide the columns - _internalColumns are always hidden
         for cc, col in enumerate(header):
             self.setColumnHidden(cc, col in set(columns) | internal)
@@ -1481,3 +1471,11 @@ class TableABC(QtWidgets.QTableView, metaclass=_TableABCMeta):
             # original default-columns will still be hidden
             if colName in hidden:
                 self.hideColumn(col)
+
+    def resetHiddenColumns(self):
+        """Reset the visibility to original default and internal-columns.
+        """
+        hiCols = set(self.defaultHidden or []) | set(self._internalColumns or [])
+        # update the hidden-columns, always hiding _internalColumns
+        for col, colName in enumerate(self._df.columns):
+            self.setColumnHidden(col, colName in hiCols)

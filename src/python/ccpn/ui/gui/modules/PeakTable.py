@@ -16,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2025-01-06 17:45:53 +0000 (Mon, January 06, 2025) $"
-__version__ = "$Revision: 3.2.11 $"
+__dateModified__ = "$dateModified: 2025-03-06 11:26:40 +0000 (Thu, March 06, 2025) $"
+__version__ = "$Revision: 3.3.1 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -41,8 +41,8 @@ from ccpn.ui.gui.widgets.PulldownListsForObjects import PeakListPulldown
 from ccpn.ui.gui.widgets.Column import ColumnClass
 from ccpn.ui.gui.widgets.table._TableAdditions import TableMenuABC
 from ccpn.ui.gui.widgets.SettingsWidgets import ModuleSettingsWidget
-from ccpn.ui.gui.lib.GuiStripContextMenus import _selectedPeaksMenuItem, _addMenuItems, \
-    _getNdPeakMenuItems, _setEnabledAllItems
+from ccpn.ui.gui.lib.GuiStripContextMenus import (_selectedPeaksMenuItem, _addMenuItems,
+                                                  _getNdPeakMenuItems, _setEnabledAllItems)
 from ccpn.ui.gui.lib._CoreTableFrame import _CoreTableWidgetABC, _CoreTableFrameABC
 from ccpn.util.Common import makeIterableList
 from ccpn.util.Logging import getLogger
@@ -226,6 +226,8 @@ class _NewPeakTableWidget(_CoreTableWidgetABC):
 
     defaultHidden = ['Pid', 'Spectrum', 'PeakList', 'Id', 'HeightError', 'VolumeError']
     _internalColumns = ['isDeleted', '_object']  # columns that are always hidden
+    _internalDimensions = ['Assign F{dim}', 'Pos F{dim}', 'LW F{dim} (Hz)']
+    # _peakInternalColumns = ['isDeleted', '_object']  # for the property below (my not be required yet)
 
     # define self._columns here
     columnHeaders = {'#'          : '#',
@@ -351,6 +353,30 @@ class _NewPeakTableWidget(_CoreTableWidgetABC):
             self.current.peaks = value
         else:
             self.current.clearPeaks()
+
+    @property
+    def _dimensions(self) -> tuple[int, int]:
+        if self._table and self._table.spectrum:
+            return self._table.spectrum.dimensionCount, self._table.spectrum.MAXDIM
+        return (0, 0)
+
+    # not sure if this is required now - uses _peakInternalColumns
+    # @property
+    # def _internalColumns(self) -> list[str]:
+    #     dim, maxDim = self._dimensions
+    #     cols = list(OrderedSet(self._peakInternalColumns) |
+    #                 OrderedSet(colGroup.format(dim=dd)
+    #                            for colGroup in self._internalDimensions
+    #                            for dd in range(dim + 1, maxDim + 1)))
+    #     return cols
+    #
+    # @_internalColumns.setter
+    # def _internalColumns(self, value: list[str]):
+    #     dim, maxDim = self._dimensions
+    #     self._peakInternalColumns = list(OrderedSet(value) |
+    #                                      OrderedSet(colGroup.format(dim=dd)
+    #                                                 for colGroup in self._internalDimensions
+    #                                                 for dd in range(dim + 1, maxDim + 1)))
 
     #-----------------------------------------------------------------------------------------
     # Widget callbacks
@@ -532,16 +558,16 @@ class _NewPeakTableWidget(_CoreTableWidgetABC):
     def _pulldownPLcallback(self, data):
         self._updateAllModule()
 
-    def _copyPeaks(self):
-        from ccpn.ui.gui.popups.CopyPeaksPopup import CopyPeaks
-
-        popup = CopyPeaks(parent=self.mainWindow, mainWindow=self.mainWindow)
-        self._selectedPeakList = self.project.getByPid(self.pLwidget.getText())
-        if self._selectedPeakList is not None:
-            spectrum = self._selectedPeakList.spectrum
-            popup._selectSpectrum(spectrum)
-            popup._selectPeaks(self.current.peaks)
-        popup.exec_()
+    # def _copyPeaks(self):
+    #     from ccpn.ui.gui.popups.CopyPeaksPopup import CopyPeaks
+    #
+    #     popup = CopyPeaks(parent=self.mainWindow, mainWindow=self.mainWindow)
+    #     self._selectedPeakList = self.project.getByPid(self.pLwidget.getText())
+    #     if self._selectedPeakList is not None:
+    #         spectrum = self._selectedPeakList.spectrum
+    #         popup._selectSpectrum(spectrum)
+    #         popup._selectPeaks(self.current.peaks)
+    #     popup.exec_()
 
     def _setPositionUnit(self, value):
         if value in UNITS:
