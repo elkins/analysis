@@ -5,7 +5,7 @@ Currently this is peaks and multiplets
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2025"
 __credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
                "Timothy J Ragan, Brian O Smith, Daniel Thompson",
                "Gary S Thompson & Geerten W Vuister")
@@ -17,8 +17,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-09-06 15:02:43 +0100 (Fri, September 06, 2024) $"
-__version__ = "$Revision: 3.2.5 $"
+__dateModified__ = "$dateModified: 2025-03-07 12:50:13 +0000 (Fri, March 07, 2025) $"
+__version__ = "$Revision: 3.2.12 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -213,9 +213,9 @@ class GLLabelling():
                     if pList.isDeleted:
                         glArray.clearArrays()
 
-    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    #-----------------------------------------------------------------------------------------
     # Clean up for deletion
-    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    #-----------------------------------------------------------------------------------------
 
     def _delete(self):
         """Clean up the object ready for deletion
@@ -234,9 +234,9 @@ class GLLabelling():
                 vArray._delete()
                 del self._GLArrows[olv]
 
-    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    #-----------------------------------------------------------------------------------------
     # New Arrow list - separate from symbols and labels, more control
-    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    #-----------------------------------------------------------------------------------------
 
     def _deleteArrow(self, obj, parentList, spectrum):
         if pls := parentList:
@@ -992,9 +992,9 @@ class GLLabelling():
         drawList.pushIndexVBOIndices()
         drawList.pushTextArrayVBOColour()
 
-    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    #-----------------------------------------------------------------------------------------
     # Handle notifiers
-    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    #-----------------------------------------------------------------------------------------
 
     def _deleteSymbol(self, obj, parentList, spectrum):
         pls = parentList  # self.objectList(obj)
@@ -1573,12 +1573,11 @@ class GLLabelling():
                 # drawList.vertices[vertexPtr:vertexPtr + _vp1] = _vertexLineWidth + _pos
 
                 _vertexStart = indexing.vertexStart
+                iCount = np2
                 if _isInPlane or _isInFlankingPlane:
                     drawList.indices[indexEnd:indexEnd + np2] = tuple(val for an in ang
                                                                       for val in (_vertexStart + (2 * an),
                                                                                   _vertexStart + (2 * an) + 1))
-
-                    iCount = np2
                     if self._isSelected(obj):
                         _selected = True
                         drawList.indices[indexEnd + np2:indexEnd + np2 + 8] = (
@@ -2322,9 +2321,9 @@ class GLLabelling():
         drawList.pushIndexVBOIndices()
         drawList.pushTextArrayVBOColour()
 
-    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    #-----------------------------------------------------------------------------------------
     # Rescaling
-    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    #-----------------------------------------------------------------------------------------
 
     def _rescaleSymbolOffsets(self, r, w):
         return np.array([-r, -w, 0, 0,
@@ -2357,47 +2356,69 @@ class GLLabelling():
                     drawList.offsets[indexStart:indexStart + offLen] + offsets
 
         elif symbolType == 1:  # an ellipse
+            # only update the symbols defined without line-widths
             numPoints = 12
-            angPlus = 1.0 * np.pi
+            angPlus = np.pi
             skip = 2
-
             np2 = 2 * numPoints
             ang = list(range(numPoints))
 
-            offsets = np.empty(56)
-            for an in ang:
-                offsets[4 * an:4 * an + 4] = [- r * math.sin(skip * an * angPlus / numPoints),
+            # draw an ellipse at lineWidth
+            st, end, step, xtra = 0, 4 * np2, 4, 20
+
+            offsets = np.empty(end + xtra, dtype=np.float32)
+            offsets[st:end] = [val for an in ang
+                                  for val in [- r * math.sin(skip * an * angPlus / numPoints),
                                               - w * math.cos(skip * an * angPlus / numPoints),
+                                              0.0, 0.0,
                                               - r * math.sin((skip * an + 1) * angPlus / numPoints),
-                                              - w * math.cos((skip * an + 1) * angPlus / numPoints)]
-                offsets[48:56] = [-r, -w, +r, +w, +r, -w, -r, +w]
+                                              - w * math.cos((skip * an + 1) * angPlus / numPoints),
+                                              0.0, 0.0]]
+            offsets[end:end + xtra] = [-r, -w, 0.0, 0.0,
+                                       +r, +w, 0.0, 0.0,
+                                       +r, -w, 0.0, 0.0,
+                                       -r, +w, 0.0, 0.0,
+                                       0.0, 0.0, 0.0, 0.0]
 
             for pp in range(0, len(drawList.pids), GLDefs.LENPID):
                 if drawList.pids[pp + 2] == 12:
-                    indexStart = 2 * drawList.pids[pp + 1]
-                    drawList.vertices[indexStart:indexStart + 56] = drawList.offsets[
-                                                                    indexStart:indexStart + 56] + offsets
+                    # not a very nice way to check whether the peak contains line-widths
+                    # and requires a fixed-size symbol
+                    indexStart = step * drawList.pids[pp + 1]
+                    drawList.vertices[indexStart:indexStart + end + xtra] = drawList.offsets[
+                                                                    indexStart:indexStart + end + xtra] + offsets
 
         elif symbolType == 2:  # filled ellipse
             numPoints = 12
             angPlus = 1.0 * np.pi
             skip = 2
-
             np2 = 2 * numPoints
             ang = list(range(numPoints))
 
-            offsets = np.empty(48)
-            for an in ang:
-                offsets[4 * an:4 * an + 4] = [- r * math.sin(skip * an * angPlus / numPoints),
+            # draw a filled ellipse at lineWidth
+            st, end, step, xtra = 0, 4 * np2, 4, 20
+
+            offsets = np.empty(end + xtra, dtype=np.float32)
+            offsets[st:end] = [val for an in ang
+                                  for val in [- r * math.sin(skip * an * angPlus / numPoints),
                                               - w * math.cos(skip * an * angPlus / numPoints),
+                                              0.0, 0.0,
                                               - r * math.sin((skip * an + 1) * angPlus / numPoints),
-                                              - w * math.cos((skip * an + 1) * angPlus / numPoints)]
+                                              - w * math.cos((skip * an + 1) * angPlus / numPoints),
+                                              0.0, 0.0]]
+            offsets[end:end + xtra] = [-r, -w, 0.0, 0.0,
+                                       +r, +w, 0.0, 0.0,
+                                       +r, -w, 0.0, 0.0,
+                                       -r, +w, 0.0, 0.0,
+                                       0.0, 0.0, 0.0, 0.0]
 
             for pp in range(0, len(drawList.pids), GLDefs.LENPID):
                 if drawList.pids[pp + 2] == 12:
-                    indexStart = 2 * drawList.pids[pp + 1]
-                    drawList.vertices[indexStart:indexStart + 48] = drawList.offsets[
-                                                                    indexStart:indexStart + 48] + offsets
+                    # not a very nice way to check whether the peak contains line-widths
+                    # and requires a fixed-size symbol
+                    indexStart = step * drawList.pids[pp + 1]
+                    drawList.vertices[indexStart:indexStart + end + xtra] = drawList.offsets[
+                                                                    indexStart:indexStart + end + xtra] + offsets
 
         else:
             raise ValueError('GL Error: bad symbol type')
@@ -2449,9 +2470,9 @@ class GLLabelling():
         else:
             raise ValueError('GL Error: bad symbol type')
 
-    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    #-----------------------------------------------------------------------------------------
     # Building
-    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    #-----------------------------------------------------------------------------------------
 
     def _buildSymbolsCountItem(self, strip, spectrumView, obj, symbolType, tCount):
         """return the number of indices and vertices for the object
@@ -2741,9 +2762,9 @@ class GLLabelling():
         #                     args=buildQueue)
         # buildPeaks.start()
 
-    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    #-----------------------------------------------------------------------------------------
     # Threads
-    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    #-----------------------------------------------------------------------------------------
 
     def _threadBuildLabels(self, spectrumView, objListView, drawList, glStrip):
 
@@ -2788,9 +2809,9 @@ class GLLabelling():
 
         glStrip.GLSignals.emitPaintEvent(source=glStrip)
 
-    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    #-----------------------------------------------------------------------------------------
     # Drawing
-    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    #-----------------------------------------------------------------------------------------
 
     def drawSymbols(self, spectrumView):
         """Draw the symbols to the screen
@@ -3654,6 +3675,8 @@ class GL1dLabelling():
                     drawStr.setStringOffset((r, w))
                 drawStr.pushTextArrayVBOAttribs()
 
-    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    #-----------------------------------------------------------------------------------------
     # Drawing
-    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    #-----------------------------------------------------------------------------------------
+
+    ...
