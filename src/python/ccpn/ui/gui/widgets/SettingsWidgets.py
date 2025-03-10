@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Daniel Thompson $"
-__dateModified__ = "$dateModified: 2025-03-10 10:20:08 +0000 (Mon, March 10, 2025) $"
+__dateModified__ = "$dateModified: 2025-03-10 14:53:08 +0000 (Mon, March 10, 2025) $"
 __version__ = "$Revision: 3.3.1 $"
 #=========================================================================================
 # Created
@@ -1402,6 +1402,10 @@ class StripPlot(Widget, _commonSettings, SignalBlocking):
 
             specDisRow += 1
 
+            self.HNCACBSettingsLabel = Label(parent=self.spectrumDisplayOptionsFrame, text='HNCACB Settings:', grid=(specDisRow, 0))
+
+            specDisRow += 1
+
             self.glyHasCaSign = CheckBoxCompoundWidget(self.spectrumDisplayOptionsFrame,
                                                        grid=(specDisRow, 0), vAlign='top', stretch=(specDisRow, 0),
                                                        hAlign='left',
@@ -1440,13 +1444,13 @@ class StripPlot(Widget, _commonSettings, SignalBlocking):
 
     def _autoBbNmrAtomCallback(self):
         if self.automaticBbNmrAtomAssignment.isChecked():
-            # self.glyHasCaSign.setEnabled(True)
-            # self.casPosCbsNeg.setEnabled(True)
             self.glyHasCaSign.setVisible(True)
             self.casPosCbsNeg.setVisible(True)
+            self.HNCACBSettingsLabel.setVisible(True)
         elif not self.automaticBbNmrAtomAssignment.isChecked():
             self.glyHasCaSign.setVisible(False)
             self.casPosCbsNeg.setVisible(False)
+            self.HNCACBSettingsLabel.setVisible(False)
 
     def storeWidgetState(self):
         """Store the state of the checkBoxes between popups
