@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Daniel Thompson $"
-__dateModified__ = "$dateModified: 2025-03-10 14:53:08 +0000 (Mon, March 10, 2025) $"
+__dateModified__ = "$dateModified: 2025-03-10 15:02:19 +0000 (Mon, March 10, 2025) $"
 __version__ = "$Revision: 3.3.1 $"
 #=========================================================================================
 # Created
@@ -102,6 +102,7 @@ ZEROMARGINS = (0, 0, 0, 0) # l, t, r, b
 
 
 class PickAndAssignSettings(Widget):
+    """Settings widget for the pick and assign module."""
     def __init__(self, parent=None, mainWindow=None, **kwds):
         super().__init__(parent, setLayout=True, **kwds)
 
@@ -118,6 +119,11 @@ class PickAndAssignSettings(Widget):
         self._initSettings()
 
     def _setWidgets(self, parent):
+        """Create settings for the NmrResidueTable and the PeakTable
+
+        .. Note:: The pick and assign module only utilises the nmrResidueTableSettings
+        and so peakTableSetttings is set to not visible in the widget.
+        """
         settingsDict = OrderedDict(
                 ((LINKTOPULLDOWNCLASS, {'label'   : f'Link to current {PeakList.className}',
                                         'tipText' : f'Set/update current {PeakList.className} when selecting from pulldown',
@@ -126,16 +132,6 @@ class PickAndAssignSettings(Widget):
                                         'checked' : False,
                                         '_init'   : None}),
                  ))
-
-        # self.tabWidget = Tabs(parent, grid=(0, 0), gridSpan=(1, 3))
-        # self.tabWidget.setContentsMargins(*ZEROMARGINS)
-        # self.nmrResidueTableSettingsFrame = ScrollableFrame(parent, mainWindow=self.mainWindow, setLayout=True,
-        #                                                     scrollBarPolicies=('never', 'asNeeded'), grid=(0, 0), gridSpan=(1, 3))
-        # self.peakTableSettingsFrame = ScrollableFrame(parent, mainWindow=self.mainWindow, setLayout=True, spacing=DEFAULTSPACING,
-        #                                               scrollBarPolicies=('never', 'asNeeded'), margins=TABMARGINS)
-
-        # self.tabWidget.addTab(self.nmrResidueTableSettingsFrame.scrollArea, 'NmrChain Table')
-        # self.tabWidget.addTab(self.peakTableSettingsFrame.scrollArea, 'Peak Table')
 
         self.nmrResidueTableSettings = StripPlot(parent=parent, mainWindow=self.mainWindow,
                                                  includeDisplaySettings=True,
@@ -152,15 +148,20 @@ class PickAndAssignSettings(Widget):
         self.peakTableSettings.setVisible(False)
 
     def _initSettings(self):
+        """Initialise the settings correctly for the Pick and Assign module.
+        """
         # change default-settings inherited from NmrResidueTableModule
         self.nmrResidueTableSettings.sequentialStripsWidget.checkBox.setChecked(False)
 
+        # select the <all> option
         if self.nmrResidueTableSettings.displaysWidget:
-            self.nmrResidueTableSettings.displaysWidget.addPulldownItem(0)  # select the <all> option
+            self.nmrResidueTableSettings.displaysWidget.addPulldownItem(0)
+        if self.nmrResidueTableSettings.spectrumDisplayPulldown:
+            self.nmrResidueTableSettings.spectrumDisplayPulldown.addPulldownItem(0)
 
         self.nmrResidueTableSettings.setLabelText('Navigate to\nDisplay(s)')
 
-        # # these need to change whenever different spectrumDisplays are selected
+        # these need to change whenever different spectrumDisplays are selected
         if self.nmrResidueTableSettings.axisCodeOptions:
             self.nmrResidueTableSettings.axisCodeOptions.selectAll()
 
