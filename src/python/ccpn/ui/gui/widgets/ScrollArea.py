@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2025-03-06 18:17:32 +0000 (Thu, March 06, 2025) $"
+__dateModified__ = "$dateModified: 2025-03-10 18:59:59 +0000 (Mon, March 10, 2025) $"
 __version__ = "$Revision: 3.3.1 $"
 #=========================================================================================
 # Created
@@ -97,10 +97,11 @@ class SpectrumDisplayScrollArea(ScrollArea):
 
     def __init__(self, parent, scrollBarPolicies=('asNeeded', 'asNeeded'),
                  setLayout=True, minimumSizes=(50, 50),
-                 spectrumDisplay=None, cornerWidget=False, **kwds):
+                 spectrumDisplay=None, cornerWidget=False, **kwargs):
         """Initialise the widget
         """
-        super().__init__(parent=parent, scrollBarPolicies=scrollBarPolicies, setLayout=setLayout, minimumSizes=minimumSizes)
+        super().__init__(parent=parent, scrollBarPolicies=scrollBarPolicies,
+                         setLayout=setLayout, minimumSizes=minimumSizes, **kwargs)
         self._spectrumDisplay = spectrumDisplay
 
         # grab the background from the container
@@ -138,6 +139,8 @@ class SpectrumDisplayScrollArea(ScrollArea):
             margins = self._viewportMargins
 
             if children := self.findChildren((Gui1dWidgetAxis, GuiNdWidgetAxis)):
+                child: Gui1dWidgetAxis | GuiNdWidgetAxis
+
                 for child in children:
                     if child._axisType == BOTTOMAXIS:
                         # resize the X axis widgets - allow for frame-border
@@ -156,6 +159,7 @@ class SpectrumDisplayScrollArea(ScrollArea):
         self._updateAxisWidgets()
 
         if children := self.findChildren((Gui1dWidgetAxis, GuiNdWidgetAxis)):
+            child: Gui1dWidgetAxis | GuiNdWidgetAxis
             for child in children:
                 child._notifyAxesChange = True
                 child.update()
