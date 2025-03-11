@@ -31,6 +31,7 @@ import numpy as np
 from itertools import product
 from collections import namedtuple
 from PyQt5 import QtCore, QtGui
+
 from ccpn.ui.gui.lib.GuiSpectrumView import GuiSpectrumView, SpectrumCache
 from ccpn.util import Colour
 from ccpn.util.Logging import getLogger

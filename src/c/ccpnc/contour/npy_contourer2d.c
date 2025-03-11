@@ -998,7 +998,7 @@ static PyObject *contourer(PyObject *self, PyObject *args) {
     return contours;
 }
 
-static PyObject *newList(size) {
+static PyObject *newList(int size) {
     PyObject *list = PyList_New(size);
     if (!list) {
         RETURN_OBJ_ERROR("allocating list memory");
