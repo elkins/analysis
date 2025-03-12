@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Excel Files for AnalysisScreen Import</title>
+    <link rel="stylesheet" href="CcpnVideoTutorials.css">
+</head>
+<body>
+<div class="header"><a href="https://www.ccpn.ac.uk/"><img src="CCPN.png" alt="CCPN Logo" height="50"></a><a
+        href="index.html" class="button">Video<br> Tutorials<br> & Manual</a><a href="https://forums.ccpn.ac.uk"><img
+        src="CCPNForumLogo.png" alt="CCPN Logo" height="50" style="padding-left: 15px"></a></div>
+<br>
+<div class="headerBar">Excel Files for AnalysisScreen Import</div>
+<div class="tutorial">
+
+    <h2>Excel Files for AnalysisScreen Import</h2>
+    <p>The advantage of importing your screening data with an Excel lookup file is not only that you can import hundreds or thousands of Spectra and Substances (compounds) in one go, but that the program will additionally automatically link the Substances to their Reference Spectra and place the Spectra into SpectrumGroups. And by including information such as compound SMILES you will also be able to see a compound's structure.</p>
+    <p>The program can read .xls or .xlxs files with multiple sheets that include the words Sample or Substance in the sheet name. You can create files that contain either the Substance or Sample page or both. You can download both <a href="">a template Excel lookup file</a> (only contains the column headings) and <a href="">an example Excel lookup file</a> (also contains example data).</p>
+
+    <h3>Substance Sheet</h3>
+    <p>The title of this sheet must start with <span class="action">Substance</span> and contains information about the small molecules or compounds in your screening library. The only mandatory column is the one called <span class="action">SubstanceName</span>. Additional columns are optional, but it can be helpful to use them, particularly if you want to include reference spectra for your small molecules.</p>
+    <h4>spectrumPath</h4>
+    <p>This is the path to a reference spectrum for that substance.
+        <br>AnalysisScreen will recognise any spectrum format and you do not need to include any file extensions such as .ucsf, ndf5, .ft etc.). You can specify the path in three ways:
+        <ol>
+            <li>If all the spectra files are located in the same directory as the lookup file, insert only the file names as above.</li>
+            <li>If the spectra are located in a subdirectory, insert the directory name first followed by a slash and the filename (the relative path starting from the Excel file), e.g. references/C101</li>
+            <li>If the spectra files are located in a completely different location, insert the full path, e.g. /Users/Username/Desktop/MySpectra/C101</li>
+        </ol>
+        For Bruker files, you can insert the path to the 1r file, e.g.: /Users/Username/MySpectra/exptNumber/pdata/1/1r</p>
+    <h4>spectrumGroupName</h4>
+    <p></p>
+    <h4>experimentType</h4>
+    <p></p>
+    <h4>spectrumHexColour</h4>
+    <p></p>
+    <h4>smiles</h4>
+    <p>Entering the SMILES string for your Substance will enable you to view the structure of the compound with in the program and also in the reports you generate.</p>
+    <h4>other</h4>
+    <p></p>
+
+    <h3>Sample Sheet</h3>
+    <p></p>
+
+</div>
+</body>
+</html>
