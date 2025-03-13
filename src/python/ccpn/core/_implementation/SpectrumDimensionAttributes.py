@@ -4,9 +4,10 @@ Module Documentation here
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2023"
-__credits__ = ("Ed Brooksbank, Joanna Fox, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
-               "Timothy J Ragan, Brian O Smith, Gary S Thompson & Geerten W Vuister")
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2025"
+__credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
+               "Timothy J Ragan, Brian O Smith, Daniel Thompson",
+               "Gary S Thompson & Geerten W Vuister")
 __licence__ = ("CCPN licence. See https://ccpn.ac.uk/software/licensing/")
 __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, L.G., & Vuister, G.W.",
                  "CcpNmr AnalysisAssign: a flexible platform for integrated NMR analysis",
@@ -15,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2023-03-02 11:52:00 +0000 (Thu, March 02, 2023) $"
-__version__ = "$Revision: 3.1.1 $"
+__dateModified__ = "$dateModified: 2025-03-13 18:50:05 +0000 (Thu, March 13, 2025) $"
+__version__ = "$Revision: 3.3.1 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -26,17 +27,33 @@ __date__ = "$Date: 2023-03-02 11:18:54 +0000 (Thu, March 2, 2023) $"
 # Start of code
 #=========================================================================================
 
-from typing import Optional, Sequence, Tuple
-
+from typing import Optional, Sequence, Tuple, Callable, TypeVar
+from ccpnmodel.ccpncore.api.ccp.nmr.Nmr import AbstractDataDim, DataDimRef, ExpDim, ExpDimRef
 import ccpn.core.lib.SpectrumLib as specLib
 from ccpn.util.Common import isIterable
 from ccpn.util.Logging import getLogger
 
 
-class SpectrumDimensionAttributes(object):
+SpectrumInstance = TypeVar('SpectrumInstance', bound='ccpn.core.Spectrum.Spectrum')
+
+
+class SpectrumDimensionAttributes:
     """Spectrum dimensional attributes
     Inherited by SpectrumReference and PseudoDimension
     """
+    # These SHOULD all be defined in SpectrumReference/PseudoDimension
+    _dataDim: AbstractDataDim
+    _dataDimRef: DataDimRef
+    _expDim: ExpDim
+    _expDimRef: ExpDimRef
+
+    spectrum: SpectrumInstance
+    pointToValue: Callable
+    ppmToPoint: Callable
+    _hasInternalParameter: Callable
+    _getInternalParameter: Callable
+    _setInternalParameter: Callable
+
     #-----------------------------------------------------------------------------------------
     # Spectrum-dimension related properties
     #-----------------------------------------------------------------------------------------

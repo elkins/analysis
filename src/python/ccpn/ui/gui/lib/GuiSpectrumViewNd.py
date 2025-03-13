@@ -4,7 +4,7 @@
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2025"
 __credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
                "Timothy J Ragan, Brian O Smith, Daniel Thompson",
                "Gary S Thompson & Geerten W Vuister")
@@ -16,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-09-09 19:03:26 +0100 (Mon, September 09, 2024) $"
-__version__ = "$Revision: 3.2.6 $"
+__dateModified__ = "$dateModified: 2025-03-13 18:50:05 +0000 (Thu, March 13, 2025) $"
+__version__ = "$Revision: 3.3.1 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -27,13 +27,10 @@ __date__ = "$Date: 2017-04-07 10:28:41 +0000 (Fri, April 07, 2017) $"
 # Start of code
 #=========================================================================================
 
-from PyQt5 import QtGui
 import numpy as np
 from itertools import product
 from collections import namedtuple
 from PyQt5 import QtCore, QtGui
-from numba import jit
-
 from ccpn.ui.gui.lib.GuiSpectrumView import GuiSpectrumView, SpectrumCache
 from ccpn.util import Colour
 from ccpn.util.Logging import getLogger
@@ -233,6 +230,7 @@ class GuiSpectrumViewNd(GuiSpectrumView):
 
         # posContoursAll = negContoursAll = None
         # numDims = self.spectrum.dimensionCount
+        getLogger().debug(f'_constructContours   {self}')
 
         # get the positive/negative contour colour lists
         _posColours = self._interpolateColours(self.posColours, posLevels)
@@ -449,7 +447,7 @@ class GuiSpectrumViewNd(GuiSpectrumView):
             # pass in a smaller valuePerPoint - if there are differences in the z-resolution, otherwise just use local valuePerPoint
             minZWidth = 3 * zValuePerPoint
             zWidth = (planeCount + 2) * minimumValuePerPoint[dim - 2] \
-                     if minimumValuePerPoint else (planeCount + 2) * zValuePerPoint
+                if minimumValuePerPoint else (planeCount + 2) * zValuePerPoint
             zWidth = max(zWidth, minZWidth)
 
             zRegionValue = (zPosition + 0.5 * zWidth, zPosition - 0.5 * zWidth)  # Note + and - (axis backwards)
@@ -479,7 +477,7 @@ class GuiSpectrumViewNd(GuiSpectrumView):
             # need to add 0.5 for the indexing in the api
             planePointValues = ()
 
-            # not sure tha the ppm's are needed here
+            # not sure that the ppm's are needed here
             # planePointValues = planePointValues + ((tuple(self.spectrum.ppm2point(zz + 0.5, axisCode=axisCode)
             #                                               for zz in range(zPointInt0, zPointInt1 + 1)), zPointOffset, zPointCount),)
 
@@ -530,7 +528,8 @@ class GuiSpectrumViewNd(GuiSpectrumView):
                 self._traceScale = 1.0 / max(data) * 0.5
         return data
 
-    def _getVisibleSpectrumViewParams(self, dimRange=None, delta=None, stacking=None) -> SpectrumCache:
+    def _getVisibleSpectrumViewParams(self, dimRange=None, delta=None, stacking=None,
+                                      flipped: bool = False, pixelX: float = 0.0, pixelY: float = 0.0) -> SpectrumCache:
         """Get parameters for axisDim'th axis (zero-origin) of spectrum in display-order.
 
         Returns SpectrumCache object of the form:
@@ -573,6 +572,7 @@ class GuiSpectrumViewNd(GuiSpectrumView):
 
             delta                       multipliers for the axes, either -1.0|1.0
             scale                       scaling for each dimension
+            :param flipped:
         """
         if self.pointCounts[0]:
             minFoldingFrequencies = [min(*val) for val in self.foldingLimits]
@@ -594,16 +594,19 @@ class GuiSpectrumViewNd(GuiSpectrumView):
                     maxSpec[ii] = 1.0
                     specWidth[ii] = 2.0
 
+            # build the point->ppm matrices here for the display
             xScale = (-1.0 if axesReversed[0] else 1.0) * specWidth[0] / self.pointCounts[0]
             yScale = (-1.0 if axesReversed[1] else 1.0) * specWidth[1] / self.pointCounts[1]
-
-            # build the point->ppm matrices here for the display
             foldX = 1.0 if axesReversed[0] else -1.0
             foldY = 1.0 if axesReversed[1] else -1.0
             xOffset = maxSpec[0] if axesReversed[0] else minSpec[0]
             yOffset = maxSpec[1] if axesReversed[1] else minSpec[0]
             centreMatrix = None
+            centrePointMatrix = None
             mvMatrices = []
+            mvPointMatrices = []
+            pixelScales = []
+            aliasPositions = []
             for ii, jj in product(range(aliasingIndexes[0][0], aliasingIndexes[0][1] + 1),
                                   range(aliasingIndexes[1][0], aliasingIndexes[1][1] + 1)):
                 # if folding[0] == 'mirror':
@@ -613,14 +616,23 @@ class GuiSpectrumViewNd(GuiSpectrumView):
                 # if folding[1] == 'mirror':
                 #     foldY = pow(-1, jj)
                 #     foldYOffset = -dyAF if foldY < 0 else 0
-                mm = QtGui.QMatrix4x4()
-                mm.translate(xOffset + (ii * specWidth[0]),
+                mv = QtGui.QMatrix4x4()
+                mv.translate(xOffset + (ii * specWidth[0]),
                              yOffset + (jj * specWidth[1]))
-                mm.scale(xScale * foldX, yScale * foldY, 1.0)
-                mvMatrices.append(mm)
+                mv.scale(xScale * foldX, yScale * foldY, 1.0)
+                mvMatrices.append(mv)
+                mvp = QtGui.QMatrix4x4()
+                mvp.translate(xOffset + (ii * specWidth[0]),
+                              yOffset + (jj * specWidth[1]))
+                mvp.scale(xScale * foldX, yScale * foldY, 1.0)
+                mvPointMatrices.append(mvp)
+                pixelScales.append(QtGui.QVector4D(foldX * pixelX / xScale, foldY * pixelY / yScale, 1.0, 1.0))
                 if ii == 0 and jj == 0:
-                    # SHOULD always be here
-                    centreMatrix = mm
+                    # SHOULD always be here :|
+                    centreMatrix = mv
+                    centrePointMatrix = mvp
+                aliasPositions.append((ii, jj))
+
             if not centreMatrix:
                 raise RuntimeError(f'{self.__class__.__name__}._getVisibleSpectrumViewParams: '
                                    f'centre matrix not defined')
@@ -655,22 +667,19 @@ class GuiSpectrumViewNd(GuiSpectrumView):
                                  delta=delta,
 
                                  stackedMatrixOffset=[0.0, 0.0],
-                                 # matrix=np.array([xScale, 0.0, 0.0, 0.0,
-                                 #                  0.0, yScale, 0.0, 0.0,
-                                 #                  0.0, 0.0, 1.0, 0.0,
-                                 #                  maxSpec[0], maxSpec[1], 0.0, 1.0],
-                                 #                 dtype=np.float32),
                                  matrix=centreMatrix,
+                                 pointMatrix=centrePointMatrix,
                                  stackedMatrix=np.array([1.0, 0.0, 0.0, 0.0,
                                                          0.0, 1.0, 0.0, 0.0,
                                                          0.0, 0.0, 1.0, 0.0,
                                                          0.0, 0.0, 0.0, 1.0],
                                                         dtype=np.float32),
-
-                                 spinningRate=self.spectrum.spinningRate,
                                  mvMatrices=mvMatrices,
+                                 mvPointMatrices=mvPointMatrices,
+                                 pixelScales=pixelScales,
+                                 aliasPositions=aliasPositions,
+                                 spinningRate=self.spectrum.spinningRate,
                                  )
-
         else:
             # points are not defined for the spectrum
             return SpectrumCache(dimensionIndices=self.dimensionIndices[:2],
@@ -704,16 +713,16 @@ class GuiSpectrumViewNd(GuiSpectrumView):
                                  delta=[1.0, 1.0],
 
                                  stackedMatrixOffset=[0.0, 0.0],
-                                 matrix=np.array([1.0, 0.0, 0.0, 0.0,
-                                                  0.0, 1.0, 0.0, 0.0,
-                                                  0.0, 0.0, 1.0, 0.0,
-                                                  0.0, 0.0, 0.0, 1.0],
-                                                 dtype=np.float32),
+                                 matrix=QtGui.QMatrix4x4(),
+                                 pointMatrix=QtGui.QMatrix4x4(),
                                  stackedMatrix=np.array([1.0, 0.0, 0.0, 0.0,
                                                          0.0, 1.0, 0.0, 0.0,
                                                          0.0, 0.0, 1.0, 0.0,
                                                          0.0, 0.0, 0.0, 1.0],
                                                         dtype=np.float32),
-
+                                 mvMatrices=[],
+                                 mvPointMatrices=[],
+                                 pixelScales=[],
+                                 aliasPositions=[],
                                  spinningRate=0.0,
                                  )

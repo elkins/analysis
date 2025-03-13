@@ -57,7 +57,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2025-03-06 18:17:32 +0000 (Thu, March 06, 2025) $"
+__dateModified__ = "$dateModified: 2025-03-13 18:50:05 +0000 (Thu, March 13, 2025) $"
 __version__ = "$Revision: 3.3.1 $"
 #=========================================================================================
 # Created
@@ -3022,6 +3022,11 @@ class CcpnGLWidget(QOpenGLWidget):
 
     def updateVisibleSpectrumViews(self):
         self._notifySpectrumViewsChange = True
+        # spawn rebuild event for the grid
+        self._notifyAxesChange = True
+        if self.gridList:
+            for gr in self.gridList:
+                gr.renderMode = GLRENDERMODE_REBUILD
         self.update()
 
     def _buildGL(self):

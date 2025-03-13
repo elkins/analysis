@@ -17,7 +17,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2025-03-06 18:17:32 +0000 (Thu, March 06, 2025) $"
+__dateModified__ = "$dateModified: 2025-03-13 18:50:06 +0000 (Thu, March 13, 2025) $"
 __version__ = "$Revision: 3.3.1 $"
 #=========================================================================================
 # Created
@@ -532,33 +532,12 @@ class GuiNdWidget(CcpnGLWidget):
             if specView.isDisplayed and specView in self._spectrumSettings.keys():
                 # set correct transform when drawing this contour
                 specSettings = self._spectrumSettings[specView]
-                # specMatrix = np.array(specSettings.matrix, dtype=np.float32)
 
-                # fxMax, fyMax = specSettings.maxSpectrumFrequency
-                # dxAF, dyAF = specSettings.spectralWidth
-                xScale, yScale = specSettings.scale
-                alias = specSettings.aliasingIndex
-                folding = specSettings.foldingMode
-
-                for idx, (ii, jj) in enumerate(product(range(alias[0][0], alias[0][1] + 1),
-                                                       range(alias[1][0], alias[1][1] + 1))):
-                    foldX = foldY = 1.0
-                    # foldXOffset = foldYOffset = 0
-                    if folding[0] == 'mirror':
-                        foldX = pow(-1, ii)
-                        # foldXOffset = -dxAF if foldX < 0 else 0
-                    if folding[1] == 'mirror':
-                        foldY = pow(-1, jj)
-                        # foldYOffset = -dyAF if foldY < 0 else 0
-
-                    self._axisScale = QtGui.QVector4D(foldX * self.pixelX / xScale, foldY * self.pixelY / yScale,
-                                                      1.0, 1.0)
-                    shader.setAxisScale(self._axisScale)
-                    shader.setMV(specSettings.mvMatrices[idx])
-                    # flipping in the same GL region -  xScale = -xScale
-                    #                                   offset = fx0-dxAF
-                    # circular -    offset = fx0 + dxAF*alias, alias = min->max
-                    # shader.setMVMatrix(specMatrix)
+                for mv, ps, (ii, jj) in zip(specSettings.mvMatrices,
+                                            specSettings.pixelScales,
+                                            specSettings.aliasPositions):
+                    shader.setMV(mv)
+                    shader.setAxisScale(ps)
                     shader.setAliasPosition(ii, jj)
 
                     if self._peakLabelsEnabled:
@@ -577,7 +556,6 @@ class GuiNdWidget(CcpnGLWidget):
         lineThickness = self._symbolThickness
         GL.glLineWidth(lineThickness * self.viewports.devicePixelRatio)
         shader.setAliasEnabled(self._aliasEnabled)
-
         # change to correct value for shader
         shader.setAliasShade(self._aliasShade / 100.0)
 
@@ -588,40 +566,10 @@ class GuiNdWidget(CcpnGLWidget):
 
             if specView.isDisplayed and specView in self._spectrumSettings.keys():
                 specSettings = self._spectrumSettings[specView]
-                # specMatrix = np.array(specSettings.matrix, dtype=np.float32)
 
-                # fxMax, fyMax = specSettings.maxSpectrumFrequency
-                # dxAF, dyAF = specSettings.spectralWidth
-                # xScale, yScale = specSettings.scale
-                alias = specSettings.aliasingIndex
-                # folding = specSettings.foldingMode
-
-                for idx, (ii, jj) in enumerate(product(range(alias[0][0], alias[0][1] + 1),
-                                                       range(alias[1][0], alias[1][1] + 1))):
-                    # foldX = foldY = 1.0
-                    # foldXOffset = foldYOffset = 0
-                    # if folding[0] == 'mirror':
-                    #     foldX = pow(-1, ii)
-                    #     foldXOffset = -dxAF if foldX < 0 else 0
-                    # if folding[1] == 'mirror':
-                    #     foldY = pow(-1, jj)
-                    #     foldYOffset = -dyAF if foldY < 0 else 0
-                    #
-                    # # specMatrix[:16] = [xScale * foldX, 0.0, 0.0, 0.0,
-                    # #                    0.0, yScale * foldY, 0.0, 0.0,
-                    # #                    0.0, 0.0, 1.0, 0.0,
-                    # #                    fxMax + (ii * dxAF) + foldXOffset, fyMax + (jj * dyAF) + foldYOffset, 0.0, 1.0]
-                    #
-                    # mm = QtGui.QMatrix4x4()
-                    # mm.translate(fxMax + (ii * dxAF) + foldXOffset, fyMax + (jj * dyAF) + foldYOffset)
-                    # mm.scale(xScale * foldX, yScale * foldY, 1.0)
-                    # shader.setMV(mm)
-
-                    shader.setMV(specSettings.mvMatrices[idx])
-                    # flipping in the same GL region -  xScale = -xScale
-                    #                                   offset = fx0-dxAF
-                    # circular -    offset = fx0 + dxAF*alias, alias = min->max
-                    # _shader.setMVMatrix(specMatrix)
+                for mv, (ii, jj) in zip(specSettings.mvMatrices,
+                                        specSettings.aliasPositions):
+                    shader.setMV(mv)
                     shader.setAliasPosition(ii, jj)
 
                     if peakArrowsEnabled:
@@ -717,24 +665,24 @@ class GuiNdWidget(CcpnGLWidget):
             return
 
         shader = self._shaderPixel
-
         GL.glLineWidth(self._contourThickness * self.viewports.devicePixelRatio)
         GL.glDisable(GL.GL_BLEND)
 
         for spectrumView in self._ordering:
-
             if spectrumView.isDeleted or not spectrumView._showContours:
                 continue
             if spectrumView.spectrum is None or (spectrumView.spectrum and spectrumView.spectrum.isDeleted):
                 continue
+            if not spectrumView._showContours:
+                continue
 
             if spectrumView.isDisplayed and spectrumView in self._spectrumSettings.keys():
+                specSettings = self._spectrumSettings[spectrumView]
+                # SHOULD always match spectrumSettings - put it in there?
+                contours = self._contourList[spectrumView]
 
                 # set correct transform when drawing this contour
                 if spectrumView.spectrum.displayFoldedContours:
-                    specSettings = self._spectrumSettings[spectrumView]
-                    contours = self._contourList[spectrumView]
-
                     pIndex = specSettings.dimensionIndices
                     if None in pIndex:
                         continue
@@ -742,51 +690,11 @@ class GuiNdWidget(CcpnGLWidget):
                     for mv in specSettings.mvMatrices:
                         shader.setMV(mv)
                         contours.drawIndexVBO()
-
-                    # # fxMax, fyMax = specSettings.maxSpectrumFrequency
-                    # fxMin, fyMin = specSettings.minSpectrumFrequency
-                    # xReverse, yReverse = specSettings.axisReversed
-                    # dxAF, dyAF = specSettings.spectralWidth
-                    # xScale, yScale = specSettings.scale
-                    # alias = specSettings.aliasingIndex
-                    # folding = specSettings.foldingMode
-                    # # specMatrix = np.array(specSettings.matrix, dtype=np.float32)
-                    #
-                    # print(f'==> {specSettings.scale}   {xReverse} {yReverse}')
-                    # foldX = 1.0 if xReverse else -1.0
-                    # foldY = 1.0 if yReverse else -1.0
-                    # foldXOffset = dxAF if xReverse else 0
-                    # foldYOffset = dyAF if yReverse else 0
-                    # for ii, jj in product(range(alias[0][0], alias[0][1] + 1), range(alias[1][0], alias[1][1] + 1)):
-                    #     # if folding[0] == 'mirror':
-                    #     #     # to be implemented correctly later
-                    #     #     foldX = pow(-1, ii)
-                    #     #     foldXOffset = -dxAF if foldX < 0 else 0
-                    #     # if folding[1] == 'mirror':
-                    #     #     foldY = pow(-1, jj)
-                    #     #     foldYOffset = -dyAF if foldY < 0 else 0
-                    #
-                    #     # specMatrix[:16] = [xScale * foldX, 0.0, 0.0, 0.0,
-                    #     #                    0.0, yScale * foldY, 0.0, 0.0,
-                    #     #                    0.0, 0.0, 1.0, 0.0,
-                    #     #                    fxMax + (ii * dxAF) + foldXOffset, fyMax + (jj * dyAF) + foldYOffset, 0.0, 1.0]
-                    #
-                    #     mm = QtGui.QMatrix4x4()
-                    #     mm.translate(fxMin + (ii * dxAF) + foldXOffset, fyMin + (jj * dyAF) + foldYOffset)
-                    #     mm.scale(xScale * foldX, yScale * foldY, 1.0)
-                    #     shader.setMV(mm)
-                    #
-                    #     # flipping in the same GL region -  xScale = -xScale
-                    #     #                                   offset = fxMax-dxAF
-                    #     # circular -    offset = fxMax + dxAF*alias, alias = min->max
-                    #     # shader.setMVMatrix(specMatrix)
-                    #
-                    #     self._contourList[spectrumView].drawIndexVBO()
                 else:
                     # set the scaling/offset for a single spectrum GL contour
                     # shader.setMVMatrix(self._spectrumSettings[spectrumView].matrix)
-                    shader.setMV(self._spectrumSettings[spectrumView].matrix)
-                    self._contourList[spectrumView].drawIndexVBO()
+                    shader.setMV(specSettings.matrix)
+                    contours.drawIndexVBO()
 
         # reset lineWidth
         GL.glLineWidth(GLDefs.GLDEFAULTLINETHICKNESS * self.viewports.devicePixelRatio)
@@ -918,19 +826,16 @@ class GuiNdWidget(CcpnGLWidget):
                     break
 
     def _buildSpectrumSetting(self, spectrumView, stackCount=0):
-        # if spectrumView.spectrum.headerSize == 0:
-        #     return
-
-        # delta = [-1.0 if self.XDIRECTION else 1.0,
-        #          -1.0 if self.YDIRECTION else 1.0]
         delta = [self.XDIRECTION, self.YDIRECTION]
-        self._spectrumSettings[spectrumView] = specVals = spectrumView._getVisibleSpectrumViewParams(delta=delta)
+        self._spectrumSettings[spectrumView] = specVals = spectrumView._getVisibleSpectrumViewParams(delta=delta,
+                                                                                                     pixelX=self.pixelX,
+                                                                                                     pixelY=self.pixelY)
 
-        self._minXRange = min(self._minXRange,
-                              GLDefs.RANGEMINSCALE * specVals.spectralWidth[0] / specVals.pointCount[0])
+        self._minXRange = min(self._minXRange, GLDefs.RANGEMINSCALE * (specVals.spectralWidth[0] /
+                                                                       specVals.pointCount[0]))
         self._maxXRange = max(self._maxXRange, specVals.spectralWidth[0])
-        self._minYRange = min(self._minYRange,
-                              GLDefs.RANGEMINSCALE * specVals.spectralWidth[1] / specVals.pointCount[1])
+        self._minYRange = min(self._minYRange, GLDefs.RANGEMINSCALE * (specVals.spectralWidth[1] /
+                                                                       specVals.pointCount[1]))
         self._maxYRange = max(self._maxYRange, specVals.spectralWidth[1])
 
         self._rangeXDefined = True
@@ -939,8 +844,6 @@ class GuiNdWidget(CcpnGLWidget):
         self._minX = min(self._minX, specVals.minSpectrumFrequency[0])
         self._maxY = max(self._maxY, specVals.maxSpectrumFrequency[1])
         self._minY = min(self._minY, specVals.minSpectrumFrequency[1])
-
-        # self._buildAxisCodesWithWildCards()
 
     def buildCursors(self):
         """Build and draw the cursors/doubleCursors
@@ -1604,56 +1507,21 @@ class Gui1dWidget(CcpnGLWidget):
         shader.setProjection(self.axisL, self.axisR, self.axisB, self.axisT, -1.0, 1.0)
         shader.setAxisScale(self._axisScale)
         shader.setStackOffset(QtGui.QVector2D(0.0, 0.0))
-
         shader.setAliasEnabled(self._aliasEnabled and self._aliasLabelsEnabled)
-
         # change to correct value for shader
         shader.setAliasShade(self._aliasShade / 100.0)
 
         for specView in self._ordering:
-
             if specView.isDeleted:
                 continue
 
             if specView.isDisplayed and specView in self._spectrumSettings.keys():
                 specSettings = self._spectrumSettings[specView]
-
-                fxMax, fyMax = specSettings.maxSpectrumFrequency
-                dxAF, dyAF = specSettings.spectralWidth
-                xScale, yScale = specSettings.scale
-                alias = specSettings.aliasingIndex
-                folding = specSettings.foldingMode
-
-                for ii, jj in product(range(alias[0][0], alias[0][1] + 1), range(alias[1][0], alias[1][1] + 1)):
-                    foldX = foldY = 1.0
-                    foldXOffset = foldYOffset = 0
-                    if folding[0] == 'mirror':
-                        foldX = pow(-1, ii)
-                        foldXOffset = -dxAF if foldX < 0 else 0
-                    if folding[1] == 'mirror':
-                        foldY = pow(-1, jj)
-                        foldYOffset = -dyAF if foldY < 0 else 0
-
-                    mm = QtGui.QMatrix4x4()
-                    if self._stackingMode:
-                        mm.translate(*specSettings.stackedMatrixOffset)
-
-                    if self.spectrumDisplay._flipped:
-                        mm.translate(0, fyMax + (jj * dyAF) + foldYOffset)
-                        mm.scale(1.0, yScale * foldY, 1.0)
-                        self._axisScale = QtGui.QVector4D(self.pixelX, foldY * self.pixelY / yScale,
-                                                          0.0, 1.0)
-                    else:
-                        mm.translate(fxMax + (ii * dxAF) + foldXOffset, 0)
-                        mm.scale(xScale * foldX, 1.0, 1.0)
-                        self._axisScale = QtGui.QVector4D(foldX * self.pixelX / xScale, self.pixelY,
-                                                          0.0, 1.0)
-
-                    # flipping in the same GL region -  xScale = -xScale
-                    #                                   offset = fx0-dxAF
-                    # circular -    offset = fx0 + dxAF*alias, alias = min->max
-                    shader.setMV(mm)
-                    shader.setAxisScale(self._axisScale)
+                for mv, ps, (ii, jj) in zip(specSettings.mvMatrices,
+                                            specSettings.pixelScales,
+                                            specSettings.aliasPositions):
+                    shader.setMV(mv)
+                    shader.setAxisScale(ps)
                     shader.setAliasPosition(ii, jj)
 
                     if self._peakLabelsEnabled:
@@ -1672,50 +1540,18 @@ class Gui1dWidget(CcpnGLWidget):
         lineThickness = self._symbolThickness
         GL.glLineWidth(lineThickness * self.viewports.devicePixelRatio)
         shader.setAliasEnabled(self._aliasEnabled)
-
         # change to correct value for shader
         shader.setAliasShade(self._aliasShade / 100.0)
 
         for specView in self._ordering:
-
             if specView.isDeleted:
                 continue
 
             if specView.isDisplayed and specView in self._spectrumSettings.keys():
                 specSettings = self._spectrumSettings[specView]
-
-                fxMax, fyMax = specSettings.maxSpectrumFrequency
-                dxAF, dyAF = specSettings.spectralWidth
-                xScale, yScale = specSettings.scale
-                alias = specSettings.aliasingIndex
-                folding = specSettings.foldingMode
-
-                for ii, jj in product(range(alias[0][0], alias[0][1] + 1), range(alias[1][0], alias[1][1] + 1)):
-                    foldX = foldY = 1.0
-                    foldXOffset = foldYOffset = 0
-                    if folding[0] == 'mirror':
-                        foldX = pow(-1, ii)
-                        foldXOffset = -dxAF if foldX < 0 else 0
-                    if folding[1] == 'mirror':
-                        foldY = pow(-1, jj)
-                        foldYOffset = -dyAF if foldY < 0 else 0
-
-                    mm = QtGui.QMatrix4x4()
-                    if self._stackingMode:
-                        mm.translate(*specSettings.stackedMatrixOffset)
-
-                    if self.spectrumDisplay._flipped:
-                        # NOTE:ED - still too much hard-coding :|
-                        mm.translate(0, fyMax + (jj * dyAF) + foldYOffset)
-                        mm.scale(1.0, yScale * foldY, 1.0)
-                    else:
-                        mm.translate(fxMax + (ii * dxAF) + foldXOffset, 0)
-                        mm.scale(xScale * foldX, 1.0, 1.0)
-
-                    # flipping in the same GL region -  xScale = -xScale
-                    #                                   offset = fx0-dxAF
-                    # circular -    offset = fx0 + dxAF*alias, alias = min->max
-                    shader.setMV(mm)
+                for mv, (ii, jj) in zip(specSettings.mvMatrices,
+                                        specSettings.aliasPositions):
+                    shader.setMV(mv)
                     shader.setAliasPosition(ii, jj)
 
                     if peakArrowsEnabled:
@@ -1785,12 +1621,10 @@ class Gui1dWidget(CcpnGLWidget):
             return
 
         shader = self._shaderPixel
-
         GL.glLineWidth(self._contourThickness * self.viewports.devicePixelRatio)
         GL.glDisable(GL.GL_BLEND)
 
         for spectrumView in self._ordering:
-
             if spectrumView.isDeleted:
                 continue
             if spectrumView.spectrum is None or (spectrumView.spectrum and spectrumView.spectrum.isDeleted):
@@ -1803,52 +1637,18 @@ class Gui1dWidget(CcpnGLWidget):
                 # only draw the traces for the spectra that are visible
                 specTraces = [trace.spectrumView for trace in self._staticHTraces]
                 specSettings = self._spectrumSettings[spectrumView]
-
+                # SHOULD always match spectrumSettings - put it in there?
+                contours = self._contourList[spectrumView]
                 # set correct transform when drawing this contour
                 if spectrumView.spectrum.displayFoldedContours:
-                    fxMax, fyMax = specSettings.maxSpectrumFrequency
-                    dxAF, dyAF = specSettings.spectralWidth
-                    alias = specSettings.aliasingIndex
-                    folding = specSettings.foldingMode
+                    for mv in specSettings.mvPointMatrices:
+                        shader.setMV(mv)
+                        contours.drawVertexColorVBO()
 
-                    for ii, jj in product(range(alias[0][0], alias[0][1] + 1), range(alias[1][0], alias[1][1] + 1)):
-                        foldX = foldY = 1.0
-                        foldXOffset = foldYOffset = 0
-                        if folding[0] == 'mirror':
-                            foldX = pow(-1, ii)
-                            foldXOffset = (2 * fxMax - dxAF) if foldX < 0 else 0
-                        if folding[1] == 'mirror':
-                            foldY = pow(-1, jj)
-                            foldYOffset = (2 * fyMax - dyAF) if foldY < 0 else 0
-
-                        mm = QtGui.QMatrix4x4()
-                        if self._stackingMode:
-                            mm.translate(*specSettings.stackedMatrixOffset)
-
-                        if self.spectrumDisplay._flipped:
-                            mm.translate(0, (jj * dyAF) + foldYOffset)
-                            mm.scale(1.0, foldY, 1.0)
-                        else:
-                            mm.translate((ii * dxAF) + foldXOffset, 0)
-                            mm.scale(foldX, 1.0, 1.0)
-
-                        shader.setMV(mm)
-
-                        if spectrumView in self._contourList:
-                            self._contourList[spectrumView].drawVertexColorVBO()
-
-                else:
-                    if spectrumView in self._contourList.keys() and \
-                            (spectrumView not in specTraces or self.showSpectraOnPhasing):
-
-                        # use the stacking matrix to offset the 1D spectra
-                        mm = QtGui.QMatrix4x4()
-                        if self._stackingMode:
-                            mm.translate(*specSettings.stackedMatrixOffset)
-                        shader.setMV(mm)
-                        # draw contours
-                        if spectrumView in self._contourList:
-                            self._contourList[spectrumView].drawVertexColorVBO()
+                elif (spectrumView not in specTraces) or self.showSpectraOnPhasing:
+                    shader.setMV(specSettings.pointMatrix)
+                    # draw contours
+                    contours.drawVertexColorVBO()
 
         # reset lineWidth
         GL.glLineWidth(GLDefs.GLDEFAULTLINETHICKNESS * self.viewports.devicePixelRatio)
@@ -1859,22 +1659,21 @@ class Gui1dWidget(CcpnGLWidget):
         pass
 
     def _buildSpectrumSetting(self, spectrumView, stackCount=0):
-        # if spectrumView.spectrum.headerSize == 0:
-        #     return
-
-        # delta = [-1.0 if self.XDIRECTION else 1.0,
-        #          -1.0 if self.YDIRECTION else 1.0]
         delta = [self.XDIRECTION, self.YDIRECTION]
         stack = [stackCount * self._stackingValue[0],
                  stackCount * self._stackingValue[1]]
+        flipped = self.strip.spectrumDisplay._flipped
         self._spectrumSettings[spectrumView] = specVals = spectrumView._getVisibleSpectrumViewParams(delta=delta,
-                                                                                                     stacking=stack)
+                                                                                                     stacking=stack,
+                                                                                                     flipped=flipped,
+                                                                                                     pixelX=self.pixelX,
+                                                                                                     pixelY=self.pixelY)
 
-        self._minXRange = min(self._minXRange,
-                              GLDefs.RANGEMINSCALE * specVals.spectralWidth[0] / specVals.pointCount[0])
+        self._minXRange = min(self._minXRange, GLDefs.RANGEMINSCALE * (specVals.spectralWidth[0] /
+                                                                       specVals.pointCount[0]))
         self._maxXRange = max(self._maxXRange, specVals.spectralWidth[0])
-        self._minYRange = min(self._minYRange,
-                              GLDefs.RANGEMINSCALE * specVals.spectralWidth[1] / specVals.pointCount[1])
+        self._minYRange = min(self._minYRange, GLDefs.RANGEMINSCALE * (specVals.spectralWidth[1] /
+                                                                       specVals.pointCount[1]))
         self._maxYRange = max(self._maxYRange, specVals.spectralWidth[1])
 
         self._rangeXDefined = True

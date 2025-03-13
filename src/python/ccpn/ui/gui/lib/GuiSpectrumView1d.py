@@ -4,7 +4,7 @@
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2025"
 __credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
                "Timothy J Ragan, Brian O Smith, Daniel Thompson",
                "Gary S Thompson & Geerten W Vuister")
@@ -16,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-08-07 13:10:49 +0100 (Wed, August 07, 2024) $"
-__version__ = "$Revision: 3.2.5 $"
+__dateModified__ = "$dateModified: 2025-03-13 18:50:05 +0000 (Thu, March 13, 2025) $"
+__version__ = "$Revision: 3.3.1 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -28,7 +28,6 @@ __date__ = "$Date: 2017-04-07 10:28:41 +0000 (Fri, April 07, 2017) $"
 #=========================================================================================
 
 import numpy as np
-from itertools import product
 from PyQt5 import QtGui
 from ccpn.ui.gui.lib.GuiSpectrumView import GuiSpectrumView, SpectrumCache
 from ccpn.util.Colour import spectrumColours, colorSchemeTable
@@ -93,11 +92,8 @@ class GuiSpectrumView1d(GuiSpectrumView):
     def _buildGLContours(self, glList, firstShow=False):
         # build a glList for the spectrum
         glList.clearArrays()
-
-        numVertices = len(self.spectrum.positions)
-        # glList.indices = numVertices
+        numVertices = len(ppms := self.spectrum.positions)
         glList.numVertices = numVertices
-        # glList.indices = np.arange(numVertices, dtype=np.uint32)
 
         colour = self._getColour('sliceColour', '#AAAAAA')
         if not colour.startswith('#'):
@@ -114,7 +110,7 @@ class GuiSpectrumView1d(GuiSpectrumView):
         try:
             dim = self.strip.spectrumDisplay._flipped
             # may be empty
-            glList.vertices[dim::2] = self.spectrum.positions
+            glList.vertices[dim::2] = ppms
             glList.vertices[1 - dim::2] = self.spectrum.intensities
         except Exception:
             pass
@@ -129,7 +125,8 @@ class GuiSpectrumView1d(GuiSpectrumView):
         # No visible planes for 1d
         return None, None, None
 
-    def _getVisibleSpectrumViewParams(self, dimRange=None, delta=None, stacking=None) -> SpectrumCache:
+    def _getVisibleSpectrumViewParams(self, dimRange=None, delta=None, stacking=None,
+                                      flipped: bool = False, pixelX: float = 0.0, pixelY: float = 0.0) -> SpectrumCache:
         """Get parameters for axisDim'th axis (zero-origin) of spectrum in display-order.
 
         Returns SpectrumCache object of the form:
@@ -172,6 +169,7 @@ class GuiSpectrumView1d(GuiSpectrumView):
 
             delta                       multipliers for the axes, either -1.0|1.0
             scale                       scaling for each dimension
+            :param flipped:
         """
         # points are not defined for the spectrum
         cache = SpectrumCache(dimensionIndices=[0, 1],
@@ -205,17 +203,16 @@ class GuiSpectrumView1d(GuiSpectrumView):
                               delta=delta,
 
                               stackedMatrixOffset=[0.0, 0.0],
-                              matrix=np.array([1.0, 0.0, 0.0, 0.0,
-                                               0.0, 1.0, 0.0, 0.0,
-                                               0.0, 0.0, 1.0, 0.0,
-                                               0.0, 0.0, 0.0, 1.0],
-                                              dtype=np.float32),
+                              matrix=QtGui.QMatrix4x4(),
                               stackedMatrix=np.array([1.0, 0.0, 0.0, 0.0,
                                                       0.0, 1.0, 0.0, 0.0,
                                                       0.0, 0.0, 1.0, 0.0,
                                                       0.0, 0.0, 0.0, 1.0],
                                                      dtype=np.float32),
-
+                              mvMatrices=[],
+                              mvPointMatrices=[],
+                              pixelScales=[],
+                              aliasPositions=[],
                               spinningRate=0.0,
                               )
 
@@ -250,6 +247,8 @@ class GuiSpectrumView1d(GuiSpectrumView):
                     fMax, fMin = 1.0, -1.0
             else:
                 fMax, fMin = 1.0, -1.0
+
+            # Set the cache the required axis depending on whether the spectrumDisplay is flipped
             cache.minSpectrumFrequency[1 - dim] = fMin
             cache.maxSpectrumFrequency[1 - dim] = fMax
             cache.spectralWidth[1 - dim] = fMax - fMin
@@ -278,7 +277,7 @@ class GuiSpectrumView1d(GuiSpectrumView):
             cache.maxAliasedFrequency[dim] = [val[1] for val in self.aliasingLimits][0]
             cache.aliasingWidth[dim] = self.aliasingWidths[0]
             cache.aliasingIndex[dim] = self.aliasingIndexes[0]
-            cache.axisDirection[dim] = -1.0 if self.axesReversed[0] else 1.0
+            rev = cache.axisDirection[dim] = (-1.0 if self.axesReversed[0] else 1.0)
 
             cache.minFoldingFrequency[dim] = [min(*val) for val in self.foldingLimits][0]
             cache.maxFoldingFrequency[dim] = [max(*val) for val in self.foldingLimits][0]
@@ -290,16 +289,8 @@ class GuiSpectrumView1d(GuiSpectrumView):
             cache.axisCode[dim] = self.axisCodes[0]
             cache.isotopeCode[dim] = self.isotopeCodes[0]
 
-            # cache.scale[dim] = delta[dim] * specWidth[0] / self.pointCounts[0]
-            cache.scale[dim] = (-1.0 if self.axesReversed[0] else 1.0) * specWidth[0] / self.pointCounts[0]
-            # cache.delta[dim] = delta[dim]
-
+            scale = cache.scale[dim] = rev * specWidth[0] / self.pointCounts[0]
             cache.stackedMatrixOffset = np.array(stacking, dtype=np.float32)
-            cache.matrix = np.array([cache.scale[0], 0.0, 0.0, 0.0,
-                                     0.0, cache.scale[1], 0.0, 0.0,
-                                     0.0, 0.0, 1.0, 0.0,
-                                     cache.maxSpectrumFrequency[0], cache.maxSpectrumFrequency[1], 0.0, 1.0],
-                                    dtype=np.float32)
             cache.stackedMatrix = np.array([1.0, 0.0, 0.0, 0.0,
                                             0.0, 1.0, 0.0, 0.0,
                                             0.0, 0.0, 1.0, 0.0,
@@ -308,30 +299,47 @@ class GuiSpectrumView1d(GuiSpectrumView):
 
             cache.spinningRate = self.spectrum.spinningRate
 
-            # # build the point->ppm matrices here for the display
-            # foldX = 1.0 if self.axesReversed[0] else -1.0
-            # foldXOffset = spectralWidths[0] if self.axesReversed[0] else 0
-            # centreMatrix = None
-            # mvMatrices = []
-            # for ii, jj in product(range(aliasingIndexes[0][0], aliasingIndexes[0][1] + 1),
-            #                       range(aliasingIndexes[1][0], aliasingIndexes[1][1] + 1)):
-            #     # if folding[0] == 'mirror':
-            #     #     # to be implemented correctly later
-            #     #     foldX = pow(-1, ii)
-            #     #     foldXOffset = -dxAF if foldX < 0 else 0
-            #     # if folding[1] == 'mirror':
-            #     #     foldY = pow(-1, jj)
-            #     #     foldYOffset = -dyAF if foldY < 0 else 0
-            #     mm = QtGui.QMatrix4x4()
-            #     mm.translate(minSpec[0] + (ii * specWidth[0]) + foldXOffset,
-            #                  minSpec[1] + (jj * specWidth[1]) + foldYOffset)
-            #     mm.scale(xScale * foldX, yScale * foldY, 1.0)
-            #     mvMatrices.append(mm)
-            #     if ii == 0 and jj == 0:
-            #         # SHOULD always be here
-            #         centreMatrix = mm
-            # if not centreMatrix:
-            #     raise RuntimeError(f'{self.__class__.__name__}._getVisibleSpectrumViewParams: '
-            #                        f'centre matrix not defined')
+            # build the point->ppm matrices here for the display
+            fold = -rev  # ??? doesn't this just remove the sign in matrix
+            offset = 0.0
+            cache.mvMatrices = []
+            cache.mvPointMatrices = []
+            cache.pixelScales = []
+            cache.aliasPositions = []
+            for ii in range(aliasingIndexes[0][0], aliasingIndexes[0][1] + 1):
+                # if folding[0] == 'mirror':
+                #     # to be implemented correctly later
+                #     fold = pow(-1, ii)
+                #     offset = -dxAF if foldX < 0 else 0
+                mv = QtGui.QMatrix4x4()
+                if flipped:
+                    mv.translate(stacking[0], maxSpec[0] + offset + (ii * specWidth[0]) + stacking[1])
+                    mv.scale(1.0, scale * fold, 1.0)
+                else:
+                    mv.translate(maxSpec[0] + offset + (ii * specWidth[0]) + stacking[0], stacking[1])
+                    mv.scale(scale * fold, 1.0, 1.0)
+                cache.mvMatrices.append(mv)
 
-            return cache
+                # Calculate the point-scaled matrices
+                mvp = QtGui.QMatrix4x4()
+                if flipped:
+                    mvp.translate(stacking[0], offset + (ii * specWidth[0]) + stacking[1])
+                    mvp.scale(1.0, fold, 1.0)
+                    pvec = QtGui.QVector4D(pixelX, fold * pixelY / scale, 0.0, 1.0)
+                else:
+                    mvp.translate(offset + (ii * specWidth[0]) + stacking[0], stacking[1])
+                    mvp.scale(fold, 1.0, 1.0)
+                    pvec = QtGui.QVector4D(fold * pixelX / scale, pixelY, 0.0, 1.0)
+                cache.mvPointMatrices.append(mvp)
+                cache.pixelScales.append(pvec)
+                if ii == 0:
+                    # SHOULD always be here :|
+                    cache.matrix = mv
+                    cache.pointMatrix = mvp
+                cache.aliasPositions.append((0, ii) if flipped else (ii, 0))
+
+            if not cache.matrix:
+                raise RuntimeError(f'{self.__class__.__name__}._getVisibleSpectrumViewParams: '
+                                   f'centre matrix not defined')
+
+        return cache

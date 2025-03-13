@@ -4,7 +4,7 @@ Module Documentation here
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2025"
 __credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
                "Timothy J Ragan, Brian O Smith, Daniel Thompson",
                "Gary S Thompson & Geerten W Vuister")
@@ -16,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-10-11 11:33:02 +0100 (Fri, October 11, 2024) $"
-__version__ = "$Revision: 3.2.7 $"
+__dateModified__ = "$dateModified: 2025-03-13 18:50:06 +0000 (Thu, March 13, 2025) $"
+__version__ = "$Revision: 3.3.1 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -27,26 +27,26 @@ __date__ = "$Date: 2017-03-30 11:28:58 +0100 (Thu, March 30, 2017) $"
 # Start of code
 #=========================================================================================
 
-import numpy as np
+# NOTE:ED - do not remove occurrences of `  # type: ignore`
+#   for the minute, they are suppressing the pyqtSignal warning in pycharm
 from functools import partial
 from PyQt5 import QtWidgets, QtCore, QtGui
 from itertools import permutations
 from collections.abc import Iterable
-import typing
 import pandas as pd
 
 from ccpn.core.Spectrum import Spectrum
 from ccpn.core.SpectrumGroup import SpectrumGroup
 from ccpn.core.lib.ContextManagers import undoStackBlocking
-from ccpn.core.lib.SpectrumLib import getContourLevelsFromNoise, MAXALIASINGRANGE, CoherenceOrder, \
-    MagnetisationTransferParameters, _getApiExpTransfers
+from ccpn.core.lib.SpectrumLib import (MAXALIASINGRANGE, CoherenceOrder,
+                                       MagnetisationTransferParameters, _getApiExpTransfers)
 from ccpn.core.lib.ContextManagers import queueStateChange
 
 from ccpn.ui.gui.guiSettings import getColours, DIVIDER
 from ccpn.ui.gui.widgets.Button import Button
 from ccpn.ui.gui.widgets.CheckBox import CheckBox
 from ccpn.ui.gui.widgets.ColourDialog import ColourDialog
-from ccpn.ui.gui.widgets.DoubleSpinbox import ScientificDoubleSpinBox, DoubleSpinbox
+from ccpn.ui.gui.widgets.DoubleSpinbox import ScientificDoubleSpinBox
 from ccpn.ui.gui.widgets.FilteringPulldownList import FilteringPulldownList
 from ccpn.ui.gui.widgets.Label import Label
 from ccpn.ui.gui.widgets.LineEdit import LineEdit
@@ -69,8 +69,8 @@ from ccpn.ui.gui.lib.ChangeStateHandler import changeState, ChangeDict
 from ccpn.ui.gui.lib.DynamicSizeAdjust import dynamicSizeAdjust
 
 from ccpn.util.AttrDict import AttrDict
-from ccpn.util.Colour import spectrumColours, addNewColour, fillColourPulldown, \
-    colourNameNoSpace, _setColourPulldown, getSpectrumColour
+from ccpn.util.Colour import (spectrumColours, addNewColour, fillColourPulldown,
+                              colourNameNoSpace, _setColourPulldown, getSpectrumColour)
 from ccpn.util.isotopes import isotopeRecords
 from ccpn.util.OrderedSet import OrderedSet
 from ccpn.ui.gui.popups.AttributeEditorPopupABC import getAttributeTipText
@@ -163,7 +163,8 @@ class SpectrumPropertiesPopupABC(CcpnDialogMainWidget):
         # MUST BE SUBCLASSED
         raise NotImplementedError("Code error: function not implemented")
 
-    def _keyPressEvent(self, event):
+    @staticmethod
+    def _keyPressEvent(event):
         if event.key() == QtCore.Qt.Key_Enter:
             pass
 
@@ -284,7 +285,7 @@ class SpectrumPropertiesPopupABC(CcpnDialogMainWidget):
         QtCore.QTimer.singleShot(0, partial(dynamicSizeAdjust, self, sizeFunction=self._targetSize,
                                             adjustWidth=True, adjustHeight=False))
 
-    def _targetSize(self) -> typing.Optional[tuple]:
+    def _targetSize(self) -> tuple | None:
         """Get the size of the widget to match the popup to.
 
         Returns the size of the clicked tab, or None if there is an error.
@@ -359,8 +360,12 @@ class SpectrumPropertiesPopup(SpectrumPropertiesPopupABC):
         self._generalTab = self._dimensionsTab = self._contoursTab = None
         self.setWindowTitle(f'Spectrum Properties: {spectrum.name}')
         if spectrum.dimensionCount == 1:
-            for (tabName, attrName, tabFunc) in (('General', '_generalTab', partial(GeneralTab, container=self, mainWindow=self.mainWindow, spectrum=spectrum)),
-                                                 ('Dimensions', '_dimensionsTab', partial(DimensionsTab, container=self, mainWindow=self.mainWindow, spectrum=spectrum, dimensions=spectrum.dimensionCount)),
+            for (tabName, attrName, tabFunc) in (('General', '_generalTab',
+                                                  partial(GeneralTab, container=self, mainWindow=self.mainWindow,
+                                                          spectrum=spectrum)),
+                                                 ('Dimensions', '_dimensionsTab',
+                                                  partial(DimensionsTab, container=self, mainWindow=self.mainWindow,
+                                                          spectrum=spectrum, dimensions=spectrum.dimensionCount)),
                                                  ):
                 fr = _SpectrumPropertiesFrame(self.mainWidget, setLayout=True, spacing=DEFAULTSPACING,
                                               scrollBarPolicies=('never', 'asNeeded'), margins=TABMARGINS)
@@ -373,9 +378,15 @@ class SpectrumPropertiesPopup(SpectrumPropertiesPopupABC):
             self.tabWidget.setCurrentIndex(1)
 
         else:
-            for (tabName, attrName, tabFunc) in (('General', '_generalTab', partial(GeneralTab, container=self, mainWindow=self.mainWindow, spectrum=spectrum)),
-                                                 ('Dimensions', '_dimensionsTab', partial(DimensionsTab, container=self, mainWindow=self.mainWindow, spectrum=spectrum, dimensions=spectrum.dimensionCount)),
-                                                 ('Contours', '_contoursTab', partial(ContoursTab, container=self, mainWindow=self.mainWindow, spectrum=spectrum, showCopyOptions=False)),
+            for (tabName, attrName, tabFunc) in (('General', '_generalTab',
+                                                  partial(GeneralTab, container=self, mainWindow=self.mainWindow,
+                                                          spectrum=spectrum)),
+                                                 ('Dimensions', '_dimensionsTab',
+                                                  partial(DimensionsTab, container=self, mainWindow=self.mainWindow,
+                                                          spectrum=spectrum, dimensions=spectrum.dimensionCount)),
+                                                 ('Contours', '_contoursTab',
+                                                  partial(ContoursTab, container=self, mainWindow=self.mainWindow,
+                                                          spectrum=spectrum, showCopyOptions=False)),
                                                  ):
                 fr = _SpectrumPropertiesFrame(self.mainWidget, setLayout=True, spacing=DEFAULTSPACING,
                                               scrollBarPolicies=('never', 'asNeeded'), margins=TABMARGINS)
@@ -424,7 +435,8 @@ class SpectrumPropertiesPopup(SpectrumPropertiesPopupABC):
         tabs = self.getActiveTabList()
         allChanges = any(t._changes for t in tabs if t is not None)
 
-        return changeState(self, allChanges, applyState, revertState, self._okButton, self._applyButton, self._revertButton, self._currentNumApplies)
+        return changeState(self, allChanges, applyState, revertState, self._okButton, self._applyButton,
+                           self._revertButton, self._currentNumApplies)
 
     def getActiveTabList(self):
         """Return the list of active tabs
@@ -478,7 +490,8 @@ class SpectrumDisplayPropertiesPopupNd(SpectrumPropertiesPopupABC):
         tabs = self.getActiveTabList()
         allChanges = any(t._changes for t in tabs if t is not None)
 
-        return changeState(self, allChanges, applyState, revertState, self._okButton, self._applyButton, self._revertButton, self._currentNumApplies)
+        return changeState(self, allChanges, applyState, revertState, self._okButton, self._applyButton,
+                           self._revertButton, self._currentNumApplies)
 
     def _tabClicked(self, index):
         """Callback for clicking a tab - needed for refilling the checkboxes and populating the pulldown
@@ -495,7 +508,7 @@ class SpectrumDisplayPropertiesPopupNd(SpectrumPropertiesPopupABC):
                 for aTab in [tab for tab in self.tabs if tab != fromSpectrumTab and tab.spectrum in toSpectra]:
                     try:
                         aTab._copySpectrumAttributes(fromSpectrumTab)
-                    except Exception as es:
+                    except Exception:
                         pass
 
     def getActiveTabList(self):
@@ -552,7 +565,8 @@ class SpectrumDisplayPropertiesPopup1d(SpectrumPropertiesPopupABC):
         tabs = self.getActiveTabList()
         allChanges = any(t._changes for t in tabs if t is not None)
 
-        return changeState(self, allChanges, applyState, revertState, self._okButton, self._applyButton, self._revertButton, self._currentNumApplies)
+        return changeState(self, allChanges, applyState, revertState, self._okButton, self._applyButton,
+                           self._revertButton, self._currentNumApplies)
 
     def _tabClicked(self, index):
         """Callback for clicking a tab - needed for refilling the checkboxes and populating the pulldown
@@ -569,7 +583,7 @@ class SpectrumDisplayPropertiesPopup1d(SpectrumPropertiesPopupABC):
                 for aTab in [tab for tab in self.tabs if tab != fromSpectrumTab and tab.spectrum in toSpectra]:
                     try:
                         aTab._copySpectrumAttributes(fromSpectrumTab)
-                    except Exception as es:
+                    except Exception:
                         pass
 
     def getActiveTabList(self):
@@ -629,7 +643,7 @@ class GeneralTab(Widget):
         self.commentData = LineEdit(self, textAlignment='left', vAlign='t', grid=(row, 1),
                                     backgroundText='> Optional <')
         self.commentData.textChanged.connect(
-            partial(self._queueSpectrumCommentChange, spectrum))  # ejb - was editingFinished
+                partial(self._queueSpectrumCommentChange, spectrum))  # ejb - was editingFinished
         row += 1
         self.spectrumRow = _SpectrumPathRow(parentWidget=self, rowIndex=row, labelText='Path',
                                             spectrum=self.spectrum,
@@ -690,7 +704,7 @@ class GeneralTab(Widget):
             self.peakFittingMethod = RadioButtons(self, texts=PEAKFITTINGDEFAULTS,
                                                   callback=self._queueSetPeakFittingMethod,
                                                   direction='h',
-                                                  grid=(row, 1), hAlign='l', #gridSpan=(1, 2),
+                                                  grid=(row, 1), hAlign='l',  #gridSpan=(1, 2),
                                                   tipTexts=None,
                                                   )
             row += 1
@@ -710,14 +724,14 @@ class GeneralTab(Widget):
                   tipText=getAttributeTipText(Spectrum, 'spinningRate'))
             self.spinningRateData = ScientificDoubleSpinBox(self, vAlign='t', grid=(row, 1), min=0, max=100000.0)
             self.spinningRateData.valueChanged.connect(
-                partial(self._queueSpinningRateChange, spectrum, self.spinningRateData.textFromValue))
+                    partial(self._queueSpinningRateChange, spectrum, self.spinningRateData.textFromValue))
             row += 1
 
             Label(self, text="Temperature", grid=(row, 0), hAlign='l',
                   tipText=getAttributeTipText(Spectrum, 'temperature'))
             self.temperatureData = ScientificDoubleSpinBox(self, vAlign='t', grid=(row, 1), min=0, max=1000.0)
             self.temperatureData.valueChanged.connect(
-                partial(self._queueTemperatureChange, spectrum, self.temperatureData.textFromValue))
+                    partial(self._queueTemperatureChange, spectrum, self.temperatureData.textFromValue))
             row += 1
 
             Label(self, text='Spectrum Scaling', vAlign='t', hAlign='l', grid=(row, 0),
@@ -725,7 +739,7 @@ class GeneralTab(Widget):
             self.spectrumScalingData = ScientificDoubleSpinBox(self, vAlign='t', grid=(row, 1), min=-1e12, max=1e12,
                                                                decimals=8)
             self.spectrumScalingData.valueChanged.connect(
-                partial(self._queueSpectrumScaleChange, spectrum, self.spectrumScalingData.textFromValue))
+                    partial(self._queueSpectrumScaleChange, spectrum, self.spectrumScalingData.textFromValue))
             row += 1
 
             Label(self, text="Date Recorded ", vAlign='t', hAlign='l', grid=(row, 0))
@@ -737,7 +751,7 @@ class GeneralTab(Widget):
             self.noiseLevelData = ScientificDoubleSpinBox(self, vAlign='t', hAlign='l', grid=(row, 1))
 
             self.noiseLevelData.valueChanged.connect(
-                partial(self._queueNoiseLevelDataChange, spectrum, self.noiseLevelData.textFromValue))
+                    partial(self._queueNoiseLevelDataChange, spectrum, self.noiseLevelData.textFromValue))
             row += 1
 
         else:
@@ -763,7 +777,7 @@ class GeneralTab(Widget):
             self.peakFittingMethod = RadioButtons(self, texts=PEAKFITTINGDEFAULTS,
                                                   callback=self._queueSetPeakFittingMethod,
                                                   direction='h',
-                                                  grid=(row, 1), hAlign='l', #gridSpan=(1, 2),
+                                                  grid=(row, 1), hAlign='l',  #gridSpan=(1, 2),
                                                   tipTexts=None,
                                                   )
             row += 1
@@ -783,14 +797,14 @@ class GeneralTab(Widget):
                   tipText=getAttributeTipText(Spectrum, 'spinningRate'))
             self.spinningRateData = ScientificDoubleSpinBox(self, vAlign='t', grid=(row, 1), min=0, max=100000.0)
             self.spinningRateData.valueChanged.connect(
-                partial(self._queueSpinningRateChange, spectrum, self.spinningRateData.textFromValue))
+                    partial(self._queueSpinningRateChange, spectrum, self.spinningRateData.textFromValue))
             row += 1
 
             Label(self, text="Temperature", grid=(row, 0), hAlign='l',
                   tipText=getAttributeTipText(Spectrum, 'temperature'))
             self.temperatureData = ScientificDoubleSpinBox(self, vAlign='t', grid=(row, 1), min=0, max=1000.0)
             self.temperatureData.valueChanged.connect(
-                partial(self._queueTemperatureChange, spectrum, self.temperatureData.textFromValue))
+                    partial(self._queueTemperatureChange, spectrum, self.temperatureData.textFromValue))
             row += 1
 
             spectrumScalingLabel = Label(self, text='Spectrum Scaling', vAlign='t', grid=(row, 0),
@@ -798,7 +812,7 @@ class GeneralTab(Widget):
             self.spectrumScalingData = ScientificDoubleSpinBox(self, vAlign='t', grid=(row, 1), min=-1e12, max=1e12,
                                                                decimals=8)
             self.spectrumScalingData.valueChanged.connect(
-                partial(self._queueSpectrumScaleChange, spectrum, self.spectrumScalingData.textFromValue))
+                    partial(self._queueSpectrumScaleChange, spectrum, self.spectrumScalingData.textFromValue))
             row += 1
 
             noiseLevelLabel = Label(self, text="Noise Level ", vAlign='t', hAlign='l', grid=(row, 0),
@@ -808,7 +822,7 @@ class GeneralTab(Widget):
             row += 1
 
             self.noiseLevelData.valueChanged.connect(
-                partial(self._queueNoiseLevelDataChange, spectrum, self.noiseLevelData.textFromValue))
+                    partial(self._queueNoiseLevelDataChange, spectrum, self.noiseLevelData.textFromValue))
 
             self.layout().addItem(QtWidgets.QSpacerItem(0, 10), 0, 0)
         Spacer(self, 5, 5, QtWidgets.QSizePolicy.MinimumExpanding, QtWidgets.QSizePolicy.MinimumExpanding,
@@ -838,7 +852,8 @@ class GeneralTab(Widget):
                 index = self.spectrum.project.chemicalShiftLists.index(self.spectrum.chemicalShiftList)
             except Exception:
                 index = 0
-            self.chemicalShiftListPulldown.setData([csList.pid for csList in self.spectrum.project.chemicalShiftLists] + ['<New>'])
+            self.chemicalShiftListPulldown.setData(
+                    [csList.pid for csList in self.spectrum.project.chemicalShiftLists] + ['<New>'])
             self.chemicalShiftListPulldown.setIndex(index)
 
             self.samplesPulldownList.clear()
@@ -928,7 +943,8 @@ class GeneralTab(Widget):
         if value != spectrum.name:
             return partial(self._changeSpectrumName, spectrum, value)
 
-    def _changeSpectrumName(self, spectrum, name):
+    @staticmethod
+    def _changeSpectrumName(spectrum, name):
         spectrum.rename(name)
 
     @queueStateChange(_verifyPopupApply)
@@ -948,7 +964,8 @@ class GeneralTab(Widget):
         if value != spectrum.comment:
             return partial(self._changeSpectrumComment, spectrum, value)
 
-    def _changeSpectrumComment(self, spectrum, comment):
+    @staticmethod
+    def _changeSpectrumComment(spectrum, comment):
         spectrum.comment = comment
 
     @queueStateChange(_verifyPopupApply)
@@ -957,7 +974,8 @@ class GeneralTab(Widget):
         if value >= 0 and textFromValue(value) != specValue:
             return partial(self._setSpectrumScale, spectrum, value)
 
-    def _setSpectrumScale(self, spectrum, scale):
+    @staticmethod
+    def _setSpectrumScale(spectrum, scale):
         spectrum.scale = float(scale)
 
     @queueStateChange(_verifyPopupApply)
@@ -966,7 +984,8 @@ class GeneralTab(Widget):
         if textFromValue(value) != specValue:
             return partial(self._setNoiseLevelData, spectrum, value)
 
-    def _setNoiseLevelData(self, spectrum, noise):
+    @staticmethod
+    def _setNoiseLevelData(spectrum, noise):
         spectrum.noiseLevel = float(noise)
 
     @queueStateChange(_verifyPopupApply)
@@ -1103,7 +1122,8 @@ class GeneralTab(Widget):
         if value >= 0 and textFromValue(value) != specValue:
             return partial(self._setSpinningRate, spectrum, value)
 
-    def _setSpinningRate(self, spectrum, value):
+    @staticmethod
+    def _setSpinningRate(spectrum, value):
         spectrum.spinningRate = float(value)
 
     @queueStateChange(_verifyPopupApply)
@@ -1112,7 +1132,8 @@ class GeneralTab(Widget):
         if value >= 0 and textFromValue(value) != specValue:
             return partial(self._setTemperature, spectrum, value)
 
-    def _setTemperature(self, spectrum, value):
+    @staticmethod
+    def _setTemperature(spectrum, value):
         spectrum.temperature = float(value)
 
 
@@ -1121,6 +1142,7 @@ class GeneralTab(Widget):
 #=========================================================================================
 
 class DimensionsTab(Widget):
+
     def __init__(self, parent=None, container=None, mainWindow=None, spectrum=None, dimensions=None):
         super().__init__(parent, setLayout=True, spacing=DEFAULTSPACING)
 
@@ -1139,54 +1161,60 @@ class DimensionsTab(Widget):
         Label(self, text="Dimension ", grid=(1, 0), hAlign='l', vAlign='t', )
 
         self.layout().addItem(QtWidgets.QSpacerItem(0, 10), 0, 0)
-        for i in range(dimensions):
-            dimLabel = Label(self, text='%s' % str(i + 1), grid=(1, i + 1), vAlign='t', hAlign='l')
 
-        self.axisCodeEdits = [i for i in range(dimensions)]
-        self.isotopeCodePullDowns = np.empty((dimensions, len(CoherenceOrder)), dtype=object)
-        self.coherenceOrderPullDowns = [i for i in range(dimensions)]
-        self.referenceDimensionPullDowns = [i for i in range(dimensions)]
+        self.axisCodeEdits: list[LineEdit | None] = [None for _ in range(dimensions)]
+        self.isotopeCodePullDowns: list[list[PulldownList | None]] = [[None for _ in range(len(CoherenceOrder))]
+                                                                      for _ in range(dimensions)]
 
-        self._pointCountsLabels = [i for i in range(dimensions)]
-        self._dimensionTypesLabels = [i for i in range(dimensions)]
-        self.spectralWidthsData = [i for i in range(dimensions)]
-        self.spectralWidthsHzData = [i for i in range(dimensions)]
-        self.spectrometerFrequenciesData = [i for i in range(dimensions)]
+        self.coherenceOrderPullDowns: list[PulldownList | None] = [None for _ in range(dimensions)]
+        self.referenceDimensionPullDowns: list[PulldownList | None] = [None for _ in range(dimensions)]
 
-        self.spectralReferencingData = [i for i in range(dimensions)]
-        self.spectralReferencingDataPoints = [i for i in range(dimensions)]
-        self.spectralAssignmentToleranceData = [i for i in range(dimensions)]
-        self.spectralDoubleCursorOffset = [i for i in range(dimensions)]
+        self._pointCountsLabels: list[Label | None] = [None for _ in range(dimensions)]
+        self._dimensionTypesLabels: list[Label | None] = [None for _ in range(dimensions)]
+        self.spectralWidthsData: list[ScientificDoubleSpinBox | None] = [None for _ in range(dimensions)]
+        self.spectralWidthsHzData: list[ScientificDoubleSpinBox | None] = [None for _ in range(dimensions)]
+        self.spectrometerFrequenciesData: list[ScientificDoubleSpinBox | None] = [None for _ in range(dimensions)]
 
-        self.foldingModesCheckBox = [i for i in range(dimensions)]
+        self.spectralReferencingData: list[ScientificDoubleSpinBox | None] = [None for _ in range(dimensions)]
+        self.spectralReferencingDataPoints: list[ScientificDoubleSpinBox | None] = [None for _ in range(dimensions)]
+        self.spectralAssignmentToleranceData: list[ScientificDoubleSpinBox | None] = [None for _ in range(dimensions)]
+        self.spectralDoubleCursorOffset: list[ScientificDoubleSpinBox | None] = [None for _ in range(dimensions)]
+
+        self.foldingModesCheckBox: list[CheckBox | None] = [None for _ in range(dimensions)]
         # self.invertedCheckBox = [i for i in range(dimensions)]
-        self.minAliasingPullDowns = [i for i in range(dimensions)]
-        self.maxAliasingPullDowns = [i for i in range(dimensions)]
+        self.minAliasingPullDowns: list[PulldownList | None] = [None for _ in range(dimensions)]
+        self.maxAliasingPullDowns: list[PulldownList | None] = [None for _ in range(dimensions)]
 
         self._isotopeList = [r.isotopeCode for r in isotopeRecords.values() if r.spin > 0]  # All isotopes with a spin
         self._coherenceOrderList = CoherenceOrder.names()
         numCohOrders = max(CoherenceOrder.dataValues())
 
         row = 2
-        Label(self, text="Axis Code ", grid=(row, 0), vAlign='t', hAlign='l', tipText=getAttributeTipText(Spectrum, 'axisCodes'))
+        Label(self, text="Axis Code ", grid=(row, 0), vAlign='t', hAlign='l',
+              tipText=getAttributeTipText(Spectrum, 'axisCodes'))
 
         row += 1
-        Label(self, text="Isotope Code ", grid=(row, 0), vAlign='t', hAlign='l', tipText=getAttributeTipText(Spectrum, 'isotopeCodes'))
+        Label(self, text="Isotope Code ", grid=(row, 0), vAlign='t', hAlign='l',
+              tipText=getAttributeTipText(Spectrum, 'isotopeCodes'))
 
         row += numCohOrders
-        Label(self, text="Coherence Order ", grid=(row, 0), vAlign='t', hAlign='l', tipText=getAttributeTipText(Spectrum, 'coherenceOrders'))
+        Label(self, text="Coherence Order ", grid=(row, 0), vAlign='t', hAlign='l',
+              tipText=getAttributeTipText(Spectrum, 'coherenceOrders'))
 
         row += 1
-        _specLabel = Label(self, text="Reference Experiment Type ", grid=(row, 0), vAlign='t', hAlign='l', tipText=getAttributeTipText(Spectrum, 'experimentType'))
+        _specLabel = Label(self, text="Reference Experiment Type ", grid=(row, 0), vAlign='t', hAlign='l',
+                           tipText=getAttributeTipText(Spectrum, 'experimentType'))
 
         row += 1
-        _refLabel = Label(self, text="Reference Experiment Dimensions ", grid=(row, 0), vAlign='t', hAlign='l', tipText=getAttributeTipText(Spectrum, 'referenceExperimentDimensions'))
+        _refLabel = Label(self, text="Reference Experiment Dimensions ", grid=(row, 0), vAlign='t', hAlign='l',
+                          tipText=getAttributeTipText(Spectrum, 'referenceExperimentDimensions'))
 
         row += 1
         # spacer for 'copy' button
 
         row += 1
-        _magTransferLabel = Label(self, text="Magnetisation Transfers ", grid=(row, 0), vAlign='t', hAlign='l', tipText=getAttributeTipText(Spectrum, 'magnetisationTransfers'))
+        _magTransferLabel = Label(self, text="Magnetisation Transfers ", grid=(row, 0), vAlign='t', hAlign='l',
+                                  tipText=getAttributeTipText(Spectrum, 'magnetisationTransfers'))
         if dimensions < 2:
             _magTransferLabel.setVisible(False)
 
@@ -1195,31 +1223,40 @@ class DimensionsTab(Widget):
         hLine.setContentsMargins(5, 0, 0, 0)
 
         row += 1
-        Label(self, text="Point Counts ", grid=(row, 0), vAlign='t', hAlign='l', tipText=getAttributeTipText(Spectrum, 'pointCounts'))
+        Label(self, text="Point Counts ", grid=(row, 0), vAlign='t', hAlign='l',
+              tipText=getAttributeTipText(Spectrum, 'pointCounts'))
 
         row += 1
-        Label(self, text="Dimension Type ", grid=(row, 0), vAlign='t', hAlign='l', tipText=getAttributeTipText(Spectrum, 'dimensionTypes'))
+        Label(self, text="Dimension Type ", grid=(row, 0), vAlign='t', hAlign='l',
+              tipText=getAttributeTipText(Spectrum, 'dimensionTypes'))
 
         row += 1
-        Label(self, text="Spectrum Width (ppm) ", grid=(row, 0), vAlign='t', hAlign='l', tipText=getAttributeTipText(Spectrum, 'spectralWidths'))
+        Label(self, text="Spectrum Width (ppm) ", grid=(row, 0), vAlign='t', hAlign='l',
+              tipText=getAttributeTipText(Spectrum, 'spectralWidths'))
 
         row += 1
-        Label(self, text="Spectral Width (Hz) ", grid=(row, 0), vAlign='t', hAlign='l', tipText=getAttributeTipText(Spectrum, 'spectralWidthsHz'))
+        Label(self, text="Spectral Width (Hz) ", grid=(row, 0), vAlign='t', hAlign='l',
+              tipText=getAttributeTipText(Spectrum, 'spectralWidthsHz'))
 
         row += 1
-        Label(self, text="Spectrometer Frequency (MHz) ", grid=(row, 0), vAlign='t', hAlign='l', tipText=getAttributeTipText(Spectrum, 'spectrometerFrequencies'))
+        Label(self, text="Spectrometer Frequency (MHz) ", grid=(row, 0), vAlign='t', hAlign='l',
+              tipText=getAttributeTipText(Spectrum, 'spectrometerFrequencies'))
 
         row += 1
-        Label(self, text="Referencing (ppm) ", grid=(row, 0), vAlign='t', hAlign='l', tipText=getAttributeTipText(Spectrum, 'referenceValues'))
+        Label(self, text="Referencing (ppm) ", grid=(row, 0), vAlign='t', hAlign='l',
+              tipText=getAttributeTipText(Spectrum, 'referenceValues'))
 
         row += 1
-        Label(self, text="Referencing (points)", grid=(row, 0), vAlign='t', hAlign='l', tipText=getAttributeTipText(Spectrum, 'referencePoints'))
+        Label(self, text="Referencing (points)", grid=(row, 0), vAlign='t', hAlign='l',
+              tipText=getAttributeTipText(Spectrum, 'referencePoints'))
 
         row += 1
-        Label(self, text="Assignment Tolerance ", grid=(row, 0), hAlign='l', tipText=getAttributeTipText(Spectrum, 'assignmentTolerances'))
+        Label(self, text="Assignment Tolerance ", grid=(row, 0), hAlign='l',
+              tipText=getAttributeTipText(Spectrum, 'assignmentTolerances'))
 
         row += 1
-        Label(self, text="Second Cursor Offset (Hz) ", grid=(row, 0), hAlign='l', tipText=getAttributeTipText(Spectrum, 'doubleCrosshairOffsets'))
+        Label(self, text="Second Cursor Offset (Hz) ", grid=(row, 0), hAlign='l',
+              tipText=getAttributeTipText(Spectrum, 'doubleCrosshairOffsets'))
 
         row += 1
         hLine = HLine(self, grid=(row, 0), gridSpan=(1, dimensions + 2), colour=getColours()[DIVIDER], height=15)
@@ -1229,14 +1266,16 @@ class DimensionsTab(Widget):
         Label(self, text="Show Aliased Regions", grid=(row, 0), hAlign='l')
 
         row += 1
-        Label(self, text="Dimension is Circular", grid=(row, 0), hAlign='l', tipText=getAttributeTipText(Spectrum, 'foldingModes'))
+        Label(self, text="Dimension is Circular", grid=(row, 0), hAlign='l',
+              tipText=getAttributeTipText(Spectrum, 'foldingModes'))
 
         # # Not implemented yet
         # row += 1
         # Label(self, text="Dimension is Inverted", grid=(row, 0), hAlign='l', tipText=getAttributeTipText(Spectrum, 'invertedModes'))
 
         row += 1
-        Label(self, text="Aliasing Limits         Upperbound", grid=(row, 0), hAlign='r', tipText=getAttributeTipText(Spectrum, 'aliasingLimits'))
+        Label(self, text="Aliasing Limits         Upperbound", grid=(row, 0), hAlign='r',
+              tipText=getAttributeTipText(Spectrum, 'aliasingLimits'))
 
         row += 1
         Label(self, text="Lowerbound", grid=(row, 0), hAlign='r')
@@ -1245,19 +1284,22 @@ class DimensionsTab(Widget):
         for i in range(dimensions):
             row = 2
             self.axisCodeEdits[i] = LineEdit(self, grid=(row, i + 1), vAlign='t', hAlign='l')
-            self.axisCodeEdits[i].textChanged.connect(partial(self._queueSetAxisCodes, spectrum, ))
+            self.axisCodeEdits[i].textChanged.connect(partial(self._queueSetAxisCodes,  # type: ignore
+                                                              spectrum, ))
             # self.axisCodeEdits[i].text, i))
 
             row += 1
             for dd in range(numCohOrders):
-                self.isotopeCodePullDowns[i, dd] = PulldownList(self, grid=(row + dd, i + 1), vAlign='t')
-                self.isotopeCodePullDowns[i, dd].setData(self._isotopeList)
-                self.isotopeCodePullDowns[i, dd].currentIndexChanged.connect(partial(self._queueSetIsotopeCodes, spectrum, self.isotopeCodePullDowns[i, dd].getText, i, dd))
+                icPulldown = self.isotopeCodePullDowns[i][dd] = PulldownList(self, grid=(row + dd, i + 1), vAlign='t')
+                icPulldown.setData(self._isotopeList)
+                icPulldown.currentIndexChanged.connect(
+                        partial(self._queueSetIsotopeCodes, spectrum, icPulldown.getText, i, dd))
 
             row += numCohOrders
             self.coherenceOrderPullDowns[i] = PulldownList(self, grid=(row, i + 1), vAlign='t')
             self.coherenceOrderPullDowns[i].setData(self._coherenceOrderList)
-            self.coherenceOrderPullDowns[i].currentIndexChanged.connect(partial(self._queueSetCoherenceOrders, spectrum, self.coherenceOrderPullDowns[i].getText, i))
+            self.coherenceOrderPullDowns[i].currentIndexChanged.connect(  # type: ignore
+                    partial(self._queueSetCoherenceOrders, spectrum, self.coherenceOrderPullDowns[i].getText, i))
 
             row += 1
             if i == 0:
@@ -1279,7 +1321,9 @@ class DimensionsTab(Widget):
             row += 1
             # reference axis codes
             _refPullDown = self.referenceDimensionPullDowns[i] = PulldownList(self, grid=(row, i + 1), vAlign='t')
-            self.referenceDimensionPullDowns[i].currentIndexChanged.connect(partial(self._queueSetReferenceDimensions, spectrum, ))  #self.referenceDimensionPullDowns[i].getText, i))
+            self.referenceDimensionPullDowns[i].currentIndexChanged.connect(  # type: ignore
+                    partial(self._queueSetReferenceDimensions,
+                            spectrum, ))  #self.referenceDimensionPullDowns[i].getText, i))
             if self.dimensions < 2:
                 # hide as not required for 1d
                 _refPullDown.setVisible(False)
@@ -1314,7 +1358,8 @@ class DimensionsTab(Widget):
                 if self.dimensions < 2:
                     # hide as not required for 1d
                     _refMagTransfer.setVisible(False)
-                self.magnetisationTransferTable.tableChanged.connect(partial(self._queueSetMagnetisationTransfers, spectrum))
+                self.magnetisationTransferTable.tableChanged.connect(
+                        partial(self._queueSetMagnetisationTransfers, spectrum))
 
             row += 1
             # HLine spacer
@@ -1326,39 +1371,55 @@ class DimensionsTab(Widget):
             self._dimensionTypesLabels[i] = Label(self, grid=(row, i + 1), vAlign='t', hAlign='l')
 
             row += 1
-            self.spectralWidthsData[i] = ScientificDoubleSpinBox(self, grid=(row, i + 1), vAlign='t', hAlign='l', decimals=3, step=0.1)
-            self.spectralWidthsData[i].valueChanged.connect(partial(self._queueSetSpectralWidths, spectrum, i,
-                                                                    self.spectralWidthsData[i].textFromValue))
+            # CHECK:ED - spectralWidthsData & spectralWidthsHzData
+            #   must be dynamically linked as change the same attribute
+            self.spectralWidthsData[i] = ScientificDoubleSpinBox(self, grid=(row, i + 1), vAlign='t', hAlign='l',
+                                                                 decimals=3, step=0.1)
+            self.spectralWidthsData[i].valueChanged.connect(  # type: ignore
+                    partial(self._queueSetSpectralWidths, spectrum, i,
+                            self.spectralWidthsData[i].textFromValue))
 
             row += 1
-            self.spectralWidthsHzData[i] = ScientificDoubleSpinBox(self, grid=(row, i + 1), vAlign='t', hAlign='l', decimals=3, step=0.1)
-            self.spectralWidthsHzData[i].valueChanged.connect(partial(self._queueSetSpectralWidthsHz, spectrum, i,
-                                                                      self.spectralWidthsHzData[i].textFromValue))
+            self.spectralWidthsHzData[i] = ScientificDoubleSpinBox(self, grid=(row, i + 1), vAlign='t', hAlign='l',
+                                                                   decimals=3, step=0.1)
+            self.spectralWidthsHzData[i].valueChanged.connect(  # type: ignore
+                    partial(self._queueSetSpectralWidthsHz, spectrum, i,
+                            self.spectralWidthsHzData[i].textFromValue))
 
             row += 1
-            self.spectrometerFrequenciesData[i] = ScientificDoubleSpinBox(self, grid=(row, i + 1), vAlign='t', hAlign='l', decimals=3, step=0.1)
-            self.spectrometerFrequenciesData[i].valueChanged.connect(partial(self._queueSetSpectrometerFrequencies, spectrum, i,
-                                                                             self.spectrometerFrequenciesData[i].textFromValue))
+            self.spectrometerFrequenciesData[i] = ScientificDoubleSpinBox(self, grid=(row, i + 1), vAlign='t',
+                                                                          hAlign='l', decimals=3, step=0.1)
+            self.spectrometerFrequenciesData[i].valueChanged.connect(  # type: ignore
+                    partial(self._queueSetSpectrometerFrequencies, spectrum, i,
+                            self.spectrometerFrequenciesData[i].textFromValue))
 
             row += 1
-            self.spectralReferencingData[i] = ScientificDoubleSpinBox(self, grid=(row, i + 1), vAlign='t', hAlign='l', decimals=3, step=0.1)
-            self.spectralReferencingData[i].valueChanged.connect(partial(self._queueSetDimensionReferencing, spectrum, i,
-                                                                         self.spectralReferencingData[i].textFromValue))
+            self.spectralReferencingData[i] = ScientificDoubleSpinBox(self, grid=(row, i + 1), vAlign='t', hAlign='l',
+                                                                      decimals=3, step=0.1)
+            self.spectralReferencingData[i].valueChanged.connect(  # type: ignore
+                    partial(self._queueSetDimensionReferencing, spectrum, i,
+                            self.spectralReferencingData[i].textFromValue))
 
             row += 1
-            self.spectralReferencingDataPoints[i] = ScientificDoubleSpinBox(self, grid=(row, i + 1), vAlign='t', hAlign='l', decimals=3, step=0.1)
-            self.spectralReferencingDataPoints[i].valueChanged.connect(partial(self._queueSetPointDimensionReferencing, spectrum, i,
-                                                                               self.spectralReferencingDataPoints[i].textFromValue))
+            self.spectralReferencingDataPoints[i] = ScientificDoubleSpinBox(self, grid=(row, i + 1), vAlign='t',
+                                                                            hAlign='l', decimals=3, step=0.1)
+            self.spectralReferencingDataPoints[i].valueChanged.connect(  # type: ignore
+                    partial(self._queueSetPointDimensionReferencing, spectrum, i,
+                            self.spectralReferencingDataPoints[i].textFromValue))
 
             row += 1
-            self.spectralAssignmentToleranceData[i] = ScientificDoubleSpinBox(self, grid=(row, i + 1), hAlign='l', decimals=3, step=0.1)
-            self.spectralAssignmentToleranceData[i].valueChanged.connect(partial(self._queueSetAssignmentTolerances, spectrum, i,
-                                                                                 self.spectralAssignmentToleranceData[i].textFromValue))
+            self.spectralAssignmentToleranceData[i] = ScientificDoubleSpinBox(self, grid=(row, i + 1), hAlign='l',
+                                                                              decimals=3, step=0.1)
+            self.spectralAssignmentToleranceData[i].valueChanged.connect(  # type: ignore
+                    partial(self._queueSetAssignmentTolerances, spectrum, i,
+                            self.spectralAssignmentToleranceData[i].textFromValue))
 
             row += 1
-            self.spectralDoubleCursorOffset[i] = ScientificDoubleSpinBox(self, grid=(row, i + 1), hAlign='l', decimals=3, step=0.1)
-            self.spectralDoubleCursorOffset[i].valueChanged.connect(partial(self._queueSetDoubleCursorOffset, spectrum, i,
-                                                                            self.spectralDoubleCursorOffset[i].textFromValue))
+            self.spectralDoubleCursorOffset[i] = ScientificDoubleSpinBox(self, grid=(row, i + 1), hAlign='l',
+                                                                         decimals=3, step=0.1)
+            self.spectralDoubleCursorOffset[i].valueChanged.connect(  # type: ignore
+                    partial(self._queueSetDoubleCursorOffset, spectrum, i,
+                            self.spectralDoubleCursorOffset[i].textFromValue))
 
             # space
             row += 2
@@ -1366,11 +1427,13 @@ class DimensionsTab(Widget):
                 # only need 1 checkbox in the first column
                 # showFolded = spectrum.displayFoldedContours
                 self.displayedFoldedContours = CheckBox(self, grid=(row, i + 1), vAlign='t')
-                self.displayedFoldedContours.clicked.connect(partial(self._queueSetDisplayFoldedContours, spectrum, self.displayedFoldedContours.isChecked))
+                self.displayedFoldedContours.clicked.connect(  # type: ignore
+                        partial(self._queueSetDisplayFoldedContours, spectrum, self.displayedFoldedContours.isChecked))
 
             row += 1
             self.foldingModesCheckBox[i] = CheckBox(self, grid=(row, i + 1), vAlign='t')
-            self.foldingModesCheckBox[i].clicked.connect(partial(self._queueSetFoldingModes, spectrum, self.foldingModesCheckBox[i].isChecked, i))
+            self.foldingModesCheckBox[i].clicked.connect(  # type: ignore
+                    partial(self._queueSetFoldingModes, spectrum, self.foldingModesCheckBox[i].isChecked, i))
             # disabled until getRegion correctly fetches mirrored/inverted regions
             self.foldingModesCheckBox[i].setEnabled(False)
 
@@ -1384,22 +1447,28 @@ class DimensionsTab(Widget):
             # max aliasing
             row += 1
             self.maxAliasingPullDowns[i] = PulldownList(self, grid=(row, i + 1), vAlign='t', )
-            self.maxAliasingPullDowns[i].activated.connect(partial(self._queueSetMaxAliasing, spectrum, self.maxAliasingPullDowns[i].getText, i))
+            self.maxAliasingPullDowns[i].activated.connect(  # type: ignore
+                    partial(self._queueSetMaxAliasing, spectrum, self.maxAliasingPullDowns[i].getText, i))
 
             # min aliasing
             row += 1
             self.minAliasingPullDowns[i] = PulldownList(self, grid=(row, i + 1), vAlign='t', )
-            self.minAliasingPullDowns[i].activated.connect(partial(self._queueSetMinAliasing, spectrum, self.minAliasingPullDowns[i].getText, i))
+            self.minAliasingPullDowns[i].activated.connect(  # type: ignore
+                    partial(self._queueSetMinAliasing, spectrum, self.minAliasingPullDowns[i].getText, i))
 
         # add preferred order widgets
         row += 1
-        hLine = HLine(self, grid=(row, 0), gridSpan=(1, dimensions + 1), colour=getColours()[DIVIDER], height=15, divisor=2)
+        hLine = HLine(self, grid=(row, 0), gridSpan=(1, dimensions + 1), colour=getColours()[DIVIDER], height=15,
+                      divisor=2)
         hLine.setContentsMargins(5, 0, 0, 0)
 
         row += 1
         self.preferredAxisOrderPulldown = PulldownListCompoundWidget(self, labelText="Preferred Dimension Order",
-                                                                     grid=(row, 0), gridSpan=(1, dimensions + 1), vAlign='t', tipText=getAttributeTipText(Spectrum, 'setDimensionOrdering'))
-        self.preferredAxisOrderPulldown.pulldownList.setCallback(partial(self._queueSetSpectrumOrderingComboIndex, spectrum))
+                                                                     grid=(row, 0), gridSpan=(1, dimensions + 1),
+                                                                     vAlign='t', tipText=getAttributeTipText(Spectrum,
+                                                                                                             'setDimensionOrdering'))
+        self.preferredAxisOrderPulldown.pulldownList.setCallback(
+                partial(self._queueSetSpectrumOrderingComboIndex, spectrum))
 
         row += 1
         Spacer(self, 5, 5, QtWidgets.QSizePolicy.MinimumExpanding, QtWidgets.QSizePolicy.MinimumExpanding,
@@ -1414,7 +1483,8 @@ class DimensionsTab(Widget):
     def _populatePreferredOrder(self):
         """Fill the pullDown with the currently available permutations of the axis codes
         """
-        specOrder = tuple(self.spectrum._preferredAxisOrdering) if self.spectrum._preferredAxisOrdering is not None else None
+        specOrder = tuple(
+                self.spectrum._preferredAxisOrdering) if self.spectrum._preferredAxisOrdering is not None else None
 
         axisCodeTexts = tuple(ss.text() for ss in self.axisCodeEdits)
         ll = ['<None>']
@@ -1424,7 +1494,7 @@ class DimensionsTab(Widget):
             #   but is changed to (0, 1) or (1, 0) for the popup
             axisCodeTexts += ('intensity',)
             if len(specOrder) == 1:
-                specOrder += (1-specOrder[0],)
+                specOrder += (1 - specOrder[0],)
 
         # add permutations for the axes
         axisPerms = permutations([axisCode for axisCode in axisCodeTexts])
@@ -1488,7 +1558,8 @@ class DimensionsTab(Widget):
                     if ac[ii] not in _referenceLists[ii]:
                         _referenceLists[ii].append(ac[ii])
 
-        for ii, (refList, ref, combo) in enumerate(zip(_referenceLists, _refDimensions, self.referenceDimensionPullDowns)):
+        for ii, (refList, ref, combo) in enumerate(
+                zip(_referenceLists, _refDimensions, self.referenceDimensionPullDowns)):
             if len(refList) == 2:
                 refDimensions[ii] = refList[1]
                 combo.setIndex(1)
@@ -1521,7 +1592,8 @@ class DimensionsTab(Widget):
                         if ac[ii] not in _referenceLists[ii]:
                             _referenceLists[ii].append(ac[ii])
 
-            for ii, (refList, ref, combo) in enumerate(zip(_referenceLists, _refDimensions, self.referenceDimensionPullDowns)):
+            for ii, (refList, ref, combo) in enumerate(
+                    zip(_referenceLists, _refDimensions, self.referenceDimensionPullDowns)):
                 model = combo.model()
                 if ref not in refList:
                     refList.append(ref)
@@ -1560,7 +1632,8 @@ class DimensionsTab(Widget):
         """Populate the magnetisation transfers table
         """
         # refDimensions = self._referenceDimensions or self.spectrum.referenceExperimentDimensions
-        refDimensions = tuple(val.getText() or None for val in self.referenceDimensionPullDowns) or self.spectrum.referenceExperimentDimensions
+        refDimensions = tuple(val.getText() or None for val in
+                              self.referenceDimensionPullDowns) or self.spectrum.referenceExperimentDimensions
         refExperimentName = self.spectrumType.getText()
 
         if (self._referenceExperiment or self.spectrum.experimentType) is None:
@@ -1573,7 +1646,8 @@ class DimensionsTab(Widget):
 
         if self._referenceExperiment:
             # need the same behaviour as the api - defaults to axisCode if not defined
-            magTransfers = _getApiExpTransfers(self.spectrum, refExperimentName, [(ref or ax) for ref, ax in zip(refDimensions, self.spectrum.axisCodes)])
+            magTransfers = _getApiExpTransfers(self.spectrum, refExperimentName,
+                                               [(ref or ax) for ref, ax in zip(refDimensions, self.spectrum.axisCodes)])
             editable = False
 
         else:
@@ -1606,17 +1680,20 @@ class DimensionsTab(Widget):
                 cohCount = CoherenceOrder.get(cohOrders[i]).dataValue
                 dimIsoCodes = isoCodes[i]
                 for cc in range(cohCount):
-                    self.isotopeCodePullDowns[i, cc].setVisible(True)
+                    icPulldown: PulldownList = self.isotopeCodePullDowns[i][cc]
+                    icPulldown.setVisible(True)
                     if cc < len(dimIsoCodes) and dimIsoCodes[cc] in self._isotopeList:
-                        self.isotopeCodePullDowns[i, cc].setIndex(self._isotopeList.index(dimIsoCodes[cc]))
+                        icPulldown.setIndex(self._isotopeList.index(dimIsoCodes[cc]))
                     else:
                         # maybe too small
-                        self.isotopeCodePullDowns[i, cc].setIndex(0)
+                        icPulldown.setIndex(0)
                 for cc in range(cohCount, max(CoherenceOrder.dataValues())):
-                    self.isotopeCodePullDowns[i, cc].setVisible(False)
+                    icPulldown: PulldownList = self.isotopeCodePullDowns[i][cc]
+                    icPulldown.setVisible(False)
 
                 if self.spectrum.coherenceOrders[i] in self._coherenceOrderList:
-                    self.coherenceOrderPullDowns[i].setIndex(self._coherenceOrderList.index(self.spectrum.coherenceOrders[i]))
+                    self.coherenceOrderPullDowns[i].setIndex(
+                            self._coherenceOrderList.index(self.spectrum.coherenceOrders[i]))
 
                 self._pointCountsLabels[i].setText(str(self.spectrum.pointCounts[i]))
                 self._dimensionTypesLabels[i].setText(self.spectrum.dimensionTypes[i])
@@ -1653,8 +1730,10 @@ class DimensionsTab(Widget):
                 # self.invertedCheckBox[i].setChecked(False)  # not implemented yet
 
                 # pullDown for min/max aliasing
-                aliasMaxRange = list(max(self.foldLim[i]) + rr * self.deltaLim[i] for rr in range(MAXALIASINGRANGE, -1, -1))
-                aliasMinRange = list(min(self.foldLim[i]) + rr * self.deltaLim[i] for rr in range(0, -MAXALIASINGRANGE - 1, -1))
+                aliasMaxRange = list(max(self.foldLim[i]) + rr * self.deltaLim[i]
+                                     for rr in range(MAXALIASINGRANGE, -1, -1))
+                aliasMinRange = list(min(self.foldLim[i]) + rr * self.deltaLim[i]
+                                     for rr in range(0, -MAXALIASINGRANGE - 1, -1))
                 aliasMaxText = [f'{MAXALIASINGRANGE - ii}   ({aa:.3f} ppm)' for ii, aa in enumerate(aliasMaxRange)]
                 aliasMinText = [f'{-ii}   ({aa:.3f} ppm)' for ii, aa in enumerate(aliasMinRange)]
 
@@ -1687,7 +1766,8 @@ class DimensionsTab(Widget):
         if textFromValue(value) != specValue:
             return partial(self._setAssignmentTolerances, spectrum, dim, value)
 
-    def _setAssignmentTolerances(self, spectrum, dim, value):
+    @staticmethod
+    def _setAssignmentTolerances(spectrum, dim, value):
         assignmentTolerances = list(spectrum.assignmentTolerances)
         assignmentTolerances[dim] = float(value)
         spectrum.assignmentTolerances = assignmentTolerances
@@ -1698,13 +1778,15 @@ class DimensionsTab(Widget):
         if textFromValue(value) != specValue:
             return partial(self._setDoubleCursorOffset, spectrum, dim, value)
 
-    def _setDoubleCursorOffset(self, spectrum, dim, value):
+    @staticmethod
+    def _setDoubleCursorOffset(spectrum, dim, value):
         doubleCrosshairOffsets = list(spectrum.doubleCrosshairOffsets)
         doubleCrosshairOffsets[dim] = float(value)
         spectrum.doubleCrosshairOffsets = doubleCrosshairOffsets
 
     @queueStateChange(_verifyPopupApply)
-    def _queueSetAxisCodes(self, spectrum, _value):  #valueGetter, dim): # dim required to make the changeState unique per dim
+    def _queueSetAxisCodes(self, spectrum,
+                           _value):  #valueGetter, dim): # dim required to make the changeState unique per dim
         # set the axisCodes in single operation
         value = tuple(val.text() for val in self.axisCodeEdits)
         if value != spectrum.axisCodes:
@@ -1726,8 +1808,9 @@ class DimensionsTab(Widget):
                     count += 1
 
         if count:
-            showWarning('Change Axis Code', 'Changing Axis Codes can result in incorrect handling of axes in open Spectrum Displays.\n'
-                                            'Please close and reopen any Spectrum Displays outlined in red.')
+            showWarning('Change Axis Code',
+                        'Changing Axis Codes can result in incorrect handling of axes in open Spectrum Displays.\n'
+                        'Please close and reopen any Spectrum Displays outlined in red.')
 
         spectrum.axisCodes = value
 
@@ -1749,7 +1832,8 @@ class DimensionsTab(Widget):
     def _updateIsotopeCodes(self, spectrum, dim):
         mqIsotopeCodes = list(spectrum.mqIsotopeCodes)
         cohOrders = spectrum.coherenceOrders
-        mqIsotopeCodes[dim] = [self.isotopeCodePullDowns[dim, cc].get() for cc in range(CoherenceOrder.get(cohOrders[dim]).dataValue)]
+        mqIsotopeCodes[dim] = [self.isotopeCodePullDowns[dim][cc].get()
+                               for cc in range(CoherenceOrder.get(cohOrders[dim]).dataValue)]
         spectrum.mqIsotopeCodes = mqIsotopeCodes
 
     @queueStateChange(_verifyPopupApply)
@@ -1760,9 +1844,9 @@ class DimensionsTab(Widget):
         cohOrders = self.coherenceOrderPullDowns[dim].get()
         cohCount = CoherenceOrder.get(cohOrders).dataValue
         for cc in range(cohCount):
-            self.isotopeCodePullDowns[dim, cc].setVisible(True)
+            self.isotopeCodePullDowns[dim][cc].setVisible(True)
         for cc in range(cohCount, max(CoherenceOrder.dataValues())):
-            self.isotopeCodePullDowns[dim, cc].setVisible(False)
+            self.isotopeCodePullDowns[dim][cc].setVisible(False)
 
         if value != spectrum.coherenceOrders[dim]:
             return partial(self._setCoherenceOrders, spectrum, dim, value)
@@ -1809,7 +1893,8 @@ class DimensionsTab(Widget):
 
         return result
 
-    def _setSpectrumType(self, spectrum, expType):
+    @staticmethod
+    def _setSpectrumType(spectrum, expType):
         spectrum.experimentType = expType or None
 
     @queueStateChange(_verifyPopupApply)
@@ -1828,7 +1913,8 @@ class DimensionsTab(Widget):
             item = model.item(index)
             if item is not None:
                 color = item.foreground().color()
-                if len([True for _combo in self.referenceDimensionPullDowns if _text and _text == _combo.getText()]) > 1:
+                if len([True for _combo in self.referenceDimensionPullDowns if
+                        _text and _text == _combo.getText()]) > 1:
                     color = QtGui.QColor('red')
                 # use the palette to change the colour of the selection text - may not work for other themes
                 palette = combo.palette()
@@ -1846,7 +1932,8 @@ class DimensionsTab(Widget):
 
         return result
 
-    def _setReferenceDimensions(self, spectrum, value):  #, dim, value):
+    @staticmethod
+    def _setReferenceDimensions(spectrum, value):  #, dim, value):
         """Set the value for a single referenceDimension
         - this can lead to non-unique values
         """
@@ -1861,7 +1948,8 @@ class DimensionsTab(Widget):
         if sorted(value) != sorted(self.spectrum.magnetisationTransfers):
             return partial(self._setMagnetisationTransfers, spectrum, value)
 
-    def _setMagnetisationTransfers(self, spectrum, value):  #, dim, value):
+    @staticmethod
+    def _setMagnetisationTransfers(spectrum, value):  #, dim, value):
         """Set the magnetisationTransfers for the spectrum
         """
         spectrum._setMagnetisationTransfers(value)
@@ -1882,13 +1970,48 @@ class DimensionsTab(Widget):
 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+    def _setAliasingPulldowns(self, dim, spectrum):
+        """Update aliasing pulldowns to reflect changes to spectrum proeprties."""
+        newSw = self.spectralWidthsData[dim].value()
+        _refPoint = self.spectralReferencingDataPoints[dim].value()
+        _refPpm = self.spectralReferencingData[dim].value()
+        _pointCount = spectrum.pointCounts[dim]
+        _rev = spectrum.axesReversed[dim]
+        _vpp = abs(newSw / _pointCount) * (-1.0 if _rev else 1.0)
+        # 0.5 -> pointCount + 0.5
+        _foldLim = sorted([_refPpm + (0.5 - _refPoint) * _vpp,
+                           _refPpm + ((_pointCount + 0.5) - _refPoint) * _vpp])
+        _deltaLim = newSw
+        # pullDown for min/max aliasing
+        aliasMaxRange = list(max(_foldLim) + rr * _deltaLim
+                             for rr in range(MAXALIASINGRANGE, -1, -1))
+        aliasMinRange = list(min(_foldLim) + rr * _deltaLim
+                             for rr in range(0, -MAXALIASINGRANGE - 1, -1))
+        aliasMaxText = [f'{MAXALIASINGRANGE - ii}   ({aa:.3f} ppm)' for ii, aa in enumerate(aliasMaxRange)]
+        aliasMinText = [f'{-ii}   ({aa:.3f} ppm)' for ii, aa in enumerate(aliasMinRange)]
+        ind = self.maxAliasingPullDowns[dim].currentIndex()
+        self.maxAliasingPullDowns[dim].setData(aliasMaxText)
+        self.maxAliasingPullDowns[dim].setIndex(ind)
+        ind = self.minAliasingPullDowns[dim].currentIndex()
+        self.minAliasingPullDowns[dim].setData(aliasMinText)
+        self.minAliasingPullDowns[dim].setIndex(ind)
+
     @queueStateChange(_verifyPopupApply)
     def _queueSetSpectralWidths(self, spectrum, dim, textFromValue, value):
         specValue = textFromValue(spectrum.spectralWidths[dim])
         if textFromValue(value) != specValue:
+            # CHECK:ED - change _queueSetSpectralWidthsHz - watch out for cycle!
+            with self.blockWidgetSignals(root=self):
+                newSw = (value or 0.0)
+                swhz = newSw * self.spectrometerFrequenciesData[dim].value()
+                # update hz spinbox
+                self.spectralWidthsHzData[dim].setValue(swhz)
+                # update aliasing pulldowns
+                self._setAliasingPulldowns(dim, spectrum)
             return partial(self._setSpectralWidths, spectrum, dim, value)
 
-    def _setSpectralWidths(self, spectrum, dim, value):
+    @staticmethod
+    def _setSpectralWidths(spectrum, dim, value):
         spectralWidths = list(spectrum.spectralWidths)
         spectralWidths[dim] = float(value)
         spectrum.spectralWidths = spectralWidths
@@ -1897,9 +2020,17 @@ class DimensionsTab(Widget):
     def _queueSetSpectralWidthsHz(self, spectrum, dim, textFromValue, value):
         specValue = textFromValue(spectrum.spectralWidthsHz[dim])
         if textFromValue(value) != specValue:
+            # CHECK:ED - change _queueSetSpectralWidths - watch out for cycle!
+            with self.blockWidgetSignals(root=self):
+                newSw = (value or 0.0) / self.spectrometerFrequenciesData[dim].value()
+                # update ppm spinbox
+                self.spectralWidthsData[dim].setValue(newSw)
+                # update aliasing pulldowns
+                self._setAliasingPulldowns(dim, spectrum)
             return partial(self._setSpectralWidthsHz, spectrum, dim, value)
 
-    def _setSpectralWidthsHz(self, spectrum, dim, value):
+    @staticmethod
+    def _setSpectralWidthsHz(spectrum, dim, value):
         spectralWidthsHz = list(spectrum.spectralWidthsHz)
         spectralWidthsHz[dim] = float(value)
         spectrum.spectralWidthsHz = spectralWidthsHz
@@ -1908,9 +2039,13 @@ class DimensionsTab(Widget):
     def _queueSetSpectrometerFrequencies(self, spectrum, dim, textFromValue, value):
         specValue = textFromValue(spectrum.spectrometerFrequencies[dim])
         if textFromValue(value) != specValue:
+            # CHECK:ED - change _queueSetSpectralWidths - watch out for cycle!
+            with self.blockWidgetSignals(root=self):
+                self.spectralWidthsHzData[dim].setValue((value or 0.0) * self.spectralWidthsData[dim].value())
             return partial(self._setSpectrometerFrequencies, spectrum, dim, value)
 
-    def _setSpectrometerFrequencies(self, spectrum, dim, value):
+    @staticmethod
+    def _setSpectrometerFrequencies(spectrum, dim, value):
         spectrometerFrequencies = list(spectrum.spectrometerFrequencies)
         spectrometerFrequencies[dim] = float(value)
         spectrum.spectrometerFrequencies = spectrometerFrequencies
@@ -1921,9 +2056,12 @@ class DimensionsTab(Widget):
     def _queueSetDimensionReferencing(self, spectrum, dim, textFromValue, value):
         specValue = textFromValue(spectrum.referenceValues[dim])
         if textFromValue(value) != specValue:
+            # update aliasing pulldowns
+            self._setAliasingPulldowns(dim, spectrum)
             return partial(self._setDimensionReferencing, spectrum, dim, value)
 
-    def _setDimensionReferencing(self, spectrum, dim, value):
+    @staticmethod
+    def _setDimensionReferencing(spectrum, dim, value):
         spectrumReferencing = list(spectrum.referenceValues)
         spectrumReferencing[dim] = float(value)
         spectrum.referenceValues = spectrumReferencing
@@ -1932,9 +2070,12 @@ class DimensionsTab(Widget):
     def _queueSetPointDimensionReferencing(self, spectrum, dim, textFromValue, value):
         specValue = textFromValue(spectrum.referencePoints[dim] or 0.0)
         if textFromValue(value) != specValue:
+            # update aliasing pulldowns
+            self._setAliasingPulldowns(dim, spectrum)
             return partial(self._setPointDimensionReferencing, spectrum, dim, value)
 
-    def _setPointDimensionReferencing(self, spectrum, dim, value):
+    @staticmethod
+    def _setPointDimensionReferencing(spectrum, dim, value):
         spectrumReferencing = list(spectrum.referencePoints)
         spectrumReferencing[dim] = float(value)
         spectrum.referencePoints = spectrumReferencing
@@ -1947,7 +2088,8 @@ class DimensionsTab(Widget):
             returnVal = partial(self._setMinAliasing, self.spectrum, dim, minValue)
             return returnVal
 
-    def _setMinAliasing(self, spectrum, dim, value):
+    @staticmethod
+    def _setMinAliasing(spectrum, dim, value):
         alias = list(spectrum.aliasingLimits)
         value = float(value)
         alias[dim] = (value, max(alias[dim][1], value))
@@ -1961,7 +2103,8 @@ class DimensionsTab(Widget):
             returnVal = partial(self._setMaxAliasing, spectrum, dim, maxValue)
             return returnVal
 
-    def _setMaxAliasing(self, spectrum, dim, value):
+    @staticmethod
+    def _setMaxAliasing(spectrum, dim, value):
         alias = list(spectrum.aliasingLimits)
         value = float(value)
         alias[dim] = (min(alias[dim][0], value), value)
@@ -1974,7 +2117,8 @@ class DimensionsTab(Widget):
         if value != spectrum.foldingModes[dim]:
             return partial(self._setFoldingModes, spectrum, dim, value)
 
-    def _setFoldingModes(self, spectrum, dim, value):
+    @staticmethod
+    def _setFoldingModes(spectrum, dim, value):
         folding = list(spectrum.foldingModes)
         folding[dim] = value
         spectrum.foldingModes = tuple(folding)
@@ -1994,7 +2138,8 @@ class DimensionsTab(Widget):
         if value != spectrum.displayFoldedContours:
             return partial(self._setDisplayFoldedContours, spectrum, value)
 
-    def _setDisplayFoldedContours(self, spectrum, value):
+    @staticmethod
+    def _setDisplayFoldedContours(spectrum, value):
         spectrum.displayFoldedContours = bool(value)
 
 
@@ -2004,7 +2149,8 @@ class DimensionsTab(Widget):
 
 class ContoursTab(Widget):
 
-    def __init__(self, parent=None, container=None, mainWindow=None, spectrum=None, showCopyOptions=False, copyToSpectra=None):
+    def __init__(self, parent=None, container=None, mainWindow=None, spectrum=None, showCopyOptions=False,
+                 copyToSpectra=None):
 
         super().__init__(parent, setLayout=True, spacing=DEFAULTSPACING)
 
@@ -2023,7 +2169,8 @@ class ContoursTab(Widget):
         if not isinstance(copyToSpectra, (Iterable, type(None))):
             raise TypeError('copyToSpectra must be of type Iterable/None')
         if copyToSpectra:
-            self._copyToSpectra = [getByPid(spectrum) if isinstance(spectrum, str) else spectrum for spectrum in copyToSpectra]
+            self._copyToSpectra = [getByPid(spectrum) if isinstance(spectrum, str) else spectrum for spectrum in
+                                   copyToSpectra]
             for spec in self._copyToSpectra:
                 if not isinstance(spec, (Spectrum, type(None))):
                     raise TypeError('copyToSpectra is not defined correctly.')
@@ -2055,30 +2202,38 @@ class ContoursTab(Widget):
         self.linkContoursCheckBox = CheckBox(self, grid=(row, col + 1), checked=True, vAlign='t', hAlign='l')
 
         row += 1
-        positiveContoursLabel = Label(self, text="Show Positive Contours", grid=(row, col), vAlign='t', hAlign='l', tipText=getAttributeTipText(Spectrum, 'includePositiveContours'))
+        positiveContoursLabel = Label(self, text="Show Positive Contours", grid=(row, col), vAlign='t', hAlign='l',
+                                      tipText=getAttributeTipText(Spectrum, 'includePositiveContours'))
         self.positiveContoursCheckBox = CheckBox(self, grid=(row, col + 1), vAlign='t', hAlign='l')
         self.positiveContoursCheckBox.stateChanged.connect(partial(self._queueChangePositiveContourDisplay, spectrum))
 
         row += 1
-        positiveContourBaseLabel = Label(self, text="Positive Base Level", grid=(row, col), vAlign='c', hAlign='l', tipText=getAttributeTipText(Spectrum, 'positiveContourBase'))
+        positiveContourBaseLabel = Label(self, text="Positive Base Level", grid=(row, col), vAlign='c', hAlign='l',
+                                         tipText=getAttributeTipText(Spectrum, 'positiveContourBase'))
         self.positiveContourBaseData = ScientificDoubleSpinBox(self, grid=(row, col + 1), vAlign='t', min=0.1, max=1e12)
-        self.positiveContourBaseData.valueChanged.connect(partial(self._queueChangePositiveContourBase, spectrum, self.positiveContourBaseData.textFromValue))
+        self.positiveContourBaseData.valueChanged.connect(
+                partial(self._queueChangePositiveContourBase, spectrum, self.positiveContourBaseData.textFromValue))
 
         # Changed to get less quickly to zero - but DoubleSpinBox is NOT right for this
         self.positiveContourBaseData.setSingleStep(self.positiveContourBaseData.value() * 0.1)
 
         row += 1
-        positiveMultiplierLabel = Label(self, text="Positive Multiplier", grid=(row, col), vAlign='c', hAlign='l', tipText=getAttributeTipText(Spectrum, 'positiveContourFactor'))
-        self.positiveMultiplierData = ScientificDoubleSpinBox(self, grid=(row, col + 1), vAlign='t', min=0.0, decimals=3, step=0.01)
-        self.positiveMultiplierData.valueChanged.connect(partial(self._queueChangePositiveContourFactor, spectrum, self.positiveMultiplierData.textFromValue))
+        positiveMultiplierLabel = Label(self, text="Positive Multiplier", grid=(row, col), vAlign='c', hAlign='l',
+                                        tipText=getAttributeTipText(Spectrum, 'positiveContourFactor'))
+        self.positiveMultiplierData = ScientificDoubleSpinBox(self, grid=(row, col + 1), vAlign='t', min=0.0,
+                                                              decimals=3, step=0.01)
+        self.positiveMultiplierData.valueChanged.connect(
+                partial(self._queueChangePositiveContourFactor, spectrum, self.positiveMultiplierData.textFromValue))
 
         row += 1
-        positiveContourCountLabel = Label(self, text="Number of positive contours", grid=(row, col), vAlign='c', hAlign='l', tipText=getAttributeTipText(Spectrum, 'positiveContourCount'))
+        positiveContourCountLabel = Label(self, text="Number of positive contours", grid=(row, col), vAlign='c',
+                                          hAlign='l', tipText=getAttributeTipText(Spectrum, 'positiveContourCount'))
         self.positiveContourCountData = Spinbox(self, grid=(row, col + 1), vAlign='t', min=1)
         self.positiveContourCountData.valueChanged.connect(partial(self._queueChangePositiveContourCount, spectrum))
 
         row += 1
-        positiveContourColourLabel = Label(self, text="Positive Contour Colour", grid=(row, col), vAlign='c', hAlign='l', tipText=getAttributeTipText(Spectrum, 'positiveContourColour'))
+        positiveContourColourLabel = Label(self, text="Positive Contour Colour", grid=(row, col), vAlign='c',
+                                           hAlign='l', tipText=getAttributeTipText(Spectrum, 'positiveContourColour'))
         self.positiveColourBox = PulldownList(self, grid=(row, col + 1), vAlign='t')
         self.negativeColourBox = PulldownList(self, grid=(row, col + 1), vAlign='t')
 
@@ -2092,32 +2247,41 @@ class ContoursTab(Widget):
         self.positiveColourButton.clicked.connect(partial(self._queueChangePosSpectrumColour, spectrum))
 
         row += 1
-        negativeContoursLabel = Label(self, text="Show Negative Contours", grid=(row, col), vAlign='c', hAlign='l', tipText=getAttributeTipText(Spectrum, 'includeNegativeContours'))
+        negativeContoursLabel = Label(self, text="Show Negative Contours", grid=(row, col), vAlign='c', hAlign='l',
+                                      tipText=getAttributeTipText(Spectrum, 'includeNegativeContours'))
         self.negativeContoursCheckBox = CheckBox(self, grid=(row, col + 1), vAlign='t', hAlign='l')
         # self.negativeContoursCheckBox.setChecked(self.spectrum.includeNegativeContours)
         self.negativeContoursCheckBox.stateChanged.connect(partial(self._queueChangeNegativeContourDisplay, spectrum))
 
         row += 1
-        negativeContourBaseLabel = Label(self, text="Negative Base Level", grid=(row, col), vAlign='c', hAlign='l', tipText=getAttributeTipText(Spectrum, 'negativeContourBase'))
-        self.negativeContourBaseData = ScientificDoubleSpinBox(self, grid=(row, col + 1), vAlign='t', min=-1e12, max=-0.1)
+        negativeContourBaseLabel = Label(self, text="Negative Base Level", grid=(row, col), vAlign='c', hAlign='l',
+                                         tipText=getAttributeTipText(Spectrum, 'negativeContourBase'))
+        self.negativeContourBaseData = ScientificDoubleSpinBox(self, grid=(row, col + 1), vAlign='t', min=-1e12,
+                                                               max=-0.1)
 
-        self.negativeContourBaseData.valueChanged.connect(partial(self._queueChangeNegativeContourBase, spectrum, self.negativeContourBaseData.textFromValue))
+        self.negativeContourBaseData.valueChanged.connect(
+                partial(self._queueChangeNegativeContourBase, spectrum, self.negativeContourBaseData.textFromValue))
 
         # Changed to get less quickly to zero - but DoubleSpinBox is NOT right for this
         self.negativeContourBaseData.setSingleStep((self.negativeContourBaseData.value() * -1) * 0.1)
 
         row += 1
-        negativeMultiplierLabel = Label(self, text="Negative Multiplier", grid=(row, col), vAlign='c', hAlign='l', tipText=getAttributeTipText(Spectrum, 'negativeContourFactor'))
-        self.negativeMultiplierData = ScientificDoubleSpinBox(self, grid=(row, col + 1), vAlign='t', min=0.0, decimals=3, step=0.01)
-        self.negativeMultiplierData.valueChanged.connect(partial(self._queueChangeNegativeContourFactor, spectrum, self.negativeMultiplierData.textFromValue))
+        negativeMultiplierLabel = Label(self, text="Negative Multiplier", grid=(row, col), vAlign='c', hAlign='l',
+                                        tipText=getAttributeTipText(Spectrum, 'negativeContourFactor'))
+        self.negativeMultiplierData = ScientificDoubleSpinBox(self, grid=(row, col + 1), vAlign='t', min=0.0,
+                                                              decimals=3, step=0.01)
+        self.negativeMultiplierData.valueChanged.connect(
+                partial(self._queueChangeNegativeContourFactor, spectrum, self.negativeMultiplierData.textFromValue))
 
         row += 1
-        negativeContourCountLabel = Label(self, text="Number of negative contours", grid=(row, col), vAlign='c', hAlign='l', tipText=getAttributeTipText(Spectrum, 'negativeContourCount'))
+        negativeContourCountLabel = Label(self, text="Number of negative contours", grid=(row, col), vAlign='c',
+                                          hAlign='l', tipText=getAttributeTipText(Spectrum, 'negativeContourCount'))
         self.negativeContourCountData = Spinbox(self, grid=(row, col + 1), vAlign='t', min=1)
         self.negativeContourCountData.valueChanged.connect(partial(self._queueChangeNegativeContourCount, spectrum))
 
         row += 1
-        negativeContourColourLabel = Label(self, text="Negative Contour Colour", grid=(row, col), vAlign='c', hAlign='l', tipText=getAttributeTipText(Spectrum, 'negativeContourColour'))
+        negativeContourColourLabel = Label(self, text="Negative Contour Colour", grid=(row, col), vAlign='c',
+                                           hAlign='l', tipText=getAttributeTipText(Spectrum, 'negativeContourColour'))
 
         self.positiveColourBox.currentIndexChanged.connect(partial(self._queueChangePosColourComboIndex, spectrum))
         self.negativeColourBox.currentIndexChanged.connect(partial(self._queueChangeNegColourComboIndex, spectrum))
@@ -2146,11 +2310,13 @@ class ContoursTab(Widget):
         self._copyCheckBoxes = []
 
         # add the checkboxes and keep a list of selected in the preferences (so it will be saved)
-        if self.preferences.general._copySpectraSettingsNd and len(self.preferences.general._copySpectraSettingsNd) == len(self._copyList):
+        if self.preferences.general._copySpectraSettingsNd and len(
+                self.preferences.general._copySpectraSettingsNd) == len(self._copyList):
             # read existing settings
             for rr, opt in enumerate(self._copyList):
                 thisCheckBox = CheckBox(self, grid=(rr + self._topRow, self._checkBoxCol),
-                                        checkable=True, checked=self.preferences.general._copySpectraSettingsNd[rr], hAlign='c')
+                                        checkable=True, checked=self.preferences.general._copySpectraSettingsNd[rr],
+                                        hAlign='c')
                 self._copyCheckBoxes.append(thisCheckBox)
                 thisCheckBox.setCallback(partial(self._copyButtonClicked, thisCheckBox, rr))
 
@@ -2169,8 +2335,10 @@ class ContoursTab(Widget):
         # add the spectrum selection pulldown to the bottom and a copy action button
         self._copyToSpectraPullDown = PulldownListCompoundWidget(self, labelText="Copy to",
                                                                  grid=(len(self._copyList) + self._topRow, 0),
-                                                                 gridSpan=(1, self._checkBoxCol + 1), vAlign='t', hAlign='r')
-        self._copyButton = Button(self, text='Copy', grid=(len(self._copyList) + self._topRow + 1, self._checkBoxCol), hAlign='r',
+                                                                 gridSpan=(1, self._checkBoxCol + 1), vAlign='t',
+                                                                 hAlign='r')
+        self._copyButton = Button(self, text='Copy', grid=(len(self._copyList) + self._topRow + 1, self._checkBoxCol),
+                                  hAlign='r',
                                   callback=self._copyActionClicked)
 
         self._addToCopyWidgetSet(self._copyToSpectraPullDown)
@@ -2192,7 +2360,8 @@ class ContoursTab(Widget):
         if not isinstance(copyToSpectra, (Iterable, type(None))):
             raise TypeError('copyToSpectra must be of type Iterable/None')
         if copyToSpectra:
-            self._copyToSpectra = [getByPid(spectrum) if isinstance(spectrum, str) else spectrum for spectrum in copyToSpectra]
+            self._copyToSpectra = [getByPid(spectrum) if isinstance(spectrum, str) else spectrum for spectrum in
+                                   copyToSpectra]
             for spec in self._copyToSpectra:
                 if not isinstance(spec, (Spectrum, type(None))):
                     raise TypeError('copyToSpectra is not defined correctly.')
@@ -2207,29 +2376,29 @@ class ContoursTab(Widget):
         self._copyWidgetSet.add(widget)
         widget.setVisible(self._showCopyOptions)
 
-    def _setContourLevels(self):
-        """Estimate the contour levels for the current spectrum
-        """
-        posBase, negBase, posMult, negMult, posLevels, negLevels = getContourLevelsFromNoise(self.spectrum,
-                                                                                             setPositiveContours=self.setPositiveContours.isChecked(),
-                                                                                             setNegativeContours=self.setNegativeContours.isChecked(),
-                                                                                             useSameMultiplier=self.setUseSameMultiplier.isChecked(),
-                                                                                             useDefaultLevels=self.setDefaults.isChecked(),
-                                                                                             useDefaultMultiplier=self.setDefaults.isChecked())
-
-        # put the new values into the widgets (will queue changes)
-        if posBase:
-            self.positiveContourBaseData.setValue(posBase)
-        if negBase:
-            self.negativeContourBaseData.setValue(negBase)
-        if posMult:
-            self.positiveMultiplierData.setValue(posMult)
-        if negMult:
-            self.negativeMultiplierData.setValue(negMult)
-        if posLevels:
-            self.positiveContourCountData.setValue(posLevels)
-        if negLevels:
-            self.negativeContourCountData.setValue(negLevels)
+    # def _setContourLevels(self):
+    #     """Estimate the contour levels for the current spectrum
+    #     """
+    #     posBase, negBase, posMult, negMult, posLevels, negLevels = getContourLevelsFromNoise(self.spectrum,
+    #                                                                                          setPositiveContours=self.setPositiveContours.isChecked(),
+    #                                                                                          setNegativeContours=self.setNegativeContours.isChecked(),
+    #                                                                                          useSameMultiplier=self.setUseSameMultiplier.isChecked(),
+    #                                                                                          useDefaultLevels=self.setDefaults.isChecked(),
+    #                                                                                          useDefaultMultiplier=self.setDefaults.isChecked())
+    # 
+    #     # put the new values into the widgets (will queue changes)
+    #     if posBase:
+    #         self.positiveContourBaseData.setValue(posBase)
+    #     if negBase:
+    #         self.negativeContourBaseData.setValue(negBase)
+    #     if posMult:
+    #         self.positiveMultiplierData.setValue(posMult)
+    #     if negMult:
+    #         self.negativeMultiplierData.setValue(negMult)
+    #     if posLevels:
+    #         self.positiveContourCountData.setValue(posLevels)
+    #     if negLevels:
+    #         self.negativeContourCountData.setValue(negLevels)
 
     def _fillPullDowns(self):
         fillColourPulldown(self.positiveColourBox, allowAuto=False, includeGradients=True)
@@ -2304,7 +2473,8 @@ class ContoursTab(Widget):
         if (state == QtCore.Qt.Checked) != spectrum.includeNegativeContours:
             return partial(self._changeNegativeContourDisplay, spectrum, state)
 
-    def _changeNegativeContourDisplay(self, spectrum, state):
+    @staticmethod
+    def _changeNegativeContourDisplay(spectrum, state):
         if state == QtCore.Qt.Checked:
             spectrum.includeNegativeContours = True
             for spectrumView in spectrum.spectrumViews:
@@ -2327,7 +2497,8 @@ class ContoursTab(Widget):
             self.negativeContourBaseData.set(-value)
         return returnVal
 
-    def _changePositiveContourBase(self, spectrum, value):
+    @staticmethod
+    def _changePositiveContourBase(spectrum, value):
         spectrum.positiveContourBase = float(value)
 
     @queueStateChange(_verifyPopupApply)
@@ -2343,7 +2514,8 @@ class ContoursTab(Widget):
             self.negativeMultiplierData.set(value)
         return returnVal
 
-    def _changePositiveContourFactor(self, spectrum, value):
+    @staticmethod
+    def _changePositiveContourFactor(spectrum, value):
         spectrum.positiveContourFactor = float(value)
 
     @queueStateChange(_verifyPopupApply)
@@ -2358,7 +2530,8 @@ class ContoursTab(Widget):
             self.negativeContourCountData.set(value)
         return returnVal
 
-    def _changePositiveContourCount(self, spectrum, value):
+    @staticmethod
+    def _changePositiveContourCount(spectrum, value):
         spectrum.positiveContourCount = int(value)
 
     @queueStateChange(_verifyPopupApply)
@@ -2374,7 +2547,8 @@ class ContoursTab(Widget):
             self.positiveContourBaseData.set(-value)
         return returnVal
 
-    def _changeNegativeContourBase(self, spectrum, value):
+    @staticmethod
+    def _changeNegativeContourBase(spectrum, value):
         # force to be negative
         value = -abs(value)
         spectrum.negativeContourBase = float(value)
@@ -2392,7 +2566,8 @@ class ContoursTab(Widget):
             self.positiveMultiplierData.set(value)
         return returnVal
 
-    def _changeNegativeContourFactor(self, spectrum, value):
+    @staticmethod
+    def _changeNegativeContourFactor(spectrum, value):
         spectrum.negativeContourFactor = float(value)
 
     @queueStateChange(_verifyPopupApply)
@@ -2407,7 +2582,8 @@ class ContoursTab(Widget):
             self.positiveContourCountData.set(value)
         return returnVal
 
-    def _changeNegativeContourCount(self, spectrum, value):
+    @staticmethod
+    def _changeNegativeContourCount(spectrum, value):
         spectrum.negativeContourCount = int(value)
 
     # spectrum positiveContourColour button and pulldown
@@ -2585,7 +2761,8 @@ class ColourTab(Widget):
         if not isinstance(copyToSpectra, (Iterable, type(None))):
             raise TypeError('copyToSpectra must be of type Iterable/None')
         if copyToSpectra:
-            self._copyToSpectra = [getByPid(spectrum) if isinstance(spectrum, str) else spectrum for spectrum in copyToSpectra]
+            self._copyToSpectra = [getByPid(spectrum) if isinstance(spectrum, str) else spectrum for spectrum in
+                                   copyToSpectra]
             for spec in self._copyToSpectra:
                 if not isinstance(spec, (Spectrum, type(None))):
                     raise TypeError('copyToSpectra is not defined correctly.')
@@ -2604,10 +2781,12 @@ class ColourTab(Widget):
         self._checkBoxCol = 4
 
         # if showCopyOptions:
-        copyLabel = Label(self, text="Copy Selected\nAttribute", grid=(self._topRow - 1, self._checkBoxCol), vAlign='t', hAlign='l')
+        copyLabel = Label(self, text="Copy Selected\nAttribute", grid=(self._topRow - 1, self._checkBoxCol), vAlign='t',
+                          hAlign='l')
         self._addToCopyWidgetSet(copyLabel)
 
-        Label(self, text="Colour", vAlign='t', hAlign='l', grid=(7, 0), tipText=getAttributeTipText(Spectrum, 'sliceColour'))
+        Label(self, text="Colour", vAlign='t', hAlign='l', grid=(7, 0),
+              tipText=getAttributeTipText(Spectrum, 'sliceColour'))
         self.positiveColourBox = PulldownList(self, vAlign='t', grid=(7, 1))
 
         # populate initial pulldown
@@ -2625,11 +2804,13 @@ class ColourTab(Widget):
         self._copyCheckBoxes = []
 
         # add the checkboxes and keep a list of selected in the preferences (so it will be saved)
-        if self.preferences.general._copySpectraSettings1d and len(self.preferences.general._copySpectraSettings1d) == len(self._copyList):
+        if self.preferences.general._copySpectraSettings1d and len(
+                self.preferences.general._copySpectraSettings1d) == len(self._copyList):
             # read existing settings
             for rr, opt in enumerate(self._copyList):
                 thisCheckBox = CheckBox(self, grid=(rr + self._topRow, self._checkBoxCol),
-                                        checkable=True, checked=self.preferences.general._copySpectraSettings1d[rr], hAlign='c')
+                                        checkable=True, checked=self.preferences.general._copySpectraSettings1d[rr],
+                                        hAlign='c')
                 self._copyCheckBoxes.append(thisCheckBox)
                 thisCheckBox.setCallback(partial(self._copyButtonClicked, thisCheckBox, rr))
 
@@ -2648,8 +2829,10 @@ class ColourTab(Widget):
         # add the spectrum selection pulldown to the bottom and a copy action button
         self._copyToSpectraPullDown = PulldownListCompoundWidget(self, labelText="Copy to",
                                                                  grid=(len(self._copyList) + self._topRow, 0),
-                                                                 gridSpan=(1, self._checkBoxCol + 1), vAlign='t', hAlign='r')
-        self._copyButton = Button(self, text='Copy', grid=(len(self._copyList) + self._topRow + 1, self._checkBoxCol), hAlign='r',
+                                                                 gridSpan=(1, self._checkBoxCol + 1), vAlign='t',
+                                                                 hAlign='r')
+        self._copyButton = Button(self, text='Copy', grid=(len(self._copyList) + self._topRow + 1, self._checkBoxCol),
+                                  hAlign='r',
                                   callback=self._copyActionClicked)
 
         Spacer(self, 5, 5, QtWidgets.QSizePolicy.MinimumExpanding, QtWidgets.QSizePolicy.Expanding,
@@ -2668,7 +2851,8 @@ class ColourTab(Widget):
         if not isinstance(copyToSpectra, (Iterable, type(None))):
             raise TypeError('copyToSpectra must be of type Iterable/None')
         if copyToSpectra:
-            self._copyToSpectra = [getByPid(spectrum) if isinstance(spectrum, str) else spectrum for spectrum in copyToSpectra]
+            self._copyToSpectra = [getByPid(spectrum) if isinstance(spectrum, str) else spectrum for spectrum in
+                                   copyToSpectra]
             for spec in self._copyToSpectra:
                 if not isinstance(spec, (Spectrum, type(None))):
                     raise TypeError('copyToSpectra is not defined correctly.')
@@ -2814,7 +2998,10 @@ class ColourFrameABC(Frame):
     SLICECOLOUR = False
     EDITMODE = True
 
-    def __init__(self, parent=None, mainWindow=None, container=None, editMode=False, spectrumGroup=None, item=None, **kwds):
+    spectrumGroup: SpectrumGroup | AttrDict
+
+    def __init__(self, parent=None, mainWindow=None, container=None, editMode=False, spectrumGroup=None, item=None,
+                 **kwds):
 
         super().__init__(parent, **kwds)
 
@@ -2845,7 +3032,8 @@ class ColourFrameABC(Frame):
 
         row = 0
         if self.POSITIVECOLOUR:
-            Label(self, text="Group Positive Contour Colour", vAlign='t', hAlign='l', grid=(row, 0), tipText=getAttributeTipText(SpectrumGroup, 'positiveContourColour'))
+            Label(self, text="Group Positive Contour Colour", vAlign='t', hAlign='l', grid=(row, 0),
+                  tipText=getAttributeTipText(SpectrumGroup, 'positiveContourColour'))
             self.positiveColourBox = PulldownList(self, vAlign='t', grid=(row, 1))
             self.positiveColourButton = Button(self, grid=(row, 2), vAlign='t', hAlign='l',
                                                icon='icons/colours', hPolicy='fixed')
@@ -2853,7 +3041,8 @@ class ColourFrameABC(Frame):
             row += 1
 
         if self.NEGATIVECOLOUR:
-            Label(self, text="Group Negative Contour Colour", vAlign='t', hAlign='l', grid=(row, 0), tipText=getAttributeTipText(SpectrumGroup, 'negativeContourColour'))
+            Label(self, text="Group Negative Contour Colour", vAlign='t', hAlign='l', grid=(row, 0),
+                  tipText=getAttributeTipText(SpectrumGroup, 'negativeContourColour'))
             self.negativeColourBox = PulldownList(self, vAlign='t', grid=(row, 1))
             self.negativeColourButton = Button(self, grid=(row, 2), vAlign='t', hAlign='l',
                                                icon='icons/colours', hPolicy='fixed')
@@ -2861,7 +3050,8 @@ class ColourFrameABC(Frame):
             row += 1
 
         if self.SLICECOLOUR:
-            Label(self, text="Group Slice Colour", vAlign='t', hAlign='l', grid=(row, 0), tipText=getAttributeTipText(SpectrumGroup, 'sliceColour'))
+            Label(self, text="Group Slice Colour", vAlign='t', hAlign='l', grid=(row, 0),
+                  tipText=getAttributeTipText(SpectrumGroup, 'sliceColour'))
             self.sliceColourBox = PulldownList(self, vAlign='t', grid=(row, 1))
             self.sliceColourButton = Button(self, grid=(row, 2), vAlign='t', hAlign='l',
                                             icon='icons/colours', hPolicy='fixed')
@@ -2874,11 +3064,14 @@ class ColourFrameABC(Frame):
         self._fillPullDowns()
 
         if self.POSITIVECOLOUR:
-            self.positiveColourBox.currentIndexChanged.connect(partial(self._queueChangePosColourComboIndex, self.spectrumGroup))
+            self.positiveColourBox.currentIndexChanged.connect(
+                    partial(self._queueChangePosColourComboIndex, self.spectrumGroup))
         if self.NEGATIVECOLOUR:
-            self.negativeColourBox.currentIndexChanged.connect(partial(self._queueChangeNegColourComboIndex, self.spectrumGroup))
+            self.negativeColourBox.currentIndexChanged.connect(
+                    partial(self._queueChangeNegColourComboIndex, self.spectrumGroup))
         if self.SLICECOLOUR:
-            self.sliceColourBox.currentIndexChanged.connect(partial(self._queueChangeSliceComboIndex, self.spectrumGroup))
+            self.sliceColourBox.currentIndexChanged.connect(
+                    partial(self._queueChangeSliceComboIndex, self.spectrumGroup))
 
     def _updateSpectrumGroup(self, spectrumGroup):
         # check that the spectrum and the copyToSpectra list are correctly defined
@@ -2904,11 +3097,14 @@ class ColourFrameABC(Frame):
 
         with self._changes.blockChanges():
             if self.POSITIVECOLOUR:
-                _setColourPulldown(self.positiveColourBox, self.spectrumGroup.positiveContourColour, allowAuto=False, includeGradients=True, allowNone=True)
+                _setColourPulldown(self.positiveColourBox, self.spectrumGroup.positiveContourColour, allowAuto=False,
+                                   includeGradients=True, allowNone=True)
             if self.NEGATIVECOLOUR:
-                _setColourPulldown(self.negativeColourBox, self.spectrumGroup.negativeContourColour, allowAuto=False, includeGradients=True, allowNone=True)
+                _setColourPulldown(self.negativeColourBox, self.spectrumGroup.negativeContourColour, allowAuto=False,
+                                   includeGradients=True, allowNone=True)
             if self.SLICECOLOUR:
-                _setColourPulldown(self.sliceColourBox, self.spectrumGroup.sliceColour, allowAuto=False, includeGradients=True, allowNone=True)
+                _setColourPulldown(self.sliceColourBox, self.spectrumGroup.sliceColour, allowAuto=False,
+                                   includeGradients=True, allowNone=True)
 
     def _getChangeState(self):
         """Get the change state from the parent widget
