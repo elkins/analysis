@@ -3,7 +3,7 @@
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2025"
 __credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
                "Timothy J Ragan, Brian O Smith, Daniel Thompson",
                "Gary S Thompson & Geerten W Vuister")
@@ -15,8 +15,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-11-27 18:52:02 +0000 (Wed, November 27, 2024) $"
-__version__ = "$Revision: 3.2.11 $"
+__dateModified__ = "$dateModified: 2025-03-13 18:14:44 +0000 (Thu, March 13, 2025) $"
+__version__ = "$Revision: 3.2.12 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -1115,11 +1115,14 @@ class Peak(AbstractWrapperObject):
     def __str__(self):
         """Readable string representation;
         """
-        _digits = {'1H': 3, '15N': 2, '13C': 2, '19F': 3}
-        # _digits.get(iCode,2)
-        ppms = tuple(round(p, _digits.get(iCode, 2)) if p is not None else None
-                     for p, iCode in zip(self.ppmPositions, self.spectrum.isotopeCodes))
-        return "<%s: @%r>" % (self.pid, ppms)
+        if not self.isDeleted:
+            _digits = {'1H': 3, '15N': 2, '13C': 2, '19F': 3}
+            # _digits.get(iCode,2)
+            ppms = tuple(round(p, _digits.get(iCode, 2)) if p is not None else None
+                         for p, iCode in zip(self.ppmPositions, self.spectrum.isotopeCodes))
+            return "<%s: @%r>" % (self.pid, ppms)
+        # _wrappedData is None, so only the pid is valid
+        return f'<{self.pid}>'
 
     #-----------------------------------------------------------------------------------------
     # CCPN functions
