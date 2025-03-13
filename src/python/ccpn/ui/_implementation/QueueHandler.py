@@ -4,9 +4,10 @@ Module Documentation here
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2022"
-__credits__ = ("Ed Brooksbank, Joanna Fox, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
-               "Timothy J Ragan, Brian O Smith, Gary S Thompson & Geerten W Vuister")
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2025"
+__credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
+               "Timothy J Ragan, Brian O Smith, Daniel Thompson",
+               "Gary S Thompson & Geerten W Vuister")
 __licence__ = ("CCPN licence. See https://ccpn.ac.uk/software/licensing/")
 __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, L.G., & Vuister, G.W.",
                  "CcpNmr AnalysisAssign: a flexible platform for integrated NMR analysis",
@@ -15,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2022-10-12 15:27:09 +0100 (Wed, October 12, 2022) $"
-__version__ = "$Revision: 3.1.0 $"
+__dateModified__ = "$dateModified: 2025-03-13 18:14:44 +0000 (Thu, March 13, 2025) $"
+__version__ = "$Revision: 3.2.12 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -26,7 +27,7 @@ __date__ = "$Date: 2022-09-07 11:25:37 +0100 (Wed, September 07, 2022) $"
 # Start of code
 #=========================================================================================
 
-import typing
+from typing import Callable
 from PyQt5 import QtCore
 from time import time_ns
 from ccpn.core.lib.Notifiers import _removeDuplicatedNotifiers
@@ -40,51 +41,60 @@ _DEFAULT_QUEUE_LENGTH = 25
 
 
 class QueueHandler():
-    """Small class holding the queue-handler information
+    """Small class holding the queue-handler information.
+
+    This class manages a queue system for handling update notifications.
+    It supports processing queued tasks with a scheduler, ensures safe access with a mutex,
+    and provides callbacks for queue completion and overflow handling.
     """
     _parent = None
     application = None
     project = None
     name = 'unknown'
-    _scheduler = None
-    _queuePending = UpdateQueue()
-    _queueActive = None
-    _lock = QtCore.QMutex()
-    _completeCallback = None
-    _queueFullCallback = None
+    _scheduler: UpdateScheduler | None = None
+    _queuePending: UpdateQueue
+    _queueActive: UpdateQueue | None
+    _lock: QtCore.QMutex
+    _completeCallback = Callable | None
+    _queueFullCallback = Callable | None
 
-    # set the queue handling parameters
+    # Queue handling parameters
     log = False
-    maximumQueueLength = _DEFAULT_QUEUE_LENGTH
+    maximumQueueLength: int = _DEFAULT_QUEUE_LENGTH
 
     def __init__(self, parent,
-                 # updaterCallback: callable,
-                 completeCallback: typing.Optional[callable] = None,
-                 queueFullCallback: typing.Optional[callable] = None,
+                 completeCallback: Callable | None = None,
+                 queueFullCallback: Callable | None = None,
                  name: str = 'unknown',
                  log: bool = False,
-                 maximumQueueLength: typing.Optional[int] = _DEFAULT_QUEUE_LENGTH):
+                 maximumQueueLength: int | None = _DEFAULT_QUEUE_LENGTH):
         """Initialise the scheduler for the queue-handler.
 
-        :param parent: Class object container
-        :param callback completeCallback: optional callback toexecute when queue becomes empty
-        :param callback queueFullCallback: optional callback when queue exceeds maximumQueueLength
-        :param str name: optional str name for the scheduler
-        :param bool log: True|False - log timer events, defaults to False
-        :param int maximumQueueLength: maximum number of events in the queue
+        :param parent: The parent object that owns this queue handler.
+        :type parent: object
+        :param completeCallback: Optional callback executed when the queue becomes empty.
+        :type completeCallback: Callable | None
+        :param queueFullCallback: Optional callback executed when the queue exceeds `maximumQueueLength`.
+        :type queueFullCallback: Callable | None
+        :param name: The name identifier for this queue handler, defaults to 'unknown'.
+        :type name: str
+        :param log: Whether to enable logging for queue processing events, defaults to False.
+        :type log: bool
+        :param maximumQueueLength: The maximum number of events allowed in the queue.
+        :type maximumQueueLength: int | None
+        :raises TypeError: If any of the parameters are of an invalid type.
+        :raises RuntimeError: If the application instance is not defined.
         """
         # check parameters
         if not parent:
             raise TypeError(f'{self.__class__.__name__}.__init__: parent is not defined')
 
-        # if not (callable(updaterCallback) or updaterCallback is None):
-        #     raise TypeError(f'{self.__class__.__name__}.__init__: updaterCallback is not callable|None')
         if not (callable(completeCallback) or completeCallback is None):
             raise TypeError(f'{self.__class__.__name__}.__init__: completeCallback is not callable|None')
         if not (callable(queueFullCallback) or queueFullCallback is None):
             raise TypeError(f'{self.__class__.__name__}.__init__: queueFullCallback is not callable|None')
 
-        if not (isinstance(name, str) and name):
+        if not isinstance(name, str) or not name:
             raise TypeError(f'{self.__class__.__name__}.__init__: name is not of type str')
         if not isinstance(log, bool):
             raise TypeError(f'{self.__class__.__name__}.__init__: log is not True/False')
@@ -103,34 +113,59 @@ class QueueHandler():
         self.log = log
         self._completeCallback = completeCallback
         self._queueFullCallback = queueFullCallback
+        self._queuePending = UpdateQueue()
+        self._queueActive = None
+        self._lock = QtCore.QMutex()
 
         _project = getApplication().project
 
         # initialise a scheduler
         self._scheduler = UpdateScheduler(self.project, self._queueProcess, name, log, completeCallback)
 
-    def __enter__(self):
-        # 'with' initialisation here?
+    def __enter__(self) -> tuple[UpdateQueue | None, UpdateQueue, QtCore.QMutex]:
+        """Enter the runtime context for the queue handler.
+
+        :return: Tuple containing the active queue, pending queue, and lock.
+        :rtype: tuple[UpdateQueue | None, UpdateQueue, QtCore.QMutex]
+        """
         return self._queueActive, self._queuePending, self._lock
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        #Exception handling here
+    def __exit__(self, exc_type: type | None, exc_val: Exception | None, exc_tb: object | None) -> None:
+        """Exit the runtime context for the queue handler.
+
+        :param exc_type: Exception type if an error occurred.
+        :param exc_val: Exception value if an error occurred.
+        :param exc_tb: Exception traceback if an error occurred.
+        """
         pass
 
-    def _queueGeneralNotifier(self, func, data):
-        """Add the notifier to the queue handler
+    def _queueGeneralNotifier(self, func: Callable, data: object) -> None:
+        """Add a notifier function with data to the queue.
+
+        :param func: The function to be added to the queue.
+        :type func: Callable
+        :param data: The data associated with the function call.
+        :type data: object
         """
         self.queueAppend([func, data])
 
-    def queueFull(self):
-        """Method that is called when the queue is deemed to be too big.
-        Apply overall operation instead of all individual notifiers.
+    def queueFull(self) -> None:
+        """Handle cases when the queue is too large.
+
+        This method is called when the queue exceeds `maximumQueueLength`.
+        It triggers the `queueFullCallback`, if defined.
         """
         if self._queueFullCallback:
             self._queueFullCallback()
 
-    def _queueProcess(self):
-        """Process current items in the queue
+    def _queueProcess(self) -> None:
+        """Process the current items in the queue.
+
+        This method transfers pending queue items to the active queue
+        and processes them sequentially. If the queue is too large,
+        the `queueFull()` method is triggered instead.
+
+        Any exceptions raised during queue execution are logged.
         """
         with QtCore.QMutexLocker(self._lock):
             # protect the queue switching
@@ -141,7 +176,8 @@ class QueueHandler():
         _useQueueFull = (self.maximumQueueLength not in [0, None] and len(self._queueActive) > self.maximumQueueLength)
         if self.log:
             # log the queue-time if required
-            getLogger().debug(f'_queueProcess  {self._parent}  len: {len(self._queueActive)}  useQueueFull: {_useQueueFull}')
+            getLogger().debug(f'_queueProcess  {self._parent}  len: {len(self._queueActive)}  '
+                              f'useQueueFull: {_useQueueFull}')
 
         if _useQueueFull:
             # rebuild from scratch if the queue is too big
@@ -154,7 +190,6 @@ class QueueHandler():
                     self.queueFull()
                 except Exception as es:
                     getLogger().debug(f'Error in {self._parent.__class__.__name__} update queueFull: {es}')
-
         else:
             executeQueue = _removeDuplicatedNotifiers(self._queueActive)
             for itm in executeQueue:
@@ -172,13 +207,17 @@ class QueueHandler():
         if self.log:
             getLogger().debug(f'_queueProcess  {self._parent}  elapsed time: {(time_ns() - _startTime) / 1e9}')
 
-    def queueAppend(self, itm):
-        """Append a new item to the queue
+    def queueAppend(self, itm: list[Callable, object]) -> None:
+        """Append a new item to the queue for processing.
+
+        If the scheduler is not active or busy, it will be started automatically.
+
+        :param itm: The item (function and data) to append to the queue.
+        :type itm: tuple[Callable, object]
         """
         self._queuePending.put(itm)
         if not self._scheduler.isActive and not self._scheduler.isBusy:
             self._scheduler.start()
-
         elif self._scheduler.isBusy:
             # caught during the queue processing event, need to restart
             self._scheduler.signalRestart()
