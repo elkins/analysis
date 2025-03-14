@@ -32,7 +32,7 @@ Available from github; https://github.com/ckjellson/textalloc
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2025"
 __credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
                "Timothy J Ragan, Brian O Smith, Daniel Thompson",
                "Gary S Thompson & Geerten W Vuister")
@@ -44,8 +44,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-08-09 11:25:08 +0100 (Fri, August 09, 2024) $"
-__version__ = "$Revision: 3.2.5 $"
+__dateModified__ = "$dateModified: 2025-03-14 17:56:48 +0000 (Fri, March 14, 2025) $"
+__version__ = "$Revision: 3.2.12 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -58,9 +58,9 @@ __date__ = "$Date: 2022 $"
 import numpy as np
 from typing import Tuple, List, Optional
 from .candidates import generate_candidates, generate_candidate_lines
-from .overlap_functions import non_overlapping_with_lines, \
-    non_overlapping_boxes_to_boxes, inside_plot, non_overlapping_lines_to_boxes, \
-    non_overlapping_lines_to_lines, non_overlapping_boxes_to_ellipses, non_overlapping_points_to_boxes
+from .overlap_functions import (non_overlapping_boxes_to_boxes, inside_plot, non_overlapping_lines_to_boxes,
+                                non_overlapping_lines_to_lines, non_overlapping_boxes_to_ellipses,
+                                non_overlapping_points_to_boxes)
 
 
 def get_non_overlapping_boxes(
@@ -163,9 +163,8 @@ def get_non_overlapping_boxes(
             if lines_xyxy is None:
                 non_ol = np.zeros((candidates.shape[0],)) == 0
             else:
-                non_ol = non_overlapping_with_lines(
-                        lines_xyxy, candidates, x_margin, y_margin
-                        )
+                non_ol = non_overlapping_lines_to_boxes(
+                        lines_xyxy, candidates, x_margin, y_margin, by_lines=False)  # need by_boxes
 
             # Check for overlapping with - boxes
             if boxes_xyxy is None:

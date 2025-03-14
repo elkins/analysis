@@ -16,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2025-03-13 17:53:32 +0000 (Thu, March 13, 2025) $"
-__version__ = "$Revision: 3.3.1 $"
+__dateModified__ = "$dateModified: 2025-03-14 17:55:43 +0000 (Fri, March 14, 2025) $"
+__version__ = "$Revision: 3.2.12 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -139,10 +139,10 @@ class UpdateQueue(queue.Queue):
         :return: A generator yielding queued items.
         """
         # Extract items non-destructively
-        items_list = list(self.queue)  # `self.queue` is the internal list of PriorityQueue
-        if reverse:
-            items_list = items_list[::-1]  # fast reversal of the list
-        yield from (qq[_STORED_ITEM] for qq in items_list)
+        if items_list := list(self.queue):  # `self.queue` is the internal list of PriorityQueue
+            if reverse:
+                items_list.reverse()
+            yield from (qq[_STORED_ITEM] for qq in items_list)
 
     @staticmethod
     def _checkPriority(priority: int = Priority.Normal) -> None:
