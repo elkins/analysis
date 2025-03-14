@@ -15,32 +15,54 @@
 
     <h2>Excel Files for AnalysisScreen Import</h2>
     <p>The advantage of importing your screening data with an Excel lookup file is not only that you can import hundreds or thousands of Spectra and Substances (compounds) in one go, but that the program will additionally automatically link the Substances to their Reference Spectra and place the Spectra into SpectrumGroups. And by including information such as compound SMILES you will also be able to see a compound's structure.</p>
-    <p>The program can read .xls or .xlxs files with multiple sheets that include the words Sample or Substance in the sheet name. You can create files that contain either the Substance or Sample page or both. You can download both <a href="">a template Excel lookup file</a> (only contains the column headings) and <a href="">an example Excel lookup file</a> (also contains example data).</p>
+    <p>The program can read .xls or .xlsx files with multiple sheets that include the words <span class="action">Sample</span> or <span class="action">Substance</span> in the sheet name. You can create files that contain either the Substance or Sample page or both. You can download both <a href="files/LookupTemplate.xls">a template Excel lookup file</a> (only contains the column headings) and <a href="files/LookupExample19F.xlsx">an example Excel lookup file</a> (also contains example data).</p>
 
     <h3>Substance Sheet</h3>
-    <p>The title of this sheet must start with <span class="action">Substance</span> and contains information about the small molecules or compounds in your screening library. The only mandatory column is the one called <span class="action">SubstanceName</span>. Additional columns are optional, but it can be helpful to use them, particularly if you want to include reference spectra for your small molecules.</p>
+    <p>The title of this sheet must start with <span class="action">Substance</span> and contains information about the small molecules or compounds in your screening library. The only mandatory column is the one called <span class="action">substanceName</span>. Additional columns are optional, but it can be helpful to use them, particularly if you want to include reference spectra for your small molecules.</p>
     <h4>spectrumPath</h4>
     <p>This is the path to a reference spectrum for that substance.
-        <br>AnalysisScreen will recognise any spectrum format and you do not need to include any file extensions such as .ucsf, ndf5, .ft etc.). You can specify the path in three ways:
+        <br>AnalysisScreen will <a href="LoadingSpectra.html">recognise most spectrum formats</a>, and you do not need to include any file extensions such as .ucsf, ndf5, .ft etc. You can specify the path in three ways:
         <ol>
-            <li>If all the spectra files are located in the same directory as the lookup file, insert only the file names as above.</li>
+            <li>If all the spectra files are located in the same directory as the lookup file, insert only the file names.</li>
             <li>If the spectra are located in a subdirectory, insert the directory name first followed by a slash and the filename (the relative path starting from the Excel file), e.g. references/C101</li>
             <li>If the spectra files are located in a completely different location, insert the full path, e.g. /Users/Username/Desktop/MySpectra/C101</li>
         </ol>
         For Bruker files, you can insert the path to the 1r file, e.g.: /Users/Username/MySpectra/exptNumber/pdata/1/1r</p>
     <h4>spectrumGroupName</h4>
-    <p></p>
+    <p>You can place the reference spectra for your substances into SpectrumGroups. Typically, they would all go into a SpectrumGroup called <span class="action">References</span>, but you can give it a different name or put different Substances into different SpectrumGroups if you want to.</p>
     <h4>experimentType</h4>
-    <p></p>
+    <p>Here you can enter the experiment Type such as <span class="action">19F</span>, <span class="action">1H</span>, <span class="action">STD</span> or <span class="action">Water-LOGSY</span>. Note that this is simply for users to keep track of experiment types in the Excel file. This information is not currently used by the program.</p>
     <h4>spectrumHexColour</h4>
-    <p></p>
+    <p>Here you can specify the colour for the Reference Spectrum in hexadecimal notation. This can be useful if you want all References Spectra to be the same colour, for example. Enter is as, e.g. <span class="action">#BA55D3</span>.</p>
     <h4>smiles</h4>
-    <p>Entering the SMILES string for your Substance will enable you to view the structure of the compound with in the program and also in the reports you generate.</p>
+    <p>Entering the SMILES string for your Substance will enable you to view the structure of the compound within the program and also in the reports you generate.</p>
     <h4>other</h4>
-    <p></p>
+    <p>There are many other Substance properties that you can add to the Excel file which will then be read into and stored in your project. These won't currently be used by the program, but will be available to you for reference.</p>
 
     <h3>Sample Sheet</h3>
-    <p></p>
+    <p>The title of this sheet must start with <span class="action">Sample</span> and contains information about the samples used in your screen. The only mandatory column is the one called <span class="action">sampleName</span>. Additional columns are optional, but it can be helpful to use them, particularly if you want to create SpectrumGroups automatically, colour your spectra in particular ways or create links to the reference spectra. You can either place all your samples into one sheet or (what we recommend for clarity) have different sheets e.g. for your Control, Target and Displacer spectra.</p>
+    <h4>spectrumGroupName</h4>
+    <p>Enter the name of the spectrumGroup you would like your sample's spectrum to be included in.</p>
+    <h4>spectrumPath</h4>
+    <p>This is the path to the spectrum for a particular sample.
+        <br>AnalysisScreen will <a href="LoadingSpectra.html">recognise most spectrum formats</a>, and you do not need to include any file extensions such as .ucsf, ndf5, .ft etc. You can specify the path in three ways:
+        <ol>
+            <li>If all the spectra files are located in the same directory as the lookup file, insert only the file names.</li>
+            <li>If the spectra are located in a subdirectory, insert the directory name first followed by a slash and the filename (the relative path starting from the Excel file), e.g. references/control_mix1</li>
+            <li>If the spectra files are located in a completely different location, insert the full path, e.g. /Users/Username/Desktop/MySpectra/control_mix1</li>
+        </ol>
+        For Bruker files, you can insert the path to the 1r file, e.g.: /Users/Username/MySpectra/exptNumber/pdata/1/1r</p>
+</p>
+    <h4>spectrumName</h4>
+    <p>Enter a SpectrumName if you don't want to use the program's default spectrum names (which are not very human friendly for Bruker data, for example).</p>
+    <h4>experimentType</h4>
+    <p>Here you can enter the experiment Type such as <span class="action">19F</span>, <span class="action">1H</span>, <span class="action">STD</span> or <span class="action">Water-LOGSY</span>. Note that this is simply for users to keep track of experiment types in the Excel file. This information is not currently used by the program.</p>
+    <h4>spectrumHexColour</h4>
+    <p>Here you can specify the colour for the sample Spectrum in hexadecimal notation. This can be particularly useful if you want all control or target spectra to be the same colour, for example. Enter is as, e.g. <span class="action">#1E90FF</span>.</p>
+    <h4>sampleComponents</h4>
+    <p>Insert the names of the compounds (Substances) that are present in the sample. In the case of a mixture containing components 1 to 5, insert them as a comma-separated list without spaces, e.g. <span class="action">C101,C102,C103,C104,C105</span>.</p>
+    <h4>other</h4>
+    <p>The other columns record a sample’s chemical properties and other information. Fill them in if you want to display them within the software. They won't, however, be used by the program.</p>
 
 </div>
 </body>

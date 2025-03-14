@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>AnalysisScreen Workflows</title>
+    <link rel="stylesheet" href="CcpnVideoTutorials.css">
+</head>
+<body>
+<div class="header"><a href="https://www.ccpn.ac.uk/"><img src="CCPN.png" alt="CCPN Logo" height="50"></a><a
+        href="index.html" class="button">Video<br> Tutorials<br> & Manual</a><a href="https://forums.ccpn.ac.uk"><img
+        src="CCPNForumLogo.png" alt="CCPN Logo" height="50" style="padding-left: 15px"></a></div>
+<br>
+<div class="headerBar">AnalysisScreen Workflows</div>
+<div class="tutorial">
+
+    <h2>AnalysisScreen Workflows</h2>
+    <h3>Using individual reference spectra with automatic peak matching</h3>
+    <p>The most obvious workflow which is appropriate for most people first using AnalysisScreen is described in our <a href="https://ccpn.ac.uk/support/tutorials/#screening">AnalysisScreen Introductory Tutorial</a>. It assumes you have a single reference spectrum for each compound or substance in your small molecule library (<span class="action">Reference Singleton Spectra</span>), and that you mix your small molecules into cocktails or mixtures for the screen. You will then record control spectra of your mixtures (<span class="action">Control Mixture Spectra</span>) and add your target protein to record the <span class="action">Target Mixture Spectra</span>. Later, you might also add a displacer (or competitor) compound (one which you know binds to the site of interest on your protein and will therefore probe whether your small molecule hits also bind at that site) and record <span class="action">Displacer Mixture Spectra</span>.</p>
+    <p></p>
+    <p>Our recommended workflow in this situation is as follows:
+    <ol><li>Peak pick the Reference Singleton Spectra and label the peaks with the compound name.</li>
+    <li>Propagate (copy) the peaks (and their labels) from the Reference Singleton Spectra to the Control Mixture Spectra with our algorithm which ensures the best possible match between the reference and control mixture peaks despite any peak movements, appearances or disappearances.</li>
+    <li>Copy the peaks (and their labels) from the Control Mixture Spectra to the Target (and Displacer) Mixture Spectra.</li>
+    <li>Now you can then create your <span class="action">Screening Dataset</span> which collates all the information from your spectra into a DataTable</li>
+    <li>Inspect, filter and flag your data in our Hit Analysis Module.</li>
+    <li>Export the data or generate PowerPoint report slides.</li>
+    </ol></p>
+    <p>Steps 1 to 4 are all conducted using Pipelines in the Pipelines module. Steps 5 and 6 are conducted in the Hit Analysis Module.</p>
+    <h3>Reference Mixtures</h3>
+    <p>Typically, the largest variation between spectra is observed between your Reference Singleton Spectra and your Control Mixture Spectra. This is because the compounds may interact in the mixtures, or they may be in different buffers at different pH values and over time some compounds may degrade.</p>
+    <p>For this reason, we recommend longer term, that you replace your Reference Singleton Spectra with Reference Mixture Spectra. This is in effect simply a set of Control Mixture Spectra from a previous screen. You can use a NEF file to save all the information about a set of Control Mixture Spectra (spectrum locations on disk, peaks and peak labels, as well as merit scores which indicate whether the peaks are of high quality and should be used in the analysis or not) and then use them as a set of Reference Mixture Spectra in a future screen.</p>
+    <h3>Manual Matching</h3>
+    <p>The automated method of matching the peaks in the Control, Target and Displacer spectra with those in the references was designed with large libraries containing thousands of compounds in mind. However, if your small molecule library only contains a few hundred compounds, you may prfer to match up your peaks manually. You can also always make manual adjustments to the automated peak matching. This may be necessary if there are large changes between your Reference Singleton Spectra and Control Mixture Spectra. </p>
+
+</div>
+</body>
+</html>
