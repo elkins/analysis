@@ -1,6 +1,7 @@
 from PyQt5 import QtCore
 
-from ccpn.core import NmrChain, Chain
+from ccpn.core.Chain import Chain
+from ccpn.core.NmrChain import NmrChain
 from ccpn.core.lib.ContextManagers import undoBlockWithoutSideBar
 from ccpn.ui.gui.popups.Dialog import CcpnDialogMainWidget
 from ccpn.ui.gui.widgets.CheckBox import CheckBox
