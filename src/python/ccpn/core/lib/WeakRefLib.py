@@ -19,8 +19,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2025-01-09 14:17:01 +0000 (Thu, January 09, 2025) $"
-__version__ = "$Revision: 3.2.11 $"
+__dateModified__ = "$dateModified: 2025-03-19 18:00:35 +0000 (Wed, March 19, 2025) $"
+__version__ = "$Revision: 3.3.1 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -35,7 +35,7 @@ import weakref
 from contextlib import suppress
 from dataclasses import Field
 from reprlib import recursive_repr
-from typing import Any, Callable, Protocol, Type
+from typing import Any, Callable, Protocol
 
 
 _DEBUG = False
@@ -417,7 +417,7 @@ class WeakRefPartial:
         :raises ReferenceError: If the referenced function has been deleted.
         """
         if not (func := self._func_ref()):
-            return
+            return None
         keywords = {**self.keywords, **keywords}
         return func(*self.args, *args, **keywords)
 
