@@ -6,9 +6,10 @@ Module Documentation here
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
-__credits__ = ("Ed Brooksbank, Joanna Fox, Morgan Hayward, Victoria A Higman, Luca Mureddu",
-               "Eliza Płoskoń, Timothy J Ragan, Brian O Smith, Gary S Thompson & Geerten W Vuister")
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2025"
+__credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
+               "Timothy J Ragan, Brian O Smith, Daniel Thompson",
+               "Gary S Thompson & Geerten W Vuister")
 __licence__ = ("CCPN licence. See https://ccpn.ac.uk/software/licensing/")
 __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, L.G., & Vuister, G.W.",
                  "CcpNmr AnalysisAssign: a flexible platform for integrated NMR analysis",
@@ -16,9 +17,9 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-02-06 13:52:51 +0000 (Tue, February 06, 2024) $"
-__version__ = "$Revision: 3.2.2 $"
+__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
+__dateModified__ = "$dateModified: 2025-03-20 17:23:40 +0000 (Thu, March 20, 2025) $"
+__version__ = "$Revision: 3.3.1 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -29,15 +30,16 @@ __date__ = "$Date: 2017-07-04 15:21:16 +0000 (Tue, July 04, 2017) $"
 #=========================================================================================
 
 import pandas as pd
-import re
 from functools import partial
+
 from ccpn.util.AttrDict import AttrDict
 from ccpn.framework.Application import getProject
 from html.parser import HTMLParser
 from ccpn.core.Chain import Chain
-from ccpn.core.lib.ChainLib import SequenceHandler, CCPCODE, CODE1LETTER, CODE3LETTER, ISVALID, ISSTANDARD, INPUT, ERRORS, _copySequenceToClipboard
+from ccpn.core.lib.ChainLib import SequenceHandler, CCPCODE, CODE1LETTER, CODE3LETTER, ISVALID, INPUT, ERRORS, _copySequenceToClipboard
 from ccpn.core.lib.MoleculeLib import _nextChainCode
 from ccpn.core.lib.ContextManagers import queueStateChange
+from ccpn.core.lib.WeakRefLib import WeakRefDescriptor
 from PyQt5 import QtGui
 from PyQt5.QtCore import pyqtSignal, Qt
 from ccpn.ui.gui.popups.AttributeEditorPopupABC import AttributeEditorPopupABC
@@ -74,7 +76,9 @@ class _HTMLSequenceEditorParser(HTMLParser):
      Note: This class could be redundant if we had BeautifulSoup:
      html to plainText  could be achieved with BeautifulSoup package in a couple E.g.:
 
-     >>>   def toPlainText(self:SequenceEditor): ...
+    ::
+
+        def toPlainText(self:SequenceEditor): ...
             soup = BeautifulSoup(html_string, 'html.parser')
             subscripts = soup.find_all('span', style=lambda value: value and 'vertical-align:sub' in value)
             for sub in subscripts:
@@ -129,6 +133,7 @@ class _SequenceTextEditorBase(TextEditor):
         'Copy all to clipboard as 3LetterCodes': {'codeType':CODE3LETTER, 'separatorType':' ', 'enabled': True},
         'Copy all to clipboard as CcpCodes': {'codeType':CCPCODE, 'separatorType':' ',  'enabled': True},
         }
+    parentPopup = WeakRefDescriptor()
 
     def __init__(self, parent, parentPopup, maxColumns=10,  callback=None,  **kwargs):
         super().__init__(parent, backgroundText=self.demoSequence,  **kwargs)
@@ -377,10 +382,9 @@ class _SequenceTabs(Tabs):
     def __init__(self, parent, parentPopup, callback=None, **kwds):
         super().__init__(parent, **kwds)
         self._tabEditors = {}
-        self._parentPopup = parentPopup
         self._editorsClasses = [_1LetterCodeSequenceEditor,  _3LetterCodeSequenceEditor, _CcpCodeSequenceEditor]
         for i, editorCls in enumerate(self._editorsClasses):
-            editor = editorCls(self, parentPopup=self._parentPopup,  callback= callback)
+            editor = editorCls(self, parentPopup=parentPopup,  callback= callback)
             self._tabEditors[editor._name] = editor
             self.addTab(editor, editor._name)
 

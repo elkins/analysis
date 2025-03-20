@@ -4,7 +4,7 @@ Module Documentation here
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2025"
 __credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
                "Timothy J Ragan, Brian O Smith, Daniel Thompson",
                "Gary S Thompson & Geerten W Vuister")
@@ -16,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-10-01 12:04:15 +0100 (Tue, October 01, 2024) $"
-__version__ = "$Revision: 3.2.7 $"
+__dateModified__ = "$dateModified: 2025-03-20 17:23:41 +0000 (Thu, March 20, 2025) $"
+__version__ = "$Revision: 3.3.1 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -34,6 +34,7 @@ from functools import partial
 from typing import Optional
 
 from ccpn.core.lib.ContextManagers import catchExceptions, queueStateChange
+from ccpn.core.lib.WeakRefLib import WeakRefDescriptor
 from ccpn.ui.gui.guiSettings import getColours, DIVIDER, BORDERFOCUS
 from ccpn.ui.gui.popups.ExportDialog import ExportDialogABC
 from ccpn.ui.gui.popups.Dialog import _verifyPopupApply
@@ -142,7 +143,7 @@ SELECTAXIS_COLOR2 = QtGui.QColor('mediumseagreen')
 class _StripData:
     """Simple class to store strip widget state
     """
-    strip = None
+    strip = WeakRefDescriptor()
     useRegion = False
     minMaxMode = 0
     axes = None
@@ -224,15 +225,14 @@ class _StripListWidget(ListWidget):
     """ListWidget with a new right-mouse menu
     """
 
-    def __init__(self, *args, parentPopup=None, parentCallbacks=None, **kwds):
+    def __init__(self, parent, *args, parentCallbacks=None, **kwds):
         if not (parentCallbacks and len(parentCallbacks) == 3):
             raise RuntimeError('bad parentCallbacks')
 
-        super().__init__(*args, **kwds)
+        super().__init__(parent, *args, **kwds)
 
         # copy has not been used on the first popup
         self._firstCopy = False
-        self._parentPopup = parentPopup
 
         # make a persistent menu
         self._stripListMenu = contextMenu = Menu('', self, isFloatWidget=True)
@@ -277,6 +277,10 @@ class _StripListWidget(ListWidget):
                 self._firstCopy = True
 
 
+#=========================================================================================
+# ExportStripToFilePopup
+#=========================================================================================
+
 class ExportStripToFilePopup(ExportDialogABC):
     """
     Class to handle printing strips to file
@@ -289,6 +293,9 @@ class ExportStripToFilePopup(ExportDialogABC):
 
     # permanently enables the saveAndClose button
     EDITMODE = False
+
+    strip = WeakRefDescriptor()
+    spectrumDisplay = WeakRefDescriptor()
 
     def __init__(self, parent=None, mainWindow=None, title='Export Strip to File',
                  fileMode='anyFile',
@@ -550,7 +557,6 @@ class ExportStripToFilePopup(ExportDialogABC):
         Label(self._rangeLeft, grid=(0, 0), text='Strips', hAlign='left')
         self._stripLists = _StripListWidget(self._rangeLeft, grid=(1, 0), callback=self._setRangeState,
                                             multiSelect=True, acceptDrops=False, copyDrop=False,
-                                            parentPopup=self,
                                             parentCallbacks=(self._copyRangeCallback,
                                                              self._pasteRangeCallback,
                                                              self._pasteRangeAllCallback)
