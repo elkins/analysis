@@ -55,7 +55,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2025-03-13 18:50:05 +0000 (Thu, March 13, 2025) $"
+__dateModified__ = "$dateModified: 2025-03-20 17:07:46 +0000 (Thu, March 20, 2025) $"
 __version__ = "$Revision: 3.3.1 $"
 #=========================================================================================
 # Created
@@ -3122,24 +3122,20 @@ class Spectrum(AbstractWrapperObject):
         validFormats = [k.dataFormat for k in dataFormats.values() if k.hasWritingAbility]
         klass = dataFormats.get(dataFormat)
         if klass is None:
-            raise ValueError('Invalid dataFormat %r; must be one of %s' % (dataFormat, validFormats))
+            raise ValueError(f'Invalid dataFormat {dataFormat!r}; must be one of {validFormats}')
         if not klass.hasWritingAbility:
-            raise ValueError('Unable to write to dataFormat %r; must be one of %s' % (dataFormat, validFormats))
+            raise ValueError(f'Unable to write to dataFormat {dataFormat!r}; must be one of {validFormats}')
         suffix = klass.suffixes[0] if len(klass.suffixes) > 0 else '.dat'
 
-        tagStr = '%s_%s' % (tag, '_'.join(axisCodes))
+        tagStr = f'{tag}_[{"_".join(axisCodes)}]'
         if path is None:
-            appendToFilename = '_%s_%s' % (tagStr, '_'.join([str(p) for p in position]))
+            appendToFilename = f'_{tagStr}[{"_".join([str(p) for p in position])}]'
             path = self.dataSource.parentPath / self.name + appendToFilename
             path = path.withSuffix(suffix)
-
             try:
                 # try saving to the same folder as the original spectrum
-                path = aPath(getSafeFilename(path))
-                with open(path, 'w'):
-                    pass
-                path.removeFile()
-
+                path = aPath(getSafeFilename(path, endswith=appendToFilename, spacer='_', brackets=False,
+                                             mode='w', test=True))
             except (PermissionError, FileNotFoundError):
                 getLogger().debug('Folder may be read-only')
 
@@ -3152,13 +3148,9 @@ class Spectrum(AbstractWrapperObject):
                     # try saving to the default sub-folder in the project
                     path = aPath(self.project.path).filepath / CCPN_SPECTRA_DIRECTORY / self.name + appendToFilename
                     path = path.withSuffix(suffix)
-
                     # try to open and remove the file
-                    path = aPath(getSafeFilename(path))
-                    with open(path, 'w'):
-                        pass
-                    path.removeFile()
-
+                    path = aPath(getSafeFilename(path, endswith=appendToFilename, spacer='_', brackets=False,
+                                                 mode='w', test=True))
                     # It should now save the file to this folder as 'path'
 
                 except (PermissionError, FileNotFoundError):
