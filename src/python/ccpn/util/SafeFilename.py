@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2025-03-20 17:07:47 +0000 (Thu, March 20, 2025) $"
+__dateModified__ = "$dateModified: 2025-03-20 18:09:40 +0000 (Thu, March 20, 2025) $"
 __version__ = "$Revision: 3.3.1 $"
 #=========================================================================================
 # Created
@@ -115,7 +115,7 @@ def safeOpen(path: str, mode: str, endswith: str = '', spacer: str | None = None
     A safe filename is created of the form:
         filename[endswith][spacer][open-bracket]number[close-bracket].extension
 
-    Usage:
+    **Usage:**
     ::
 
         with safeOpen(path, [options]) as (fd, safeFileName):
@@ -124,7 +124,7 @@ def safeOpen(path: str, mode: str, endswith: str = '', spacer: str | None = None
     fd is the file descriptor, to be used as with open, e.g., fd.read()
     safeFileName is the new safe filename.
 
-    Examples
+    **Examples**
 
     Basic Usage:
     ::
@@ -201,7 +201,7 @@ def getSafeFilename(path: str, *, endswith: str = '', spacer: str | None = None,
     If `test` is `True`, an attempt will be made to open the file with the specified mode,
     raising any errors as appropriate.
 
-    Examples
+    **Examples**
 
     Basic Usage:
     ::
