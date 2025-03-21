@@ -18,8 +18,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2025-01-13 12:41:07 +0000 (Mon, January 13, 2025) $"
-__version__ = "$Revision: 3.2.11 $"
+__dateModified__ = "$dateModified: 2025-03-21 16:10:08 +0000 (Fri, March 21, 2025) $"
+__version__ = "$Revision: 3.3.1 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -30,12 +30,14 @@ __date__ = "$Date: 2017-04-07 10:28:41 +0000 (Fri, April 07, 2017) $"
 #=========================================================================================
 
 import functools
+import sys
 import os
 import typing
 import operator
 from typing import Sequence, Union, Optional, List, Any
 from collections import OrderedDict
 from datetime import datetime
+from contextlib import contextmanager
 from collections.abc import Iterable
 import pandas as pd
 import numpy as np
@@ -49,8 +51,9 @@ from ccpn.core.lib import Pid
 from ccpn.core.lib import Undo
 from ccpn.core.lib.ProjectSaveHistory import getProjectSaveHistory, newProjectSaveHistory
 from ccpn.core.lib.ProjectLib import createLogger
-from ccpn.core.lib.ContextManagers import notificationBlanking, undoBlock, undoBlockWithoutSideBar, \
-    inactivity, logCommandManager, ccpNmrV3CoreUndoBlock
+from ccpn.core.lib.ContextManagers import (notificationBlanking, undoBlock, undoBlockWithoutSideBar,
+                                           inactivity, logCommandManager, ccpNmrV3CoreUndoBlock, undoStackBlocking)
+from ccpn.core.lib.XmlLoader import XmlLoader
 
 from ccpn.util import Logging
 from ccpn.util.ExcelReader import ExcelReader
@@ -70,7 +73,7 @@ from ccpn.framework.PathsAndUrls import \
     CCPN_SUB_DIRECTORIES, \
     CCPN_LOGS_DIRECTORY, \
     CCPN_DIRECTORY_SUFFIX, \
-    CCPN_PLOTS_DIRECTORY
+    CCPN_PLOTS_DIRECTORY, CCPN_SAVEAS_SUB_DIRECTORIES
 
 from ccpnmodel.ccpncore.api.ccp.nmr.Nmr import NmrProject as ApiNmrProject
 from ccpnmodel.ccpncore.memops import Notifiers
@@ -145,13 +148,22 @@ class Project(AbstractWrapperObject):
 
     # Qualified name of matching API class
     _apiClassQualifiedName = ApiNmrProject._metaclass.qualifiedName()
+    _wrappedData = ApiNmrProject
 
     # Needs to know this for restoring the GuiSpectrum Module. Could be removed after decoupling Gui and Data!
     _isNew = None
 
     #TODO: do we still have this limitation?
     _MAX_PROJECT_NAME_LENGTH = 32
-    _READONLY = 'readOnly'
+    _READONLYPARAMETER = 'readOnly'
+
+    _LOWEST_COMPATIBLE_VERSION = '3.1.0'
+
+    #-----------------------------------------------------------------------------------------
+
+    # set to positive to override the read-only status of a project
+    #   required to use save/saveAs but keep the project.readOnly status until the next load
+    _saveOverrideState = 0
 
     #-----------------------------------------------------------------------------------------
     # Property Attributes of the data structure
@@ -932,6 +944,26 @@ class Project(AbstractWrapperObject):
         bPath = _dir / _base + CCPN_BACKUP_SUFFIX + CCPN_DIRECTORY_SUFFIX
         return bPath
 
+    def _getSubdirectorySizes(self, subDirectories=None, sizeInMB=False) -> dict:
+        """Calculate the sizes of the subDirectories (if they exist) of the project
+        :param subDirectories: a list of sub directories; defaults to CCPN_SUB_DIRECTORIES
+        :param sizeInMB: flag to return size in MB
+        :return a Dict with (subDir, sizeInBytes)
+        """
+        if subDirectories is None:
+            subDirectories = CCPN_SUB_DIRECTORIES
+
+        _MB = 1024 * 1024
+        result = {}
+        for _subdir in subDirectories:
+            _path = self.projectPath / _subdir
+            if _path.exists():
+                _size = _path.getSize()
+                if sizeInMB:
+                    _size /= _MB
+                result[_subdir] = _size
+        return result
+
     #-----------------------------------------------------------------------------------------
     # Implementation methods
     #-----------------------------------------------------------------------------------------
@@ -1132,14 +1164,17 @@ class Project(AbstractWrapperObject):
             except (PermissionError, FileNotFoundError):
                 getLogger().info('Folder may be read-only')
 
-    def _initialiseProject(self):
+    def _initialiseProject(self, application, debugLevel):
         """Complete initialisation of project,
         set up logger and notifiers, and wrap underlying data
         This routine is called from Framework, as some other machinery first needs to set up
         (linkages, Current, notifiers and such)
         """
+        # local import to avoid cycles
+        from ccpn.core.NmrChain import DEFAULT_NMRCHAINCODE
 
         self._logger = createLogger(self, now=self.application._created)
+        Logging.setLevel(self._logger, application._loggingLevel)
 
         # Set up notifiers
         self._registerPresetApiNotifiers()
@@ -1159,6 +1194,33 @@ class Project(AbstractWrapperObject):
 
             # finalise restoration of project
             self._postRestore()
+
+            with undoStackBlocking() as _:
+                # we always want the default ChemicalShiftList
+                if (_csl := self.getChemicalShiftList(DEFAULT_CHEMICALSHIFTLIST)) is None:
+                    getLogger().debug(f'Project.initialise: creating ChemicalShiftList {DEFAULT_CHEMICALSHIFTLIST!r}')
+                    _csl = self.newChemicalShiftList(name=DEFAULT_CHEMICALSHIFTLIST)
+                # we always want the default NmrChain
+                if (_nc := self.getNmrChain(DEFAULT_NMRCHAINCODE)) is None:
+                    getLogger().debug(f'Project.initialise: creating NmrChain {DEFAULT_NMRCHAINCODE!r}')
+                    _nc = self.newNmrChain(DEFAULT_NMRCHAINCODE)
+
+            # check directories for possible read-only
+            _projectPath = aPath(self.path)
+            _subDirs = [self.projectPath / sub for sub in CCPN_SUB_DIRECTORIES]
+            _readOnlyDirs = [p for p in [self.projectPath.parent] + _subDirs \
+                             if p.exists() and p.is_dir() and not p.isWriteable()
+                             ]
+            if len(_readOnlyDirs) > 0:
+                getLogger().warning(
+                        f'Project contains {len(_readOnlyDirs)} read-only directories:\n{tuple(_readOnlyDirs)}')
+                self.setReadOnly(True)
+            else:
+                self.setReadOnly(self.readOnly)
+
+        self._setUnmodified()
+        # the project is now ready to use
+        getLogger().debug(f'Project {self}: initialise() completed')
 
     def _setUnmodified(self):
         """Set the status of API-topobject to unmodified.
@@ -1323,8 +1385,9 @@ class Project(AbstractWrapperObject):
                                         # hierarchy may still delete bottom-level items
                                         apiObj.delete()
 
-                                except Exception:
+                                except Exception as es:
                                     # there might still be an issue with the removal order
+                                    getLogger().debug2(f'Delete of {apiObj} failed: {es}')
                                     retries.append(apiObj)
 
                             # perform a second pass to catch all the lowest-level items
@@ -1343,7 +1406,7 @@ class Project(AbstractWrapperObject):
                                     # only log anything weird
                                     getLogger().debug2(f'issue purging {apiHint}  -->  {es}')
 
-        getLogger().debug('Done purge')
+        getLogger().debug('Done API purge')
 
     def close(self):
         """Clean up the wrapper project previous to deleting or replacing
@@ -1375,16 +1438,30 @@ class Project(AbstractWrapperObject):
         # clear the lookup dicts
         self._data2Obj.clear()
         self._pid2Obj.clear()
-        # self.__dict__.clear()  # GWV: dangerous; why done?
 
-    def saveAs(self, newPath: str, overwrite: bool = False):
+    @contextmanager
+    def _loggerBlocking(self):
+        """Temporary block logging to the log file.
+        """
+        # was for testing correct closure of log-streams, not sure required now
+        logger = getLogger()
+        logger._loggingCommandBlock += 1
+        try:
+            yield
+        finally:
+            logger._loggingCommandBlock -= 1
+            if logger._loggingCommandBlock < 0:
+                sys.stderr.write(f'--> logger blocking already at 0\n')
+
+    @logCommand('project.')
+    def saveAs(self, newPath: str, overwrite: bool = False, copySubDirectories: bool = True):
         """Save project to newPath (optionally overwrite);
            Derive the new project name from newPath
            :param newPath: new path for storing project files
            :param overwrite: flag to overwrite if path exists
+           :param copySubDirectories: flag to set the copying of the project's subdirectories
         """
-        from ccpn.core.lib.XmlLoader import XmlLoader
-
+        _oldPath = aPath(self.path)
         _newPath = aPath(newPath).assureSuffix(CCPN_DIRECTORY_SUFFIX)
         if _newPath.exists() and overwrite:
             parent = _newPath.parent
@@ -1393,17 +1470,44 @@ class Project(AbstractWrapperObject):
 
         # redirect only if _newXmlLoader is successful?
         for sp in self.spectra:
-            # check if any spectra are referenced as ALONGSIDE and update to the new path
-            if sp._isAlongside and sp.hasValidPath() and aPath(self.path).parent != _newPath.parent:
-                getLogger().debug(f'Redirecting spectrum {aPath(self.path).parent} -> {_newPath.parent}')
+            # check if spectrum is referenced as ALONGSIDE and require an update
+            # to absolute path
+            if sp._isAlongside and sp.hasValidPath() and \
+                    _oldPath.parent != _newPath.parent:
+                getLogger().warning(f'Redirecting spectrum {sp.name} from {_oldPath.parent} -> {_newPath.parent}')
                 sp._makeAbsolutePath()
+
+            # check if spectrum is referenced as INSIDE and require an update
+            # to absolute path
+            if sp._isInside and sp.hasValidPath() and \
+                    not copySubDirectories:
+                getLogger().warning(f'Redirecting spectrum {sp.name} from {_oldPath.parent} -> {_newPath.parent}')
+                sp._makeAbsolutePath()
+
+        # only update the logger if there have been changes to the project
+        self._updateLoggerState(self.readOnly or not self.isModified)
 
         _newXmlLoader = XmlLoader.newFromLoader(self._xmlLoader, path=_newPath, create=True)
         self._xmlLoader = _newXmlLoader
         self._path = _newXmlLoader.path.asString()
         self._name = _newXmlLoader.name
+        self._resetIds()
+
+        # Optionally copy and check subdirectories
+        getLogger().debug(f'copying subDirs')
+        if copySubDirectories:
+            for _subdir in CCPN_SAVEAS_SUB_DIRECTORIES:
+                _source = _oldPath / _subdir
+                _dest = _newPath / _subdir
+                if _source.exists():
+                    getLogger().debug(f'  subDir: {_dest}')
+                    _source.copyDir(_dest, overwrite=False)
         self._checkProjectSubDirectories()
+
         self._saveHistory = newProjectSaveHistory(self.path)
+        # clear the logging handlers, to be opened after all saving and copying
+        Logging._clearLogHandlers()
+
         self.save(comment='saveAs')
 
         # check for application and Gui;
@@ -1414,7 +1518,7 @@ class Project(AbstractWrapperObject):
         """Save project; add optional comment to save records
         """
         if self.readOnly:
-            getLogger().warning('save skipped: Project is read-only')
+            getLogger().warning(f'{self.__class__.__name__}.save: save skipped, project is read-only')
             return
 
         # stop the auto-backups so they don't clash with current save
@@ -1427,7 +1531,8 @@ class Project(AbstractWrapperObject):
             try:
                 with self._xmlLoader.blockReading():
                     # only need to check what is already there
-                    apiStatus = self._getAPIObjectsStatus()
+                    # completeScan = False skips attribute value validation
+                    apiStatus = self._getAPIObjectsStatus(completeScan=False)
                 if apiStatus.invalidObjects:
                     # if deleteInvalidObjects:
                     # delete here ...
@@ -1450,6 +1555,8 @@ class Project(AbstractWrapperObject):
             self._checkProjectSubDirectories()
             self._saveHistory.addSaveRecord(comment=f'{self.name}: {comment}')
             self._saveHistory.save()
+
+            self._updateReadOnlyState()
             self._updateLoggerState(readOnly=self.readOnly, flush=True)
 
             self._isTemporary = False
@@ -1547,34 +1654,48 @@ class Project(AbstractWrapperObject):
                 if obj and not obj.isDeleted:
                     obj.delete()
 
+    #-----------------------------------------------------------------------------------------
+    # readOnly handling
+    #-----------------------------------------------------------------------------------------
+
+    @property
+    def _readOnly(self) -> bool:
+        """Read-only flag of the project (default=True)
+        """
+        return (self._getInternalParameter(self._READONLYPARAMETER) or False)
+
+    @_readOnly.setter
+    def _readOnly(self, value: bool):
+        self._setInternalParameter(self._READONLYPARAMETER, value)
+        self._updateReadOnlyState()
+        self._updateLoggerState(readOnly=self.readOnly)
+
     @property
     def readOnly(self):
         """Return the read-only state of the project.
         """
         # _saveOverride allows the readOnly state to be temporarily set to False during save/saveAs
         # _readOnly sets all projects as read-only from the command-line switch --read-only
-        return ((self._getInternalParameter(self._READONLY) or False) or self.application._applicationReadOnlyMode) and \
+        # use getApplication() as this property is queried during initialisation of Project
+        # when not all linkages are established.
+        from ccpn.framework.Application import getApplication
+
+        if not (_app := getApplication()):
+            return True
+        return (self._readOnly or _app._applicationReadOnlyMode) and \
             not self.application._saveOverride
 
     @logCommand('project.')
     @ccpNmrV3CoreUndoBlock(readOnlyChanged=True)
-    def setReadOnly(self, value):
+    def setReadOnly(self, readOnly: bool):
         """Set the read-only state of the project.
         """
-        if not isinstance(value, bool):
+        if not isinstance(readOnly, bool):
             raise TypeError(f'{self.__class__.__name__}.setReadOnly must be a bool')
 
-        self._setInternalParameter(self._READONLY, value)
+        self._setInternalParameter(self._READONLYPARAMETER, readOnly)
         self._updateReadOnlyState()
-        self._updateLoggerState(flush=not value)
-
-        # # NOTE:ED - does this need to include override?
-        # self._xmlLoader.readOnly = (value and not self.application._saveOverride)
-        #
-        # updateLogger(self.application.applicationName,
-        #              self.projectPath / CCPN_LOGS_DIRECTORY,
-        #              level = self.application._debugLevel,
-        #              readOnly=value)
+        self._updateLoggerState(flush=not readOnly)
 
     def _updateReadOnlyState(self):
         """Update the state of the xmlLoader from the current read-only state
@@ -1594,6 +1715,30 @@ class Project(AbstractWrapperObject):
                      flush=flush,
                      now=self.application._created
                      )
+
+    @contextmanager
+    def _setSaveOverride(self):
+        """Handle the temporary override for saving the project if user wants to saveAs
+        without changing project/application save-states.
+        """
+        self._saveOverrideState += 1
+        self._updateReadOnlyState()
+        # self._updateLoggerState()  # these should always be together
+        try:
+            yield  # transfer control to the saving function
+        finally:
+            # reset override-state
+            self._saveOverrideState -= 1
+            if self._saveOverrideState < 0:
+                raise RuntimeError('_saveOverrideState already at 0')
+            self._updateReadOnlyState()
+            # self._updateLoggerState()  # these should always be together
+
+    def _clearOverride(self):
+        """Set the override-state to 0.
+        """
+        # is this required?
+        self._saveOverrideState = 0
 
     #-----------------------------------------------------------------------------------------
     # Undo machinery

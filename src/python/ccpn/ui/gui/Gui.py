@@ -16,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2025-01-06 17:24:27 +0000 (Mon, January 06, 2025) $"
-__version__ = "$Revision: 3.2.11 $"
+__dateModified__ = "$dateModified: 2025-03-21 16:10:08 +0000 (Fri, March 21, 2025) $"
+__version__ = "$Revision: 3.3.1 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -36,7 +36,7 @@ from functools import partial
 from ccpn.core.Project import Project
 
 from ccpn.framework.Application import getApplication
-from ccpn.framework.PathsAndUrls import CCPN_EXTENSION
+from ccpn.framework.PathsAndUrls import CCPN_DIRECTORY_SUFFIX, CCPN_SAVEAS_SUB_DIRECTORIES
 from ccpn.framework.lib.DataLoaders.DataLoaderABC import _checkPathForDataLoader
 
 from ccpn.core.lib.ContextManagers import (
@@ -46,7 +46,7 @@ from ccpn.core.lib.ContextManagers import (
 from ccpn.ui.Ui import Ui
 from ccpn.ui.gui.popups.RegisterPopup import RegisterPopup, NewTermsConditionsPopup
 from ccpn.ui.gui.widgets.Application import Application
-from ccpn.ui.gui.widgets.Base import Base
+# from ccpn.ui.gui.widgets.Base import Base
 from ccpn.ui.gui.widgets import MessageDialog
 from ccpn.ui.gui.widgets import FileDialog
 from ccpn.ui.gui.widgets.Font import getSystemFonts
@@ -728,18 +728,18 @@ class Gui(Ui):
                                                 parent=self.mainWindow)
                 if reply == _CANCEL:
                     # cancel the new-operation
-                    return
+                    return None
                 elif reply == _SAVE:
                     # save first
                     if not self.saveProject():
                         # cancel the new-operation if there was an issue saving
-                        return
+                        return None
 
         if (_name := checkProjectName(name, correctName=True)) != name:
             MessageDialog.showInfo('New Project',
                                    f'Project name changed from "{name}" to "{_name}"\nSee console/log for details',
                                    parent=self)
-
+        newProject = None  # noqa - pycharm misses this
         with catchExceptions(errorStringTemplate='Error creating new project: %s'):
             if self.mainWindow:
                 self.mainWindow.moduleArea._closeAll()
@@ -750,7 +750,7 @@ class Gui(Ui):
             QtWidgets.QApplication.setActiveWindow(newProject._mainWindow)
             self.mainWindow.move(oldMainWindowPos)
 
-            return newProject
+        return newProject
 
     def _loadProject(self, dataLoader=None, path=None) -> Project | bool | None:
         """Helper function, loading project from dataLoader instance
@@ -762,6 +762,12 @@ class Gui(Ui):
         """
         from ccpn.framework.lib.DataLoaders.DataLoaderABC import checkPathForDataLoader
         from ccpn.framework.lib.DataLoaders.CcpNmrV3ProjectDataLoader import CcpNmrV3ProjectDataLoader
+
+        if dataLoader is None and path is not None:
+            if (dataLoader := checkPathForDataLoader(path)) is None:
+                raise RuntimeError(f'Loading project: No suitable dataLoader found for {path}')
+        if dataLoader is None:
+            raise RuntimeError('Loading project: No suitable dataLoader')
 
         if dataLoader is None and path is not None:
             dataLoader = checkPathForDataLoader(path)
@@ -799,6 +805,8 @@ class Gui(Ui):
             oldProjectLoader = CcpNmrV3ProjectDataLoader(self.project.path)
             oldProjectIsTemporary = self.project.isTemporary
 
+        error = False
+        newProject = None
         try:
             if self.project:
                 # NOTE:ED - getting a strange QT bug disabling the menu-bar from here
@@ -815,7 +823,7 @@ class Gui(Ui):
             #   and the message-dialog doesn't close or doesn't pass modality back to the parent :|
             #   solution -  make sure busy popups are already visible,
             #               or show dialogs outside the busy context-manager
-            if _loaded is None or len(_loaded) == 0:
+            if not _loaded:
                 MessageDialog.showWarning('Loading Project',
                                           f'There was a problem loading project {dataLoader.path}\n'
                                           f'Please check the log for more information.',
@@ -837,23 +845,28 @@ class Gui(Ui):
 
         except (RuntimeError, ValueError, ApiError) as es:
             MessageDialog.showError('Error loading Project:', f'{es}', parent=self.mainWindow)
-            return None
+            error = True
 
         except NotImplementedError as es:
             MessageDialog.showError('Error loading Project:', f'{es}', parent=self.mainWindow)
+            error = True
 
-            # Try to restore the state
-            newProject = None
-            if oldProjectIsTemporary:
-                newProject = self.application._newProject()
-            elif oldProjectLoader:
-                newProject = oldProjectLoader.load()[0]  # dataLoaders return a list
+        finally:
+            if error:
+                # Try to restore the state
+                # reload existing or create a new temporary one (as the original temporary
+                # get deleted by the closing)
+                newProject = None
+                if oldProjectIsTemporary:
+                    newProject = self.application._newProject()
+                elif oldProjectLoader:
+                    newProject = oldProjectLoader.load()[0]  # dataLoaders return a list
 
-            if newProject:
-                # The next two lines are essential to have the QT main event loop associated
-                # with the new window; without these, the programs just terminates
-                newProject._mainWindow.show()
-                QtWidgets.QApplication.setActiveWindow(newProject._mainWindow)
+                if newProject:
+                    # The next two lines are essential to have the QT main event loop associated
+                    # with the new window; without these, the programs just terminates
+                    newProject._mainWindow.show()
+                    QtWidgets.QApplication.setActiveWindow(newProject._mainWindow)
 
         return newProject
 
@@ -916,14 +929,15 @@ class Gui(Ui):
         CCPNINTERNAL: called from Framework._closeProject()
         """
         if self.mainWindow:
-            # ui/gui cleanup
-            self.mainWindow.deleteAllNotifiers()
-            self.mainWindow._closeMainWindowModules()
-            self.mainWindow._closeExtraWindowModules()
-            self.mainWindow._stopPythonConsole()
-            self.mainWindow.sideBar.close()
-            self.mainWindow.deleteLater()
-            self.mainWindow = None
+            # ui/gui cleanup; not undo required
+            with undoStackBlocking() as _:
+                self.mainWindow.deleteAllNotifiers()
+                self.mainWindow._stopPythonConsole()
+                self.mainWindow._closeMainWindowModules()
+                self.mainWindow._closeExtraWindowModules()
+                self.mainWindow.sideBar.close()
+                self.mainWindow.deleteLater()
+                self.mainWindow = None
 
     @logCommand('application.')
     def saveProjectAs(self, newPath=None, overwrite: bool = False) -> bool:
@@ -934,18 +948,48 @@ class Gui(Ui):
         :return True if successful
         """
         from ccpn.core.lib.ProjectLib import checkProjectName
+        from ccpn.util.SafeFilename import getSafeFilename
 
-        oldPath = self.project.path
+        title = 'Project SaveAs'
+        oldPath = aPath(self.project.path)
+
         if newPath is None:
-            if (newPath := _getSaveDirectory(self.mainWindow)) is None:
+            # try to create a new path from the old one
+            if self.project.isTemporary:
+                _newName = self.project.name
+                _newPath = (aPath('~') / _newName).assureSuffix(CCPN_DIRECTORY_SUFFIX)
+                endswith = ''
+            else:
+                endswith = '_new'
+                _newName = f'{self.project.name}'
+                _newPath = oldPath.with_name(_newName).assureSuffix(CCPN_DIRECTORY_SUFFIX)
+            try:
+                # check whether a safe filename can be found
+                # doesn't actually create a file now
+                _newPath = aPath(getSafeFilename(_newPath, endswith=endswith, brackets=False))
+            except (PermissionError, FileNotFoundError):
+                msg = f'Folder {_newPath} may be read-only'
+                MessageDialog.showWarning('Save project', msg)
+                return False
+            except RuntimeError as es:
+                msg = f'Folder {_newPath}: {es}'
+                MessageDialog.showWarning('Save project', msg)
                 return False
 
-        newPath = aPath(newPath).assureSuffix(CCPN_EXTENSION)
-        title = 'Project SaveAs'
+            # query for this path
+            dialog = FileDialog.ProjectSaveFileDialog(parent=self.mainWindow,
+                                                      directory=_newPath.parent.asString(),
+                                                      selectFile=_newPath.name,
+                                                      acceptMode='save')
+            dialog._show()
+            if (newPath := dialog.selectedFile()) is None:
+                return False
+        newPath = aPath(newPath).assureSuffix(CCPN_DIRECTORY_SUFFIX)
 
         if (not overwrite and
                 newPath.exists() and
-                (newPath.is_file() or (newPath.is_dir() and len(newPath.listdir(excludeDotFiles=False)) > 0))
+                (newPath.is_file() or (newPath.is_dir() and
+                                       len(newPath.listdir(excludeDotFiles=False)) > 0))
         ):
             # should not really need to check the second and third condition above, only
             # the Qt dialog stupidly insists a directory exists before you can select it
@@ -954,19 +998,47 @@ class Gui(Ui):
             if not MessageDialog.showYesNo(title, msg):
                 return False
 
-        # check the project name derived from path
+        # check the project name derived from path; not all is allowed
         newName = newPath.basename
-        if (_name := checkProjectName(newName, correctName=True)) != newName:
-            newPath = (newPath.parent / _name).assureSuffix(CCPN_EXTENSION)
+        if (_nameFromPath := checkProjectName(newName, correctName=True)) != newName:
             MessageDialog.showInfo(title,
-                                   f'Project name changed from "{newName}" to "{_name}"\nSee console/log for details',
+                                   f'Project name will be changed from "{newName}" to "{_nameFromPath}"\n'
+                                   f'See console/log for details',
                                    parent=self.mainWindow)
+            newPath = (newPath.parent / _nameFromPath).assureSuffix(CCPN_DIRECTORY_SUFFIX)
+            newName = _nameFromPath
+
+        # Checking copy subdirectories
+        _sizeDict = self.project._getSubdirectorySizes(CCPN_SAVEAS_SUB_DIRECTORIES, sizeInMB=True)
+        _totalSize = sum(_sizeDict.values())
+        _tmp = '%.1f' % _totalSize
+        msg = f'Also copy sub-directories (data, archives, scripts, ...) ({_tmp} MB)?\n'
+
+        # Check for any inside spectra
+        _insideSpectra = [sp for sp in self.project.spectra if sp._isInside]
+        _size = '%.1f' % (sum([sp.dataSource.expectedFileSizeInBytes for sp in _insideSpectra]) / (1024 * 1024))
+        if len(_insideSpectra) == 1:
+            msg += f'\nNote that the data of {_insideSpectra[0].pid} ({_size} MB) is in "{oldPath.name}/data/spectra"\n'
+        elif len(_insideSpectra) > 1:
+            msg += f'\nNote that the data of {len(_insideSpectra)} spectra ({_size} MB) are in "{oldPath.name}/data/spectra"\n'
+
+        if self.project.isTemporary:
+            copySubDirs = True
+        else:
+            if (copySubDirs := MessageDialog.showYesNoCancel(title, msg,
+                                                             dontShowEnabled=True,
+                                                             defaultResponse=True,
+                                                             popupId='_saveProjectAsSubDirs',
+                                                             )) is None:
+                # pressed "cancel"
+                return False
 
         with catchExceptions(errorStringTemplate='Error saving project: %s'):
             with MessageDialog.progressManager(self.mainWindow, f'Saving project as {newPath} ... '):
                 try:
-                    if not self.application._saveProjectAs(newPath=newPath, overwrite=True):
-                        txt = f"Saving project to {newPath} aborted"
+                    if not self.application._saveProjectAs(newPath=newPath, overwrite=True,
+                                                           copySubDirectories=copySubDirs):
+                        txt = f"Saving project to {newPath} aborted; check log for details"
                         MessageDialog.showError("Project SaveAs", txt, parent=self.mainWindow)
                         return False
 

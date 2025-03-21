@@ -13,7 +13,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2025-03-20 17:07:46 +0000 (Thu, March 20, 2025) $"
+__dateModified__ = "$dateModified: 2025-03-21 16:10:08 +0000 (Fri, March 21, 2025) $"
 __version__ = "$Revision: 3.3.1 $"
 #=========================================================================================
 # Created
@@ -175,6 +175,9 @@ class Framework(NotifierBase, GuiBase):
         #   required to use save/saveAs but keep the project.readOnly status until the next load
         self._saveOverrideState = False
 
+        # _echoBlocking context manager
+        self._echoBlocking = 0
+
         #-----------------------------------------------------------------------------------------
         # Initialisations
         #-----------------------------------------------------------------------------------------
@@ -189,6 +192,7 @@ class Framework(NotifierBase, GuiBase):
         self.useFileLogger = not getattr(self.args, 'noLogging', False)
 
         # map to 0-3, with 0 no debug
+        self._debugLevel = 0
         _level = ([self.args.debug,
                    self.args.debug2,
                    self.args.debug3 or self.args.debug3_backup_thread,
@@ -634,7 +638,7 @@ class Framework(NotifierBase, GuiBase):
         self._current = Current(project=newProject)
 
         # This wraps the underlying data, including the wrapped graphics data
-        newProject._initialiseProject()
+        newProject._initialiseProject(application=self, debugLevel=self._debugLevel)
 
         # GWV: this really should not be here; moved to the_update_v2 method
         #      that already existed and gets called
@@ -677,18 +681,34 @@ class Framework(NotifierBase, GuiBase):
     # Utilities
     #-----------------------------------------------------------------------------------------
 
+    @property
+    def _loggingLevel(self) -> int:
+        """Convert the project _debugLevel (0, 1-3)
+        :return the Logging defined level
+        """
+        _conversion = {
+            3: Logging.DEBUG3,
+            2: Logging.DEBUG2,
+            1: Logging.DEBUG,
+            0: Logging.INFO,
+            }
+        return _conversion.get(self._debugLevel, Logging.INFO)
+
+    @property
+    def debugLevel(self) -> int:
+        """:return the current debug level; 0: off, 1-3: debug level 1-3
+        """
+        return self._debugLevel
+
     def setDebug(self, level: int):
         """Set the debugging level
         :param level: 0: off, 1-3: debug level 1-3
         """
-        if level == 3:
-            self._debugLevel = Logging.DEBUG3
-        elif level == 2:
-            self._debugLevel = Logging.DEBUG2
-        elif level == 1:
-            self._debugLevel = Logging.DEBUG
-        elif level == 0:
-            self._debugLevel = Logging.INFO
+        if 0 <= level <= 3:
+            self._debugLevel = level
+            # update the logger
+            logger = getLogger()
+            Logging.setLevel(logger, level=self._loggingLevel)
         else:
             raise ValueError(f'Invalid debug level ({level}); should be 0-3')
 
@@ -697,11 +717,7 @@ class Framework(NotifierBase, GuiBase):
         """:return True if either of the debug flags has been set
         CCPNINTERNAL: used throughout to check
         """
-        if self._debugLevel == Logging.DEBUG1 or \
-                self._debugLevel == Logging.DEBUG2 or \
-                self._debugLevel == Logging.DEBUG3:
-            return True
-        return False
+        return self._debugLevel > 0
 
     def _savePreferences(self):
         """Save the user preferences to file
@@ -1019,8 +1035,8 @@ class Framework(NotifierBase, GuiBase):
         :param prefix: prefix appended to the name
         :param suffix: suffix of the name
         """
-        dir = self._temporaryDirectory.name
-        with tempfile.NamedTemporaryFile(prefix=prefix, suffix=suffix, dir=dir) as tFile:
+        _dir = self._temporaryDirectory.name
+        with tempfile.NamedTemporaryFile(prefix=prefix, suffix=suffix, dir=_dir) as tFile:
             path = tFile.name
         return Path(path)
 
@@ -1084,13 +1100,17 @@ class Framework(NotifierBase, GuiBase):
         """Load project defined by path
         :return a Project instance
         """
+        getLogger().debug(f'--> Loading Project {path}')
         result = self.ui.loadProject(path)
-        getLogger().debug('--> LOADED PROJECT')
 
         return result
 
-    def _saveProjectAs(self, newPath=None, overwrite=False) -> bool:
+    def _saveProjectAs(self, newPath=None, overwrite=False, copySubDirectories: bool = True) -> bool:
         """Save project to newPath (optionally overwrite)
+
+        :param newPath: new path for storing project files
+        :param overwrite: flag to overwrite if path exists
+        :param copySubDirectories: flag to set the copying of the project's subdirectories
         :return True if successful
         """
         if self.preferences.general.keepSpectraInsideProject:
@@ -1098,23 +1118,26 @@ class Framework(NotifierBase, GuiBase):
 
         with self._setSaveOverride(True):
             try:
-                self.project.saveAs(newPath=newPath, overwrite=overwrite)
+                self.project.saveAs(newPath=newPath, overwrite=overwrite, copySubDirectories=copySubDirectories)
                 Layout.saveLayoutToJson(self.ui.mainWindow)
                 self.current._dumpStateToFile(self.statePath)
                 self._getUndo().markSave()
 
-            except (PermissionError, FileNotFoundError):
+            except (PermissionError, FileNotFoundError) as es:
+                getLogger().debug(f'_saveProjectAs() caught: {es}')
                 failMessage = f'Folder {newPath} may be read-only'
                 getLogger().warning(failMessage)
-                raise
+                raise es
 
             except RuntimeWarning as es:
+                getLogger().debug(f'_saveProjectAs() caught: {es}')
                 failMessage = f'saveAs: unable to save {es}'
                 getLogger().warning(failMessage)
-                raise
+                raise es
 
             except Exception as es:
-                failMessage = f'saveAs: unable to save {es}'
+                getLogger().debug(f'_saveProjectAs() caught: {es}')
+                failMessage = f'saveAs: {es}'
                 getLogger().warning(failMessage)
                 return False
 

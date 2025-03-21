@@ -316,6 +316,9 @@
         },
         "_TestInfo": {
             "dontShowPopup": false
+        },
+        "_saveProjectAsSubDirs": {
+            "dontShowPopup": false
         }
     },
     "tables"           : {
