@@ -55,7 +55,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2025-03-20 17:07:46 +0000 (Thu, March 20, 2025) $"
+__dateModified__ = "$dateModified: 2025-03-21 16:01:55 +0000 (Fri, March 21, 2025) $"
 __version__ = "$Revision: 3.3.1 $"
 #=========================================================================================
 # Created
@@ -866,6 +866,14 @@ class Spectrum(AbstractWrapperObject):
         from ccpn.core.lib.DataStore import AlongsideRedirection
 
         return self._dataStore.redirectionIdentifier == AlongsideRedirection.identifier
+
+    @property
+    def _isInside(self) -> bool:
+        """Return True if the spectrum is already defined as Inside
+        """
+        from ccpn.core.lib.DataStore import InsideRedirection
+
+        return self._dataStore.redirectionIdentifier == InsideRedirection.identifier
 
     def _makeNewRelativePath(self, newPath) -> Path:
         """Insert a possible redirection in the path, as maintained in the dataStore object
@@ -3033,13 +3041,17 @@ class Spectrum(AbstractWrapperObject):
         with the ppmValue supplied mapping to the closest matching axis.
         Illegal or non-matching axisCodes will return None.
 
-        Example ppmPosition dict:
+        **Example ppmPosition dict:**
+        ::
+
             {'Hn': 7.0, 'Nh': 110}
 
-        Example calling function:
-        >>> peak = spectrum.createPeak(**ppmPositions)
-        >>> peak = spectrum.createPeak(peakList, **ppmPositions)
-        >>> peak = spectrum.createPeak(peakList=peakList, Hn=7.0, Nh=110)
+        **Example calling function:**
+        ::
+
+            peak = spectrum.createPeak(**ppmPositions)
+            peak = spectrum.createPeak(peakList, **ppmPositions)
+            peak = spectrum.createPeak(peakList=peakList, Hn=7.0, Nh=110)
 
         :param peakList: peakList to create new peak in, or None for the last peakList belonging to spectrum
         :param ppmPositions: dict of (axisCode, ppmValue) key,value pairs
@@ -3058,20 +3070,24 @@ class Spectrum(AbstractWrapperObject):
         Axis codes supplied are mapped to the closest matching axis.
         Illegal or non-matching axisCodes will return None.
 
-        Example ppmRegions dict:
+        **Example ppmRegions dict:**
+        ::
+
             {'Hn': (7.0, 9.0), 'Nh': (110, 130)}
 
-        Example calling function:
-        >>> peaks = spectrum.pickPeaks(**ppmRegions)
-        >>> peaks = spectrum.pickPeaks(peakList, **ppmRegions)
-        >>> peaks = spectrum.pickPeaks(peakList=peakList, Hn=(7.0, 9.0), Nh=(110, 130))
+        **Example calling function:**
+        ::
+
+            peaks = spectrum.pickPeaks(**ppmRegions)
+            peaks = spectrum.pickPeaks(peakList, **ppmRegions)
+            peaks = spectrum.pickPeaks(peakList=peakList, Hn=(7.0, 9.0), Nh=(110, 130))
 
         :param peakList: peakList to create new peak in, or None for the last peakList belonging to spectrum
         :param positiveThreshold: float or None specifying the positive threshold above which to find peaks.
                                   if None, positive peak picking is disabled.
         :param negativeThreshold: float or None specifying the negative threshold below which to find peaks.
                                   if None, negative peak picking is disabled.
-        :param ppmRegions: dict of (axisCode, tupleValue) key, value pairs
+        :param **dict ppmRegions: dict of (axisCode, tupleValue) key, value pairs
         :return: tuple of new Peak instances
         """
         from ccpn.core.PeakList import PeakList
