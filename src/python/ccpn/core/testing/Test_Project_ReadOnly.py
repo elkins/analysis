@@ -89,7 +89,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2025-03-21 15:53:16 +0000 (Fri, March 21, 2025) $"
+__dateModified__ = "$dateModified: 2025-03-21 16:00:10 +0000 (Fri, March 21, 2025) $"
 __version__ = "$Revision: 3.3.1 $"
 #=========================================================================================
 # Created
@@ -776,9 +776,9 @@ class ProjectReadOnly(WrapperTesting):
                 \----summaries
         """
         # NOTE:ED - this is a hack for OS that I cannot find :|
-        moleculeDir = any(map(lambda fp: fp.endswith('temp3.ccpn/ccpnv3/ccp/molecule'), self.dirEvents))
+        if not (moleculeDir := any(map(lambda fp: fp.endswith('temp3.ccpn/ccpnv3/ccp/molecule'), self.dirEvents))):
+            write(f'*** temp3.ccpn/ccpnv3/ccp/molecule event not received')
         dirCount = 16 if moleculeDir else 15
-
         # NOTE:ED - all folders written to
         self.assertEqual(len(self.dirEvents), dirCount)
         self.assertTrue(all(f'{TEMPPROJECT3}/' in dd for dd in self.dirEvents))
