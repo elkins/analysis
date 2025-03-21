@@ -4,7 +4,7 @@ This module defines the code for creating the credits
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2025"
 __credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
                "Timothy J Ragan, Brian O Smith, Daniel Thompson",
                "Gary S Thompson & Geerten W Vuister")
@@ -18,8 +18,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-05-30 13:45:07 +0100 (Thu, May 30, 2024) $"
-__version__ = "$Revision: 3.2.3 $"
+__dateModified__ = "$dateModified: 2025-03-21 15:37:05 +0000 (Fri, March 21, 2025) $"
+__version__ = "$Revision: 3.3.1 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -29,6 +29,7 @@ __date__ = "$Date: 2017-04-07 10:28:41 +0000 (Fri, April 07, 2017) $"
 # Start of code
 #=========================================================================================
 
+import os
 import contextlib
 
 
@@ -106,7 +107,15 @@ def printCreditsText(fp, programName, version):
 
     # print with aligning '|'s
     maxlen = max(map(len, lines))
-    fp.write('\n%s\n' % ('=' * (maxlen + 8)))
+    if (lang := os.getenv('LANG')) and 'utf' in lang.lower():
+        tl, tt, tr = '\u2552', '\u2550', '\u2555'
+        ll, rr = '\u2502', '\u2502'
+        bl, bb, br = '\u2558', '\u2550', '\u255b'
+    else:
+        tl, tt, tr = '=', '=', '='
+        ll, rr = '|', '|'
+        bl, bb, br = '=', '=', '='
+    fp.write(f'\n{tl}{tt * (maxlen + 6)}{tr}\n')
     for line in lines:
-        fp.write(f'|   {line} ' + ' ' * (maxlen - len(line)) + '  |\n')
-    fp.write('%s\n' % ('=' * (maxlen + 8)))
+        fp.write(f'{ll}   {line:<{maxlen}}   {rr}\n')
+    fp.write(f'{bl}{bb * (maxlen + 6)}{br}\n')
