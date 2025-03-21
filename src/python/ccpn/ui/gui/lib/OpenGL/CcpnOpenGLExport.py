@@ -5,7 +5,7 @@ Code for exporting OpenGL stripDisplay to pdf and svg files.
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2025"
 __credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
                "Timothy J Ragan, Brian O Smith, Daniel Thompson",
                "Gary S Thompson & Geerten W Vuister")
@@ -17,8 +17,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-08-07 13:10:49 +0100 (Wed, August 07, 2024) $"
-__version__ = "$Revision: 3.2.5 $"
+__dateModified__ = "$dateModified: 2025-03-21 18:56:22 +0000 (Fri, March 21, 2025) $"
+__version__ = "$Revision: 3.3.1 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -59,41 +59,44 @@ from reportlab.platypus.tables import Table, TableStyle
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 
+from ccpn.core.lib.WeakRefLib import WeakRefDescriptor
 from ccpn.ui.gui.widgets.Font import getSystemFonts
 from ccpn.ui.gui.lib.OpenGL.CcpnOpenGLViewports import viewportDimensions
 from ccpn.ui.gui.lib.OpenGL.CcpnOpenGLDefs import GLLINE_STYLES_ARRAY, getAliasSetting
 
 from ccpn.ui.gui.lib.OpenGL import GL
-from ccpn.ui.gui.lib.OpenGL.CcpnOpenGLDefs import GLGRIDLINES, GLAXISLABELS, GLAXISMARKS, \
-    GLINTEGRALLABELS, GLINTEGRALSYMBOLS, GLMARKLABELS, GLMARKLINES, GLMULTIPLETLABELS, GLREGIONS, \
-    GLMULTIPLETSYMBOLS, GLOTHERLINES, GLPEAKLABELS, GLPEAKSYMBOLS, GLPEAKARROWS, GLMULTIPLETARROWS, \
-    GLPRINTTYPE, GLSELECTEDPIDS, \
-    GLSPECTRUMBORDERS, GLSPECTRUMCONTOURS, GLSPECTRUMLABELS, \
-    GLSTRIP, GLSTRIPLABELLING, GLTRACES, GLACTIVETRACES, GLPLOTBORDER, \
-    GLPAGETYPE, GLPAGESIZE, GLSPECTRUMDISPLAY, GLBACKGROUND, GLBASETHICKNESS, GLSYMBOLTHICKNESS, \
-    GLCONTOURTHICKNESS, GLFOREGROUND, GLSHOWSPECTRAONPHASE, \
-    GLAXISTITLES, GLAXISUNITS, GLSTRIPDIRECTION, GLSTRIPPADDING, GLEXPORTDPI, \
-    GLCURSORS, GLDIAGONALLINE, GLDIAGONALSIDEBANDS, \
-    MAINVIEW, MAINVIEWFULLHEIGHT, MAINVIEWFULLWIDTH, \
-    RIGHTAXIS, RIGHTAXISBAR, FULLRIGHTAXIS, FULLRIGHTAXISBAR, \
-    BOTTOMAXIS, BOTTOMAXISBAR, FULLBOTTOMAXIS, FULLBOTTOMAXISBAR, FULLVIEW, BLANKVIEW, \
-    GLALIASSHADE, GLSTRIPREGIONS, \
-    GLSCALINGMODE, GLSCALINGPERCENT, GLSCALINGBYUNITS, \
-    GLPRINTFONT, GLUSEPRINTFONT, GLSCALINGAXIS
+from ccpn.ui.gui.lib.OpenGL.CcpnOpenGLDefs import (GLGRIDLINES, GLAXISLABELS, GLAXISMARKS,
+                                                   GLINTEGRALLABELS, GLINTEGRALSYMBOLS, GLMARKLABELS, GLMARKLINES,
+                                                   GLMULTIPLETLABELS, GLREGIONS, GLMULTIPLETSYMBOLS, GLOTHERLINES,
+                                                   GLPEAKLABELS, GLPEAKSYMBOLS, GLPEAKARROWS, GLMULTIPLETARROWS,
+                                                   GLPRINTTYPE, GLSELECTEDPIDS, GLSPECTRUMBORDERS,
+                                                   GLSPECTRUMCONTOURS, GLSPECTRUMLABELS, GLSTRIP, GLSTRIPLABELLING,
+                                                   GLTRACES, GLACTIVETRACES, GLPLOTBORDER, GLPAGETYPE, GLPAGESIZE,
+                                                   GLSPECTRUMDISPLAY, GLBACKGROUND, GLBASETHICKNESS, GLSYMBOLTHICKNESS,
+                                                   GLCONTOURTHICKNESS, GLFOREGROUND, GLSHOWSPECTRAONPHASE,
+                                                   GLAXISTITLES, GLAXISUNITS, GLSTRIPDIRECTION, GLSTRIPPADDING,
+                                                   GLEXPORTDPI, GLCURSORS, GLDIAGONALLINE, GLDIAGONALSIDEBANDS,
+                                                   MAINVIEW, MAINVIEWFULLHEIGHT, MAINVIEWFULLWIDTH, RIGHTAXIS,
+                                                   RIGHTAXISBAR, FULLRIGHTAXIS, FULLRIGHTAXISBAR, BOTTOMAXIS,
+                                                   BOTTOMAXISBAR, FULLBOTTOMAXIS, FULLBOTTOMAXISBAR, FULLVIEW,
+                                                   BLANKVIEW, GLALIASSHADE, GLSTRIPREGIONS, GLSCALINGMODE,
+                                                   GLSCALINGPERCENT, GLSCALINGBYUNITS, GLPRINTFONT, GLUSEPRINTFONT,
+                                                   GLSCALINGAXIS)
 # from ccpn.ui.gui.lib.OpenGL.CcpnOpenGLDefs import GLFILENAME, GLWIDGET, GLAXISLINES, GLAXISMARKSINSIDE, \
 #     GLFULLLIST, GLEXTENDEDLIST, GLALIASENABLED, GLALIASLABELSENABLED
-from ccpn.ui.gui.popups.ExportStripToFile import PAGEPORTRAIT, DEFAULT_FONT, PAGESIZEA6, PAGESIZEA5, \
-    PAGESIZEA4, PAGESIZEA3, PAGESIZEA2, PAGESIZEA1, PAGESIZEA0, PAGESIZELETTER, PAGESIZES
+from ccpn.ui.gui.popups.ExportStripToFile import (PAGEPORTRAIT, DEFAULT_FONT, PAGESIZEA6, PAGESIZEA5,
+                                                  PAGESIZEA4, PAGESIZEA3, PAGESIZEA2, PAGESIZEA1, PAGESIZEA0,
+                                                  PAGESIZELETTER, PAGESIZES)
 # from ccpn.ui.gui.popups.ExportStripToFile import EXPORTPDF, EXPORTSVG, EXPORTTYPES, \
 #     PAGELANDSCAPE, PAGETYPES
 from ccpn.ui.gui.popups.ExportStripToFile import EXPORTPNG
 # from ccpn.util.Colour import colorSchemeTable
 from ccpn.core.lib.ContextManagers import catchExceptions
 from ccpn.util.Report import Report
-from ccpn.util.Constants import SCALE_PERCENT, SCALE_UNIT_CM, SCALE_UNIT_INCH, SCALE_INCH_UNIT, SCALE_CM_UNIT, \
-    SCALING_MODES
-from ccpn.util.Common import isLinux, isMacOS, isWindowsOS
-from ccpn.util.Path import aPath
+from ccpn.util.Constants import (SCALE_PERCENT, SCALE_UNIT_CM, SCALE_INCH_UNIT, SCALE_CM_UNIT,
+                                 SCALING_MODES)
+# from ccpn.util.Common import isLinux, isMacOS, isWindowsOS
+# from ccpn.util.Path import aPath
 from ccpn.util.Logging import getLogger
 
 
@@ -134,13 +137,16 @@ class GLExporter():
     Class container for exporting OpenGL stripDisplay to a file or object
     """
 
+    strip = WeakRefDescriptor()
+    project = WeakRefDescriptor()
+
     def __init__(self, parent, strip, filename, params):
         """
         Initialise the exporter
         :param filename - not required
         :param params - parameter dict from the exporter dialog
 
-        Need to have different settingsif the output is to a .png file
+        Need to have different settings if the output is to a .png file
         This needs a multiplier based on (output dpi / 72) and scale = (output dpi / 72)
          - a thickness modifier on all drawing output
         Fonts need a 0.5 scaling for .png
@@ -155,7 +161,7 @@ class GLExporter():
         pageType = portrait if self.params[GLPAGETYPE] == PAGEPORTRAIT else landscape
         _pageSize = PAGEREFERENCE.get(self.params[GLPAGESIZE]) or A4
 
-        self._report = Report(self, self.project, filename, pagesize=pageType(_pageSize),
+        self._report = Report(filename, pagesize=pageType(_pageSize),
                               leftMargin=1, rightMargin=1, topMargin=1, bottomMargin=1)
 
         self._ordering = []
@@ -193,10 +199,8 @@ class GLExporter():
         # keep track of the individual _mainPlots to build the png/ps/svg files
         self._mainPlots = []
 
-        if self.params[GLSPECTRUMDISPLAY]:
+        if (glSpecRef := self.params[GLSPECTRUMDISPLAY]) and (spectrumDisplay := glSpecRef()):  # weakref
             # print the whole spectrumDisplay
-            spectrumDisplay = self.params[GLSPECTRUMDISPLAY]
-
             _ratios = self._getStripUpdateRatios(spectrumDisplay.orderedStrips)
 
             self._selectedStrip = self.strip
@@ -232,9 +236,11 @@ class GLExporter():
 
         else:
             # print a single strip
-            strip = self.params[GLSTRIP]
-            spectrumDisplay = strip.spectrumDisplay
+            if not (glStripRef := self.params[GLSTRIP]) and (strip := glStripRef()):  # weakref
+                getLogger().warning(f'{self.__class__.__name__}: strip not defined')
+                return
 
+            spectrumDisplay = strip.spectrumDisplay
             _ratios = self._getStripUpdateRatios([strip])
 
             self._selectedStrip = strip
@@ -260,6 +266,11 @@ class GLExporter():
 
         # this generates the buffer to write to the file
         self._report.buildDocument()
+
+    def clear(self):
+        """Clean up the class for garbage collection"""
+        self._report.clear()
+        self.__dict__.clear()
 
     def _createStrip(self, strip, _parent=None, singleStrip=False, axesOnly=False):
         # point to the correct strip

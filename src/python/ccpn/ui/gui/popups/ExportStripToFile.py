@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2025-03-20 17:23:41 +0000 (Thu, March 20, 2025) $"
+__dateModified__ = "$dateModified: 2025-03-21 18:56:22 +0000 (Fri, March 21, 2025) $"
 __version__ = "$Revision: 3.3.1 $"
 #=========================================================================================
 # Created
@@ -28,6 +28,7 @@ __date__ = "$Date: 2017-07-06 15:51:11 +0000 (Thu, July 06, 2017) $"
 #=========================================================================================
 
 from collections import OrderedDict as OD
+import weakref
 from PyQt5 import QtWidgets, QtCore, QtGui
 from dataclasses import dataclass
 from functools import partial
@@ -48,29 +49,35 @@ from ccpn.ui.gui.widgets.Button import Button
 from ccpn.ui.gui.widgets.PulldownList import PulldownList
 from ccpn.ui.gui.widgets.ColourDialog import ColourDialog
 from ccpn.ui.gui.widgets.ListWidget import ListWidget
-from ccpn.ui.gui.widgets.CompoundWidgets import PulldownListCompoundWidget, CheckBoxCompoundWidget, DoubleSpinBoxCompoundWidget
+from ccpn.ui.gui.widgets.CompoundWidgets import (PulldownListCompoundWidget, CheckBoxCompoundWidget,
+                                                 DoubleSpinBoxCompoundWidget)
 from ccpn.ui.gui.widgets.Frame import Frame, ScrollableFrame
 from ccpn.ui.gui.widgets.DoubleSpinbox import DoubleSpinbox, ScientificDoubleSpinBox
 from ccpn.ui.gui.widgets.MessageDialog import showYesNoWarning, showWarning
 from ccpn.ui.gui.widgets.HighlightBox import HighlightBox
 from ccpn.ui.gui.widgets.Font import getFontHeight, getSystemFonts
-from ccpn.ui.gui.lib.OpenGL.CcpnOpenGLDefs import GLFILENAME, GLGRIDLINES, \
-    GLINTEGRALLABELS, GLINTEGRALSYMBOLS, GLMULTIPLETLABELS, \
-    GLMULTIPLETSYMBOLS, GLPEAKLABELS, GLPEAKSYMBOLS, GLPEAKARROWS, GLMULTIPLETARROWS, \
-    GLPRINTTYPE, GLPAGETYPE, GLPAGESIZE, GLSELECTEDPIDS, \
-    GLSPECTRUMBORDERS, GLSPECTRUMCONTOURS, \
-    GLSPECTRUMDISPLAY, GLSTRIP, \
-    GLWIDGET, GLBACKGROUND, GLBASETHICKNESS, GLSYMBOLTHICKNESS, GLFOREGROUND, \
-    GLCONTOURTHICKNESS, GLSHOWSPECTRAONPHASE, \
-    GLSTRIPDIRECTION, GLSTRIPPADDING, GLEXPORTDPI, \
-    GLFULLLIST, GLEXTENDEDLIST, GLDIAGONALLINE, GLCURSORS, GLDIAGONALSIDEBANDS, \
-    GLALIASENABLED, GLALIASSHADE, GLALIASLABELSENABLED, GLSTRIPREGIONS, \
-    GLSCALINGMODE, GLSCALINGOPTIONS, GLSCALINGPERCENT, GLSCALINGBYUNITS, \
-    GLPRINTFONT, GLUSEPRINTFONT, GLSCALINGAXIS, \
-    GLPEAKSYMBOLSENABLED, GLPEAKLABELSENABLED, GLPEAKARROWSENABLED, GLMULTIPLETSYMBOLSENABLED, \
-    GLMULTIPLETLABELSENABLED, GLMULTIPLETARROWSENABLED
+from ccpn.ui.gui.lib.OpenGL.CcpnOpenGLDefs import (GLFILENAME, GLGRIDLINES,
+                                                   GLINTEGRALLABELS, GLINTEGRALSYMBOLS, GLMULTIPLETLABELS,
+                                                   GLMULTIPLETSYMBOLS, GLPEAKLABELS, GLPEAKSYMBOLS, GLPEAKARROWS,
+                                                   GLMULTIPLETARROWS,
+                                                   GLPRINTTYPE, GLPAGETYPE, GLPAGESIZE, GLSELECTEDPIDS,
+                                                   GLSPECTRUMBORDERS, GLSPECTRUMCONTOURS,
+                                                   GLSPECTRUMDISPLAY, GLSTRIP,
+                                                   GLWIDGET, GLBACKGROUND, GLBASETHICKNESS, GLSYMBOLTHICKNESS,
+                                                   GLFOREGROUND,
+                                                   GLCONTOURTHICKNESS, GLSHOWSPECTRAONPHASE,
+                                                   GLSTRIPDIRECTION, GLSTRIPPADDING, GLEXPORTDPI,
+                                                   GLFULLLIST, GLEXTENDEDLIST, GLDIAGONALLINE, GLCURSORS,
+                                                   GLDIAGONALSIDEBANDS,
+                                                   GLALIASENABLED, GLALIASSHADE, GLALIASLABELSENABLED, GLSTRIPREGIONS,
+                                                   GLSCALINGMODE, GLSCALINGOPTIONS, GLSCALINGPERCENT, GLSCALINGBYUNITS,
+                                                   GLPRINTFONT, GLUSEPRINTFONT, GLSCALINGAXIS,
+                                                   GLPEAKSYMBOLSENABLED, GLPEAKLABELSENABLED, GLPEAKARROWSENABLED,
+                                                   GLMULTIPLETSYMBOLSENABLED,
+                                                   GLMULTIPLETLABELSENABLED, GLMULTIPLETARROWSENABLED)
 from ccpn.ui.gui.lib.ChangeStateHandler import changeState
-from ccpn.util.Colour import spectrumColours, addNewColour, fillColourPulldown, addNewColourString, hexToRgbRatio, colourNameNoSpace
+from ccpn.util.Colour import (spectrumColours, addNewColour, fillColourPulldown, addNewColourString, hexToRgbRatio,
+                              colourNameNoSpace)
 from ccpn.util.Constants import SCALING_MODES, POSINFINITY
 from ccpn.util.Logging import getLogger
 
@@ -296,6 +303,8 @@ class ExportStripToFilePopup(ExportDialogABC):
 
     strip = WeakRefDescriptor()
     spectrumDisplay = WeakRefDescriptor()
+    _strips = weakref.WeakValueDictionary()
+    _spectrumDisplays = weakref.WeakValueDictionary()
 
     def __init__(self, parent=None, mainWindow=None, title='Export Strip to File',
                  fileMode='anyFile',
@@ -315,7 +324,7 @@ class ExportStripToFilePopup(ExportDialogABC):
         self.includeSpectrumDisplays = includeSpectrumDisplays
         self.strip = None
         self.spectrumDisplay = None
-        self.spectrumDisplays = set()
+        self.spectrumDisplays = None
         self.specToExport = None
         self._scalingModeIndex = 0
         self._useFontSetting = None
@@ -332,17 +341,40 @@ class ExportStripToFilePopup(ExportDialogABC):
                          **kwds)
 
         self.printSettings = self.application.preferences.printSettings
-
         if not strips:
             showWarning(str(self.windowTitle()), 'No strips selected')
             self.reject()
 
         self._selectedStrip = selectedStrip or (strips[0] if strips else None)
-
         self.fullList = GLFULLLIST
         self._copyRangeValue = None
-
         # self.setAttribute(QtCore.Qt.WA_DeleteOnClose, False)
+
+    @property
+    def strips(self) -> list:
+        return [self._strips[kk] for kk in sorted(self._strips)]
+
+    @strips.setter
+    def strips(self, values: list | None):
+        # numbered key ensures order
+        self._strips.clear()
+        if values:
+            for cc, val in enumerate(values):
+                if val not in self._strips.values():
+                    self._strips[cc] = val
+
+    @property
+    def spectrumDisplays(self):
+        return [self._spectrumDisplays[kk] for kk in sorted(self._spectrumDisplays)]
+
+    @spectrumDisplays.setter
+    def spectrumDisplays(self, values: list | None):
+        # numbered key ensures order
+        self._spectrumDisplays.clear()
+        if values:
+            for cc, val in enumerate(values):
+                if val not in self._spectrumDisplays.values():
+                    self._spectrumDisplays[cc] = val
 
     def exec_(self) -> Optional[dict]:
         """Disable strip updating while the popup is visible
@@ -402,7 +434,8 @@ class ExportStripToFilePopup(ExportDialogABC):
         foregroundColourFrame = Frame(sFrame, grid=(row, 0), gridSpan=(1, 3), setLayout=True, showBorder=False)
         Label(foregroundColourFrame, text="Foreground Colour", vAlign='c', hAlign='l', grid=(0, 0))
         self.foregroundColourBox = PulldownList(foregroundColourFrame, vAlign='t', grid=(0, 1))
-        self.foregroundColourButton = Button(foregroundColourFrame, vAlign='t', hAlign='l', grid=(0, 2), hPolicy='fixed',
+        self.foregroundColourButton = Button(foregroundColourFrame, vAlign='t', hAlign='l', grid=(0, 2),
+                                             hPolicy='fixed',
                                              icon='icons/colours')
         fillColourPulldown(self.foregroundColourBox, allowAuto=False, includeGradients=False)
         self.foregroundColourBox.currentIndexChanged.connect(self._queueForegroundPulldownCallback)
@@ -413,7 +446,8 @@ class ExportStripToFilePopup(ExportDialogABC):
         backgroundColourFrame = Frame(sFrame, grid=(row, 0), gridSpan=(1, 3), setLayout=True, showBorder=False)
         Label(backgroundColourFrame, text="Background Colour", vAlign='c', hAlign='l', grid=(0, 0))
         self.backgroundColourBox = PulldownList(backgroundColourFrame, vAlign='t', grid=(0, 1))
-        self.backgroundColourButton = Button(backgroundColourFrame, vAlign='t', hAlign='l', grid=(0, 2), hPolicy='fixed',
+        self.backgroundColourButton = Button(backgroundColourFrame, vAlign='t', hAlign='l', grid=(0, 2),
+                                             hPolicy='fixed',
                                              icon='icons/colours')
         fillColourPulldown(self.backgroundColourBox, allowAuto=False, includeGradients=False)
         self.backgroundColourBox.currentIndexChanged.connect(self._queueBackgroundPulldownCallback)
@@ -487,8 +521,10 @@ class ExportStripToFilePopup(ExportDialogABC):
 
         # radio buttons for setting mode
         _texts = ['Min/Max', 'Centre/Width']
-        _tipTexts = ['Use minimum/maximum values to define the print region', 'Use centre/width values to define the print region']
-        self._rangeRadio = RadioButtons(self._rangeRight, texts=_texts, tipTexts=_tipTexts, direction='h', hAlign='l', selectedInd=1,
+        _tipTexts = ['Use minimum/maximum values to define the print region',
+                     'Use centre/width values to define the print region']
+        self._rangeRadio = RadioButtons(self._rangeRight, texts=_texts, tipTexts=_tipTexts, direction='h', hAlign='l',
+                                        selectedInd=1,
                                         grid=(_rangeRow, 0), gridSpan=(1, 8),
                                         callback=self._setModeCallback)
         _rangeRow += 1
@@ -509,12 +545,14 @@ class ExportStripToFilePopup(ExportDialogABC):
             _label = Label(self._rangeRight, text=axis, grid=(_rangeRow, 0), hAlign='left')
 
             # add a box for the selected row - change colour depending on strip-direction? need to be linked
-            _colourBox = HighlightBox(self._rangeRight, grid=(_rangeRow, 0), gridSpan=(1, 6), colour=focusColour, lineWidth=1, showBorder=False)
+            _colourBox = HighlightBox(self._rangeRight, grid=(_rangeRow, 0), gridSpan=(1, 6), colour=focusColour,
+                                      lineWidth=1, showBorder=False)
             _colourBox.setFixedHeight(_label.height() + 4)
 
             _widgets = [_label]
             for bt in range(len(STRIPBUTTONS[1:])):
-                _spinbox = DoubleSpinbox(self._rangeRight, grid=(_rangeRow, bt + 1), decimals=2, step=0.1,  # hAlign='left',
+                _spinbox = DoubleSpinbox(self._rangeRight, grid=(_rangeRow, bt + 1), decimals=2, step=0.1,
+                                         # hAlign='left',
                                          callback=partial(self._setSpinbox, ii, STRIPBUTTONS[bt + 1]))
                 _spinbox.setFixedWidth(140)
                 _spinbox._widgetRow = ii
@@ -532,14 +570,16 @@ class ExportStripToFilePopup(ExportDialogABC):
 
         # buttons for setting the spin-boxes from strip
         _texts = ['Set Print Region', 'Set Min', 'Set Max', 'Set Centre', 'Set Width']
-        _tipTexts = ['Set all values for the print region from the selected strip.\nValues are set for the selected row',
-                     'Set the minimum value for the print region from the selected strip.\nValue is set for the selected row.\n'
-                     'If the maximum value is too low, the minimum value will be set to the closest allowed value',
-                     'Set the maximum value for the print region from the selected strip.\nValue is set for the selected row.\n'
-                     'If the minimum value is too high, the maximum value will be set to the closest allowed value',
-                     'Set the centre value for the print region from the selected strip.\nValue is set for the selected row',
-                     'Set the width value for the print region from the selected strip.\nValue is set for the selected row']
-        _callbacks = [self._setStripRegion, self._setStripMin, self._setStripMax, self._setStripCentre, self._setStripWidth]
+        _tipTexts = [
+            'Set all values for the print region from the selected strip.\nValues are set for the selected row',
+            'Set the minimum value for the print region from the selected strip.\nValue is set for the selected row.\n'
+            'If the maximum value is too low, the minimum value will be set to the closest allowed value',
+            'Set the maximum value for the print region from the selected strip.\nValue is set for the selected row.\n'
+            'If the minimum value is too high, the maximum value will be set to the closest allowed value',
+            'Set the centre value for the print region from the selected strip.\nValue is set for the selected row',
+            'Set the width value for the print region from the selected strip.\nValue is set for the selected row']
+        _callbacks = [self._setStripRegion, self._setStripMin, self._setStripMax, self._setStripCentre,
+                      self._setStripWidth]
         self._setRangeButtons = ButtonList(self._rangeRight, texts=_texts, tipTexts=_tipTexts,
                                            grid=(_rangeRow, 0), gridSpan=(1, 8), hAlign='l',
                                            callbacks=_callbacks,
@@ -590,7 +630,8 @@ class ExportStripToFilePopup(ExportDialogABC):
         self.scalingPercentage = DoubleSpinbox(_frame, grid=(_row, 1), min=1.0, max=100.0, decimals=0, step=1,
                                                callback=self._queueScalingPercentageCallback
                                                )
-        self.scalingUnits = ScientificDoubleSpinBox(_frame, grid=(_row, 2), gridSpan=(1, 2), min=0.0, max=1e10, step=0.1,
+        self.scalingUnits = ScientificDoubleSpinBox(_frame, grid=(_row, 2), gridSpan=(1, 2), min=0.0, max=1e10,
+                                                    step=0.1,
                                                     callback=self._queueScalingUnitsCallback,
                                                     )
         self.scalingAxis = PulldownListCompoundWidget(_frame, grid=(_row, 4),
@@ -1211,9 +1252,11 @@ class ExportStripToFilePopup(ExportDialogABC):
                     if (sd := _dd.strip.spectrumDisplay) and len(sd.strips) > 1:
                         if sd.stripArrangement == 'Y':
                             self._axisSpinboxes[0][-1].setColour(getColours()[BORDERFOCUS])
-                            self._axisSpinboxes[1][-1].setColour(SELECTAXIS_COLOR if self.strip in sd.strips else SELECTAXIS_COLOR2)
+                            self._axisSpinboxes[1][-1].setColour(
+                                    SELECTAXIS_COLOR if self.strip in sd.strips else SELECTAXIS_COLOR2)
                         else:
-                            self._axisSpinboxes[0][-1].setColour(SELECTAXIS_COLOR if self.strip in sd.strips else SELECTAXIS_COLOR2)
+                            self._axisSpinboxes[0][-1].setColour(
+                                    SELECTAXIS_COLOR if self.strip in sd.strips else SELECTAXIS_COLOR2)
                             self._axisSpinboxes[1][-1].setColour(getColours()[BORDERFOCUS])
 
                     else:
@@ -1302,12 +1345,14 @@ class ExportStripToFilePopup(ExportDialogABC):
                     axis = _dd.axes[ii]
                     # set min.max constraints for buttons
                     # not sure if these need to change as the button values are changed
-                    self._axisSpinboxes[ii][STRIPBUTTONS.index(STRIPMIN)].setMaximum(axis[STRIPMAX] if state else POSINFINITY)
-                    self._axisSpinboxes[ii][STRIPBUTTONS.index(STRIPMAX)].setMinimum(axis[STRIPMIN] if state else -POSINFINITY)
+                    self._axisSpinboxes[ii][STRIPBUTTONS.index(STRIPMIN)].setMaximum(
+                            axis[STRIPMAX] if state else POSINFINITY)
+                    self._axisSpinboxes[ii][STRIPBUTTONS.index(STRIPMAX)].setMinimum(
+                            axis[STRIPMIN] if state else -POSINFINITY)
                     self._axisSpinboxes[ii][STRIPBUTTONS.index(STRIPWIDTH)].setMinimum(0.0)
                     if state:
                         dec = abs(axis[STRIPMAX] - axis[STRIPMIN])
-                        step = max(0.1, 10 ** fexp(dec * 0.01))
+                        step = max(0.1, 10**fexp(dec * 0.01))
                         self._axisSpinboxes[ii][STRIPBUTTONS.index(STRIPMAX)].setSingleStep(step)
                         self._axisSpinboxes[ii][STRIPBUTTONS.index(STRIPMIN)].setSingleStep(step)
                         self._axisSpinboxes[ii][STRIPBUTTONS.index(STRIPCENTRE)].setSingleStep(step)
@@ -1569,39 +1614,40 @@ class ExportStripToFilePopup(ExportDialogABC):
 
         if strip:
             # return the parameters
-            params = {GLFILENAME              : self.exitFilename,
-                      GLSPECTRUMDISPLAY       : spectrumDisplay,
-                      GLSTRIP                 : strip,
-                      GLWIDGET                : strip._CcpnGLWidget,
-                      GLPRINTTYPE             : self.printType.get(),
-                      GLPAGETYPE              : self.pageOrientation.get(),
-                      GLPAGESIZE              : self.pageSize.get(),
-                      GLFOREGROUND            : hexToRgbRatio(self.foregroundColour),
-                      GLBACKGROUND            : hexToRgbRatio(self.backgroundColour),
-                      GLBASETHICKNESS         : self.baseThicknessBox.getValue(),
+            params = {GLFILENAME               : self.exitFilename,
+                      GLSPECTRUMDISPLAY        : weakref.ref(spectrumDisplay) if spectrumDisplay else None,
+                      GLSTRIP                  : weakref.ref(strip) if strip else None,
+                      GLWIDGET                 : (weakref.ref(strip._CcpnGLWidget)
+                                                  if (strip and strip._CcpnGLWidget) else None),
+                      GLPRINTTYPE              : self.printType.get(),
+                      GLPAGETYPE               : self.pageOrientation.get(),
+                      GLPAGESIZE               : self.pageSize.get(),
+                      GLFOREGROUND             : hexToRgbRatio(self.foregroundColour),
+                      GLBACKGROUND             : hexToRgbRatio(self.backgroundColour),
+                      GLBASETHICKNESS          : self.baseThicknessBox.getValue(),
                       # unique per spectrumDisplay - may differ from preferences
-                      GLSYMBOLTHICKNESS       : strip.symbolThickness,
-                      GLCONTOURTHICKNESS      : strip.contourThickness,
-                      GLALIASENABLED          : strip.aliasEnabled,
-                      GLALIASSHADE            : strip.aliasShade,
-                      GLALIASLABELSENABLED    : strip.aliasLabelsEnabled,
-                      GLPEAKSYMBOLSENABLED    : strip.peakSymbolsEnabled,
-                      GLPEAKLABELSENABLED     : strip.peakLabelsEnabled,
-                      GLPEAKARROWSENABLED     : strip.peakArrowsEnabled,
+                      GLSYMBOLTHICKNESS        : strip.symbolThickness,
+                      GLCONTOURTHICKNESS       : strip.contourThickness,
+                      GLALIASENABLED           : strip.aliasEnabled,
+                      GLALIASSHADE             : strip.aliasShade,
+                      GLALIASLABELSENABLED     : strip.aliasLabelsEnabled,
+                      GLPEAKSYMBOLSENABLED     : strip.peakSymbolsEnabled,
+                      GLPEAKLABELSENABLED      : strip.peakLabelsEnabled,
+                      GLPEAKARROWSENABLED      : strip.peakArrowsEnabled,
                       GLMULTIPLETSYMBOLSENABLED: strip.multipletSymbolsEnabled,
-                      GLMULTIPLETLABELSENABLED: strip.multipletLabelsEnabled,
-                      GLMULTIPLETARROWSENABLED: strip.multipletArrowsEnabled,
-                      GLSTRIPDIRECTION        : stripDirection,
-                      GLSTRIPPADDING          : self.stripPaddingBox.getValue(),
-                      GLEXPORTDPI             : self.exportDpiBox.getValue(),
-                      GLSELECTEDPIDS          : self.treeView.getSelectedObjectsPids(),
-                      GLSTRIPREGIONS          : self._stripDict,
-                      GLSCALINGMODE           : self.scalingMode.getIndex(),
-                      GLSCALINGPERCENT        : self.scalingPercentage.get(),
-                      GLSCALINGBYUNITS        : self.scalingUnits.get(),
-                      GLSCALINGAXIS           : self.scalingAxis.getIndex(),
-                      GLUSEPRINTFONT          : self._useFontCheckbox.isChecked(),
-                      GLPRINTFONT             : (self._fontPulldown.get(), self._fontSpinbox.get()),
+                      GLMULTIPLETLABELSENABLED : strip.multipletLabelsEnabled,
+                      GLMULTIPLETARROWSENABLED : strip.multipletArrowsEnabled,
+                      GLSTRIPDIRECTION         : stripDirection,
+                      GLSTRIPPADDING           : self.stripPaddingBox.getValue(),
+                      GLEXPORTDPI              : self.exportDpiBox.getValue(),
+                      GLSELECTEDPIDS           : self.treeView.getSelectedObjectsPids(),
+                      GLSTRIPREGIONS           : self._stripDict,
+                      GLSCALINGMODE            : self.scalingMode.getIndex(),
+                      GLSCALINGPERCENT         : self.scalingPercentage.get(),
+                      GLSCALINGBYUNITS         : self.scalingUnits.get(),
+                      GLSCALINGAXIS            : self.scalingAxis.getIndex(),
+                      GLUSEPRINTFONT           : self._useFontCheckbox.isChecked(),
+                      GLPRINTFONT              : (self._fontPulldown.get(), self._fontSpinbox.get()),
                       }
             selectedList = self.treeView.getSelectedItems()
             for itemName in self.fullList:
@@ -1617,31 +1663,39 @@ class ExportStripToFilePopup(ExportDialogABC):
 
         if not params:
             return
+        if not (glWidgetRef := params[GLWIDGET]) or not (glWidget := glWidgetRef()):
+            getLogger().warning(f'{self.__class__.__name__}.exportToFile - glWidget is not defined')
+            return
         filename = params[GLFILENAME]
-        glWidget = params[GLWIDGET]
         prType = params[GLPRINTTYPE]
 
-        with catchExceptions(errorStringTemplate='Error writing file; "%s"', printTraceBack=False):
+        with catchExceptions(errorStringTemplate='Error writing file; "%s"', printTraceBack=True):
             if prType == EXPORTPDF:
                 if pdfExport := glWidget.exportToPDF(filename, params):
                     pdfExport.writePDFFile()
+                    pdfExport.clear()
             elif prType == EXPORTSVG:
                 if svgExport := glWidget.exportToSVG(filename, params):
                     svgExport.writeSVGFile()
+                    svgExport.clear()
             elif prType == EXPORTPNG:
                 if pngExport := glWidget.exportToPNG(filename, params):
                     pngExport.writePNGFile()
+                    pngExport.clear()
             elif prType == EXPORTPS:
                 if pngExport := glWidget.exportToPS(filename, params):
                     pngExport.writePSFile()
+                    pngExport.clear()
 
     def actionButtons(self):
         self.setOkButton(callback=self._saveAndCloseDialog, text='Export and Close',
                          tipText='Export the strip and close the dialog\nAll changes to the print settings are saved')
-        self.setCancelButton(callback=self._closeDialog, text='Close', tipText='Close the dialog\nAll changes to the print settings are saved')
+        self.setCancelButton(callback=self._closeDialog, text='Close',
+                             tipText='Close the dialog\nAll changes to the print settings are saved')
         self.setCloseButton(callback=self._saveDialog, text='Export', tipText='Export the strip')
         self.setHelpButton(callback=self._helpClicked, tipText='Help', enabled=False)
-        self.setRevertButton(callback=self._revertClicked, tipText='Revert print settings to the state when the dialog was opened', enabled=False)
+        self.setRevertButton(callback=self._revertClicked,
+                             tipText='Revert print settings to the state when the dialog was opened', enabled=False)
         self.setUserButton(callback=self._rejectDialog, text='Cancel',
                            tipText='Close the dialog\nAny changes to the print settings are discarded', enabled=True)
         self.setDefaultButton(self.CANCELBUTTON)
@@ -1797,7 +1851,8 @@ class ExportStripToFilePopup(ExportDialogABC):
         revertState = False
         allChanges = bool(self._changes)
 
-        return changeState(self, allChanges, applyState, revertState, None, None, self._revertButton, self._currentNumApplies)
+        return changeState(self, allChanges, applyState, revertState, None, None, self._revertButton,
+                           self._currentNumApplies)
 
     @queueStateChange(_verifyPopupApply)
     def _queuePageSizeCallback(self, _value):
@@ -1851,7 +1906,6 @@ class ExportStripToFilePopup(ExportDialogABC):
         self._dialogFilter = EXPORTTYPES[value][EXPORTFILTER]
         self.updateDialog()
         self._updateButtonText()
-
 
     def _changeColourButton(self):
         """Popup a dialog and set the colour in the pulldowns
