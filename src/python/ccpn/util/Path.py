@@ -9,9 +9,10 @@ from __future__ import annotations
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
-__credits__ = ("Ed Brooksbank, Joanna Fox, Morgan Hayward, Victoria A Higman, Luca Mureddu",
-               "Eliza Płoskoń, Timothy J Ragan, Brian O Smith, Gary S Thompson & Geerten W Vuister")
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2025"
+__credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
+               "Timothy J Ragan, Brian O Smith, Daniel Thompson",
+               "Gary S Thompson & Geerten W Vuister")
 __licence__ = ("CCPN licence. See https://ccpn.ac.uk/software/licensing/")
 __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, L.G., & Vuister, G.W.",
                  "CcpNmr AnalysisAssign: a flexible platform for integrated NMR analysis",
@@ -19,9 +20,9 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-05-09 15:51:21 +0100 (Thu, May 09, 2024) $"
-__version__ = "$Revision: 3.2.2 $"
+__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
+__dateModified__ = "$dateModified: 2025-03-21 15:36:32 +0000 (Fri, March 21, 2025) $"
+__version__ = "$Revision: 3.3.1 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -340,15 +341,29 @@ class Path(_Path_):
         """Recursively remove content of self and subdirectories
         """
         if not self.is_dir():
-            raise ValueError('%s is not a directory' % self)
+            raise ValueError(f'{self!r} is not a directory')
         _rmdirs(str(self))
+
+    def fetchParent(self):
+        """Create, if needed, all directories upward of self;
+        different from mkdir as it does not attempt to create root and does not overwrite
+        or throws errors for existing directories.
+        """
+        _dirs = []
+        _p = self.parent
+        while _p != _p.root and not _p.exists():
+            _dirs.append(_p.name)
+            _p = _p.parent
+        # need to create in reversed order
+        _dirs = _dirs[::-1]
+        _p.fetchDir(*_dirs)
 
     def fetchDir(self, *dirNames) -> Path:
         """Return and (if needed) create all dirNames relative to self
         :return: Path instance of self / dirName[0] / dirName[1] ...
         """
         if not self.is_dir():
-            raise ValueError('%s is not a directory' % self)
+            raise ValueError(f'{self!r} is not a directory')
 
         result = self
         for dirName in dirNames:
@@ -365,14 +380,14 @@ class Path(_Path_):
         import shutil
 
         if not self.exists():
-            raise FileNotFoundError(f'"{self}" does not exist')
+            raise FileNotFoundError(f'Path.copyDir: {self!r} does not exist')
         if not self.is_dir():
-            raise RuntimeError(f'"{self}" is not a directory')
+            raise RuntimeError(f'Path.copyDir: {self!r} is not a directory')
 
         _dest = aPath(destination)
         if _dest.exists():
             if not overwrite:
-                raise FileExistsError(f'"{destination}" already exists and overwrite=False')
+                raise FileExistsError(f'Path.copyDir: {destination!r} already exists and overwrite=False')
             _dest.remove()
 
         _result = shutil.copytree(self, dst=_dest, symlinks=True)
@@ -382,7 +397,7 @@ class Path(_Path_):
         """Remove file represented by self.
         """
         if self.is_dir():
-            raise RuntimeError('%s is a directory' % self)
+            raise RuntimeError(f'{self!r} is a directory')
         self.unlink()
 
     def copyFile(self, destination, overwrite) -> Path:
@@ -495,7 +510,7 @@ class Path(_Path_):
             result = [Path(f) for f in self.glob(f'*{suffix}')]
 
         if excludeDotFiles:
-            result = [f for f in result if not f.basename.startswith('.')]
+            result = [f for f in result if not f.name.startswith('.')]
 
         if relative:
             result = [f.relative_to(self) for f in result]
@@ -516,10 +531,63 @@ class Path(_Path_):
         """:return self as a string"""
         return str(self)
 
+    def endswith(self, postfix) -> bool:
+        """:return True if self ends with postfix
+        """
+        path = self.asString()
+        return path.endswith(postfix)
+
     def startswith(self, prefix) -> bool:
-        """:return True if self starts with prefix"""
+        """:return True if self starts with prefix
+        """
         path = self.asString()
         return path.startswith(prefix)
+
+    def getSize(self) -> int:
+        """the size of self in bytes if a file or all files (recursively) in case of a directory.
+        Does not include symlinks.
+        :return: The size of self in bytes
+        """
+        if self.is_dir():
+            _size = sum(file.stat().st_size for file in self.rglob('*') if not file.is_symlink())
+        else:
+            _size = self.stat().st_size
+
+        return _size
+
+    def getCreateTime(self):
+        """:return the creation time (i.e. stat.st_ctime) of self as a Time object
+        do str(myTime) or myTime.date() or myTime.time() for a readable output
+        """
+        from ccpn.util.Time import Time
+        at = self.stat().st_ctime
+        return Time(at)
+
+    def getAccessTime(self):
+        """:return the last acsess time (i.e. stat.st_atime) of self as a Time object
+        do str(myTime) or myTime.date() or myTime.time() for a readable output
+        """
+        from ccpn.util.Time import Time
+        at = self.stat().st_atime
+        return Time(at)
+
+    def isReadable(self) -> bool:
+        """
+        :return: True if self exists and is readable
+        """
+        return self.exists() and os.access(self.asString(), os.R_OK)
+
+    def isWriteable(self) -> bool:
+        """
+        :return: True if self exists and is writable
+        """
+        return self.exists() and os.access(self.asString(), os.W_OK)
+
+    def isExecutable(self) -> bool:
+        """
+        :return: True if self exists and is executable
+        """
+        return self.exists() and os.access(self.asString(), os.X_OK)
 
     def __len__(self):
         return len(self.asString())
@@ -543,6 +611,7 @@ class Path(_Path_):
 #=========================================================================================
 # Functions
 #=========================================================================================
+
 def scandirs(dirname):
     """ Recursively find all subdirs"""
     subfolders = [f.path for f in os.scandir(dirname) if f.is_dir()]
@@ -568,6 +637,13 @@ def _rmdirs(path):
 def aPath(path):
     """Return a ~-expanded, left/right spaces-stripped, normalised Path instance"""
     return Path(str(path).strip()).expanduser().normalise()
+
+
+def home() -> Path:
+    """
+    :return absolute path to user home directory as a Path instance
+    """
+    return aPath('~')
 
 
 def normalisePath(path, makeAbsolute=None):
