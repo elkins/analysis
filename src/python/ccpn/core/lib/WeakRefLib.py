@@ -19,7 +19,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2025-03-19 18:00:35 +0000 (Wed, March 19, 2025) $"
+__dateModified__ = "$dateModified: 2025-03-21 18:41:58 +0000 (Fri, March 21, 2025) $"
 __version__ = "$Revision: 3.3.1 $"
 #=========================================================================================
 # Created
@@ -30,6 +30,7 @@ __date__ = "$Date: 2024-12-05 14:31:02 +0100 (Thu, December 05, 2024) $"
 # Start of code
 #=========================================================================================
 
+import sys
 import collections
 import weakref
 from contextlib import suppress
@@ -39,6 +40,13 @@ from typing import Any, Callable, Protocol
 
 
 _DEBUG = False
+
+
+def write(*text):
+    """Debug - write output"""
+    for tt in text:
+        sys.stdout.write(str(tt) + ' ')
+    sys.stdout.write('\n')
 
 
 class _consoleStyle():
@@ -98,7 +106,7 @@ class WeakRefDescriptor:
         Can be used to return the name when an instance has been garbage-collected.
         """
         if _DEBUG:
-            print(f'{_consoleStyle.fg.magenta}--> {self.__class__.__name__}.__set_name__ {hex(id(owner))} {name}'
+            write(f'{_consoleStyle.fg.magenta}--> {self.__class__.__name__}.__set_name__ {hex(id(owner))} {name}'
                   f'{_consoleStyle.reset}')
         self._attrName: str = name
 
@@ -115,8 +123,8 @@ class WeakRefDescriptor:
             return self
         result = self._storage.get(id(instance), None)
         if _DEBUG:
-            print(f'{_consoleStyle.fg.lightgrey}--> {self.__class__.__name__}.__get__  <==  {hex(id(instance))}'
-                  f' {result}{_consoleStyle.reset}')
+            write(f'{_consoleStyle.fg.lightgrey}--> {self.__class__.__name__}.__get__  <==  {hex(id(instance))}'
+                  f' {result}    from {owner.__name__}.{self._attrName}{_consoleStyle.reset}')
         return result
 
     def __set__(self, instance: Any, value: Any) -> None:
@@ -130,7 +138,7 @@ class WeakRefDescriptor:
             # Prevent setting the descriptor itself as a value.
             return
         if _DEBUG:
-            print(f'{_consoleStyle.fg.lightgrey}--> {self.__class__.__name__}.__set__  -->  {hex(id(instance))} '
+            write(f'{_consoleStyle.fg.lightgrey}--> {self.__class__.__name__}.__set__  -->  {hex(id(instance))} '
                   f'{value}{_consoleStyle.reset}')
         if value is not None:
             # Store the value as a weak-reference associated with the instance ID.
@@ -150,7 +158,7 @@ class WeakRefDescriptor:
         :param instance: The instance for which the value is being deleted.
         """
         if _DEBUG:
-            print(f'{_consoleStyle.fg.lightgrey}--> {self.__class__.__name__}.__delete__  -->  {hex(id(instance))} '
+            write(f'{_consoleStyle.fg.lightgrey}--> {self.__class__.__name__}.__delete__  -->  {hex(id(instance))} '
                   f'{_consoleStyle.reset}')
         self._storage.pop(id(instance), None)
         self._observers.pop(id(instance), None)
@@ -165,7 +173,7 @@ class WeakRefDescriptor:
         if not (self := selfref()):
             return
         if _DEBUG:
-            print(f'{_consoleStyle.fg.yellow}--> Weak reference collected for instance ID '
+            write(f'{_consoleStyle.fg.yellow}--> Weak reference collected for instance ID '
                   f'{hex(_instanceId)} {self} {hex(owner)}{_consoleStyle.reset}')
         # emit instance-based signals
         for observe in self._observers.get(_instanceId, []):
@@ -348,7 +356,7 @@ class _IdHandle:
         if debugging is enabled.
         """
         if _DEBUG:
-            print(f'{_consoleStyle.fg.darkred}--> {self.__class__.__name__}.__del__ {hex(id(self))}'
+            write(f'{_consoleStyle.fg.darkred}--> {self.__class__.__name__}.__del__ {hex(id(self))}'
                   f'{_consoleStyle.reset}')
 
 
@@ -529,7 +537,7 @@ class WeakRefPartial:
         # Use a staticmethod instead of a monkey-patch
         if (sref := selfref()) is not None:
             if _DEBUG:
-                print(f'{_consoleStyle.fg.red}--> {sref.__class__.__name__}._remove '
+                write(f'{_consoleStyle.fg.red}--> {sref.__class__.__name__}._remove '
                       f'{sref} - {wref}{_consoleStyle.reset}')
             # Remove the handle, it could be used as a reference elsewhere
             sref.__id = None
@@ -669,7 +677,7 @@ class WeakRefProxyPartial:
         # Use a staticmethod instead of a monkey-patch
         if (sref := selfref()) is not None:
             if _DEBUG:
-                print(f'{_consoleStyle.fg.red}--> {sref.__class__.__name__}._remove '
+                write(f'{_consoleStyle.fg.red}--> {sref.__class__.__name__}._remove '
                       f'{sref}{_consoleStyle.reset}')
             # Remove the handle, it could be used as a reference elsewhere
             sref.__id = None
@@ -737,7 +745,7 @@ class OrderedWeakKeyDictionary(collections.OrderedDict):
         else:
             weak_key = key
         if _DEBUG:
-            print(f'{_consoleStyle.fg.green}--> {self.__class__.__name__}.__setitem__ '
+            write(f'{_consoleStyle.fg.green}--> {self.__class__.__name__}.__setitem__ '
                   f'{hex(id(self))} {weak_key}{_consoleStyle.reset}')
         super().__setitem__(weak_key, value)
 
@@ -798,7 +806,7 @@ class OrderedWeakKeyDictionary(collections.OrderedDict):
             if (key := self._pending_removals.pop()):
                 with suppress(KeyError):
                     if _DEBUG:
-                        print(f'{_consoleStyle.fg.darkyellow}--> {self.__class__.__name__}.__delitem__ pending {key}'
+                        write(f'{_consoleStyle.fg.darkyellow}--> {self.__class__.__name__}.__delitem__ pending {key}'
                               f'{_consoleStyle.reset}')
                     super(OrderedWeakKeyDictionary, self).__delitem__(key)
 
@@ -828,7 +836,7 @@ class OrderedWeakKeyDictionary(collections.OrderedDict):
             else:
                 with suppress(KeyError):
                     if _DEBUG:
-                        print(f'{_consoleStyle.fg.red}--> {sref.__class__.__name__}.__delitem__ {key}'
+                        write(f'{_consoleStyle.fg.red}--> {sref.__class__.__name__}.__delitem__ {key}'
                               f'{_consoleStyle.reset}')
                     super(OrderedWeakKeyDictionary, sref).__delitem__(key)
 
