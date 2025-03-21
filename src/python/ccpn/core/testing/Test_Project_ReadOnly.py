@@ -89,7 +89,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2025-03-21 15:38:20 +0000 (Fri, March 21, 2025) $"
+__dateModified__ = "$dateModified: 2025-03-21 15:53:16 +0000 (Fri, March 21, 2025) $"
 __version__ = "$Revision: 3.3.1 $"
 #=========================================================================================
 # Created
@@ -130,6 +130,13 @@ _printAll = True
 os.system('')  # activates console text colours
 
 
+def write(*text):
+    """Debug - write output"""
+    for tt in text:
+        sys.stdout.write(str(tt) + ' ')
+    sys.stdout.write('\n')
+
+
 class ProjectReadOnly(WrapperTesting):
     # Path of project to load (None for new project)
     projectPath = None
@@ -140,6 +147,7 @@ class ProjectReadOnly(WrapperTesting):
     noLogging = False
     noDebugLogging = False
     noEchoLogging = False  # block all logging to the terminal - debug<n>|warning|info
+    debug=False
     _lock = QtCore.QMutex()
 
     def _fileEvent(self, fp):
@@ -148,21 +156,21 @@ class ProjectReadOnly(WrapperTesting):
                 # skip OS files
                 return
             if fp in self.fileEvents:
-                print(f'{consoleStyle.fg.darkmagenta}    file ***       {fp}')
+                write(f'{consoleStyle.fg.darkmagenta}    file ***       {fp}')
                 return
             self.fileEvents.add(fp)
             if _printAll:
-                print(f'{consoleStyle.fg.magenta}    file     {len(self.fileEvents):2}    {fp}')
+                write(f'{consoleStyle.fg.magenta}    file     {len(self.fileEvents):2}    {fp}')
 
     def _dirEvent(self, fp):
         # STILL sometimes getting a duplicate dirEvent, OR a missing event in the middle of a directory structure
         with QtCore.QMutexLocker(self._lock):  # is this required? :|
             if fp in self.dirEvents:
-                print(f'{consoleStyle.fg.darkgreen}    dir  ***       {fp}')
+                write(f'{consoleStyle.fg.darkgreen}    dir  ***       {fp}')
                 return
             self.dirEvents.add(fp)
             if _printAll:
-                print(f'{consoleStyle.fg.green}    dir      {len(self.dirEvents):2}    {fp}')
+                write(f'{consoleStyle.fg.green}    dir      {len(self.dirEvents):2}    {fp}')
 
     def _wait(self, app, watcher):
         # add any new files to the watcher
@@ -193,8 +201,8 @@ class ProjectReadOnly(WrapperTesting):
             yield
         finally:
             self._wait(app, watcher)
-            print(f'dirEvents {len(self.dirEvents)}')
-            print(f'fileEvents {len(self.fileEvents)}')
+            write(f'dirEvents {len(self.dirEvents)}')
+            write(f'fileEvents {len(self.fileEvents)}')
 
     def test_readOnly(self):
         app = QtWidgets.QApplication(sys.argv)
@@ -225,7 +233,7 @@ class ProjectReadOnly(WrapperTesting):
         watcher.fileChanged.connect(self._fileEvent)
 
         # Write the empty project to the temp-folder
-        print('Writing project - waiting...')
+        write('Writing project - waiting...')
 
         with self.checkEvents(app, watcher):
             # start from an empty project
@@ -290,10 +298,10 @@ class ProjectReadOnly(WrapperTesting):
 
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-        print('Creating objects - waiting...')
+        write('Creating objects - waiting...')
 
-        print(project, id(project), project._wrappedData, id(project._wrappedData))
-        print(project._getChildren())
+        write(project, id(project), project._wrappedData, id(project._wrappedData))
+        write(project._getChildren())
 
         with self.checkEvents(app, watcher):
             project.setReadOnly(True)
@@ -337,7 +345,7 @@ class ProjectReadOnly(WrapperTesting):
 
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-        print('Enable writing - waiting...')
+        write('Enable writing - waiting...')
 
         with self.checkEvents(app, watcher):
             # allow saving again, but nothing should write
@@ -364,9 +372,9 @@ class ProjectReadOnly(WrapperTesting):
 
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-        print('Writing project again - waiting...')
-        print(project, id(project))
-        print(project._getChildren())
+        write('Writing project again - waiting...')
+        write(project, id(project))
+        write(project._getChildren())
 
         with self.checkEvents(app, watcher):
             # should now write the files
@@ -438,7 +446,7 @@ class ProjectReadOnly(WrapperTesting):
 
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-        print('Open new project 2 - waiting...')
+        write('Open new project 2 - waiting...')
 
         with self.checkEvents(app, watcher):
             project = application.loadProject(tempProjectDir2)
@@ -481,8 +489,8 @@ class ProjectReadOnly(WrapperTesting):
 
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-        print(project, id(project), project._wrappedData, id(project._wrappedData))
-        print(project._getChildren())
+        write(project, id(project), project._wrappedData, id(project._wrappedData))
+        write(project._getChildren())
 
         with self.checkEvents(app, watcher):
             project.setReadOnly(True)
@@ -526,7 +534,7 @@ class ProjectReadOnly(WrapperTesting):
 
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-        print('Open new project 3 - waiting...')
+        write('Open new project 3 - waiting...')
 
         with self.checkEvents(app, watcher):
             project = application.loadProject(tempProjectDir3)
@@ -552,8 +560,8 @@ class ProjectReadOnly(WrapperTesting):
 
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-        print(project, id(project), project._wrappedData, id(project._wrappedData))
-        print(project._getChildren())
+        write(project, id(project), project._wrappedData, id(project._wrappedData))
+        write(project._getChildren())
 
         with self.checkEvents(app, watcher):
             # create new objects that will use different .xml files
@@ -633,7 +641,7 @@ class ProjectReadOnly(WrapperTesting):
 
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-        print('Open new project 2 - waiting...')
+        write('Open new project 2 - waiting...')
 
         with self.checkEvents(app, watcher):
             # add new item to current project
@@ -676,12 +684,12 @@ class ProjectReadOnly(WrapperTesting):
         self.assertTrue(all(f'{TEMPPROJECT3}/logs' in dd for dd in self.dirEvents))
         self.assertTrue(all(f'{TEMPPROJECT3}/logs' in ff for ff in self.fileEvents))
 
-        print(project, id(project), project._wrappedData, id(project._wrappedData))
-        print(project._getChildren())
+        write(project, id(project), project._wrappedData, id(project._wrappedData))
+        write(project._getChildren())
 
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-        print('Open new project 3 again - waiting...')
+        write('Open new project 3 again - waiting...')
 
         with self.checkEvents(app, watcher):
             project = application.loadProject(tempProjectDir3)
@@ -707,9 +715,9 @@ class ProjectReadOnly(WrapperTesting):
 
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-        print('Writing project again - waiting...')
-        print(project, id(project))
-        print(project._getChildren())
+        write('Writing project again - waiting...')
+        write(project, id(project))
+        write(project._getChildren())
 
         with self.checkEvents(app, watcher):
             # should now write the files
