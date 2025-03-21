@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2025-03-20 18:09:40 +0000 (Thu, March 20, 2025) $"
+__dateModified__ = "$dateModified: 2025-03-21 15:35:20 +0000 (Fri, March 21, 2025) $"
 __version__ = "$Revision: 3.3.1 $"
 #=========================================================================================
 # Created
@@ -36,7 +36,7 @@ from typing import Generator, IO
 from contextlib import contextmanager
 
 
-_DEBUGFUNC = sys.stderr.write  # or None
+_DEBUGFUNC = None  # sys.stderr.write
 _MAXITERATIONS = 100
 # available options for the spacer
 SPACERS = [None, '', ' ', '-', '_', ' copy ']
