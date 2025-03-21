@@ -4,7 +4,7 @@ This file contains the routines for message dialogues
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2025"
 __credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
                "Timothy J Ragan, Brian O Smith, Daniel Thompson",
                "Gary S Thompson & Geerten W Vuister")
@@ -16,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-12-12 13:43:36 +0000 (Thu, December 12, 2024) $"
-__version__ = "$Revision: 3.2.11 $"
+__dateModified__ = "$dateModified: 2025-03-21 16:02:37 +0000 (Fri, March 21, 2025) $"
+__version__ = "$Revision: 3.3.1 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -481,7 +481,8 @@ def showSaveDiscardCancel(title, message, parent=None, iconPath=None):
         return None
 
 
-def showYesNoCancel(title, message, parent=None, iconPath=None):
+def showYesNoCancel(title, message, parent=None, iconPath=None,
+                    dontShowEnabled=False, defaultResponse=None, popupId=None):
     """Yes, No, Cancel query box.
 
     :param title: title of the widget
@@ -490,7 +491,13 @@ def showYesNoCancel(title, message, parent=None, iconPath=None):
     :param iconPath: optional icon to display
     :return: True for Yes, False for No or None for Cancel
     """
-    dialog = MessageDialog('Query', title, message, Question, iconPath, parent)
+    dialog = MessageDialog('Query', title, message, Question, iconPath, parent,
+                           dontShowEnabled=dontShowEnabled, defaultResponse=defaultResponse, popupId=popupId)
+
+    if dialog.dontShowPopup():
+        getLogger().debug(f'Popup {popupId!r} skipped with response={defaultResponse}')
+        return defaultResponse
+
     dialog.setStandardButtons(Yes | No | Cancel)
     dialog.setDefaultButton(Yes)
     result = dialog.exec_()
