@@ -16,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2025-01-09 20:41:18 +0000 (Thu, January 09, 2025) $"
-__version__ = "$Revision: 3.2.11 $"
+__dateModified__ = "$dateModified: 2025-03-24 11:29:34 +0000 (Mon, March 24, 2025) $"
+__version__ = "$Revision: 3.3.1 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -3139,9 +3139,7 @@ class ImportNefPopup(CcpnDialogMainWidget):
         :param dataLoader: A NefDataLoader instance
         :param kwds: additional parameters to pass to the window
         """
-        size = (1000, 700)
-        super().__init__(parent, setLayout=True, windowTitle='Import Nef', size=size, **kwds)
-        self._size = size  # GWV: this seems to fail if I make this a class attribute
+        super().__init__(parent, setLayout=True, windowTitle='Import Nef', size=(1000, 700), **kwds)
 
         # nefObjects=({NEFFRAMEKEY_IMPORT: project,
         #             },
@@ -3327,11 +3325,6 @@ class ImportNefPopup(CcpnDialogMainWidget):
         if nefDictTuple:
             for obj, nefWindow in self._nefWindows.items():
                 nefWindow._contentCompareDataBlocks = nefDictTuple
-
-    def exec_(self) -> int:
-        # NOTE:ED - this will do for the moment
-        self.resize(*self._size)
-        return super(ImportNefPopup, self).exec_()
 
     def _createContentCompare(self):
         pass
