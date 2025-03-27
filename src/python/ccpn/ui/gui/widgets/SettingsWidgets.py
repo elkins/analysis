@@ -18,8 +18,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2025-02-25 15:04:59 +0000 (Tue, February 25, 2025) $"
+__modifiedBy__ = "$modifiedBy: Daniel Thompson $"
+__dateModified__ = "$dateModified: 2025-03-10 15:02:19 +0000 (Mon, March 10, 2025) $"
 __version__ = "$Revision: 3.3.1 $"
 #=========================================================================================
 # Created
@@ -35,7 +35,13 @@ from functools import partial
 from typing import Callable
 from PyQt5 import QtWidgets
 from PyQt5.QtCore import pyqtSignal as Signal, pyqtSlot as Slot
-from ccpn.ui.gui.widgets.CompoundWidgets import ListCompoundWidget
+
+from ccpn.ui.gui.widgets.Tabs import Tabs
+from ccpn.ui.gui.widgets.Frame import Frame, ScrollableFrame
+from ccpn.ui.gui.lib.alignWidgets import alignWidgets
+
+from ccpn.ui.gui.popups.PreferencesPopup import DEFAULTSPACING
+from ccpn.ui.gui.widgets.CompoundWidgets import ListCompoundWidget, RadioButtonsCompoundWidget
 from ccpn.ui.gui.widgets.Widget import Widget
 from ccpn.ui.gui.widgets.Button import Button
 from ccpn.ui.gui.widgets.RadioButtons import RadioButtons
@@ -81,6 +87,8 @@ from ccpn.ui._implementation.SpectrumDisplay import SpectrumDisplay
 from ccpn.util.Logging import getLogger
 
 
+from collections import OrderedDict
+
 ALL = '<Use all>'
 UseCurrent = '<Use active>'
 IncludeCurrent = '<Current Strip>'
@@ -96,7 +104,81 @@ STRIPPLOT_NMRCHAINS = 'nmrChains'
 STRIPPLOT_NMRATOMSFROMPEAKS = 'nmrAtomsPeaks'
 NO_STRIP = 'noStrip'
 LineEditsMinimumWidth = 195
+TABMARGINS = (1, 10, 10, 1)  # l, t, r, b
+ZEROMARGINS = (0, 0, 0, 0) # l, t, r, b
 
+
+class PickAndAssignSettings(Widget):
+    """Settings widget for the pick and assign module."""
+    def __init__(self, parent=None, mainWindow=None, **kwds):
+        super().__init__(parent, setLayout=True, **kwds)
+
+        # Derive application, project, and current from mainWindow
+        self.mainWindow = mainWindow
+        if mainWindow:
+            self.application = mainWindow.application
+            self.project = mainWindow.application.project
+            self.current = mainWindow.application.current
+        else:
+            self.application = self.project = self.current = None
+
+        self._setWidgets(parent)
+        self._initSettings()
+
+    def _setWidgets(self, parent):
+        """Create settings for the NmrResidueTable and the PeakTable
+
+        .. Note:: The pick and assign module only utilises the nmrResidueTableSettings
+        and so peakTableSetttings is set to not visible in the widget.
+        """
+        settingsDict = OrderedDict(
+                ((LINKTOPULLDOWNCLASS, {'label'   : f'Link to current {PeakList.className}',
+                                        'tipText' : f'Set/update current {PeakList.className} when selecting from pulldown',
+                                        'callBack': None,
+                                        'enabled' : True,
+                                        'checked' : False,
+                                        '_init'   : None}),
+                 ))
+
+        self.nmrResidueTableSettings = StripPlot(parent=parent, mainWindow=self.mainWindow,
+                                                 includeDisplaySettings=True,
+                                                 includePeakLists=False,
+                                                 includeNmrChains=False,
+                                                 includeSpectrumTable=True,
+                                                 activePulldownClass=NmrChain,
+                                                 activePulldownInitialState=False,
+                                                 grid=(0, 0))
+
+        self.peakTableSettings = ModuleSettingsWidget(parent=parent, mainWindow=self.mainWindow,
+                                                      settingsDict=settingsDict,
+                                                      grid=(0, 0))
+        self.peakTableSettings.setVisible(False)
+
+    def _initSettings(self):
+        """Initialise the settings correctly for the Pick and Assign module.
+        """
+        # change default-settings inherited from NmrResidueTableModule
+        self.nmrResidueTableSettings.sequentialStripsWidget.checkBox.setChecked(False)
+
+        # select the <all> option
+        if self.nmrResidueTableSettings.displaysWidget:
+            self.nmrResidueTableSettings.displaysWidget.addPulldownItem(0)
+        if self.nmrResidueTableSettings.spectrumDisplayPulldown:
+            self.nmrResidueTableSettings.spectrumDisplayPulldown.addPulldownItem(0)
+
+        self.nmrResidueTableSettings.setLabelText('Navigate to\nDisplay(s)')
+
+        # these need to change whenever different spectrumDisplays are selected
+        if self.nmrResidueTableSettings.axisCodeOptions:
+            self.nmrResidueTableSettings.axisCodeOptions.selectAll()
+
+            # just clear the 'C' axes - this is the usual configuration
+            for ii, box in enumerate(self.nmrResidueTableSettings.axisCodeOptions.checkBoxes):
+                if box.text().upper().startswith('C'):
+                    self.nmrResidueTableSettings.axisCodeOptions.clearIndex(ii)
+
+        # fix the second column to stop extra widgets flickering
+        alignWidgets(self.nmrResidueTableSettings, columnScale=1.2)
 
 class SpectrumDisplaySettings(Widget, SignalBlocking):
     # signal for parentWidgets to respond to changes in the widget
@@ -1001,7 +1083,7 @@ class _commonSettings():
             self._removeWidget(self._spectraWidget, removeTopWidget=True)
 
         self._spectraWidget = Widget(parent=self.spectrumDisplayOptionsFrame, setLayout=True,
-                                     grid=(1, 0), gridSpan=(1, 2), vAlign='top')
+                                     grid=(10, 0), gridSpan=(1, 2), vAlign='top')
 
         if not displays:
             return
@@ -1159,6 +1241,11 @@ class StripPlot(Widget, _commonSettings, SignalBlocking):
         # cannot set a notifier for displays, as these are not (yet?) implemented and the Notifier routines
         # underpinning the addNotifier call do not allow for it either
         row = 0
+        HLine(self, grid=(row, 0), gridSpan=(1, 4),
+              colour=getColours()[DIVIDER], height=15)
+
+        row += 1
+
         texts = [defaultSpectrum.pid] if (defaultSpectrum and defaultSpectrum is not NO_STRIP) else (
                 [ALL] + displayText)
 
@@ -1225,6 +1312,16 @@ class StripPlot(Widget, _commonSettings, SignalBlocking):
                                            tipText=f'Set/update current {self.activePulldownClass.className} when selecting from pulldown',
                                            checked=activePulldownInitialState
                                            ))
+
+        row += 1
+        self.onlyRestrictedBox = CheckBoxCompoundWidget(
+                self,
+                grid=(row, 0), vAlign='top', stretch=(0, 0), hAlign='left',
+                fixedWidths=(colwidth, None),
+                orientation='left',
+                labelText='Assign restricted axes only',
+                checked=True
+                )
 
         row += 1
         texts = []
@@ -1301,30 +1398,63 @@ class StripPlot(Widget, _commonSettings, SignalBlocking):
             self.spectrumDisplayOptionsFrame = Frame(self, setLayout=True, showBorder=False, fShape='noFrame',
                                                      grid=(row, 0), gridSpan=(row + 2, 0),
                                                      vAlign='top', hAlign='left')
-            # Spectrum Display Options Frame
-            # important part
-            # add a new pullDown to select the active spectrumDisplay
-            # self.spectrumDisplayPulldown = SpectrumDisplayPulldown(parent=self.spectrumDisplayOptionsFrame,
-            #                                                        mainWindow=self.mainWindow, default=None,
-            #                                                        grid=(0, 0), gridSpan=(1, 0),
-            #                                                        minimumWidths=(0, colwidth),
-            #                                                        showSelectName=True,
-            #                                                        sizeAdjustPolicy=QtWidgets.QComboBox.AdjustToContents,
-            #                                                        callback=self._spectrumDisplaySelectionPulldownCallback,
-            #                                                        labelText='Pick Peaks in Display'
-            #                                                        )
+            specDisRow = 0
 
             self.spectrumDisplayPulldown = SpectrumDisplaySelectionWidget(
                     parent=self.spectrumDisplayOptionsFrame,
-                    mainWindow=self.mainWindow, grid=(0, 0),
+                    mainWindow=self.mainWindow, grid=(specDisRow, 0),
                     gridSpan=(1, 0), texts=texts, displayText=[ALL],
                     objectWidgetChangedCallback=self._spectrumDisplaySelectionPulldownCallback,
-                    labelText='Pick Peaks in\n'
-                              'Display')
+                    labelText='Pick Peaks\n'
+                              'in Display')
+
+            specDisRow += 1
+
+            HLine(self.spectrumDisplayOptionsFrame, grid=(specDisRow, 0), gridSpan=(specDisRow, 4),
+                  colour = getColours()[DIVIDER], height = 15)
+
+            specDisRow += 1
+
+            self.automaticBbNmrAtomAssignment = CheckBoxCompoundWidget(self.spectrumDisplayOptionsFrame,
+                                                                       grid=(specDisRow, 0), vAlign='top', stretch=(0, 0),
+                                                                       hAlign='left',
+                                                                       fixedWidths=(colwidth, None),
+                                                                       orientation='left',
+                                                                       labelText='Automatic C/CA/CB \nNmrAtom assignment',
+                                                                       checked=False,
+                                                                       callback=self._autoBbNmrAtomCallback)
+
+            specDisRow += 1
+
+            self.HNCACBSettingsLabel = Label(parent=self.spectrumDisplayOptionsFrame, text='HNCACB Settings:', grid=(specDisRow, 0))
+
+            specDisRow += 1
+
+            self.glyHasCaSign = CheckBoxCompoundWidget(self.spectrumDisplayOptionsFrame,
+                                                       grid=(specDisRow, 0), vAlign='top', stretch=(specDisRow, 0),
+                                                       hAlign='left',
+                                                       fixedWidths=(colwidth, None),
+                                                       orientation='left',
+                                                       labelText='Gly has same sign as CAs',
+                                                       checked=False)
+
+            specDisRow += 1
+
+            self.casPosCbsNeg = RadioButtons(self.spectrumDisplayOptionsFrame, grid=(specDisRow, 0), vAlign='top',
+                                             hAlign='left',
+                                             fixedWidths=(colwidth, None), orientation='left',
+                                             texts=['CAs positive / CBs negative',
+                                                    'CAs negative / CBs positive'])
+
+            specDisRow += 1
+
+            HLine(self.spectrumDisplayOptionsFrame, grid=(specDisRow, 0), gridSpan=(specDisRow, 4),
+                  colour = getColours()[DIVIDER], height = 15)
+
+            self._autoBbNmrAtomCallback()
         else:
             # just to be sure
             self.spectrumDisplayPulldown = None
-            # self.spectrumDisplayPulldown.setTexts(['> All <'] + list(self.spectrumDisplayPulldown.getTexts()))
 
         # add a spacer in the bottom-right corner to stop everything moving
         rows = self.getLayout().rowCount()
@@ -1336,8 +1466,15 @@ class StripPlot(Widget, _commonSettings, SignalBlocking):
         self.maxRows = rows
         self._registerNotifiers()
 
-        # ensure a refresh of the listWidget.
-        self._spectrumDisplaySelectionPulldownCallback()
+    def _autoBbNmrAtomCallback(self):
+        if self.automaticBbNmrAtomAssignment.isChecked():
+            self.glyHasCaSign.setVisible(True)
+            self.casPosCbsNeg.setVisible(True)
+            self.HNCACBSettingsLabel.setVisible(True)
+        elif not self.automaticBbNmrAtomAssignment.isChecked():
+            self.glyHasCaSign.setVisible(False)
+            self.casPosCbsNeg.setVisible(False)
+            self.HNCACBSettingsLabel.setVisible(False)
 
     def storeWidgetState(self):
         """Store the state of the checkBoxes between popups
@@ -1763,7 +1900,7 @@ class ObjectSelectionWidget(ListCompoundWidget):
         super().__init__(parent=parent,
                          vAlign=vAlign, stretch=stretch, hAlign=hAlign, vPolicy=vPolicy,
                          fixedWidths=fixedWidths, orientation=orientation,
-                         labelText=labelText, tipText=tipText, texts=texts,  #defaults=displayText,
+                         labelText=labelText, tipText=tipText, texts=texts,
                          callback=self._selectObjectInList, **kwds)
 
         # default to 5 rows
