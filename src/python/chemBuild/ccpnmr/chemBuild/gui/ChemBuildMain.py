@@ -1218,8 +1218,6 @@ class ChemBuildMain(QtWidgets.QMainWindow):
 
         chemComp = makeChemComp(self.compound, ccpCode, molType)
         chemComp.__dict__['guid'] = guid
-        print('chemComp',chemComp.createdBy)
-
         streamPath = os.path.join(dirPath, fileName)
         try:
 
