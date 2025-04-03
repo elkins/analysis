@@ -4,7 +4,7 @@
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2025"
 __credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
                "Timothy J Ragan, Brian O Smith, Daniel Thompson",
                "Gary S Thompson & Geerten W Vuister")
@@ -16,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-09-09 19:03:26 +0100 (Mon, September 09, 2024) $"
-__version__ = "$Revision: 3.2.6 $"
+__dateModified__ = "$dateModified: 2025-04-03 10:16:24 +0100 (Thu, April 03, 2025) $"
+__version__ = "$Revision: 3.2.12 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -437,26 +437,22 @@ class GuiSpectrumViewNd(GuiSpectrumView):
             # make sure there is always a spectrumView to base visibility on
             # useFirstVisible = firstVisible if firstVisible else self
             zPosition = orderedAxes[dim].position
-            axisCode = orderedAxes[dim].code
-
             # get the plane count from the widgets
             planeCount = self.strip.planeAxisBars[dim - 2].planeCount  #   .planeToolbar.planeCounts[dim - 2].value()
 
             zPointCount = (self.spectrum.pointCounts)[indx]
             zValuePerPoint = (self.spectrum.ppmPerPoints)[indx]
-            # minSpectrumFrequency, maxSpectrumFrequency = (self.spectrum.spectrumLimits)[index]
 
             # pass in a smaller valuePerPoint - if there are differences in the z-resolution, otherwise just use local valuePerPoint
             minZWidth = 3 * zValuePerPoint
             zWidth = (planeCount + 2) * minimumValuePerPoint[dim - 2] \
                      if minimumValuePerPoint else (planeCount + 2) * zValuePerPoint
             zWidth = max(zWidth, minZWidth)
-
             zRegionValue = (zPosition + 0.5 * zWidth, zPosition - 0.5 * zWidth)  # Note + and - (axis backwards)
 
             # ppm position to point range
-            zPointFloat0 = self.spectrum.ppm2point(zRegionValue[0], axisCode=axisCode) - 1
-            zPointFloat1 = self.spectrum.ppm2point(zRegionValue[1], axisCode=axisCode) - 1
+            zPointFloat0 = self.spectrum.ppm2point(zRegionValue[0], dimension=indx + 1) - 1
+            zPointFloat1 = self.spectrum.ppm2point(zRegionValue[1], dimension=indx + 1) - 1
 
             # convert to integers
             zPointInt0, zPointInt1 = (
@@ -479,7 +475,7 @@ class GuiSpectrumViewNd(GuiSpectrumView):
             # need to add 0.5 for the indexing in the api
             planePointValues = ()
 
-            # not sure tha the ppm's are needed here
+            # not sure that the ppm's are needed here
             # planePointValues = planePointValues + ((tuple(self.spectrum.ppm2point(zz + 0.5, axisCode=axisCode)
             #                                               for zz in range(zPointInt0, zPointInt1 + 1)), zPointOffset, zPointCount),)
 
