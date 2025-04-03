@@ -17,8 +17,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2025-03-13 18:50:06 +0000 (Thu, March 13, 2025) $"
-__version__ = "$Revision: 3.3.1 $"
+__dateModified__ = "$dateModified: 2025-04-03 10:16:24 +0100 (Thu, April 03, 2025) $"
+__version__ = "$Revision: 3.2.12 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -392,8 +392,8 @@ class GuiNdWidget(CcpnGLWidget):
         self.visiblePlaneListPointValues = {}
         self.visiblePlaneDimIndices = {}
 
-        minList = [self._spectrumSettings[sp].ppmPerPoint
-                   for sp in self._ordering if sp in self._spectrumSettings]
+        minList = [specView.ppmPerPoints[2:]  # get the z-plane values
+                   for specView in self._ordering if specView in self._spectrumSettings]
         minimumValuePerPoint = None
 
         # check the length of the min values, may have lower dimension spectra overlaid

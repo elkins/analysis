@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2025-03-14 17:56:48 +0000 (Fri, March 14, 2025) $"
+__dateModified__ = "$dateModified: 2025-04-02 12:46:27 +0100 (Wed, April 02, 2025) $"
 __version__ = "$Revision: 3.2.12 $"
 #=========================================================================================
 # Created
@@ -159,19 +159,17 @@ def navigateToPeakInStrip(spectrumDisplay: GuiSpectrumDisplay, strip, peak, widt
     if spectrumDisplay.stripArrangement not in 'YXT':
         return
     spCodes = spectrumDisplay.axisCodes
-    pos = [None] * len(spCodes)
-    newWidths = ['full'] * len(spCodes)
-    mappedNewWidths = [None] * len(spCodes)
+    pos: list[float | None] = [None] * len(spCodes)
+    newWidths: list[str | float | None] = ['full'] * len(spCodes)
+    mappedNewWidths: list[str | float | None] = [None] * len(spCodes)
     index = 'YXT'.index(spectrumDisplay.stripArrangement)
 
     if widths is None and index < 2:
         # set the width in case of nD (n>2)
         _widths = {'H': 0.3, 'C': 1.0, 'N': 1.0}
-        # _ac = strip.axisCodes[0]
         _ac = spCodes[index]  # primary axisCode based in stripArrangement
         _w = _widths.setdefault(_ac[0], 1.0)
-        newWidths[index:index+1] = _w
-        # newWidths = [_w, 'full']
+        newWidths[index] = _w
     else:
         newWidths = widths
 
@@ -193,7 +191,7 @@ def navigateToNmrResidueInStrip(spectrumDisplay: GuiSpectrumDisplay, strip, nmrR
     if spectrumDisplay.stripArrangement not in 'YXT':
         return
     spCodes = spectrumDisplay.axisCodes
-    newWidths = ['full'] * len(spCodes)
+    newWidths: list[str | float | None] = ['full'] * len(spCodes)
     index = 'YXT'.index(spectrumDisplay.stripArrangement)
 
     if widths is None and index < 2:
@@ -201,8 +199,7 @@ def navigateToNmrResidueInStrip(spectrumDisplay: GuiSpectrumDisplay, strip, nmrR
         _widths = {'H': 0.3, 'C': 1.0, 'N': 1.0}
         _ac = spCodes[index]  # primary axisCode based in stripArrangement
         _w = _widths.setdefault(_ac[0], 1.0)
-        newWidths[index:index+1] = _w
-        # newWidths = [_w, 'full']
+        newWidths[index] = _w
     else:
         newWidths = widths
 
@@ -288,7 +285,7 @@ def arrangeLabelPositions(spectrumDisplay: GuiSpectrumDisplay, selected: bool = 
 
     mltLabels = [(_data2Obj.get(
             mLabel.stringObject._wrappedData.findFirstMultipletView(
-                multipletListView=mlv._wrappedData.multipletListView)),
+                    multipletListView=mlv._wrappedData.multipletListView)),
                   mLabel.stringObject,
                   mLabel)
         for mlv, ss in strip._CcpnGLWidget._GLMultiplets._GLLabels.items() if mlv.isDisplayed
