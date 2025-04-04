@@ -20,7 +20,7 @@ from memops.qtgui.InputDialog import askString
 from memops.qtgui.Table import ObjectTable, Column
 from memops.qtgui.Tree import FileSystemTreePanel
 from memops.qtgui.MessageDialog import showYesNo, showError
-
+from memops.qtgui.ChemCompExportFileName import ChemCompExportDialog, NAME, CCPCODE, MOLTYPE
 from ccpnmr.chemBuild.general.Constants import LINK, LINKS, ELEMENTS, CCPN_MOLTYPES
 from ccpnmr.chemBuild.general.Constants import PROPERTIES_ATOM, PROPERTIES_MULTI, PROPERTIES_LINKS
 from ccpnmr.chemBuild.general.Constants import MIMETYPE_ELEMENT, ELEMENT_DATA, ELEMENT_DEFAULT
@@ -492,7 +492,7 @@ class ChemBuildMain(QtWidgets.QMainWindow):
     layout.addWidget(box)
     
     label = QtWidgets.QLabel(frame)
-    label.setText("CCPN Code:")
+    label.setText("Ccp Code:")
     label.setAlignment(alignment)
     layout.addWidget(label)
     
@@ -501,7 +501,7 @@ class ChemBuildMain(QtWidgets.QMainWindow):
     layout.addWidget(box)
     
     label = QtWidgets.QLabel(frame)
-    label.setText("CCPN MolType:")
+    label.setText("Molecule Type:")
     label.setAlignment(alignment)
     layout.addWidget(label)
     
@@ -1182,79 +1182,59 @@ class ChemBuildMain(QtWidgets.QMainWindow):
     from memops.api.Implementation import MemopsRoot
     from memops.format.xml import XmlIO
     from memops.format.xml import Util
-    
+    from memops.general.Io import getCcpFileString
+
     if self.compound:
+      name = str(self.compound.name).strip()
+      ccpCode = str(self.compound.ccpCode).strip()
+      molType = str(self.compound.ccpMolType).strip()
+      disabledMolTypes = []
+      if len(self.compound.atoms)==0:
+        QtWidgets.QMessageBox.warning(self, "Abort", 'Compound has no atoms')
+        return
+
+      polyLinks = set([var.polyLink for var in self.compound.variants])
+      check = set(['start', 'middle', 'end'])
+      if not (check & polyLinks):
+        disabledMolTypes = ('protein', 'DNA', 'RNA')
+
       self._setDefaultCcpCode()
 
-    
-      ccpCode = str(self.compound.ccpCode).strip()
-      if not ccpCode:
-        msg = 'Cannot export CCPN ChemComp XML file.\n'
-        msg += 'CCPN Code may not be blank'
-        QtWidgets.QMessageBox.warning(self, "Abort", msg)
+      data = {NAME: name, CCPCODE:ccpCode, MOLTYPE:molType}
+      dialog = ChemCompExportDialog(data=data, disabledMolTypes=disabledMolTypes)
+      if dialog.exec_():
+        fileName = dialog.getFileName()
+        guid = dialog.getName()
+      else:
         return
-        
-      molType = str(self.compound.ccpMolType).strip()
-      
-      if molType in ('protein','DNA','RNA'):
-        polyLinks = set([var.polyLink for var in self.compound.variants])
-        check = set(['start','middle','end'])
-        if not (check & polyLinks):
-          msg = 'Cannot export CCPN ChemComp XML file with "%s" molecule type.\n' % molType
-          msg += 'Compound does not have any variant forms with'
-          msg += ' links to previous or next residues'
-          QtWidgets.QMessageBox.warning(self, "Abort", msg)
-          return
-        
-      
-      rootProject = MemopsRoot(name='TempProj')
-      existing = rootProject.findFirstChemComp(ccpCode=ccpCode, molType=molType)
-      while existing:
-        msg = 'Cannot export CCPN ChemComp XML file.\n'
-        msg += 'Code "%s" already in use for molecule type "%s".\n' % (ccpCode, molType)
-        msg += 'Please enter a different code:'
-        ccpCode, isOk =  QtWidgets.QInputDialog.getText(self, 'Error', msg)
-        
-        if isOk:
-          ccpCode = ccpCode.strip()
-          existing = rootProject.findFirstChemComp(ccpCode=ccpCode, molType=molType)
-        
-        else:
-          return
-        
-      chemComp = makeChemComp(self.compound, ccpCode, molType)
-        
-      if chemComp:
-        fType = 'XML (*.xml)'
 
-        dirDialog = DirectoryDialog(self, caption='Select save directory',
-                                    directory=self.userDir, doSave=True,
-                                    showDetails=False, showFiles=False)
-        dirPath = dirDialog.getDirectory()
-        
-        if dirPath:
-          self.userDir = dirPath
-          # TBD: Check for overwite
-          # Check for standard checm comp repos
-          fileName = Util.getTopObjectFile(chemComp)
-          streamPath = os.path.join(dirPath, fileName)
+      dirDialog = DirectoryDialog(self, caption='Select output directory ',
+                                  directory=self.userDir, doSave=False,
+                                  showDetails=False, showFiles=True)
+      dirPath = dirDialog.getDirectory()
+
+      if dirPath and path.exists(dirPath) and path.isdir(dirPath):
+        self.userDir = dirPath
+
+        chemComp = makeChemComp(self.compound, ccpCode, molType)
+        chemComp.__dict__['guid'] = guid
+        streamPath = os.path.join(dirPath, fileName)
+        try:
+
+          stream = open(streamPath, 'w')
           try:
-            if not os.path.exists(dirPath):
-              os.makedirs(dirPath)
-            stream = open(streamPath, 'w')
-            try:
-              XmlIO.saveToStream(stream, chemComp)
-            finally:
-              stream.close()
-          except Exception as e:
-            print('Error in creating ChemComp file. %s' %e)
-            QtWidgets.QMessageBox.warning(self, "Error", 'File not exported')
+            XmlIO.saveToStream(stream, chemComp)
+          finally:
+            stream.close()
+        except Exception as e:
+          print('Error in creating ChemComp file. %s' %e)
+          QtWidgets.QMessageBox.warning(self, "Error", 'File not exported')
 
 
-          #XmlIO.save(dirPath, chemComp)
-          msg = 'CCPN ChemComp XML file saved as "%s"' % fileName
-          QtWidgets.QMessageBox.information(self, "Done", msg)
-          
+        #XmlIO.save(dirPath, chemComp)
+        msg = 'CCPN ChemComp XML file saved as "%s"' % fileName
+        QtWidgets.QMessageBox.information(self, "Done", msg)
+
   def _checkCcpnInstallation(self):
     
     try:
