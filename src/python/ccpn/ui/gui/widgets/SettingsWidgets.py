@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Daniel Thompson $"
-__dateModified__ = "$dateModified: 2025-04-03 16:12:05 +0100 (Thu, April 03, 2025) $"
+__dateModified__ = "$dateModified: 2025-04-07 10:59:23 +0100 (Mon, April 07, 2025) $"
 __version__ = "$Revision: 3.3.1 $"
 #=========================================================================================
 # Created
@@ -1072,9 +1072,6 @@ class _commonSettings():
 
         from ccpn.ui.gui.widgets.MoreLessFrame import MoreLessFrame
 
-        HLine(self.spectrumDisplayOptionsFrame, grid=(7, 0), gridSpan=(1, 4),
-              colour=getColours()[DIVIDER], height=15)
-
         if self._spectraWidget:
             self._spectraWidget.hide()
             self._spectraWidget.setParent(None)
@@ -1164,28 +1161,19 @@ class _commonSettings():
 
         from ccpn.ui.gui.widgets.MoreLessFrame import MoreLessFrame
 
-        HLine(self.spectrumDisplayOptionsFrame, grid=(7, 0), gridSpan=(1, 4),
-              colour=getColours()[DIVIDER], height=15)
-
         if self._spectraWidget:
             self._spectraWidget.hide()
             self._spectraWidget.setParent(None)
             self._removeWidget(self._spectraWidget, removeTopWidget=True)
 
         self._spectraWidget = Widget(parent=self.spectrumDisplayOptionsFrame, setLayout=True,
-                                     grid=(8, 0), gridSpan=(1, 2), vAlign='top')
+                                     grid=(9, 0), gridSpan=(1, 2), vAlign='top')
 
         if not peakLists:
             return
 
         self.spectrumIndex = []
         for num, peakList in enumerate(peakLists):
-
-            # maxLen, axisLabels, specInd, validSpectrumViews = self._getSpectraFromDisplays([display])
-
-            # need     : axisLabels, maxLen(length of axisCodes)
-            # dont need: specInd, validSpectrumViews
-
             spectrum = peakList.spectrum
             axisLabels = spectrum.axisCodes
             maxLen = len(axisLabels)
@@ -1247,16 +1235,20 @@ class _commonSettings():
                                  visible=True)
                 spectraWidgets[spectrum.pid] = f
 
-    def _nmrChainPeakListRadioButtonCallback(self, data=None):
-        index = self.nmrChainPeakListRadioButton.getIndex()
+    def _displayPeakListRadioButtonCallback(self, data=None):
+        index = self.displayPeakListRadioButton.getIndex()
 
-        if index == 0: # NmrChain
+        if index == 0: # Display
             self.spectrumDisplayPulldown.setEnabled(True)
             self.spectrumDisplayPulldown.setVisible(True)
             self.peakListPulldown.setEnabled(False)
             self.peakListPulldown.setVisible(False)
+            self.setCurrentPeaksCheckBox.setEnabled(False)
+            self.setCurrentPeaksCheckBox.setVisible(False)
             self._spectrumDisplaySelectionPulldownCallback()
         elif index == 1: # PeakList
+            self.setCurrentPeaksCheckBox.setEnabled(True)
+            self.setCurrentPeaksCheckBox.setVisible(True)
             self.peakListPulldown.setEnabled(True)
             self.peakListPulldown.setVisible(True)
             self.spectrumDisplayPulldown.setEnabled(False)
@@ -1586,10 +1578,10 @@ class StripPlot(Widget, _commonSettings, SignalBlocking):
 
             specDisRow += 1
 
-            self.nmrChainPeakListRadioButton = RadioButtons(
+            self.displayPeakListRadioButton = RadioButtons(
                     parent=self.spectrumDisplayOptionsFrame,
                     mainWindow=self.mainWindow, grid=(specDisRow, 0),
-                    texts=('NmrChain', 'PeakList'), callback=self._nmrChainPeakListRadioButtonCallback)
+                    texts=('Display', 'PeakList'), callback=self._displayPeakListRadioButtonCallback)
 
             specDisRow += 1
 
@@ -1609,7 +1601,18 @@ class StripPlot(Widget, _commonSettings, SignalBlocking):
                     labelText='  \n\n'
                     )
 
-            self._nmrChainPeakListRadioButtonCallback()
+            specDisRow += 1
+
+            self.setCurrentPeaksCheckBox = CheckBox(parent=self.spectrumDisplayOptionsFrame,
+                                                    checked=False, text='Use All Peaks in reference list',
+                                                    grid=(specDisRow, 0))
+
+            specDisRow += 1
+
+            HLine(self.spectrumDisplayOptionsFrame, grid=(specDisRow, 0), gridSpan=(1, 4),
+                  colour=getColours()[DIVIDER], height=15)
+
+            self._displayPeakListRadioButtonCallback()
 
         else:
             # just to be sure
