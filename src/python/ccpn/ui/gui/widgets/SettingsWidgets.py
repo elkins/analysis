@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Daniel Thompson $"
-__dateModified__ = "$dateModified: 2025-04-07 10:59:23 +0100 (Mon, April 07, 2025) $"
+__dateModified__ = "$dateModified: 2025-04-08 11:56:01 +0100 (Tue, April 08, 2025) $"
 __version__ = "$Revision: 3.3.1 $"
 #=========================================================================================
 # Created
@@ -1573,6 +1573,11 @@ class StripPlot(Widget, _commonSettings, SignalBlocking):
 
             specDisRow += 1
 
+            HLine(self.spectrumDisplayOptionsFrame, grid=(specDisRow, 0), gridSpan=(1, 4),
+                  colour=getColours()[DIVIDER], height=15)
+
+            specDisRow += 1
+
             Label(parent=self.spectrumDisplayOptionsFrame, mainWindow=self.mainWindow,
                   grid=(specDisRow, 0), text='Pick Peaks in')
 
@@ -1580,7 +1585,7 @@ class StripPlot(Widget, _commonSettings, SignalBlocking):
 
             self.displayPeakListRadioButton = RadioButtons(
                     parent=self.spectrumDisplayOptionsFrame,
-                    mainWindow=self.mainWindow, grid=(specDisRow, 0),
+                    mainWindow=self.mainWindow, grid=(specDisRow, 0), hAlign='c',
                     texts=('Display', 'PeakList'), callback=self._displayPeakListRadioButtonCallback)
 
             specDisRow += 1
@@ -1603,9 +1608,15 @@ class StripPlot(Widget, _commonSettings, SignalBlocking):
 
             specDisRow += 1
 
-            self.setCurrentPeaksCheckBox = CheckBox(parent=self.spectrumDisplayOptionsFrame,
-                                                    checked=False, text='Use All Peaks in reference list',
-                                                    grid=(specDisRow, 0))
+            self.setCurrentPeaksCheckBox = CheckBoxCompoundWidget(
+                    parent=self.spectrumDisplayOptionsFrame,
+                    grid=(specDisRow, 0), vAlign='top', stretch=(specDisRow, 0),
+                    hAlign='left',
+                    fixedWidths=(colwidth, None),
+                    orientation='left',
+                    labelText='Select All Peaks in List',
+                    checked=False
+                    )
 
             specDisRow += 1
 
