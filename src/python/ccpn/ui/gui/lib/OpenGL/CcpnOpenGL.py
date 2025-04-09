@@ -57,7 +57,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2025-03-13 18:50:05 +0000 (Thu, March 13, 2025) $"
+__dateModified__ = "$dateModified: 2025-04-09 18:06:02 +0100 (Wed, April 09, 2025) $"
 __version__ = "$Revision: 3.3.1 $"
 #=========================================================================================
 # Created
@@ -544,6 +544,7 @@ class CcpnGLWidget(QOpenGLWidget):
         """Update the glWidget with the correct refresh mode
         """
         self._paintMode = mode
+        if _DEBUG: getLogger().debug(f'{consoleStyle.fg.white}--> update  {self}{consoleStyle.reset}')
         super().update()
 
     def rescale(self, rescaleOverlayText=True, rescaleMarksRulers=True,
