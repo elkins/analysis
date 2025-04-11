@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2025-03-20 17:23:40 +0000 (Thu, March 20, 2025) $"
+__dateModified__ = "$dateModified: 2025-04-11 14:46:40 +0100 (Fri, April 11, 2025) $"
 __version__ = "$Revision: 3.3.1 $"
 #=========================================================================================
 # Created
@@ -27,6 +27,7 @@ __date__ = "$Date: 2017-07-04 15:21:16 +0000 (Tue, July 04, 2017) $"
 # Start of code
 #=========================================================================================
 
+import traceback
 from PyQt5 import QtWidgets, QtCore, QtGui
 from contextlib import contextmanager, suppress
 from dataclasses import dataclass
@@ -110,9 +111,12 @@ class _DialogHook(_MetaQDialog, _MetaBase):
                 if _DEBUG: getLogger().debug2(f'--> _postInit {instance}')
                 # a flag to mark that the class has finished initialising, only if _postInit succeeded
                 setattr(instance, _INITFINALISED, True)
-            except RuntimeError:
+            except RuntimeError as es:
                 # super().__init__ or similar was never called;
                 # instance has not been instantiated correctly and should not be returned :(
+                if _DEBUG:
+                    getLogger().warning(f'--> _postInit {es}', stacklevel=2)
+                    traceback.print_exc()
                 return
         # Log post-creation debug information, if enabled
         if _DEBUG: getLogger().debug2(f'--> post-create dialog {instance}')
