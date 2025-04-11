@@ -3,7 +3,7 @@
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2025"
 __credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
                "Timothy J Ragan, Brian O Smith, Daniel Thompson",
                "Gary S Thompson & Geerten W Vuister")
@@ -15,8 +15,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-05-30 13:46:45 +0100 (Thu, May 30, 2024) $"
-__version__ = "$Revision: 3.2.3 $"
+__dateModified__ = "$dateModified: 2025-04-11 12:23:32 +0100 (Fri, April 11, 2025) $"
+__version__ = "$Revision: 3.3.1 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -318,7 +318,8 @@ def _newSampleComponent(self: Sample, name: str = None, labelling: str = None, r
         name = SampleComponent._uniqueName(self.project, name=name)
     if concentrationUnit is not None and concentrationUnit not in Constants.concentrationUnits:
         self._project._logger.warning(f"Unsupported value {concentrationUnit} for SampleComponent.concentrationUnit")
-        raise ValueError(f"SampleComponent.concentrationUnit must be in the list: {Constants.concentrationUnits}")
+        raise ValueError(f"SampleComponent.concentrationUnit must be in the list: {Constants.concentrationUnits} "
+                         f"- {concentrationUnit}")
 
     apiSample = self._wrappedData
     apiExistingSubstances = apiRefComponentStore.findAllComponents(name=name, labeling=labelling)
