@@ -20,7 +20,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Daniel Thompson $"
-__dateModified__ = "$dateModified: 2025-04-14 14:23:00 +0100 (Mon, April 14, 2025) $"
+__dateModified__ = "$dateModified: 2025-04-14 15:32:09 +0100 (Mon, April 14, 2025) $"
 __version__ = "$Revision: 3.3.1 $"
 #=========================================================================================
 # Created
@@ -283,7 +283,7 @@ def _phasingConsoleItem(strip):
 
 
 def _reloadSpectrum(strip):
-    return _SCMitem(name='Reload Spectrum',
+    return _SCMitem(name='Reload Spectra',
                     typeItem=ItemTypes.get(ITEM), icon='icons/undo', toolTip='Reload visible Spectra',
                     shortcut='SR', callback=strip.spectrumDisplay._reloadSpectra)
 
