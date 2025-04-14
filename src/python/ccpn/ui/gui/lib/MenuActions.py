@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Daniel Thompson $"
-__dateModified__ = "$dateModified: 2025-02-04 15:33:47 +0000 (Tue, February 04, 2025) $"
+__dateModified__ = "$dateModified: 2025-04-14 15:32:09 +0100 (Mon, April 14, 2025) $"
 __version__ = "$Revision: 3.3.1 $"
 #=========================================================================================
 # Created
@@ -485,6 +485,8 @@ class OpenItemABC:
             contextMenu.addAction(self.contextMenuText, self.openAction)
 
         spectra = [obj for obj in objs if isinstance(obj, Spectrum)]
+        specStr = 'Spectrum' if len(spectra) == 1 else 'Spectra'
+
         if spectra:
             contextMenu.addAction('Make SpectrumGroup From Selected',
                                   partial(_raiseSpectrumGroupEditorPopup(useNone=True, editMode=False,
@@ -494,6 +496,7 @@ class OpenItemABC:
             contextMenu.addAction('Split Planes to SpectrumGroup', partial(self._splitPlanesToSpectrumGroup, objs))
         contextMenu.addAction('Copy Pid to Clipboard', partial(self._copyPidsToClipboard, objs))
         self._addCollectionMenu(contextMenu, objs)
+        contextMenu.addAction(f'Reload {specStr}', partial(self._reloadSpectra, spectra))
         contextMenu.addAction('Delete', partial(self._deleteItemObject, thisObj, objs))
         canBeCloned = all(hasattr(obj, 'clone') for obj in objs)
         if canBeCloned:
@@ -644,6 +647,12 @@ class OpenItemABC:
                             'This functionality has been implemented for Time Domain spectra only.')
                 return
             splitPseudo3DSpectrumIntoPlanes(obj)
+
+    @staticmethod
+    def _reloadSpectra(objs):
+        for obj in set(objs):
+            if isinstance(obj, Spectrum):
+                obj.reload()
 
     @staticmethod
     def _createNewCollection(pulldown, popup, items=None):
@@ -1345,6 +1354,8 @@ class _openItemSpectrumInGroupDisplay(_openItemSpectrumDisplay):
             self._addCollectionMenu(contextMenu, objs)
             contextMenu.addSeparator()
 
+            specStr = 'Spectrum' if len(spectra) == 1 else 'Spectra'
+            contextMenu.addAction(f'Reload {specStr}', partial(self._reloadSpectra, spectra))
         contextMenu.addAction('Delete', partial(self._deleteItemObject, thisObj, objs))
         canBeCloned = all(hasattr(obj, 'clone') for obj in objs)
         if canBeCloned:

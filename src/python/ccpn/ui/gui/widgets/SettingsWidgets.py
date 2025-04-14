@@ -19,7 +19,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Daniel Thompson $"
-__dateModified__ = "$dateModified: 2025-03-10 15:02:19 +0000 (Mon, March 10, 2025) $"
+__dateModified__ = "$dateModified: 2025-04-08 11:56:01 +0100 (Tue, April 08, 2025) $"
 __version__ = "$Revision: 3.3.1 $"
 #=========================================================================================
 # Created
@@ -153,6 +153,19 @@ class PickAndAssignSettings(Widget):
                                                       settingsDict=settingsDict,
                                                       grid=(0, 0))
         self.peakTableSettings.setVisible(False)
+
+    @property
+    def peakListPulldownTexts(self):
+        if not (peakListPulldown := self.nmrResidueTableSettings.peakListPulldown):
+            return
+
+        texts = peakListPulldown.getTexts()
+        if ALL in texts:
+            pids = self.project.peakLists
+        else:
+            pids = [self.application.getByPid(pid) for pid in texts if pid not in [ALL, SelectToAdd]]
+
+        return pids
 
     def _initSettings(self):
         """Initialise the settings correctly for the Pick and Assign module.
@@ -1149,6 +1162,119 @@ class _commonSettings():
                                      visible=validSpectrumViews[spectrum])
                     spectraWidgets[spectrum.pid] = f
 
+    def _fillAllPeakFrame(self, peakLists, data=None):
+        """Populate all PeakFrames into a moreLessFrame
+        :param data: required for notifiers
+        """
+
+        def _codeDictUpdate(displayKey: str = None, checkBox: CheckBox = None):
+            """update axisCode dict when check boxes are changed.
+            """
+            if (display is None) or (box is None):
+                return
+
+            if not self.axisCodeOptionsDict.get(displayKey):
+                self.axisCodeOptionsDict[displayKey] = {}
+            self.axisCodeOptionsDict[displayKey] = checkBox.parent().getSelectedIndexes()
+
+        from ccpn.ui.gui.widgets.MoreLessFrame import MoreLessFrame
+
+        if self._spectraWidget:
+            self._spectraWidget.hide()
+            self._spectraWidget.setParent(None)
+            self._removeWidget(self._spectraWidget, removeTopWidget=True)
+
+        self._spectraWidget = Widget(parent=self.spectrumDisplayOptionsFrame, setLayout=True,
+                                     grid=(9, 0), gridSpan=(1, 2), vAlign='top')
+
+        if not peakLists:
+            return
+
+        self.spectrumIndex = []
+        for num, peakList in enumerate(peakLists):
+            spectrum = peakList.spectrum
+            axisLabels = spectrum.axisCodes
+            maxLen = len(axisLabels)
+
+            if not maxLen:
+                continue
+
+            # self.spectrumIndex.append(specInd)
+
+            curFrame = MoreLessFrame(self._spectraWidget, name=peakList.pid, showMore=True, grid=(num, 0),
+                                     gridSpan=(1, 4))
+
+            _frame = curFrame.contentsFrame
+            f_row = 0
+            Label(_frame, text='Restricted Axes', grid=(f_row, 0))
+
+            axisCodeOptions = CheckBoxes(_frame, selectedInd=None, texts=[],
+                                         callback=self._changeAxisCode, grid=(f_row, 1))
+            axisCodeOptions.setCheckBoxes(texts=axisLabels, tipTexts=axisLabels)
+
+            for box in axisCodeOptions.checkBoxes:
+                box.stateChanged.connect(partial(_codeDictUpdate, f'{peakList}', box))
+
+            if (displayDict := self.axisCodeOptionsDict.get(f'{display}')) is not None:
+                # if checkboxes previously existed set to same state
+                axisCodeOptions.selectAll()
+                for ii, box in enumerate(axisCodeOptions.checkBoxes):
+                    if ii not in displayDict:
+                        box.setChecked(False)
+            else:
+                # just clear the 'C' axes - this is the usual configuration
+                axisCodeOptions.selectAll()
+                for ii, box in enumerate(axisCodeOptions.checkBoxes):
+                    if box.text().upper().startswith('C'):
+                        axisCodeOptions.clearIndex(ii)
+
+            f_row += 1
+            LabeledHLine(_frame, text='Tolerances', grid=(f_row, 1), gridSpan=(1, maxLen),
+                         colour=getColours()[SOFTDIVIDER], height=15)
+            f_row += 1
+            if self.application:
+                spectraWidgets = {}  # spectrum.pid, frame dict to show/hide
+
+                # ignore if view is deleted
+                if data is not None and data.get(Notifier.TRIGGER) == 'delete':
+                    notifObj = data.get(Notifier.OBJECT)
+                    # check if it is a SpectrumView and both correct spectrum display and spectrum.
+                    if isinstance(notifObj,
+                                  SpectrumView) and notifObj.strip.spectrumDisplay is display and notifObj.spectrum is spectrum:
+                        continue
+
+                f_row += 1
+                f = _PeakListRow(parent=_frame,
+                                 application=self.application,
+                                 peakList=peakList,
+                                 spectrum=spectrum,
+                                 row=f_row, startCol=0,
+                                 setLayout=True,
+                                 visible=True)
+                spectraWidgets[spectrum.pid] = f
+
+    def _displayPeakListRadioButtonCallback(self, data=None):
+        index = self.displayPeakListRadioButton.getIndex()
+
+        if index == 0: # Display
+            self.spectrumDisplayPulldown.setEnabled(True)
+            self.spectrumDisplayPulldown.setVisible(True)
+            self.peakListPulldown.setEnabled(False)
+            self.peakListPulldown.setVisible(False)
+            self.setCurrentPeaksCheckBox.setEnabled(False)
+            self.setCurrentPeaksCheckBox.setVisible(False)
+            self._spectrumDisplaySelectionPulldownCallback()
+        elif index == 1: # PeakList
+            self.setCurrentPeaksCheckBox.setEnabled(True)
+            self.setCurrentPeaksCheckBox.setVisible(True)
+            self.peakListPulldown.setEnabled(True)
+            self.peakListPulldown.setVisible(True)
+            self.spectrumDisplayPulldown.setEnabled(False)
+            self.spectrumDisplayPulldown.setVisible(False)
+            self._peakListSelectionPulldownCallback()
+        else: # Shouldn't get here.
+            getLogger().warning(f'Case given with no matches: {index}')
+
     def _spectrumDisplaySelectionPulldownCallback(self, data=None):
         """Notifier Callback for selecting a spectrumDisplay
         """
@@ -1174,6 +1300,33 @@ class _commonSettings():
             self.prevNotifierObj = obj
 
         self._fillAllSpectrumFrame(gids, data)
+
+
+    def _peakListSelectionPulldownCallback(self, data=None):
+        """Notifier Callback for selecting a spectrumDisplay
+        """
+        if not self.peakListPulldown:
+            return
+
+        texts = self.peakListPulldown.getTexts()
+        if ALL in texts:
+            pids = self.project.peakLists
+        else:
+            pids = [self.application.getByPid(pid) for pid in texts if pid not in [ALL, SelectToAdd]]
+
+        # check if display is deleted, removes from list if it has been. Data passed by notifier
+        if data is not None and data.get(Notifier.TRIGGER) == 'delete':
+            obj = data.get(Notifier.OBJECT)
+
+            if isinstance(obj, PeakList):
+                # object is a PeakList, check if last object deleted is this views display
+                if obj.strip.spectrumDisplay is self.prevNotifierObj:
+                    return
+
+            pids = [pid for pid in pids if pid and pid != obj]
+            self.prevNotifierObj = obj
+
+        self._fillAllPeakFrame(pids, data)
 
 
 LINKTOPULLDOWNCLASS = 'linkToPulldownClass'
@@ -1215,6 +1368,8 @@ class StripPlot(Widget, _commonSettings, SignalBlocking):
                  labelText='Display(s) ',
                  **kwds):
         super().__init__(parent, setLayout=True, **kwds)
+
+        self.parent = parent
 
         # Derive application, project, and current from mainWindow
         self.mainWindow = mainWindow
@@ -1400,21 +1555,6 @@ class StripPlot(Widget, _commonSettings, SignalBlocking):
                                                      vAlign='top', hAlign='left')
             specDisRow = 0
 
-            self.spectrumDisplayPulldown = SpectrumDisplaySelectionWidget(
-                    parent=self.spectrumDisplayOptionsFrame,
-                    mainWindow=self.mainWindow, grid=(specDisRow, 0),
-                    gridSpan=(1, 0), texts=texts, displayText=[ALL],
-                    objectWidgetChangedCallback=self._spectrumDisplaySelectionPulldownCallback,
-                    labelText='Pick Peaks\n'
-                              'in Display')
-
-            specDisRow += 1
-
-            HLine(self.spectrumDisplayOptionsFrame, grid=(specDisRow, 0), gridSpan=(specDisRow, 4),
-                  colour = getColours()[DIVIDER], height = 15)
-
-            specDisRow += 1
-
             self.automaticBbNmrAtomAssignment = CheckBoxCompoundWidget(self.spectrumDisplayOptionsFrame,
                                                                        grid=(specDisRow, 0), vAlign='top', stretch=(0, 0),
                                                                        hAlign='left',
@@ -1446,12 +1586,68 @@ class StripPlot(Widget, _commonSettings, SignalBlocking):
                                              texts=['CAs positive / CBs negative',
                                                     'CAs negative / CBs positive'])
 
-            specDisRow += 1
+            # specDisRow += 1
 
-            HLine(self.spectrumDisplayOptionsFrame, grid=(specDisRow, 0), gridSpan=(specDisRow, 4),
-                  colour = getColours()[DIVIDER], height = 15)
+
+            # HLine(self.spectrumDisplayOptionsFrame, grid=(specDisRow, 0), gridSpan=(specDisRow, 4),
+            #       colour = getColours()[DIVIDER], height = 15)
 
             self._autoBbNmrAtomCallback()
+
+            specDisRow += 1
+
+            HLine(self.spectrumDisplayOptionsFrame, grid=(specDisRow, 0), gridSpan=(1, 4),
+                  colour=getColours()[DIVIDER], height=15)
+
+            specDisRow += 1
+
+            Label(parent=self.spectrumDisplayOptionsFrame, mainWindow=self.mainWindow,
+                  grid=(specDisRow, 0), text='Pick Peaks in')
+
+            specDisRow += 1
+
+            self.displayPeakListRadioButton = RadioButtons(
+                    parent=self.spectrumDisplayOptionsFrame,
+                    mainWindow=self.mainWindow, grid=(specDisRow, 0), hAlign='c',
+                    texts=('Display', 'PeakList'), callback=self._displayPeakListRadioButtonCallback)
+
+            specDisRow += 1
+
+            self.spectrumDisplayPulldown = SpectrumDisplaySelectionWidget(
+                    parent=self.spectrumDisplayOptionsFrame,
+                    mainWindow=self.mainWindow, grid=(specDisRow, 0),
+                    gridSpan=(1, 0), texts=texts, displayText=[ALL],
+                    objectWidgetChangedCallback=self._spectrumDisplaySelectionPulldownCallback,
+                    labelText='  \n\n'
+                    )
+
+            self.peakListPulldown = PeakListSelectionWidget(
+                    parent=self.spectrumDisplayOptionsFrame,
+                    mainWindow=self.mainWindow, grid=(specDisRow, 0),
+                    gridSpan=(1, 0), texts=texts, displayText=[ALL],
+                    objectWidgetChangedCallback=self._peakListSelectionPulldownCallback,
+                    labelText='  \n\n'
+                    )
+
+            specDisRow += 1
+
+            self.setCurrentPeaksCheckBox = CheckBoxCompoundWidget(
+                    parent=self.spectrumDisplayOptionsFrame,
+                    grid=(specDisRow, 0), vAlign='top', stretch=(specDisRow, 0),
+                    hAlign='left',
+                    fixedWidths=(colwidth, None),
+                    orientation='left',
+                    labelText='Select All Peaks in List',
+                    checked=False
+                    )
+
+            specDisRow += 1
+
+            HLine(self.spectrumDisplayOptionsFrame, grid=(specDisRow, 0), gridSpan=(1, 4),
+                  colour=getColours()[DIVIDER], height=15)
+
+            self._displayPeakListRadioButtonCallback()
+
         else:
             # just to be sure
             self.spectrumDisplayPulldown = None
@@ -1615,6 +1811,48 @@ class StripPlot(Widget, _commonSettings, SignalBlocking):
             # select the nmrChain here
             self.listButtons.setIndex(self.NMRCHAINBUTTON)
 
+class _PeakListRow(Frame):
+    """Class to make a peakList Row"""
+
+    def __init__(self, parent, application, peakList, spectrum, row=0, startCol=0, visible=True, **kwds):
+        super().__init__(parent, **kwds)
+
+        self.checkbox = Label(parent, spectrum.pid, grid=(row, startCol), gridSpan=(1, 1), hAlign='right')
+        self.checkbox.setEnabled(visible)
+
+        self.checkbox = Label(parent, spectrum.pid, grid=(row, startCol), gridSpan=(1, 1), hAlign='right')
+        self.checkbox.setEnabled(visible)
+
+        self.spinBoxes = []
+
+        _height = getFontHeight()
+
+        for ii, axisCode in enumerate(spectrum.axisCodes):
+            decimals, step = (2, 0.01) if axisCode[0:1] == 'H' else (1, 0.1)
+            # col += 1
+            if axisCode is None:
+                continue
+
+            ds = DoubleSpinBoxCompoundWidget(
+                    parent, grid=(row, startCol + ii + 1), gridSpan=(1, 1), hAlign='left',
+                    fixedWidths=(None, _height * 4),
+                    labelText=axisCode,
+                    value=spectrum.assignmentTolerances[ii],
+                    decimals=decimals, step=step, minimum=step
+                    )
+            ds.setObjectName(str(spectrum.pid + axisCode))
+            ds.setToolTip('Full width half height (ppm)')
+            self.spinBoxes.append(ds)
+
+            ds.setEnabled(visible)
+            ds.setCallback(partial(self._setAssignmentTolerances, ds, spectrum, ii))
+
+    def _setAssignmentTolerances(self, spinBox, spectrum, ii):
+        """Set the tolerance in the attached spectrum from the spinBox value
+        """
+        assignment = list(spectrum.assignmentTolerances)
+        assignment[ii] = float(spinBox.getValue())
+        spectrum.assignmentTolerances = tuple(assignment)
 
 class _SpectrumRow(Frame):
     """Class to make a spectrum row
@@ -1623,6 +1861,8 @@ class _SpectrumRow(Frame):
     def __init__(self, parent, application, spectrum, spectrumDisplay, row=0, startCol=0, visible=True, **kwds):
         super().__init__(parent, **kwds)
 
+        self.checkbox = Label(parent, spectrum.pid, grid=(row, startCol), gridSpan=(1, 1), hAlign='right')
+        self.checkbox.setEnabled(visible)
         # col = 0
         # self.checkbox = CheckBoxCompoundWidget(self, grid=(0, col), gridSpan=(1, 1), hAlign='left',
         #                                        checked=True, labelText=spectrum.pid,

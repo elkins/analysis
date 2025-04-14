@@ -15,8 +15,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2025-03-06 18:17:32 +0000 (Thu, March 06, 2025) $"
+__modifiedBy__ = "$modifiedBy: Daniel Thompson $"
+__dateModified__ = "$dateModified: 2025-04-14 14:23:00 +0100 (Mon, April 14, 2025) $"
 __version__ = "$Revision: 3.3.1 $"
 #=========================================================================================
 # Created
@@ -1079,6 +1079,13 @@ class GuiSpectrumDisplay(CcpnModule):
                         spectra.add(spectrum)
                         break
         return list(spectra)
+
+    def _reloadSpectra(self):
+        """calls spectrum.reload() on all visible spectra in the spectrumDisplay
+        """
+        spectra = self.getVisibleSpectra()
+        for spectrum in spectra:
+            spectrum.reload()
 
     # GWV 07/01/2022: replace by getVisibleSpectra() fro naming consistency
     # @property
