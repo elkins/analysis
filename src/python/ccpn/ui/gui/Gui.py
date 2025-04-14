@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2025-03-21 16:10:08 +0000 (Fri, March 21, 2025) $"
+__dateModified__ = "$dateModified: 2025-04-14 15:59:37 +0100 (Mon, April 14, 2025) $"
 __version__ = "$Revision: 3.3.1 $"
 #=========================================================================================
 # Created
@@ -698,9 +698,12 @@ class Gui(Ui):
 
             ignore = (bool(msg) and not MessageDialog.showYesNoWarning(f'Directory {dataLoader.path!r}\n', msg))
 
-        dataLoader.createNewProject = createNewProject
-        dataLoader.ignore = ignore
-        return (dataLoader, createNewProject, ignore)
+        if dataLoader:
+            dataLoader.createNewProject = createNewProject
+            dataLoader.ignore = ignore
+            return (dataLoader, createNewProject, ignore)
+        if not ignore:
+            raise RuntimeError(f'Cannot get dataLoader for {path}')
 
     #-----------------------------------------------------------------------------------------
     # Project and loading data related methods

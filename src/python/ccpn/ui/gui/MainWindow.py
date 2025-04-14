@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2025-04-11 14:46:40 +0100 (Fri, April 11, 2025) $"
+__dateModified__ = "$dateModified: 2025-04-14 15:59:37 +0100 (Mon, April 14, 2025) $"
 __version__ = "$Revision: 3.3.1 $"
 #=========================================================================================
 # Created
@@ -1648,7 +1648,9 @@ class GuiMainWindow(QtWidgets.QMainWindow, Shortcuts):
             # try finding a data loader, catch any errors for recognised but
             # incomplete/invalid url's (i.e. incomplete spectral data)
             try:
-                dataLoader, createsNewProject, ignore = self.ui._getDataLoader(url)
+                if not (gotLoader := self.ui._getDataLoader(url)):
+                    continue
+                dataLoader, createsNewProject, ignore = gotLoader
                 dataLoaders.append((url, dataLoader, createsNewProject, ignore))
                 # NOTE:ED - hack to get recursive dataLoaders to check valid new-projects first
                 _loaders.append(dataLoader)
