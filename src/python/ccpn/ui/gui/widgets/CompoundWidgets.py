@@ -13,8 +13,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2025-01-03 18:27:59 +0000 (Fri, January 03, 2025) $"
-__version__ = "$Revision: 3.2.11 $"
+__dateModified__ = "$dateModified: 2025-04-14 15:03:47 +0100 (Mon, April 14, 2025) $"
+__version__ = "$Revision: 3.3.1 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -694,7 +694,7 @@ class TextEditorCompoundWidget(CompoundBaseWidget):
         self._addWidget(_labelFrame)
         if compoundKwds is None:
             compoundKwds = {}
-        self.textEditor = TextEditor(parent=self, callback=callback, editable=editable, **compoundKwds)
+        self.textEditor = TextEditor(parent=self, editable=editable, **compoundKwds)
         self._addWidget(self.textEditor)
 
         if default is not None:

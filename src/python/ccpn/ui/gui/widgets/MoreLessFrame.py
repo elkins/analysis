@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2025-04-09 17:59:41 +0100 (Wed, April 09, 2025) $"
+__dateModified__ = "$dateModified: 2025-04-14 15:03:48 +0100 (Mon, April 14, 2025) $"
 __version__ = "$Revision: 3.3.1 $"
 #=========================================================================================
 # Created
@@ -28,11 +28,11 @@ __date__ = "$Date: 2020-05-27 16:32:49 +0000 (Wed, May 27, 2020) $"
 #=========================================================================================
 
 from PyQt5 import QtCore, QtGui, QtWidgets
-from ccpn.ui.gui.widgets.Frame import Frame
+from ccpn.ui.gui.widgets.Frame import Frame, ScrollableFrame
 from ccpn.ui.gui.widgets.Icon import Icon
 from ccpn.ui.gui.widgets.Label import ActiveLabel
 from ccpn.ui.gui.widgets.Font import getFontHeight
-from ccpn.ui.gui.widgets.ScrollArea import ScrollArea
+from ccpn.ui.gui.widgets.Spacer import Spacer
 
 
 class MoreLessFrame(Frame):
@@ -78,16 +78,20 @@ class MoreLessFrame(Frame):
             self._closeButton.sigClicked.connect(self.close)  # noqa: pycharm can't see qt
 
         row += 1
-        self._contentsFrame = Frame(self, setLayout=True, showBorder=False, grid=(row, 0), gridSpan=(1, 4))
         self._openButton.setSelectionCallback(self._toggleContents)
         self._label.setSelectionCallback(self._toggleContents)
 
-        self.scrollArea = None
         if scrollable:
-            self.scrollArea = ScrollArea(self, setLayout=True, grid=(row, 0), gridSpan=(1, 4))
-            self.scrollArea.setWidgetResizable(True)
-            self.scrollAreaWidgetContents = self._contentsFrame
-            self.scrollArea.setWidget(self.scrollAreaWidgetContents)
+            # add a frame with scroll-bars
+            self._contentsFrame = ScrollableFrame(self, setLayout=True, grid=(row, 0), gridSpan=(1, 4))
+            self.scrollArea = self._contentsFrame.scrollArea
+        else:
+            self._contentsFrame = Frame(self, setLayout=True, showBorder=False, grid=(row, 0), gridSpan=(1, 4))
+            self.scrollArea = None
+
+        Spacer(self, 5, 5,
+               QtWidgets.QSizePolicy.MinimumExpanding, QtWidgets.QSizePolicy.MinimumExpanding,
+               grid=(row, 0), gridSpan=(1, 4))
         self.setContentsMargins(*frameMargins)
 
     def _showContents(self, visible):
@@ -98,13 +102,10 @@ class MoreLessFrame(Frame):
             self._openButton.setPixmap(self._minusIcon.pixmap(self.PIXMAPWIDTH, self.PIXMAPWIDTH))
             # arbitrary large height
             self.setMaximumHeight(2000)
-            if self.scrollArea:
-                self.scrollArea.show()
         else:
             self._openButton.setPixmap(self._plusIcon.pixmap(self.PIXMAPWIDTH, self.PIXMAPWIDTH))
+            # collapse the contents
             self.setMaximumHeight(self.sizeHint().height())
-            if self.scrollArea:
-                self.scrollArea.hide()
 
         if self._callback:
             self._callback(self)
