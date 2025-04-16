@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2025-03-06 11:26:40 +0000 (Thu, March 06, 2025) $"
+__dateModified__ = "$dateModified: 2025-04-16 12:49:01 +0100 (Wed, April 16, 2025) $"
 __version__ = "$Revision: 3.3.1 $"
 #=========================================================================================
 # Created
@@ -29,6 +29,7 @@ __date__ = "$Date: 2022-09-08 17:12:49 +0100 (Thu, September 08, 2022) $"
 
 import pandas as pd
 from PyQt5 import QtWidgets, QtCore, QtGui
+from PyQt5.QtCore import pyqtSlot as Slot
 from dataclasses import dataclass
 from contextlib import contextmanager, suppress
 import typing
@@ -497,6 +498,20 @@ class TableABC(QtWidgets.QTableView, metaclass=_TableABCMeta):
 
         _header.setDefaultSectionSize(int(_height))
         _header.setMinimumSectionSize(int(_height))
+        # allow double-clicking on the vertical-header to resize-to-contents
+        _header.sectionDoubleClicked.connect(self._resizeHeaderRowToContents)
+
+    @Slot(int)
+    def _resizeHeaderRowToContents(self, rowIndex: int):
+        if rowIndex < 0:
+            # -1 for illegal index
+            return
+        header = self.verticalHeader()
+        mode = header.sectionResizeMode(rowIndex)
+        header.setSectionResizeMode(rowIndex, QtWidgets.QHeaderView.ResizeToContents)
+        self.resizeRowToContents(rowIndex)
+        # restore mode
+        header.setSectionResizeMode(rowIndex, mode)
 
     def _preChangeSelectionOrderCallback(self, *args):
         """Handle updating the selection when the table is about to change, i.e., before sorting

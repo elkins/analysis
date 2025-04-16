@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2025-04-14 15:03:48 +0100 (Mon, April 14, 2025) $"
+__dateModified__ = "$dateModified: 2025-04-16 12:49:01 +0100 (Wed, April 16, 2025) $"
 __version__ = "$Revision: 3.3.1 $"
 #=========================================================================================
 # Created
@@ -387,7 +387,11 @@ class PlainTextEditor(QtWidgets.QPlainTextEdit, Base):
         a = self.createStandardContextMenu()
         actions = a.actions()
         edit = Action(a, text='Fonts', callback=self._setFont)
-        a.insertAction(actions[3], edit)
+        try:
+            # need to find why this is using '3'
+            a.insertAction(actions[3], edit)
+        except Exception:
+            a.addAction(edit)
         a.exec_(QtGui.QCursor.pos())
 
     def _setFont(self):

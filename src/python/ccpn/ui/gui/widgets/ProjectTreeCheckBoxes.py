@@ -1,7 +1,7 @@
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2025"
 __credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
                "Timothy J Ragan, Brian O Smith, Daniel Thompson",
                "Gary S Thompson & Geerten W Vuister")
@@ -13,14 +13,13 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-11-20 13:19:03 +0000 (Wed, November 20, 2024) $"
-__version__ = "$Revision: 3.2.11 $"
+__dateModified__ = "$dateModified: 2025-04-16 12:49:01 +0100 (Wed, April 16, 2025) $"
+__version__ = "$Revision: 3.3.1 $"
 #=========================================================================================
 # Created
 #=========================================================================================
 __author__ = "$Author: CCPN $"
 __date__ = "$Date: 2017-05-28 10:28:42 +0000 (Sun, May 28, 2017) $"
-
 #=========================================================================================
 # Start of code
 #=========================================================================================
@@ -807,52 +806,59 @@ class ImportTreeCheckBoxes(ProjectTreeCheckBoxes):
     def _contentParent(self, project: Project, saveFrame: StarIo.NmrSaveFrame, saveFrameTag):
         category = saveFrameTag  #saveFrame['sf_category']
 
-        if hasattr(saveFrame, '_content') and category in saveFrame._content:
-            # thisList = saveFrame._content[category]
-            treeItem, _ = self.nefToTreeViewMapping[category]
-            found = self.findItems(treeItem, QtCore.Qt.MatchExactly | QtCore.Qt.MatchRecursive)
-            if found:
-                if len(found) == 1:
-                    return found[0]
+        if (not (content := getattr(saveFrame, '_content', None)) or
+                not isinstance(content, dict) or
+                category not in content):
+            # why?
+            return
+
+        treeItem, _ = self.nefToTreeViewMapping[category]
+        found = self.findItems(treeItem, QtCore.Qt.MatchExactly | QtCore.Qt.MatchRecursive)
+        if found and len(found) == 1:
+            return found[0]
 
     def content_list(self, project: Project, saveFrame: StarIo.NmrSaveFrame, saveFrameTag):
         category = saveFrameTag  #saveFrame['sf_category']
 
-        if hasattr(saveFrame, '_content') and category in saveFrame._content:
-            thisList = saveFrame._content[category]
-            treeItem, _ = self.nefToTreeViewMapping[category]
-            found = self.findItems(treeItem, QtCore.Qt.MatchExactly | QtCore.Qt.MatchRecursive)
-            if found and len(found) == 1:
-                # add to the tree
+        if (not (content := getattr(saveFrame, '_content', None)) or
+                not isinstance(content, dict) or
+                category not in content):
+            return
+
+        treeItem, _ = self.nefToTreeViewMapping[category]
+        found = self.findItems(treeItem, QtCore.Qt.MatchExactly | QtCore.Qt.MatchRecursive)
+        if not found or len(found) != 1:
+            return
+
+        # add to the tree
+        if self._enableCheckBoxes:
+            found[0].setCheckState(0, QtCore.Qt.Unchecked)
+
+        # NOTE:ED - this defines the list of items that are added to each plural group in the tree
+        #           i.e. Chains = saveFrame._content['chain_code'] from nefToTreeViewMapping
+        if thisList := saveFrame._content[category]:
+            for listItem in thisList:
+                child = _StoredTreeWidgetItem(found[0])
+                if self._enableCheckBoxes:
+                    child.setFlags(child.flags() | QtCore.Qt.ItemIsUserCheckable)
+                else:
+                    child.setFlags(child.flags() & ~QtCore.Qt.ItemIsUserCheckable)
+                # child.setData(1, 0, saveFrame)
+
+                parentGroup = child.parent().data(0, 0) if child.parent() else repr(None)
+                pHandler = self.nefProjectToHandlerMapping.get(parentGroup) or saveFrame.get('sf_category')
+                ccpnClassName = nef2CcpnClassNames.get(pHandler)
+
+                # use '.' to match nef specification
+                lbl = '.' if listItem is None else str(listItem)
+                child.setData(1, 0, (lbl, saveFrame, parentGroup, pHandler, ccpnClassName))
+                child.setText(0, lbl)
 
                 if self._enableCheckBoxes:
-                    found[0].setCheckState(0, QtCore.Qt.Unchecked)
-
-                # NOTE:ED - this defines the list of items that are added to each plural group in the tree
-                #           i.e. Chains = saveFrame._content['chain_code'] from nefToTreeViewMapping
-                if thisList:
-                    for listItem in thisList:
-                        child = _StoredTreeWidgetItem(found[0])
-                        if self._enableCheckBoxes:
-                            child.setFlags(child.flags() | QtCore.Qt.ItemIsUserCheckable)
-                        else:
-                            child.setFlags(child.flags() & ~QtCore.Qt.ItemIsUserCheckable)
-                        # child.setData(1, 0, saveFrame)
-
-                        parentGroup = child.parent().data(0, 0) if child.parent() else repr(None)
-                        pHandler = self.nefProjectToHandlerMapping.get(parentGroup) or saveFrame.get('sf_category')
-                        ccpnClassName = nef2CcpnClassNames.get(pHandler)
-
-                        # use '.' to match nef specification
-                        lbl = '.' if listItem is None else str(listItem)
-                        child.setData(1, 0, (lbl, saveFrame, parentGroup, pHandler, ccpnClassName))
-                        child.setText(0, lbl)
-
-                        if self._enableCheckBoxes:
-                            child.setCheckState(0, QtCore.Qt.Unchecked)
-                # else:
-                # found[0].setHidden(False)
-                # found[0].setDisabled(False)
+                    child.setCheckState(0, QtCore.Qt.Unchecked)
+        # else:
+        # found[0].setHidden(False)
+        # found[0].setDisabled(False)
 
     def _contentLoops(self, project: Project, saveFrame: StarIo.NmrSaveFrame, saveFrameTag=None,
                       addLoopAttribs=None, excludeList=(), **kwds):

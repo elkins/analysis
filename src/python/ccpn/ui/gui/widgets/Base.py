@@ -8,7 +8,7 @@ widget.getLayout().addWidget(row, col, [rowspan, [colspan])
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2025"
 __credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
                "Timothy J Ragan, Brian O Smith, Daniel Thompson",
                "Gary S Thompson & Geerten W Vuister")
@@ -20,8 +20,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-12-20 11:03:38 +0000 (Fri, December 20, 2024) $"
-__version__ = "$Revision: 3.2.11 $"
+__dateModified__ = "$dateModified: 2025-04-16 12:49:01 +0100 (Wed, April 16, 2025) $"
+__version__ = "$Revision: 3.3.1 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -198,17 +198,17 @@ class SignalBlocking():
                 while layout.count():
                     item = layout.takeAt(0)
                     widget = item.widget()
-                    if widget is not None:
+                    if widget:
                         widget.setVisible(False)
                         widget.setParent(None)
-                        del widget
+                        widget.deleteLater()
 
         if widget and hasattr(widget, 'getLayout'):
             deleteItems(widget.getLayout())
             if removeTopWidget:
                 widget.setVisible(False)
                 widget.setParent(None)
-                del widget
+                widget.deleteLater()
 
     @staticmethod
     def _setMinimumWidgetSize(widget):

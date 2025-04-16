@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2025-03-24 11:29:34 +0000 (Mon, March 24, 2025) $"
+__dateModified__ = "$dateModified: 2025-04-16 12:49:01 +0100 (Wed, April 16, 2025) $"
 __version__ = "$Revision: 3.3.1 $"
 #=========================================================================================
 # Created
@@ -53,15 +53,16 @@ from ccpn.ui.gui.widgets.PulldownList import PulldownList
 from ccpn.ui.gui.widgets.SpeechBalloon import SpeechBalloon
 from ccpn.ui.gui.widgets.Font import getFontHeight
 from ccpn.ui.gui.widgets.MoreLessFrame import MoreLessFrame
-from ccpn.ui.gui.widgets.TextEditor import TextEditor
+from ccpn.ui.gui.widgets.TextEditor import PlainTextEditor
 from ccpn.ui.gui.widgets.VLine import VLine
+from ccpn.ui.gui.widgets.HLine import HLine
 from ccpn.ui.gui.widgets.table.Table import Table
-from ccpn.ui.gui.widgets.table._TableModel import _TableModel, DISPLAY_ROLE
+from ccpn.ui.gui.widgets.table._TableModel import _TableModel, DISPLAY_ROLE, SIZE_ROLE
 from ccpn.ui.gui.lib.Validators import LineEditValidator, LineEditValidatorWhiteSpace
 from ccpn.ui.gui.guiSettings import getColours, BORDERNOFOCUS
 
 from ccpn.framework.lib.ccpnNef import CcpnNefIo
-from ccpn.framework.lib.ccpnNef.CcpnNefIo import DATANAME
+from ccpn.framework.lib.ccpnNef.CcpnNefIo import DATANAME, SHIFTNAME
 from ccpn.framework.lib.ccpnNef.CcpnNefCommon import nef2CcpnClassNames
 
 from ccpn.core.lib.ContextManagers import catchExceptions  #, busyHandler
@@ -69,6 +70,7 @@ from ccpn.core.lib.Pid import Pid, IDSEP
 from ccpn.core.Project import Project
 from ccpn.core.StructureData import StructureData
 from ccpn.core.Collection import Collection
+from ccpn.core.ChemicalShiftList import ChemicalShiftList
 from ccpn.util.nef import StarIo, NefImporter as Nef
 from ccpn.util.Logging import getLogger
 from ccpn.util.PrintFormatter import PrintFormatter
@@ -117,9 +119,12 @@ NEFDICTFRAMEKEYS_REQUIRED = (NEFFRAMEKEY_IMPORT,)
 REMOVEENTRY = '<Remove from Collections>'
 STRUCTUREDATA = 'StructureData'
 COLLECTION = 'Collection'
+CHEMICALSHIFTLIST = 'ChemicalShiftList'
 STRUCTUREDATA_ATTRIB = STRUCTUREDATA.lower()
 COLLECTION_ATTRIB = COLLECTION.lower()
-
+CHEMICALSHIFTLIST_ATTRIB = CHEMICALSHIFTLIST.lower()
+ITEMS = 'Items'
+_ROWSTRETCH = 10
 
 # simple class to export variables from the contextmanager
 @dataclass
@@ -141,6 +146,7 @@ class _TreeValues:
     ccpnClassName = None
     pHandler = None
     newVal = None
+    hasSpacer = False
 
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -150,6 +156,17 @@ class _TreeValues:
 class _NefTableModel(_TableModel):
     """Modified model to display '.' insteaad of 'None' to match nef specification.
     """
+    _resizeRowsEnabled = False
+
+    @property
+    def resizeRowsEnabled(self):
+        return self._resizeRowsEnabled
+
+    @resizeRowsEnabled.setter
+    def resizeRowsEnabled(self, value: bool):
+        if not isinstance(value, bool):
+            raise TypeError('resizeRowsEnabled must be a bool')
+        self._resizeRowsEnabled = value
 
     def data(self, index, role=DISPLAY_ROLE):
         """Return the data/roles for the model.
@@ -157,6 +174,9 @@ class _NefTableModel(_TableModel):
         if not index.isValid():
             return None
 
+        if role == SIZE_ROLE and self._resizeRowsEnabled == True:
+            # returning None forces QT to default to standard (slower) resize using bbox
+            return
         result = super().data(index, role)
         if role == DISPLAY_ROLE:
             # change table occurrences of 'None' to '.'
@@ -178,9 +198,12 @@ class NefDictFrame(Frame):
     """
     EDITMODE = True
     handleSaveFrames = {}
-    handleParentGroups = {}
+    # handleParentGroups = {}
     _setBadSaveFrames = {}
     applyCheckBoxes = {}
+    _structureDataTable: NefTable | None
+    _collectionsTable: NefTable | None
+    _chemicalShiftListsTable: NefTable | None
 
     DEFAULTMARGINS = (8, 8, 8, 8)  # l, t, r, b
 
@@ -200,13 +223,6 @@ class NefDictFrame(Frame):
             self.project = mainWindow.project
             self._nefReader = CcpnNefIo.CcpnNefReader(self.application)
             self._nefWriter = CcpnNefIo.CcpnNefWriter(self.project)
-        # else:
-        #     # to @ED: do not write code that
-        #     self.mainWindow = None
-        #     self.application = None
-        #     self.project = None
-        #     self._nefReader = None
-        #     self._nefWriter = None
 
         self._primaryProject = True
         self.showBorder = showBorder
@@ -221,10 +237,9 @@ class NefDictFrame(Frame):
 
         self._structureData = {}
         self._structureDataTable = None
+        self._chemicalShiftLists = {}
+        self._chemicalShiftListsTable = None
 
-        # self._nefImporterClass = nefImporterClass
-        # set the nef object - nefLoader/nefDict
-        # self._initialiseNefLoader(nefObject, _ignoreError=True)
         self._nefLoader = nefLoader
         self._nefDict = dataBlock
         self._primaryProject = False
@@ -246,11 +261,8 @@ class NefDictFrame(Frame):
         # define the list of dicts for comparing object names
         self._contentCompareDataBlocks = ()
 
-        # this is not very generic :|
-
         # add the rename action to the treeview actions
         self.nefTreeView.setActionCallback(RENAMEACTION, self._autoRenameItem)
-
         # add the rename action to the treeview actions
         self.nefTreeView.setActionCallback(BADITEMACTION, self._checkBadItem)
 
@@ -271,42 +283,6 @@ class NefDictFrame(Frame):
         p.setPen(QtGui.QPen(self._borderColour, 1))
         p.drawRect(rgn)
         p.end()
-
-    # def _initialiseProject(self, mainWindow, application, project):
-    #     """Initialise the project setting - ONLY REQUIRED FOR TESTING when mainWindow doesn't exist
-    #     """
-    #     # set the project
-    #     self.mainWindow = mainWindow
-    #     self.application = application
-    #     self.project = project
-    #     if mainWindow is None:
-    #         self.mainWindow = AttrDict()
-    #
-    #     # set the new values for application and project
-    #     self.mainWindow.application = application
-    #     self.mainWindow.project = project
-    #
-    #     # initialise the base structure from the project
-    #     self.nefTreeView._populateTreeView(project)
-    #
-    #     self._nefReader = CcpnNefIo.CcpnNefReader(self.application)
-    #     self._nefWriter = CcpnNefIo.CcpnNefWriter(self.project)
-
-    # def _initialiseNefLoader(self, nefObject=None, _ignoreError=False):
-    #     if not (nefObject or _ignoreError):
-    #         raise TypeError('nefObject must be defined')
-    #
-    #     self._nefLoader = None
-    #     self._nefDict = None
-    #     if isinstance(nefObject, self._nefImporterClass):
-    #         self._nefLoader = nefObject
-    #         self._nefDict = nefObject._nefDict
-    #         self._primaryProject = False
-    #     elif isinstance(nefObject, Project):
-    #         self.project = nefObject
-    #         self._nefLoader = self._nefImporterClass(errorLogging=Nef.el.NEF_STANDARD, hidePrefix=True)
-    #         self._nefWriter = CcpnNefIo.CcpnNefWriter(self.project)
-    #         self._nefDict = self._nefLoader._nefDict = self._nefWriter.exportProject(expandSelection=True, includeOrphans=False, pidList=None)
 
     def _setCallbacks(self):
         """Set the mouse callback for the treeView
@@ -358,10 +334,8 @@ class NefDictFrame(Frame):
 
         self._treeSplitter.addWidget(self._treeFrame)
         self._treeSplitter.setChildrenCollapsible(False)
-        self._treeSplitter.setStretchFactor(0, 1)
-        self._treeSplitter.setStretchFactor(1, 2)
-        # self._treeSplitter.setStyleSheet("QSplitter::handle { background-color: gray }")
-        self._treeSplitter.setSizes([10000, 15000])
+        self._treeSplitter.setStretchFactor(0, 4)
+        self._treeSplitter.setStretchFactor(1, 1)
 
         self.nefTreeView = ImportTreeCheckBoxes(self._treeFrame, project=self.project, grid=(1, 0),
                                                 includeProject=True, enableCheckBoxes=self._enableCheckBoxes,
@@ -370,60 +344,83 @@ class NefDictFrame(Frame):
                                                 multiSelect=True)
 
         # info frame (right frame)
-        self._optionsSplitter = Splitter(self._infoFrame, setLayout=True, horizontal=False)
-        self._infoFrame.getLayout().addWidget(self._optionsSplitter, 0, 0)
+        self._nefContentSplitter = Splitter(self._infoFrame, setLayout=True, horizontal=False)
+        self._infoFrame.getLayout().addWidget(self._nefContentSplitter, 0, 0)
         VLine(self._infoFrame, grid=(0, 1), width=16)
 
-        self.tablesFrame = Frame(self._optionsSplitter, setLayout=True, showBorder=False, grid=(0, 0))
-        self._optionsFrame = Frame(self._optionsSplitter, setLayout=True, showBorder=False, grid=(1, 0))
-        self._optionsSplitter.addWidget(self.tablesFrame)
+        self.nefSaveFrameWidget = Frame(self._nefContentSplitter, setLayout=True, showBorder=False, grid=(0, 0))
+        self._nefContentSplitter.addWidget(self.nefSaveFrameWidget)
 
-        # self._optionsSplitter.addWidget(self._optionsFrame)
-        self._paneSplitter.addWidget(self._optionsFrame)
-
-        self._frameOptionsNested = Frame(self._optionsFrame, setLayout=True, showBorder=False, grid=(1, 0))
-        self.frameOptionsFrame = Frame(self._frameOptionsNested, setLayout=True, showBorder=False, grid=(2, 0))
-        self.fileFrame = Frame(self._optionsFrame, setLayout=True, showBorder=False, grid=(2, 0))
-
-        self._filterLogFrame = MoreLessFrame(self._optionsFrame, name='Filter Log', showMore=False, grid=(3, 0),
+        # add the filter-log contents to the bottom-left splitter
+        self._filterLogFrame = MoreLessFrame(self._treeSplitter, name='Filter Log', showMore=False, grid=(3, 0),
                                              gridSpan=(1, 1))
         self._treeSplitter.addWidget(self._filterLogFrame)
 
+        _row = 0
+        self.logData = PlainTextEditor(self._filterLogFrame.contentsFrame, grid=(_row, 0), gridSpan=(1, 3),
+                                       addWrapButton=True, wordWrap=False)
+        self.logData.setReadOnly(True)
+
+        #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+        self._optionSplitter = Splitter(self._paneSplitter, setLayout=True, horizontal=False)
+        self._paneSplitter.addWidget(self._optionSplitter)
+
+        # right-hand pane containing options per selected save-frame from tree-view
+        # self._frameOptionsNested = Frame(self._optionsFrame, setLayout=True, showBorder=False, grid=(1, 0))
+        # self.fileFrame = Frame(self._optionsFrame, setLayout=True, showBorder=False, grid=(2, 0))
+
+        # create and add moreLessFrame with StructureData table to right-hand side
+        _fRow = 0
         _frame, self._structureDataTable = self._addTableToFrame(
                 pd.DataFrame({STRUCTUREDATA: self._structureData.keys(),
-                              'Items'      : ['\n'.join(vv for vv in val) for val in self._structureData.values()]}),
+                              ITEMS        : ['\n'.join(vv for vv in val) for val in self._structureData.values()]}),
                 _name=f'{STRUCTUREDATA}',
-                ignoreFrame=True, showMore=True)
-        self._frameOptionsNested.getLayout().addWidget(_frame, 0, 0)
-        _frame, self._collectionsTable = self._addTableToFrame(pd.DataFrame({COLLECTION: self._collections.keys(),
-                                                                             'Items'   : ['\n'.join(vv for vv in val)
-                                                                                          for val in
-                                                                                          self._collections.values()]}),
-                                                               _name=f'{COLLECTION}s',
-                                                               ignoreFrame=True, showMore=True)
-        self._frameOptionsNested.getLayout().addWidget(_frame, 1, 0)
+                ignoreFrame=True,
+                showMore=True)
+        self._optionSplitter.addWidget(_frame)
+        _fRow += 1
+        # create and add moreLessFrame with Collections table to right-hand side
+        _frame, self._collectionsTable = self._addTableToFrame(
+                pd.DataFrame({COLLECTION: self._collections.keys(),
+                              ITEMS     : ['\n'.join(vv for vv in val)
+                                           for val in self._collections.values()]}),
+                _name=f'{COLLECTION}s',
+                ignoreFrame=True,
+                showMore=True)
+        self._optionSplitter.addWidget(_frame)
+        _fRow += 1
+        # create and add moreLessFrame with ChemicalShiftLists table to right-hand side
+        _frame, self._chemicalShiftListsTable = self._addTableToFrame(
+                pd.DataFrame({CHEMICALSHIFTLIST: self._chemicalShiftLists.keys(),
+                              ITEMS            : ['\n'.join(vv for vv in val)
+                                                  for val in self._chemicalShiftLists.values()]}),
+                _name=f'{CHEMICALSHIFTLIST}s',
+                ignoreFrame=True,
+                showMore=False)
+        self._optionSplitter.addWidget(_frame)
+        _fRow += 1
+        # allow the rows to exapand in these tables - need cleaner method
+        self._structureDataTable.model().resizeRowsEnabled = True
+        self._collectionsTable.model().resizeRowsEnabled = True
+        self._chemicalShiftListsTable.model().resizeRowsEnabled = True
 
-        _row = 0
-        self.logData = TextEditor(self._filterLogFrame.contentsFrame, grid=(_row, 0), gridSpan=(1, 3), addWordWrap=True)
-        self.logData.setSizePolicy(QtWidgets.QSizePolicy.MinimumExpanding, QtWidgets.QSizePolicy.MinimumExpanding)
-        self.logData.setLineWrapMode(QtWidgets.QTextEdit.NoWrap)
+        self.frameOptionsFrame = Frame(self._optionSplitter, setLayout=True, showBorder=False, grid=(_fRow, 0))
+        # self.frameOptionsFrame.setSizePolicy(QtWidgets.QSizePolicy.MinimumExpanding, QtWidgets.QSizePolicy.Minimum)
+        self._optionSplitter.addWidget(self.frameOptionsFrame)
+        _fRow += 1
 
-        # tables frame
-        # add a splitter
-        self._tableSplitter = Splitter(self, setLayout=True, horizontal=False)
-        self._tableSplitter.setChildrenCollapsible(False)
-        self.tablesFrame.getLayout().addWidget(self._tableSplitter, 0, 0)
-        Spacer(self.tablesFrame, 3, 3,
+        #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+        # tables frame - add a splitter
+        self._nefSaveFrameSplitter = Splitter(self, setLayout=True, horizontal=False)
+        self._nefSaveFrameSplitter.setChildrenCollapsible(False)
+        self.nefSaveFrameWidget.getLayout().addWidget(self._nefSaveFrameSplitter, 0, 0)
+        Spacer(self.nefSaveFrameWidget, 3, 3,
                QtWidgets.QSizePolicy.MinimumExpanding, QtWidgets.QSizePolicy.MinimumExpanding,
                grid=(1, 0))
         # increase the stretch for the splitter to make it fill the widget, unless all others are fixed height :)
-        self.tablesFrame.getLayout().setRowStretch(0, 2)
-
-        # set the subframe to be ignored and minimum to stop the widgets overlapping - remember this for other places
-        # self._frameOptionsNested.setSizePolicy(QtWidgets.QSizePolicy.Ignored, QtWidgets.QSizePolicy.Minimum)
-        # self._frameOptionsNested.setMinimumWidth(100)
-        # self.frameOptionsFrame.getLayout().setSizeConstraint(QtWidgets.QLayout.SetMinimumSize)
-        self._frameOptionsNested.setSizePolicy(QtWidgets.QSizePolicy.MinimumExpanding, QtWidgets.QSizePolicy.Minimum)
+        self.nefSaveFrameWidget.getLayout().setRowStretch(0, 2)
 
         # options frame
         pass
@@ -515,7 +512,7 @@ class NefDictFrame(Frame):
                             continue
 
                         # NOTE:ED - if there are no loops then _sectionError is never set
-                        if hasattr(saveFrame, '_rowErrors') and \
+                        if getattr(saveFrame, '_rowErrors', None) and \
                                 loop.name in saveFrame._rowErrors and \
                                 saveFrame._rowErrors[loop.name]:
                             # _rowError = True
@@ -651,37 +648,6 @@ class NefDictFrame(Frame):
                 with self._tableColouring(table) as setRowBackgroundColour:
                     for rowIndex in chainErrors:
                         setRowBackgroundColour(rowIndex, _fillColour)
-
-    # def table_peak_clusters(self, saveFrame, item, listName=None):
-    #     listItemName = 'ccpn_peak_cluster'
-    #     listName = 'ccpn_peak_cluster'
-    #     primaryCode = 'ccpn_peak_cluster'
-    #     itemName = item.data(0, 0)
-    #     _content = getattr(saveFrame, '_content', None)
-    #     _errors = getattr(saveFrame, '_rowErrors', {})
-    #
-    #     numPrimary = _content.get(primaryCode)
-    #     if numPrimary and len(numPrimary) <= 1:
-    #         return
-    #
-    #     if _errors:
-    #         _fillColour = INVALIDTABLEFILLCHECKCOLOUR if item.checkState(0) else INVALIDTABLEFILLNOCHECKCOLOUR
-    #
-    #         # colour rows by extra colour
-    #         chainErrors = _errors.get('_'.join([listItemName, itemName]))
-    #         if chainErrors:
-    #             table = self._nefTables.get(listItemName)
-    #
-    #             with self._tableColouring(table) as setRowBackgroundColour:
-    #                 for rowIndex in chainErrors:
-    #                     setRowBackgroundColour(rowIndex, _fillColour)
-    #         chainErrors = _errors.get('_'.join([listName, 'peaks', itemName]))
-    #         if chainErrors:
-    #             table = self._nefTables.get('_'.join([listName, 'peaks']))
-    #
-    #             with self._tableColouring(table) as setRowBackgroundColour:
-    #                 for rowIndex in chainErrors:
-    #                     setRowBackgroundColour(rowIndex, _fillColour)
 
     def table_ccpn_notes(self, saveFrame, item):
         itemName = item.data(0, 0)
@@ -836,6 +802,7 @@ class NefDictFrame(Frame):
 
         return item
 
+    @contextmanager
     def _handleTreeView(self, name=None, saveFrame=None, parentGroup=None, prefix=None, mappingCode=None,
                         errorCode=None, tableColourFunc=None, _handleAutoRename=False):
         # this is treated as a generator
@@ -843,11 +810,11 @@ class NefDictFrame(Frame):
         # check if the current saveFrame exists; i.e., category exists as row = [0]
         if not (item := self._checkParentGroup(name, parentGroup, saveFrame)):
             return
-
         if _handleAutoRename:
             self._handleItemRename(item, mappingCode, saveFrame)
             return
 
+        self._optionSplitter.setVisible(False)
         vals = _TreeValues()
         vals.item = item
 
@@ -864,7 +831,7 @@ class NefDictFrame(Frame):
 
         vals._content = getattr(saveFrame, '_content', None)
         vals._errors = getattr(saveFrame, '_rowErrors', {})
-        vals.row = 0
+        vals.row = 1  # allow for the HLine
 
         if vals._content and vals.mapping:
             vals._fillColour = INVALIDBUTTONCHECKCOLOUR if item.checkState(0) else INVALIDBUTTONNOCHECKCOLOUR
@@ -875,50 +842,78 @@ class NefDictFrame(Frame):
 
             # add comment widgets
             vals.row = self._addCommentWidgets(item, vals.plural, vals.row, saveFrame)
-
             self._colourTables(item, saveFrame, tableColourFunc)
 
+            # don't need to set any other row-stretches, applied by comment-widget
+            self._cleanRowStretches()
+        else:
+            # or add a spacer
+            vals.row = self._addSpacerWidget(vals.row)
+            # clean up the row-stretches, apply stretch to Spacer
+            self._cleanRowStretches(lastRowStretch=_ROWSTRETCH)
+
         self.frameOptionsFrame.setVisible(self._enableRename)
+        self._optionSplitter.setVisible(True)
         self._finaliseSelection(vals._content, vals._errors)
 
+    @contextmanager
     def _handleTreeViewParent(self, parentItem=None, parentItemName=None, mappingCode=None, _handleAutoRename=False):
         # this is treated as a generator
 
         if _handleAutoRename:
             return
 
+        self._optionSplitter.setVisible(False)
         vals = _TreeValues()
         vals.parentItem = parentItem
         vals.parentItemName = parentItemName
         vals.mappingCode = mappingCode or ''
         vals.mapping = self.nefTreeView.nefToTreeViewMapping.get(mappingCode)
         vals.ccpnClassName = nef2CcpnClassNames.get(mappingCode)
-        vals.row = 0
+        vals.row = 1  # allow for the HLine
 
         # return the values as a generator - only returns once, skipped if no item
         yield vals
 
+        # add a spacer
+        vals.row = self._addSpacerWidget(vals.row)
+        # clean up the row-stretches, apply stretch to Spacer
+        self._cleanRowStretches(lastRowStretch=_ROWSTRETCH)
+
         self.frameOptionsFrame.setVisible(self._enableRename)
+        self._optionSplitter.setVisible(True)
 
     def handleTreeViewParentGeneral(self, parentItem=None, parentItemName=None, mappingCode=None,
                                     _handleAutoRename=False):
 
-        for vals in self._handleTreeViewParent(parentItem, parentItemName, mappingCode, _handleAutoRename):
+        with self._handleTreeViewParent(parentItem, parentItemName, mappingCode, _handleAutoRename) as vals:
             self._makeCollectionParentPulldown(vals)
             vals.row += 1
+        return vals
+
+    def handleTreeViewParentPeakList(self, parentItem=None, parentItemName=None, mappingCode=None,
+                                     _handleAutoRename=False):
+
+        with self._handleTreeViewParent(parentItem, parentItemName, mappingCode, _handleAutoRename) as vals:
+            self._makeCollectionParentPulldown(vals)
+            vals.row += 1
+            self._makeChemicalShiftListParentPulldown(vals)
+            vals.row += 1
+        return vals
 
     def handleTreeViewParentGeneralStructureData(self, parentItem=None, parentItemName=None, mappingCode=None,
                                                  _handleAutoRename=False):
 
-        for vals in self._handleTreeViewParent(parentItem, parentItemName, mappingCode, _handleAutoRename):
+        with self._handleTreeViewParent(parentItem, parentItemName, mappingCode, _handleAutoRename) as vals:
             self._makeCollectionParentStructureDataPulldown(vals)
             vals.row += 1
+        return vals
 
     def handleTreeViewSelectionGeneral(self, name=None, saveFrame=None, parentGroup=None, prefix=None, mappingCode=None,
                                        errorCode=None, tableColourFunc=None, _handleAutoRename=False, allowPeriod=True):
 
-        for vals in self._handleTreeView(name, saveFrame, parentGroup, prefix, mappingCode, errorCode, tableColourFunc,
-                                         _handleAutoRename):
+        with self._handleTreeView(name, saveFrame, parentGroup, prefix, mappingCode, errorCode, tableColourFunc,
+                                  _handleAutoRename) as vals:
             vals.row, saveFrameData = self._addRenameWidgets(vals.item,
                                                              vals.itemName,
                                                              vals.plural,
@@ -930,38 +925,58 @@ class NefDictFrame(Frame):
 
             self._makeCollectionPulldown(vals)
             vals.row += 1
+        return vals
 
     def handleTreeViewSelectionGeneralNoCollection(self, name=None, saveFrame=None, parentGroup=None, prefix=None,
                                                    mappingCode=None,
                                                    errorCode=None, tableColourFunc=None, _handleAutoRename=False,
                                                    allowPeriod=True):
 
-        for vals in self._handleTreeView(name, saveFrame, parentGroup, prefix, mappingCode, errorCode, tableColourFunc,
-                                         _handleAutoRename):
+        with self._handleTreeView(name, saveFrame, parentGroup, prefix, mappingCode, errorCode, tableColourFunc,
+                                  _handleAutoRename) as vals:
             vals.row, saveFrameData = self._addRenameWidgets(vals.item, vals.itemName, vals.plural, vals.row,
                                                              saveFrame, vals.singular, allowPeriod=allowPeriod)
             self._colourRenameWidgets(vals._errors, vals._fillColour, errorCode, vals.itemName, saveFrameData)
+        return vals
 
     def handleTreeViewSelectionCcpnList(self, name=None, saveFrame=None, parentGroup=None, prefix=None,
                                         mappingCode=None,
                                         errorCode=None, tableColourFunc=None, _handleAutoRename=False):
 
-        for vals in self._handleTreeView(name, saveFrame, parentGroup, prefix, mappingCode, errorCode, tableColourFunc,
-                                         _handleAutoRename):
+        with self._handleTreeView(name, saveFrame, parentGroup, prefix, mappingCode, errorCode, tableColourFunc,
+                                  _handleAutoRename) as vals:
             vals.row, saveFrameData = self._addRenameWidgets(vals.item, vals.itemName, vals.plural, vals.row, saveFrame,
                                                              vals.singular)
             self._colourRenameWidgets(vals._errors, vals._fillColour, errorCode, vals.itemName, saveFrameData)
 
             self._makeCollectionPulldown(vals)
             vals.row += 1
+        return vals
+
+    def handleTreeViewSelectionCcpnListWithChem(self, name=None, saveFrame=None, parentGroup=None, prefix=None,
+                                                mappingCode=None,
+                                                errorCode=None, tableColourFunc=None, _handleAutoRename=False):
+
+        with self._handleTreeView(name, saveFrame, parentGroup, prefix, mappingCode, errorCode, tableColourFunc,
+                                  _handleAutoRename) as vals:
+            vals.row, saveFrameData = self._addRenameWidgets(vals.item, vals.itemName, vals.plural, vals.row, saveFrame,
+                                                             vals.singular)
+
+            self._colourRenameWidgets(vals._errors, vals._fillColour, errorCode, vals.itemName, saveFrameData)
+
+            self._makeChemicalShiftListPulldown(vals)
+            vals.row += 1
+            self._makeCollectionPulldown(vals)
+            vals.row += 1
+        return vals
 
     def handleTreeViewSelectionAssignment(self, name=None, saveFrame=None, parentGroup=None, prefix=None,
                                           mappingCode=None,
                                           errorCode=None, tableColourFunc=None, _handleAutoRename=False,
                                           allowPeriod=True):
 
-        for vals in self._handleTreeView(name, saveFrame, parentGroup, prefix, mappingCode, errorCode, tableColourFunc,
-                                         _handleAutoRename):
+        with self._handleTreeView(name, saveFrame, parentGroup, prefix, mappingCode, errorCode, tableColourFunc,
+                                  _handleAutoRename) as vals:
             vals.row, saveFrameData = self._addRenameWidgets(vals.item, vals.itemName, vals.plural, vals.row,
                                                              saveFrame, vals.singular, allowPeriod=allowPeriod)
             self._colourRenameWidgets(vals._errors, vals._fillColour, errorCode, vals.itemName, saveFrameData)
@@ -971,13 +986,14 @@ class NefDictFrame(Frame):
 
             self._makeCollectionPulldown(vals)
             vals.row += 1
+        return vals
 
     def handleTreeViewSelectionStructureDataParent(self, name=None, saveFrame=None, parentGroup=None, prefix=None,
                                                    mappingCode=None,
                                                    errorCode=None, tableColourFunc=None, _handleAutoRename=False):
 
-        for vals in self._handleTreeView(name, saveFrame, parentGroup, prefix, mappingCode, errorCode, tableColourFunc,
-                                         _handleAutoRename):
+        with self._handleTreeView(name, saveFrame, parentGroup, prefix, mappingCode, errorCode, tableColourFunc,
+                                  _handleAutoRename) as vals:
             vals.row, saveFrameData = self._addRenameWidgets(vals.item, vals.itemName, vals.plural, vals.row, saveFrame,
                                                              vals.singular)
             self._colourRenameWidgets(vals._errors, vals._fillColour, errorCode, vals.itemName, saveFrameData)
@@ -987,20 +1003,22 @@ class NefDictFrame(Frame):
 
             self._makeCollectionStructurePulldown(vals)
             vals.row += 1
+        return vals
 
     def handleTreeViewSelectionStructureDataParentNoCollection(self, name=None, saveFrame=None, parentGroup=None,
                                                                prefix=None, mappingCode=None,
                                                                errorCode=None, tableColourFunc=None,
                                                                _handleAutoRename=False):
 
-        for vals in self._handleTreeView(name, saveFrame, parentGroup, prefix, mappingCode, errorCode, tableColourFunc,
-                                         _handleAutoRename):
+        with self._handleTreeView(name, saveFrame, parentGroup, prefix, mappingCode, errorCode, tableColourFunc,
+                                  _handleAutoRename) as vals:
             vals.row, saveFrameData = self._addRenameWidgets(vals.item, vals.itemName, vals.plural, vals.row, saveFrame,
                                                              vals.singular)
             self._colourRenameWidgets(vals._errors, vals._fillColour, errorCode, vals.itemName, saveFrameData)
 
             # add widgets to handle linking to structureData parent
             vals.row = self._addStructureDataWidgets(vals.item, vals.plural, vals.row, saveFrame)
+        return vals
 
     def _addAssignmentWidgets(self, item, plural, row, saveFrame, saveFrameData):
 
@@ -1030,16 +1048,18 @@ class NefDictFrame(Frame):
     def _finaliseSelection(self, _content, _errors):
         self.logData.clear()
         pretty = PrintFormatter()
-        self.logData.append(('CONTENTS DICT'))
-        self.logData.append(pretty(_content))
-        self.logData.append(('ERROR DICT'))
-        self.logData.append(pretty(_errors))
+        self.logData.appendPlainText(('CONTENTS DICT'))
+        self.logData.appendPlainText(pretty(_content))
+        self.logData.appendPlainText(('ERROR DICT'))
+        self.logData.appendPlainText(pretty(_errors))
+        self.logData.moveCursor(QtGui.QTextCursor.Start)
 
     def _colourTables(self, item, saveFrame, tableColourFunc):
         if tableColourFunc is not None:
             tableColourFunc(self, saveFrame, item)
 
-    def _colourRenameWidgets(self, _errors, _fillColour, errorCode, itemName, saveFrameData):
+    @staticmethod
+    def _colourRenameWidgets(_errors, _fillColour, errorCode, itemName, saveFrameData):
         if saveFrameData and errorCode in _errors and itemName in _errors[errorCode]:
             try:
                 palette = saveFrameData.palette()
@@ -1051,23 +1071,28 @@ class NefDictFrame(Frame):
 
     def _addCommentWidgets(self, item, plural, row, saveFrame):
         Label(self.frameOptionsFrame, text='Comment', grid=(row, 0), enabled=False)
-        self._commentData = TextEditor(self.frameOptionsFrame, grid=(row, 1), gridSpan=(1, 2), enabled=True,
-                                       addWordWrap=True)
+        self._commentData = PlainTextEditor(self.frameOptionsFrame, grid=(row, 1), gridSpan=(1, 2),
+                                            addWrapButton=True, wordWrap=False)
         _comment = saveFrame.get('ccpn_comment')
         if _comment:
             self._commentData.set(_comment)
-        self._commentData.setSizePolicy(QtWidgets.QSizePolicy.MinimumExpanding, QtWidgets.QSizePolicy.MinimumExpanding)
-        self._commentData.setLineWrapMode(QtWidgets.QTextEdit.NoWrap)
         _height = getFontHeight()
         self._commentData.setMinimumHeight(_height * 3)
         row += 1
         texts = ('Set Comment',)
-        callbacks = (
-            partial(self._editComment, item=item, parentName=plural, lineEdit=self._commentData, saveFrame=saveFrame),)
+        callbacks = (partial(self._editComment, item=item, parentName=plural,
+                             lineEdit=self._commentData, saveFrame=saveFrame),)
         tipTexts = ('Set the comment for the saveFrame',)
         ButtonList(self.frameOptionsFrame, texts=texts, tipTexts=tipTexts, callbacks=callbacks,
                    grid=(row, 2), gridSpan=(1, 1), direction='v',
                    setLastButtonFocus=False)
+        row += 1
+        return row
+
+    def _addSpacerWidget(self, row):
+        Spacer(self.frameOptionsFrame, 5, 5,
+               QtWidgets.QSizePolicy.MinimumExpanding, QtWidgets.QSizePolicy.Expanding,
+               grid=(row, 1))
         row += 1
         return row
 
@@ -1166,6 +1191,27 @@ class NefDictFrame(Frame):
 
         self._populateCollectionStructurePulldown([_data], collectionPulldown)
 
+    def _makeChemicalShiftListPulldown(self, values):
+
+        if not (_data := values.item.data(1, 0)):
+            return
+        _itmName, _, _itmParentName, _, _ = _data
+        Label(self.frameOptionsFrame, text=CHEMICALSHIFTLIST, grid=(values.row, 0))
+
+        # map the className to a pid for the chemicalShiftList
+        _itmName = '' if _itmName in ['.', None] else _itmName
+        _itmPid = Pid._join(values.ccpnClassName, _itmName) if values.ccpnClassName else _itmName
+        values.itemPid = _itmPid
+
+        chemicalShiftListPulldown = self._newPulldown(self.frameOptionsFrame, name=CHEMICALSHIFTLIST,
+                                                      grid=(values.row, 1), gridSpan=(1, 2))
+
+        callbackSelect = partial(self._selectChemicalShiftListId, values=values, pulldownList=chemicalShiftListPulldown,
+                                 saveFrame=values.saveFrame)
+        chemicalShiftListPulldown.activated.connect(callbackSelect)
+
+        self._populateChemicalShiftListPulldown([_data], chemicalShiftListPulldown)
+
     def _makeCollectionParentPulldown(self, values):
 
         Label(self.frameOptionsFrame, text=COLLECTION_ATTRIB, grid=(values.row, 0))
@@ -1178,6 +1224,22 @@ class NefDictFrame(Frame):
 
         _children = self._getSelectedChildren(self.nefTreeView)
         self._populateCollectionStructurePulldown(_children, collectionPulldown)
+
+        self._updateTables()
+
+    def _makeChemicalShiftListParentPulldown(self, values):
+
+        Label(self.frameOptionsFrame, text=CHEMICALSHIFTLIST_ATTRIB, grid=(values.row, 0))
+        chemicalShiftListPulldown = self._newPulldown(self.frameOptionsFrame,
+                                                      grid=(values.row, 1), gridSpan=(1, 2))
+
+        callbackSelect = partial(self._selectChemicalShiftListParentId, values=values,
+                                 pulldownList=chemicalShiftListPulldown,
+                                 parent=self.nefTreeView)
+        chemicalShiftListPulldown.activated.connect(callbackSelect)
+
+        _children = self._getSelectedChildren(self.nefTreeView)
+        self._populateChemicalShiftListPulldown(_children, chemicalShiftListPulldown)
 
         self._updateTables()
 
@@ -1231,6 +1293,37 @@ class NefDictFrame(Frame):
             collectionPulldown.setIndex(list(_indexing)[0])
         else:
             collectionPulldown.setIndex(0)
+
+    def _populateChemicalShiftListPulldown(self, _children, chemicalShiftListPulldown):
+
+        colData = self.project.chemicalShiftLists
+        colNames = OrderedSet([''] + [co.id for co in colData])
+
+        # read the chemicalShifts not defined in the project
+        for col in self._chemicalShiftLists.keys():
+            colNames.add(col)
+            self._chemicalShiftLists.setdefault(col, [])
+
+        # CHECK:ED - add the chemicalShiftLists in the nef,
+        #            and those in the peakLists
+
+        # get the list of common chemicalShifts for the selection, to set the pulldown
+        _indexing = set()
+        for (itmName, sFrame, parentGroup, primaryHandler, ccpnClassName) in _children:
+            _itmPid = Pid._join(ccpnClassName, itmName) if ccpnClassName else itmName
+            _count = 0
+            for k, v in self._chemicalShiftLists.items():
+                if _itmPid in v:
+                    _indexing.add(list(colNames).index(k))
+                    _count += 1
+            if not _count:
+                _indexing.add(list(colNames).index(''))
+
+        chemicalShiftListPulldown.setData(list(colNames))
+        if len(_indexing) == 1:
+            chemicalShiftListPulldown.setIndex(list(_indexing)[0])
+        else:
+            chemicalShiftListPulldown.setIndex(0)
 
     def _populateCollectionStructurePulldown(self, _children, collectionPulldown):
 
@@ -1540,10 +1633,14 @@ class NefDictFrame(Frame):
         newEdit.newVal = pulldownList.getText() if pulldownList else None
 
         dd = {}
+        fr: MoreLessFrame
         # grab the tree state
         self._traverseTree(self.nefTreeView.headerItem, self._getTreeState, dd)
 
-        # add item to saveframe
+        # grab state of nef-loops and tables
+        visible = {fr.name: fr.contentsVisible
+                   for fr in [self._nefSaveFrameSplitter.widget(ii)
+                              for ii in range(self._nefSaveFrameSplitter.count())]}
         try:
             yield newEdit
 
@@ -1556,6 +1653,12 @@ class NefDictFrame(Frame):
             # restore the tree state
             self._traverseTree(self.nefTreeView.headerItem, self._setTreeState, dd)
             self._setCheckedItem(newEdit.itemName, newEdit.parentGroup)
+
+            # reset the state of the nef-loops and tables
+            for fr in [self._nefSaveFrameSplitter.widget(ii)
+                       for ii in range(self._nefSaveFrameSplitter.count())]:
+                if fr.name in visible:
+                    fr.setContentsVisible(visible[fr.name])
 
     def _selectStructureDataId(self, item=None, itemName=None, itemParentName=None, parentName=None,
                                pulldownList=None, saveFrame=None, autoRename=False):
@@ -1660,7 +1763,6 @@ class NefDictFrame(Frame):
                 saveFrame[DATANAME] = newName
 
                 # TODO:ED - check this
-
                 # if saveFrame.get('sf_category') in ['ccpn_parameter', ]:
                 #     if _edit.itemName and _oldName and _edit.itemName.startswith(_oldName):
                 #         _edit.itemName = _edit.newVal + _edit.itemName[len(_oldName):]
@@ -1676,6 +1778,17 @@ class NefDictFrame(Frame):
 
         self._updateTables()
 
+    def _processCollectionId(self, _itmPid, newCol):
+        # remove from previous self._collections
+        for k, v in list(self._collections.items()):
+            if _itmPid in v:
+                v.remove(_itmPid)
+            if not v:
+                self._collections.pop(k)
+        if newCol:
+            self._collections.setdefault(newCol, [])
+            self._collections[newCol].append(_itmPid)
+
     def _selectCollectionId(self, values=None, pulldownList=None, saveFrame=None):
         """Handle collection pulldown
         """
@@ -1685,17 +1798,9 @@ class NefDictFrame(Frame):
             return
 
         newCol = pulldownList.getText()
+        _itmPid = values.itemPid
 
-        # remove from previous self._collections
-        for k, v in list(self._collections.items()):
-            if values.itemPid in v:
-                v.remove(values.itemPid)
-            if not v:
-                self._collections.pop(k)
-
-        if newCol:
-            self._collections.setdefault(newCol, [])
-            self._collections[newCol].append(values.itemPid)
+        self._processCollectionId(_itmPid, newCol)
 
         self._updateTables()
         self._setCheckedItem(values.itemName, values.parentGroup)
@@ -1713,19 +1818,74 @@ class NefDictFrame(Frame):
         for (itmName, saveFrame, parentGroup, _pHandler, _ccpnClassName) in _children:
             _itmPid = Pid._join(_ccpnClassName, itmName) if _ccpnClassName else itmName
 
-            # remove from previous self._collections
-            for k, v in list(self._collections.items()):
-                if _itmPid in v:
-                    v.remove(_itmPid)
-                if not v:
-                    self._collections.pop(k)
-
-            if newCol:
-                self._collections.setdefault(newCol, [])
-                self._collections[newCol].append(_itmPid)
+            self._processCollectionId(_itmPid, newCol)
 
             self._setCheckedItem(itmName, parentGroup)
 
+        self._updateTables()
+
+    # filter data to spectra
+    @staticmethod
+    def _getSpectra(dbItem, spName):
+        from ccpn.framework.lib.ccpnNef.CcpnNefIo import _saveFrameNameFromCategory
+
+        key, sFrame = dbItem
+        frameId = _saveFrameNameFromCategory(sFrame)
+        if frameId.subname == spName and frameId.category == 'nef_nmr_spectrum':
+            return (key, sFrame, frameId)
+
+    def _selectChemicalShiftListId(self, values=None, pulldownList=None, saveFrame=None):
+        """Handle chemicalShiftList pulldown
+        """
+        from ccpn.framework.lib.ccpnNef.CcpnNefIo import _saveFrameNameFromCategory
+
+        # print(f'   CALL    _selectChemicalShiftId')
+
+        if not (pulldownList and pulldownList.hasFocus()):
+            return
+
+        frameId = _saveFrameNameFromCategory(saveFrame)
+        _framecode, _frameName, spectrumName, _prefix, _postfix, _preSerial, _postSerial, _category = frameId
+        # get the spectrum save-frames with the same name
+        spectrumData = sorted(filter(None,
+                                     map(lambda dd: self._getSpectra(dd, spectrumName), self._nefDict.items())))
+        newCol = pulldownList.getText()
+        nef_category = 'nef_chemical_shift_list'
+
+        with self._editSaveFramePulldown(values.itemName, values.parentGroup, values.parentGroup, pulldownList,
+                                         saveFrame, None, DATANAME) as _edit:
+            for ii, (_k, sFrame, _frameID) in enumerate(spectrumData):
+                # set the new name in nef_chemical_shift_list parameter
+                sFrame[SHIFTNAME] = '_'.join([nef_category, newCol])
+
+        self._setCheckedItem(values.itemName, values.parentGroup)
+        # put into the context-manager?
+        self._updateTables()
+
+    def _selectChemicalShiftListParentId(self, values=None, pulldownList=None, parent=None):
+        """Handle chemicalShiftList pulldown
+        """
+        from ccpn.framework.lib.ccpnNef.CcpnNefIo import _saveFrameNameFromCategory
+
+        if not (pulldownList and pulldownList.hasFocus()):
+            return
+
+        # get the peak-list items selected in the tree (checked is different)
+        _children = self._getSelectedChildren(parent)
+        spectrumData = [(saveFrame, frameId, itmName, parentGroup)
+                        for (itmName, saveFrame, parentGroup, _pHandler, _ccpnClassName) in _children
+                        if (frameId := _saveFrameNameFromCategory(saveFrame)) and
+                        frameId.category == 'nef_nmr_spectrum']
+        newCol = pulldownList.getText()
+        nef_category = 'nef_chemical_shift_list'
+
+        for ii, (sFrame, _frameID, itmName, parentGroup) in enumerate(spectrumData):
+            # set the new name in nef_chemical_shift_list parameter
+            sFrame[SHIFTNAME] = '_'.join([nef_category, newCol])
+            # check the items
+            self._setCheckedItem(itmName, parentGroup)
+
+        # put into the context-manager?
         self._updateTables()
 
     def _selectCollectionParentStructureId(self, values=None, pulldownList=None, parent=None):
@@ -1739,20 +1899,10 @@ class NefDictFrame(Frame):
 
         _children = self._getSelectedChildren(parent)
         for (itmName, saveFrame, parentGroup, _pHandler, _ccpnClassName) in _children:
-
             _itmStructureData = saveFrame.get(DATANAME) or ''  # make sure isn't None
             _itmPid = Pid._join(_ccpnClassName, _itmStructureData, itmName) if _ccpnClassName else itmName
 
-            # remove from previous self._collections
-            for k, v in list(self._collections.items()):
-                if _itmPid in v:
-                    v.remove(_itmPid)
-                if not v:
-                    self._collections.pop(k)
-
-            if newCol:
-                self._collections.setdefault(newCol, [])
-                self._collections[newCol].append(_itmPid)
+            self._processCollectionId(_itmPid, newCol)
 
             self._setCheckedItem(itmName, parentGroup)
 
@@ -1776,16 +1926,7 @@ class NefDictFrame(Frame):
             else:
                 _itmPid = Pid._join(_ccpnClassName, itmName) if _ccpnClassName else itmName
 
-            # remove from previous self._collections
-            for k, v in list(self._collections.items()):
-                if _itmPid in v:
-                    v.remove(_itmPid)
-                if not v:
-                    self._collections.pop(k)
-
-            if newCol:
-                self._collections.setdefault(newCol, [])
-                self._collections[newCol].append(_itmPid)
+            self._processCollectionId(_itmPid, newCol)
 
             self._setCheckedItem(itmName, parentGroup)
 
@@ -1821,8 +1962,9 @@ class NefDictFrame(Frame):
         self.nefTreeView._populateTreeView(self.project)
         self._fillPopup(self._nefDict)
 
-        _parent = self.nefTreeView.findSection(parentName)
-        if _parent:
+        if _parent := self.nefTreeView.findSection(parentName):
+            _parent = _parent[0] if isinstance(_parent, list) else _parent
+
             # should be a single item
             if (newItem := self.nefTreeView.findSection(newName or itemName, _parent)):
                 newItem = newItem[0] if isinstance(newItem, list) else newItem
@@ -1834,8 +1976,7 @@ class NefDictFrame(Frame):
             _parent = _parent[0] if isinstance(_parent, list) else _parent
 
             # should be a single item
-            itm = self.nefTreeView.findSection(itemName, _parent)
-            if itm:
+            if itm := self.nefTreeView.findSection(itemName, _parent):
                 itm = itm[0] if isinstance(itm, list) else itm
                 itm.setCheckState(0, QtCore.Qt.Checked)
 
@@ -1847,7 +1988,7 @@ class NefDictFrame(Frame):
                                                            mappingCode='nef_chemical_shift_list'),
                           'restraintTables'      : partial(handleTreeViewParentGeneralStructureData,
                                                            mappingCode='nef_distance_restraint_list'),
-                          'peakLists'            : partial(handleTreeViewParentGeneral, mappingCode='nef_peak'),
+                          'peakLists'            : partial(handleTreeViewParentPeakList, mappingCode='nef_peak'),
                           'integralLists'        : partial(handleTreeViewParentGeneral,
                                                            mappingCode='ccpn_integral_list'),
                           'multipletLists'       : partial(handleTreeViewParentGeneral,
@@ -1941,7 +2082,7 @@ class NefDictFrame(Frame):
                                             tableColourFunc=table_ccpn_notes,
                                             allowPeriod=False)
 
-    handleSaveFrames['ccpn_peak_list'] = partial(handleTreeViewSelectionCcpnList,
+    handleSaveFrames['ccpn_peak_list'] = partial(handleTreeViewSelectionCcpnListWithChem,
                                                  prefix='nef_peak_',
                                                  mappingCode='nef_peak',
                                                  errorCode='ccpn_peak_list_serial',
@@ -1958,12 +2099,6 @@ class NefDictFrame(Frame):
                                                       mappingCode='ccpn_multiplet_list',
                                                       errorCode='ccpn_multiplet_list_serial',
                                                       tableColourFunc=partial(table_lists, listName='ccpn_multiplet'))
-
-    # handleSaveFrames['ccpn_peak_cluster_list'] = partial(handleTreeViewSelectionGeneralNoCollection,
-    #                                                      prefix='ccpn_peak_cluster_',
-    #                                                      mappingCode='ccpn_peak_cluster',
-    #                                                      errorCode='ccpn_peak_cluster_serial',
-    #                                                      tableColourFunc=table_peak_clusters)
 
     handleSaveFrames['nmr_chain'] = partial(handleTreeViewSelectionAssignment,
                                             prefix='nmr_chain_',
@@ -2121,12 +2256,6 @@ class NefDictFrame(Frame):
                                                        errorCode='ccpn_multiplet_list_serial',
                                                        tableColourFunc=partial(table_lists, listName='ccpn_multiplet'))
 
-    # _setBadSaveFrames['ccpn_peak_cluster_list'] = partial(_set_bad_saveframe,
-    #                                                       prefix='ccpn_peak_cluster_',
-    #                                                       mappingCode='ccpn_peak_cluster',
-    #                                                       errorCode='ccpn_peak_cluster_serial',
-    #                                                       tableColourFunc=table_peak_clusters)
-
     _setBadSaveFrames['nmr_chain'] = partial(_set_bad_saveframe,
                                              prefix='nmr_chain_',
                                              mappingCode='nmr_chain',
@@ -2268,11 +2397,6 @@ class NefDictFrame(Frame):
                                                      checkID='_importMultiplets',
                                                      )
 
-    # applyCheckBoxes['ccpn_peak_cluster_list'] = partial(apply_checkBox_item,
-    #                                                     prefix='ccpn_peak_cluster_',
-    #                                                     mappingCode='ccpn_peak_cluster',
-    #                                                     )
-
     applyCheckBoxes['nmr_chain'] = partial(apply_checkBox_item,
                                            prefix='nmr_chain_',
                                            mappingCode='nmr_chain',
@@ -2362,7 +2486,7 @@ class NefDictFrame(Frame):
         if item.data(1, 0):
             # item at bottom of the tree selected
             _, saveFrame, _, _, _ = item.data(1, 0)
-            if saveFrame and hasattr(saveFrame, '_content'):
+            if saveFrame and getattr(saveFrame, '_content', None):
                 self._itemSelected(item, itemName, saveFrame)
 
         else:
@@ -2372,14 +2496,11 @@ class NefDictFrame(Frame):
         self._updateTables()
 
     def _itemSelected(self, item, itemName, saveFrame):
-        with self._tableSplitter.blockWidgetSignals(recursive=False):
-            self._tableSplitter.setVisible(False)
 
-            # reuse the widgets?
-            for widg in self._nefWidgets:
-                self._removeWidget(widg, removeTopWidget=True)
-            self._nefWidgets = []
-            self._removeWidget(self.frameOptionsFrame, removeTopWidget=False)
+        self._nefSaveFrameSplitter.setVisible(False)
+        with self._nefSaveFrameSplitter.blockWidgetSignals(recursive=False):
+
+            self._cleanOptionFrame()
 
             _fillColour = INVALIDTABLEFILLNOCHECKCOLOUR if item.checkState(0) else INVALIDTABLEFILLNOCHECKCOLOUR
 
@@ -2414,7 +2535,7 @@ class NefDictFrame(Frame):
                 frame, table = self._addTableToFrame(_data, _name, showMore=False)
 
                 if loop.name in saveFrame._content and \
-                        hasattr(saveFrame, '_rowErrors') and \
+                        getattr(saveFrame, '_rowErrors', None) and \
                         loop.name in saveFrame._rowErrors:
                     badRows = list(saveFrame._rowErrors[loop.name])
 
@@ -2434,9 +2555,18 @@ class NefDictFrame(Frame):
             self._filterLogFrame.setVisible(self._enableFilterFrame)
             # self.nefTreeView.setCurrentItem(item)
 
-        for colInd, st in enumerate([1, 100, 1]):
-            self.frameOptionsFrame.getLayout().setColumnStretch(colInd, st)
-        self._tableSplitter.setVisible(True)
+            for colInd, st in enumerate([1, 100, 1]):
+                self.frameOptionsFrame.getLayout().setColumnStretch(colInd, st)
+        self._nefSaveFrameSplitter.setVisible(True)
+
+    def _cleanOptionFrame(self, includeHLine=True):
+        # reuse the widgets?
+        for widg in self._nefWidgets:
+            self._removeWidget(widg, removeTopWidget=True)
+        self._nefWidgets = []
+        self._removeWidget(self.frameOptionsFrame, removeTopWidget=False)
+        if includeHLine:
+            HLine(self.frameOptionsFrame, height=16, grid=(0, 0), gridSpan=(1, 3))
 
     @staticmethod
     def _depth(item):
@@ -2448,18 +2578,13 @@ class NefDictFrame(Frame):
 
     def _parentSelected(self, parentItem, parentItemName):
 
-        with self._tableSplitter.blockWidgetSignals(recursive=False):
-            self._tableSplitter.setVisible(False)
+        self._nefSaveFrameSplitter.setVisible(False)
+        with (((self._nefSaveFrameSplitter.blockWidgetSignals(recursive=False)))):
 
+            self._cleanOptionFrame()
             # depth = 1 -> project
             # depth = 2 -> groups
             # depth = 3 -> saveFrames - either item or object, e.g., restraintList, note
-
-            # reuse the widgets?
-            for widg in self._nefWidgets:
-                self._removeWidget(widg, removeTopWidget=True)
-            self._nefWidgets = []
-            self._removeWidget(self.frameOptionsFrame, removeTopWidget=False)
 
             if self._depth(parentItem) != 2:
                 return
@@ -2469,29 +2594,26 @@ class NefDictFrame(Frame):
                 # call the correct parent handler to add the correct widgets
                 parentHandler = self.handleParentGroups.get(parentItemName)
                 if parentHandler is not None:
-                    parentHandler(self, parentItem=parentItem, parentItemName=parentItemName, _handleAutoRename=False)
+                    parentHandler(self, parentItem=parentItem, parentItemName=parentItemName,
+                                           _handleAutoRename=False)
 
-        for colInd, st in enumerate([1, 100, 1]):
-            self.frameOptionsFrame.getLayout().setColumnStretch(colInd, st)
-        self._tableSplitter.setVisible(True)
+            for colInd, st in enumerate([1, 100, 1]):
+                self.frameOptionsFrame.getLayout().setColumnStretch(colInd, st)
+        self._nefSaveFrameSplitter.setVisible(True)
 
     def _multiParentSelected(self, groups, structureGroups):
 
-        with self._tableSplitter.blockWidgetSignals(recursive=False):
-            self._tableSplitter.setVisible(False)
+        self._nefSaveFrameSplitter.setVisible(False)
+        self._optionSplitter.setVisible(False)
+        with self._nefSaveFrameSplitter.blockWidgetSignals(recursive=False):
 
+            self._cleanOptionFrame(includeHLine=False)
             # depth = 1 -> project
             # depth = 2 -> groups
             # depth = 3 -> saveFrames - either item or object, e.g., restraintList, note
 
-            # reuse the widgets?
-            for widg in self._nefWidgets:
-                self._removeWidget(widg, removeTopWidget=True)
-            self._nefWidgets = []
-            self._removeWidget(self.frameOptionsFrame, removeTopWidget=False)
-
             # parent handler here
-            row = 0
+            row = self.frameOptionsFrame.getLayout().rowCount()  # allow for the HLine
 
             # structures
             if structureGroups:
@@ -2510,7 +2632,6 @@ class NefDictFrame(Frame):
                 callbackSelect = partial(self._selectStructureDataGroup, values=values, pulldownList=structurePulldown,
                                          parent=self.nefTreeView)
                 structurePulldown.activated.connect(callbackSelect)
-
                 self._populateStructureDataPulldown(values, structurePulldown)
 
             # collections
@@ -2529,21 +2650,48 @@ class NefDictFrame(Frame):
                 Label(_frame.contentsFrame, text=COLLECTION, grid=(_iRow, 0))
                 collectionPulldown = self._newPulldown(_frame.contentsFrame,
                                                        grid=(_iRow, 1), gridSpan=(1, 2))
-
                 _iRow += 1
                 values = [itm for val in groups.values() for itm in val]
                 callbackSelect = partial(self._selectCollectionStructureGroup, values=values,
                                          pulldownList=collectionPulldown, parent=self.nefTreeView)
                 collectionPulldown.activated.connect(callbackSelect)
-
                 self._populateCollectionStructurePulldown(values, collectionPulldown)
+
+            self._addSpacerWidget(row)
+            self._cleanRowStretches(lastRowStretch=_ROWSTRETCH)
 
             self._updateTables()
             self.frameOptionsFrame.setVisible(self._enableRename)
 
-        for colInd, st in enumerate([1, 100, 1]):
-            self.frameOptionsFrame.getLayout().setColumnStretch(colInd, st)
-        self._tableSplitter.setVisible(True)
+            for colInd, st in enumerate([1, 100, 1]):
+                self.frameOptionsFrame.getLayout().setColumnStretch(colInd, st)
+        self._nefSaveFrameSplitter.setVisible(True)
+        self._optionSplitter.setVisible(True)
+
+    def _cleanRowStretches(self, lastRowStretch: int | None = None) -> tuple[QtWidgets.QLayout, int] | None:
+        """
+        Clear all row stretch factors in the layout, and optionally set a stretch value
+        for the final row to help control vertical alignment.
+
+        :param lastRowStretch: Optional integer to set as the stretch factor for the final row.
+                               If None, no stretch is applied. Must be a positive integer if provided.
+        :type lastRowStretch: int | None
+        :return: A tuple containing the layout and the index of the last modified row, or None if no layout was found.
+        :rtype: tuple[QtWidgets.QLayout, int] | None
+        :raises TypeError: If `lastRowStretch` is not an int or None.
+        :raises ValueError: If `lastRowStretch` is provided but less than 1.
+        """
+        if not isinstance(lastRowStretch, int | None):
+            raise TypeError(f'{self.__class__.__name__}._cleanRowStretches: lastRowStretch must be int|None')
+        if lastRowStretch is not None and lastRowStretch < 1:
+            raise ValueError(f'{self.__class__.__name__}._cleanRowStretches: lastRowStretch must be int > 0')
+        if (layout := self.frameOptionsFrame.getLayout()) and (rows := layout.rowCount()):
+            # needs to be a layout and at least 1 row
+            for rr in range(rows - 1):
+                layout.setRowStretch(rr, 0)
+            for rr in range(rows - 1, rows):
+                layout.setRowStretch(rr, lastRowStretch or 0)
+            return layout, rows - 1
 
     @contextmanager
     def _tableColouring(self, table):
@@ -2576,7 +2724,7 @@ class NefDictFrame(Frame):
 
         if not ignoreFrame:
             self._nefTables[_name] = table
-            self._tableSplitter.addWidget(frame)
+            self._nefSaveFrameSplitter.addWidget(frame)
             if newWidgets:
                 self._nefWidgets = [frame, ]
             else:
@@ -2587,24 +2735,54 @@ class NefDictFrame(Frame):
         return frame, table
 
     def _updateTables(self):
+        # update the tables in the options-frame
+        self._updateCollectionsWidget()
+        self._updateStructureDataWidget()
+        self._updateChemicalShiftListWidget()
 
-        # update the collections table
-        if self._collectionsTable and self._collections:
-            _df = pd.DataFrame({COLLECTION: self._collections.keys(),
-                                'Items'   : ['\n'.join(val) for val in self._collections.values()]})
-            # _updateSimplePandasTable(self._collectionsTable, _df, _resize=True)
-            self._collectionsTable.updateDf(_df, resize=True)
+    def _updateChemicalShiftListWidget(self):
+        # rebuild the list of chemicalShiftList
+        _itms = self._getAllChildren()
+        self._chemicalShiftLists = {}
+        nef_category = 'nef_chemical_shift_list'
+        for itm in _itms:
+            itmName, sFrame, parentGroup, primaryHandler, _ccpnClassName = itm
+            if parentGroup in ['peakLists']:
+                _itmChemShistList = sFrame.get(SHIFTNAME) or ''  # make sure isn't None
+                _cslName = _itmChemShistList[len(nef_category) + 1:]
+                if itmName:
+                    # still reference by the peakList for the minute
+                    _itmPid = Pid._join(_ccpnClassName, itmName) if _ccpnClassName else itmName
+                    # _itmPid = Pid._join('SP', itmName.split(IDSEP)[0])
+                    # add the structure to the dict by shortClassName
+                    cslList = self._chemicalShiftLists.setdefault(_cslName, [])
+                    if _itmPid not in cslList:
+                        cslList.append(_itmPid)
+            elif parentGroup in ['chemicalShiftLists']:
+                # _itmPid = Pid._join(_ccpnClassName, itmName) if _ccpnClassName else itmName
+                self._chemicalShiftLists.setdefault(itmName, [])
 
-            _model = self._collectionsTable.model()
+        # update the chemicalShiftLists table
+        if not self._chemicalShiftListsTable:
+            return
+        if self._chemicalShiftLists:
+            _df = pd.DataFrame({CHEMICALSHIFTLIST: self._chemicalShiftLists.keys(),
+                                ITEMS            : ['\n'.join(val) for val in self._chemicalShiftLists.values()]})
+            self._chemicalShiftListsTable.updateDf(_df, resize=True)
+
+            _model = self._chemicalShiftListsTable.model()
             # colour the structureData if exist in the project
-            for row, col in enumerate(self._collections.keys()):
-                if self.project.getByPid(Pid._join(Collection.shortClassName, col)):
+            for row, col in enumerate(self._chemicalShiftLists.keys()):
+                if self.project.getByPid(Pid._join(ChemicalShiftList.shortClassName, col)):
                     _model.setForeground(row, 0, INVALIDTEXTROWNOCHECKCOLOUR)
         else:
-            _df = pd.DataFrame({COLLECTION: [], 'Items': []})
-            # _updateSimplePandasTable(self._collectionsTable, _df)
-            self._collectionsTable.updateDf(_df)
+            _df = pd.DataFrame({CHEMICALSHIFTLIST: [], ITEMS: []})
+            self._chemicalShiftListsTable.updateDf(_df)
+        self._chemicalShiftListsTable.verticalHeader().setSectionResizeMode(QtWidgets.QHeaderView.ResizeToContents)
+        self._chemicalShiftListsTable.resizeRowsToContents()
+        self._chemicalShiftListsTable.verticalHeader().setSectionResizeMode(QtWidgets.QHeaderView.Interactive)  # or whatever it was
 
+    def _updateStructureDataWidget(self):
         # rebuild the list of structureData
         _itms = self._getAllChildren()
         # self._structureData = OrderedDict((sd.id, []) for sd in self.project.structureData)
@@ -2616,7 +2794,6 @@ class NefDictFrame(Frame):
                 _itmStructureData = sFrame.get(DATANAME) or ''  # make sure isn't None
                 _itmPid = Pid._join(_ccpnClassName, _itmStructureData, itmName) if _ccpnClassName else itmName
                 # _sdPid = Pid._join(StructureData.shortClassName, _itmStructureData)
-
                 # add the structure to the dict by shortClassName
                 self._structureData.setdefault(_itmStructureData, [])
                 self._structureData[_itmStructureData].append(_itmPid)
@@ -2626,10 +2803,11 @@ class NefDictFrame(Frame):
                 self._structureData.setdefault(itmName, [])
 
         # update the structureData table
-        if self._structureDataTable and self._structureData:
+        if not self._structureDataTable:
+            return
+        if self._structureData:
             _df = pd.DataFrame({STRUCTUREDATA: self._structureData.keys(),
-                                'Items'      : ['\n'.join(val) for val in self._structureData.values()]})
-            # _updateSimplePandasTable(self._structureDataTable, _df, _resize=True)
+                                ITEMS        : ['\n'.join(val) for val in self._structureData.values()]})
             self._structureDataTable.updateDf(_df, resize=True)
 
             _model = self._structureDataTable.model()
@@ -2638,9 +2816,28 @@ class NefDictFrame(Frame):
                 if self.project.getByPid(Pid._join(StructureData.shortClassName, sd)):
                     _model.setForeground(row, 0, INVALIDTEXTROWNOCHECKCOLOUR)
         else:
-            _df = pd.DataFrame({STRUCTUREDATA: [], 'Items': []})
-            # _updateSimplePandasTable(self._structureDataTable, _df)
+            _df = pd.DataFrame({STRUCTUREDATA: [], ITEMS: []})
             self._structureDataTable.updateDf(_df)
+        self._structureDataTable.resizeRowsToContents()
+
+    def _updateCollectionsWidget(self):
+        # update the collections table
+        if not self._collectionsTable:
+            return
+        if self._collections:
+            _df = pd.DataFrame({COLLECTION: self._collections.keys(),
+                                ITEMS     : ['\n'.join(val) for val in self._collections.values()]})
+            self._collectionsTable.updateDf(_df, resize=True)
+
+            _model = self._collectionsTable.model()
+            # colour the structureData if exist in the project
+            for row, col in enumerate(self._collections.keys()):
+                if self.project.getByPid(Pid._join(Collection.shortClassName, col)):
+                    _model.setForeground(row, 0, INVALIDTEXTROWNOCHECKCOLOUR)
+        else:
+            _df = pd.DataFrame({COLLECTION: [], ITEMS: []})
+            self._collectionsTable.updateDf(_df)
+        self._collectionsTable.resizeRowsToContents()
 
     def _fillPopup(self, nefObject=None):
         """Initialise the project setting - only required for testing
@@ -2682,13 +2879,16 @@ class NefDictFrame(Frame):
         if state:
             self._verifyPopulate()
 
-    def _removeParentTreeState(self, item, data=[], prefix=''):
+    def _removeParentTreeState(self, item, data=None, prefix=''):
         """Remove parents from the tree that have no children
         """
+        if data is None:
+            raise RuntimeError(f'{self.__class__.__name__}._removeParentTreeState: data is None')
         if (self._depth(item) == 2) and item.childCount() == 0:
             data.append(item)
 
-    def _getTreeState(self, item, data: dict, prefix=''):
+    @staticmethod
+    def _getTreeState(item, data: dict, prefix=''):
         """Add the name of expanded item to the data list
         """
         if item:
@@ -2697,14 +2897,16 @@ class NefDictFrame(Frame):
             checkedState = item.checkState(0)
             data[prefix + item.data(0, 0)] = (expandedState, checkedState)
 
-    def _getAllItemState(self, item, data: [], prefix=''):
+    @staticmethod
+    def _getAllItemState(item, data: [], prefix=''):
         """Add the name of expanded item to the data list
         """
         if item:
             if (_data := item.data(1, 0)):
                 data.append(_data)
 
-    def _setTreeState(self, item, data: dict, prefix=''):
+    @staticmethod
+    def _setTreeState(item, data: dict, prefix=''):
         """Set the expanded flag if item is in data
         """
         if item:
@@ -2835,8 +3037,10 @@ class NefDictFrame(Frame):
         if name == COLLECTION:
             combo.setToolTip(f'Select existing collection, or edit to create new collection.\n'
                              f'Choose {REMOVEENTRY} to remove selection from all collections.')
-        else:
+        elif name == STRUCTUREDATA:
             combo.setToolTip('Select existing structureData, or edit to create new structureData.')
+        else:
+            combo.setToolTip('Select existing chemicalShiftList, or edit to create new chemicalShiftList.')
         combo.setCompleter(None)
 
         return combo
@@ -3113,12 +3317,16 @@ class NefDictFrame(Frame):
             row = loop.newRow(rowdata)
             row['uniqueId'] = ii
             row['name'] = col
-            row['items'] = json.dumps(itms)
+            row[ITEMS] = json.dumps(itms)
             row['comment'] = 'from NefImporter'
 
         # add to the datablock
         self._nefDict.addItem(result['sf_framecode'], result)
 
+
+#=========================================================================================
+# ImportNefPopup
+#=========================================================================================
 
 class ImportNefPopup(CcpnDialogMainWidget):
     """
@@ -3221,7 +3429,7 @@ class ImportNefPopup(CcpnDialogMainWidget):
                                  nefLoader=self._nefImporter,
                                  dataBlock=_dataBlock,
                                  pathName=self._path,
-                                 grid=(0, 0), showBorder=True,
+                                 grid=(0, 0), showBorder=False,
                                  **_options
                                  )
 
@@ -3343,6 +3551,10 @@ class ImportNefPopup(CcpnDialogMainWidget):
 
         self.accept()
 
+
+#=========================================================================================
+# main
+#=========================================================================================
 
 def main():
     """Testing code for the new nef manager
