@@ -16,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2025-03-06 18:17:32 +0000 (Thu, March 06, 2025) $"
-__version__ = "$Revision: 3.3.1 $"
+__dateModified__ = "$dateModified: 2025-05-02 11:23:08 +0100 (Fri, May 02, 2025) $"
+__version__ = "$Revision: 3.3.2 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -133,11 +133,14 @@ class _AxisOverlay(QtWidgets.QWidget):
 
 class Gui1dWidgetAxis(QtWidgets.QOpenGLWidget):
     is1D = True
-    AXIS_MARGINRIGHT = 80
-    AXIS_MARGINBOTTOM = 25
+    # these need to be able to change as the axis font-size change
+    AXIS_MARGINRIGHT = 10  # a non-zero placeholder value
+    AXIS_MARGINBOTTOM = 10
     AXIS_LINE = 7
     AXIS_OFFSET = 3
     AXIS_INSIDE = False
+    AXIS_MOUSEYOFFSET = AXIS_MARGINBOTTOM + (0 if AXIS_INSIDE else AXIS_LINE)
+    # these should be static
     YAXISUSEEFORMAT = True
     XDIRECTION = -1.0
     YDIRECTION = -1.0
@@ -148,7 +151,6 @@ class Gui1dWidgetAxis(QtWidgets.QOpenGLWidget):
     SHOWSPECTRUMONPHASING = False
     XAXES = GLDefs.XAXISUNITS
     YAXES = GLDefs.YAXISUNITS  # YAXISUNITS1D
-    AXIS_MOUSEYOFFSET = AXIS_MARGINBOTTOM + (0 if AXIS_INSIDE else AXIS_LINE)
 
     _shaderPixel = None
     _shaderText = None
@@ -219,14 +221,8 @@ class Gui1dWidgetAxis(QtWidgets.QOpenGLWidget):
 
         # initialise all attributes
         self._initialiseAll()
-
         # set a minimum size so that the strips resize nicely
         self.setMinimumSize(self.AXIS_MARGINRIGHT + 10, self.AXIS_MARGINBOTTOM + 10)
-        # if drawRightAxis:
-        #     self.setMinimumSize(self.AXIS_MARGINRIGHT + 10, STRIP_MINIMUMHEIGHT)
-        # else:
-        #     self.setMinimumSize(STRIP_MINIMUMWIDTH, self.AXIS_MARGINBOTTOM + 10)
-
         # initialise the pyqtsignal notifier
         self.GLSignals = GLNotifier(parent=self, strip=None)
 
@@ -301,6 +297,19 @@ class Gui1dWidgetAxis(QtWidgets.QOpenGLWidget):
             raise TypeError('dimension is out of range')
 
         self._axisType = _axisList[dimension]
+
+    def setAxisWidgetSize(self, dimension):
+        """Set the current axis type for the axis widget
+        0 = X Axis type, 1 = Y Axis type
+        Only the required axis is drawn and the widget dimensions are fixed in the other axis
+        """
+        _axisList = (GLDefs.BOTTOMAXIS, GLDefs.RIGHTAXIS)
+
+        if type(dimension) != int:
+            raise TypeError('dimension must be an int')
+        if not (0 <= dimension < 2):
+            raise TypeError('dimension is out of range')
+
         if dimension == 1:
             self.setFixedWidth(self.AXIS_MARGINRIGHT + (0 if self.AXIS_INSIDE else self.AXIS_LINE))
             self.setMinimumHeight(STRIP_MINIMUMHEIGHT)
@@ -312,29 +321,24 @@ class Gui1dWidgetAxis(QtWidgets.QOpenGLWidget):
         # GST tried this, it wrong sometimes, also sometimes it's a float?
         scale = self.viewports.devicePixelRatio
         size = self.globalGL.glSmallFontSize
+        # get the correct font depending on the scaling and set the scaled height/width
+        if font := list(self.globalGL.fonts.values())[0].closestFont(size * scale):
+            font.updateFromScale(round(scale))
+            return font
 
-        _font = list(self.globalGL.fonts.values())[0].closestFont(size * scale)
-
-        if not (0.9999 < scale < 1.0001):
-            _font.charHeight = _font.height / scale
-            _font.charWidth = _font.width / scale
-
-        return _font
+        raise RuntimeError(f'getSmallFont: Font not found')
 
     def getAxisFont(self, transparent=False):
         """Get the font for the axes
         """
         scale = self.viewports.devicePixelRatio
         size = self.globalGL.glAxisFontSize
-
         # get the correct font depending on the scaling and set the scaled height/width
-        _font = list(self.globalGL.fonts.values())[0].closestFont(size * scale)
+        if font := list(self.globalGL.fonts.values())[0].closestFont(size * scale):
+            font.updateFromScale(round(scale))
+            return font
 
-        if not (0.9999 < scale < 1.0001):
-            _font.charHeight = _font.height / scale
-            _font.charWidth = _font.width / scale
-
-        return _font
+        raise RuntimeError(f'getSmallFont: Font not found')
 
     def paintGL(self):
         """Handle the GL painting
@@ -1072,6 +1076,10 @@ class Gui1dWidgetAxis(QtWidgets.QOpenGLWidget):
         self._menuActive = False
         self._disableCursorUpdate = False
 
+        self.globalGL = GLGlobalData(parent=self)
+        self.viewports = GLViewports()
+        self._initialiseViewPorts()
+
     def _setColourScheme(self, pal: QtGui.QPalette = None):
         """Update colours from colourScheme
         """
@@ -1439,7 +1447,6 @@ class Gui1dWidgetAxis(QtWidgets.QOpenGLWidget):
             return
 
         # initialise a common to all OpenGL windows
-        self.globalGL = GLGlobalData(parent=self, mainWindow=self.mainWindow)
         self.globalGL.initialiseShaders(self)
 
         # initialise the arrays for the grid and axes
@@ -1452,13 +1459,13 @@ class Gui1dWidgetAxis(QtWidgets.QOpenGLWidget):
                                                dimension=2,
                                                GLContext=self))
 
-        self.viewports = GLViewports()
-        self._initialiseViewPorts()
+        # self.viewports = GLViewports()
+        # self._initialiseViewPorts()
 
         # This is the required blend function to ignore stray surface blending functions
         #   think this was an old QT bug
         # GL.glBlendFuncSeparate(GL.GL_SRC_ALPHA, GL.GL_ONE_MINUS_SRC_ALPHA, GL.GL_ONE, GL.GL_ONE)
-        GL.glBlendFunc(GL.GL_SRC_ALPHA, GL.GL_ONE_MINUS_SRC_ALPHA)  # arbitrary order
+        GL.glBlendFunc(GL.GL_SRC_ALPHA, GL.GL_ONE_MINUS_SRC_ALPHA)
 
         self._setColourScheme()
         self.setBackgroundColour(self.background, silent=True)
@@ -1560,6 +1567,15 @@ class Gui1dWidgetAxis(QtWidgets.QOpenGLWidget):
         """
         self.viewports.clearViewports()
 
+        # these need to be able to change as the axis font-size change
+        smallFont = self.getAxisFont()
+        self.AXIS_INSIDE = False
+        self.AXIS_LINE = 7
+        self.AXIS_OFFSET = smallFont.base
+        self.AXIS_MARGINRIGHT = self.AXIS_LINE + (7 * smallFont.charWidth)
+        self.AXIS_MARGINBOTTOM = self.AXIS_LINE + smallFont.height
+        self.AXIS_MOUSEYOFFSET = self.AXIS_MARGINBOTTOM + (0 if self.AXIS_INSIDE else self.AXIS_LINE)
+
         # define the main viewports
         if self.AXIS_INSIDE:
             self.viewports.addViewport(GLDefs.MAINVIEW, self,
@@ -1618,7 +1634,7 @@ class Gui1dWidgetAxis(QtWidgets.QOpenGLWidget):
         # define the viewports for the bottom axis bar
         if self.AXIS_INSIDE:
             self.viewports.addViewport(GLDefs.BOTTOMAXIS, self,
-                                       (0, 'a'), (self.AXIS_MARGINBOTTOM, 'a'),
+                                       (0, 'a'), (self.AXIS_MARGINBOTTOM + 1, 'a'),
                                        (-self.AXIS_MARGINRIGHT, 'w'), (self.AXIS_LINE, 'a'))
 
             self.viewports.addViewport(GLDefs.BOTTOMAXISBAR, self,
@@ -1626,7 +1642,7 @@ class Gui1dWidgetAxis(QtWidgets.QOpenGLWidget):
                                        (-self.AXIS_MARGINRIGHT, 'w'), (self.AXIS_MARGINBOTTOM, 'a'))
         else:
             self.viewports.addViewport(GLDefs.BOTTOMAXIS, self,
-                                       (0, 'a'), (self.AXIS_MARGINBOTTOM, 'a'),
+                                       (0, 'a'), (self.AXIS_MARGINBOTTOM + 1, 'a'),
                                        (-(self.AXIS_MARGINRIGHT + self.AXIS_LINE), 'w'), (self.AXIS_LINE, 'a'))
 
             self.viewports.addViewport(GLDefs.BOTTOMAXISBAR, self,
@@ -1672,9 +1688,10 @@ class Gui1dWidgetAxis(QtWidgets.QOpenGLWidget):
         self._applyXLimit = self._preferences.zoomXLimitApply
         self._applyYLimit = self._preferences.zoomYLimitApply
         self._intensityLimit = self._preferences.intensityLimit
-
         # set the flag to update the background in the paint event
         self._updateBackgroundColour = True
+        # update the viewports if the axis font-size has changed
+        self._initialiseViewPorts()
 
     def setBackgroundColour(self, col, silent=False, makeCurrent=False):
         """
@@ -1743,21 +1760,19 @@ class Gui1dWidgetAxis(QtWidgets.QOpenGLWidget):
                 labelColour = self.foreground
 
             smallFont = self.getAxisFont()
-
             if self._drawBottomAxis and self._axisType == GLDefs.BOTTOMAXIS:
                 # create the X axis labelling
+                yVal = self.AXIS_OFFSET
                 for axLabel in self.axisLabelling['0'].values():
                     axisX = axLabel[2]
                     axisXLabel = axLabel[3]
 
                     axisXText = self._intFormat(axisXLabel) if axLabel[4] >= 1 else self.XMode(axisXLabel)
-
                     self._axisXLabelling.append(GLString(text=axisXText,
                                                          font=smallFont,
-                                                         x=axisX - (0.4 * smallFont.charWidth * self.deltaX * len(
-                                                                 axisXText)),
-                                                         y=self.AXIS_MARGINBOTTOM - GLDefs.TITLEYOFFSET * smallFont.charHeight,
-
+                                                         x=axisX - (0.4 * smallFont.charWidth * self.deltaX *
+                                                                    len(axisXText)),
+                                                         y=yVal,
                                                          colour=labelColour, GLContext=self,
                                                          obj=None))
 
@@ -1766,15 +1781,16 @@ class Gui1dWidgetAxis(QtWidgets.QOpenGLWidget):
                         text=self._visibleOrderingAxisCodes[0] if self._visibleOrderingAxisCodes else '*',
                         font=smallFont,
                         x=GLDefs.AXISTEXTXOFFSET * self.deltaX,
-                        y=self.AXIS_MARGINBOTTOM - GLDefs.TITLEYOFFSET * smallFont.charHeight,
+                        y=yVal,
                         colour=labelColour, GLContext=self,
                         obj=None))
                 # and the axis dimensions
                 xUnitsLabels = self.XAXES[self._xUnits]
                 self._axisXLabelling.append(GLString(text=xUnitsLabels,
                                                      font=smallFont,
-                                                     x=1.0 - (self.deltaX * len(xUnitsLabels) * smallFont.charWidth),
-                                                     y=self.AXIS_MARGINBOTTOM - GLDefs.TITLEYOFFSET * smallFont.charHeight,
+                                                     x=1.0 - (self.deltaX * len(xUnitsLabels) *
+                                                              smallFont.charWidth),
+                                                     y=yVal,
                                                      colour=labelColour, GLContext=self,
                                                      obj=None))
 
@@ -1782,6 +1798,7 @@ class Gui1dWidgetAxis(QtWidgets.QOpenGLWidget):
 
             if self._drawRightAxis and self._axisType == GLDefs.RIGHTAXIS:
                 # create the Y axis labelling
+                offset = (smallFont.charHeight // 2) + smallFont.base
                 for xx, ayLabel in enumerate(self.axisLabelling['1'].values()):
                     axisY = ayLabel[2]
                     axisYLabel = ayLabel[3]
@@ -1794,7 +1811,7 @@ class Gui1dWidgetAxis(QtWidgets.QOpenGLWidget):
                     self._axisYLabelling.append(GLString(text=axisYText,
                                                          font=smallFont,
                                                          x=self.AXIS_OFFSET,
-                                                         y=axisY - (GLDefs.AXISTEXTYOFFSET * self.deltaY),
+                                                         y=axisY - (offset * self.deltaY),
                                                          colour=labelColour, GLContext=self,
                                                          obj=None))
 
@@ -1804,7 +1821,7 @@ class Gui1dWidgetAxis(QtWidgets.QOpenGLWidget):
                                                                   len(self._visibleOrderingAxisCodes) > 1 else '*',
                         font=smallFont,
                         x=self.AXIS_OFFSET,
-                        y=1.0 - (GLDefs.TITLEYOFFSET * smallFont.charHeight * self.deltaY),
+                        y=1.0 - (GLDefs.TITLEYOFFSET * smallFont.height * self.deltaY),
                         colour=labelColour, GLContext=self,
                         obj=None))
                 # and the axis dimensions
@@ -1856,7 +1873,7 @@ class Gui1dWidgetAxis(QtWidgets.QOpenGLWidget):
         # GL.glBindTexture(GL.GL_TEXTURE_2D, smallFont.textureId)
 
         GL.glActiveTexture(GL.GL_TEXTURE0)
-        GL.glBindTexture(GL.GL_TEXTURE_2D, self.getSmallFont()._parent.textureId)
+        GL.glBindTexture(GL.GL_TEXTURE_2D, self.getSmallFont().textureId)
         # GL.glActiveTexture(GL.GL_TEXTURE1)
         # GL.glBindTexture(GL.GL_TEXTURE_2D, self.getSmallFont(transparent=True).textureId)
 
@@ -2319,6 +2336,7 @@ class Gui1dWidgetAxis(QtWidgets.QOpenGLWidget):
         return 1.0
 
     def resizeGL(self, w, h):
+        super().resizeGL(w, h)
         # must be set here to catch the change of screen
         if self.spectrumDisplay.isDeleted:
             getLogger().debug2(f'resizeGL  {self}  {self.spectrumDisplay}')
@@ -2462,8 +2480,8 @@ class Gui1dWidgetAxis(QtWidgets.QOpenGLWidget):
         # def between(val, l, r):
         #   return (l-val)*(r-val) <= 0
 
+        event.accept()
         if self.spectrumDisplay and not self._ordering:  # strip.spectrumViews:
-            event.accept()
             return
 
         # check the movement of the wheel first
@@ -2474,7 +2492,6 @@ class Gui1dWidgetAxis(QtWidgets.QOpenGLWidget):
         zoomScale = 0.0
         scrollDirection = 0
         if numPixels:
-
             # always seems to be numPixels - check with Linux
             # the Shift key automatically returns the x-axis
             scrollDirection = numPixels.x() if self._isSHIFT else numPixels.y()
@@ -2482,46 +2499,18 @@ class Gui1dWidgetAxis(QtWidgets.QOpenGLWidget):
 
             # stop the very sensitive movements
             if abs(scrollDirection) < 1:
-                event.ignore()
                 return
 
         elif numDegrees:
-
             # this may work when using Linux
             scrollDirection = (numDegrees.x() / 4) if self._isSHIFT else (numDegrees.y() / 4)
             zoomScale = 8.0
 
             # stop the very sensitive movements
             if abs(scrollDirection) < 1:
-                event.ignore()
                 return
-
         else:
-            event.ignore()
             return
-
-        # if self._isSHIFT or self._isCTRL:
-        #
-        #     # process wheel with buttons here
-        #     # transfer event to the correct widget for changing the plane OR raising base contour level...
-        #
-        #     if self._isSHIFT:
-        #         # raise/lower base contour level - should be strip I think
-        #         if scrollDirection > 0:
-        #             self.strip.spectrumDisplay.raiseContourBase()
-        #         else:
-        #             self.strip.spectrumDisplay.lowerContourBase()
-        #
-        #     elif self._isCTRL:
-        #         # scroll through planes
-        #         pT = self.strip.planeAxisBars if hasattr(self.strip, 'planeAxisBars') else None
-        #         activePlaneAxis = self.strip.activePlaneAxis
-        #         if pT and activePlaneAxis is not None and (activePlaneAxis - 2) < len(pT):
-        #             # pass the event to the correct double spinbox
-        #             pT[activePlaneAxis - 2].scrollPpmPosition(event)
-        #
-        #     event.accept()
-        #     return
 
         # test whether the limits have been reached in either axis
         if (scrollDirection > 0 and self._minReached and self._aspectRatioMode) or \
@@ -2531,7 +2520,6 @@ class Gui1dWidgetAxis(QtWidgets.QOpenGLWidget):
 
         zoomIn = (100.0 + zoomScale) / 100.0
         zoomOut = 100.0 / (100.0 + zoomScale)
-
         h = self.h
         w = self.w
 
@@ -2558,16 +2546,13 @@ class Gui1dWidgetAxis(QtWidgets.QOpenGLWidget):
 
         mx = event.pos().x()
         my = self.height() - event.pos().y()
-
         tilePos = self.tilePosition
 
         if self.between(mx, ba[0], ba[0] + ba[2]) and self.between(my, ba[1], ba[1] + ba[3]):
 
             # in the bottomAxisBar, so zoom in the X axis
-
             # check the X limits
             if (scrollDirection > 0 and self._minXReached) or (scrollDirection < 0 and self._maxXReached):
-                event.accept()
                 return
 
             if zoomCentre == 0:  # centre on mouse
@@ -2576,7 +2561,6 @@ class Gui1dWidgetAxis(QtWidgets.QOpenGLWidget):
                 mb = 0.5
 
             mbx = self.axisL + mb * (self.axisR - self.axisL)
-
             if scrollDirection < 0:
                 self.axisL = mbx + zoomIn * (self.axisL - mbx)
                 self.axisR = mbx - zoomIn * (mbx - self.axisR)
@@ -2600,27 +2584,19 @@ class Gui1dWidgetAxis(QtWidgets.QOpenGLWidget):
                                                  axisL=self.axisL, axisR=self.axisR,
                                                  row=tilePos[0], column=tilePos[1],
                                                  aspectRatios=ratios)
-
                 self._rescaleXAxis()
-                # self._storeZoomHistory()
-
             else:
                 self._scaleToXAxis()
-
                 self.GLSignals._emitAllAxesChanged(source=self, strip=None, spectrumDisplay=self.spectrumDisplay,
                                                    axisB=self.axisB, axisT=self.axisT,
                                                    axisL=self.axisL, axisR=self.axisR,
                                                    row=tilePos[0], column=tilePos[1])
 
-                # self._storeZoomHistory()
-
         elif self.between(mx, ra[0], ra[0] + ra[2]) and self.between(my, ra[1], ra[1] + ra[3]):
 
             # in the rightAxisBar, so zoom in the Y axis
-
             # check the Y limits
             if (scrollDirection > 0 and self._minYReached) or (scrollDirection < 0 and self._maxYReached):
-                event.accept()
                 return
 
             if zoomCentre == 0:  # centre on mouse
@@ -2629,7 +2605,6 @@ class Gui1dWidgetAxis(QtWidgets.QOpenGLWidget):
                 mb = 0.5
 
             mby = self.axisB + mb * (self.axisT - self.axisB)
-
             if scrollDirection < 0:
                 self.axisB = mby + zoomIn * (self.axisB - mby)
                 self.axisT = mby - zoomIn * (mby - self.axisT)
@@ -2638,36 +2613,22 @@ class Gui1dWidgetAxis(QtWidgets.QOpenGLWidget):
                 self.axisT = mby - zoomOut * (mby - self.axisT)
 
             if not self._aspectRatioMode:
-                # ratios = None
-                # if self.spectrumDisplay and self.spectrumDisplay.strips and len(self.spectrumDisplay.strips) > 0:
-                #     strip = self.spectrumDisplay.strips[0]
-                #     if not strip.isDeleted:
-                #         ratios = strip._CcpnGLWidget._lockedAspectRatios
                 try:
                     ratios = self.spectrumDisplay.strips[0]._CcpnGLWidget._lockedAspectRatios
                 except:
                     ratios = None
-
                 self.GLSignals._emitYAxisChanged(source=self, strip=None, spectrumDisplay=self.spectrumDisplay,
                                                  axisB=self.axisB, axisT=self.axisT,
                                                  axisL=self.axisL, axisR=self.axisR,
                                                  row=tilePos[0], column=tilePos[1],
                                                  aspectRatios=ratios)
-
                 self._rescaleYAxis()
-                # self._storeZoomHistory()
-
             else:
                 self._scaleToYAxis()
-
                 self.GLSignals._emitAllAxesChanged(source=self, strip=None, spectrumDisplay=self.spectrumDisplay,
                                                    axisB=self.axisB, axisT=self.axisT,
                                                    axisL=self.axisL, axisR=self.axisR,
                                                    row=tilePos[0], column=tilePos[1])
-
-                # self._storeZoomHistory()
-
-        event.accept()
 
     def highlightCurrentStrip(self, current):
         # handle changing the colour of the axes
@@ -2826,22 +2787,13 @@ class GuiNdWidgetAxis(Gui1dWidgetAxis):
     """Testing a widget that only contains a right axis
     """
     is1D = False
-    AXIS_MARGINRIGHT = 50
-    AXIS_MARGINBOTTOM = 25
-    AXIS_LINE = 7
-    AXIS_OFFSET = 3
-    AXIS_INSIDE = False
+    # these need to be able to change as the axis font-size change
+    ...
+    # these should be static
     YAXISUSEEFORMAT = False
-    XDIRECTION = -1.0
-    YDIRECTION = -1.0
     AXISLOCKEDBUTTON = True
     AXISLOCKEDBUTTONALLSTRIPS = True
-    SPECTRUMXZOOM = 5.0e1
-    SPECTRUMYZOOM = 5.0e1
     SHOWSPECTRUMONPHASING = True
-    XAXES = GLDefs.XAXISUNITS
-    YAXES = GLDefs.YAXISUNITS
-    AXIS_MOUSEYOFFSET = AXIS_MARGINBOTTOM + (0 if AXIS_INSIDE else AXIS_LINE)
 
     def _buildSpectrumSetting(self, spectrumView, stackCount=0):
         delta = [self.XDIRECTION, self.YDIRECTION]

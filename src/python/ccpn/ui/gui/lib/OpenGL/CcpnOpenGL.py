@@ -57,8 +57,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2025-04-09 18:06:02 +0100 (Wed, April 09, 2025) $"
-__version__ = "$Revision: 3.3.1 $"
+__dateModified__ = "$dateModified: 2025-05-02 11:23:06 +0100 (Fri, May 02, 2025) $"
+__version__ = "$Revision: 3.3.2 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -180,11 +180,14 @@ class CcpnGLWidget(QOpenGLWidget):
     """
     painted = QtCore.pyqtSignal(object)
 
-    AXIS_MARGINRIGHT = 50
-    AXIS_MARGINBOTTOM = 25
+    # these need to be able to change as the axis font-size change
+    AXIS_MARGINRIGHT = 10
+    AXIS_MARGINBOTTOM = 10
     AXIS_LINE = 7
     AXIS_OFFSET = 3
     AXIS_INSIDE = False
+    AXIS_MOUSEYOFFSET = AXIS_MARGINBOTTOM + (0 if AXIS_INSIDE else AXIS_LINE)
+    # these should be static
     YAXISUSEEFORMAT = False
     XDIRECTION = -1.0
     YDIRECTION = -1.0
@@ -195,7 +198,6 @@ class CcpnGLWidget(QOpenGLWidget):
     SHOWSPECTRUMONPHASING = True
     XAXES = GLDefs.XAXISUNITS
     YAXES = GLDefs.YAXISUNITS
-    AXIS_MOUSEYOFFSET = AXIS_MARGINBOTTOM + (0 if AXIS_INSIDE else AXIS_LINE)
 
     _shaderTextAlias = None
     _shaderPixelAlias = None
@@ -527,6 +529,10 @@ class CcpnGLWidget(QOpenGLWidget):
         self._menuActive = False
         self._disableCursorUpdate = False
 
+        self.globalGL = GLGlobalData(parent=self)
+        self.viewports = GLViewports()
+        self._initialiseViewPorts()
+
     # def close(self):
     #     self.GLSignals.glXAxisChanged.disconnect()
     #     self.GLSignals.glYAxisChanged.disconnect()
@@ -611,7 +617,11 @@ class CcpnGLWidget(QOpenGLWidget):
     def setStackingValue(self, val):
         self._stackingValue = val
 
-    def setStackingMode(self, value):
+    @property
+    def stackMode(self) -> bool:
+        return self._stackingMode
+
+    def setStackingMode(self, value: bool):
         self._stackingMode = value
         self.rescaleSpectra()
         self._spectrumLabelling.rescale()
@@ -718,6 +728,7 @@ class CcpnGLWidget(QOpenGLWidget):
                     for listView in spectrumView.multipletListViews:
                         listView.buildLabels = True
                 self.buildMarks = True
+                self._spectrumLabelling.strings.clear()  # HACK:ED - need better method to spawn a rebuild
                 self.update()
 
     def _getValidAspectRatio(self, axisCode):
@@ -744,8 +755,7 @@ class CcpnGLWidget(QOpenGLWidget):
     def resizeGL(self, w, h):
         """Resize event from the openGL architecture
         """
-        # if self.visibleRegion().isEmpty():
-        #     return
+        super().resizeGL(w, h)
 
         # would need to defer resizing until first visible paint?
         # print(f'--> resizeGL   {id(self)}   {self.strip}   {not self.visibleRegion()}')
@@ -841,6 +851,7 @@ class CcpnGLWidget(QOpenGLWidget):
 
     def wheelEvent(self, event):
 
+        event.accept()
         if self.strip and not self._ordering:  # strip.spectrumViews:
             return
 
@@ -865,7 +876,6 @@ class CcpnGLWidget(QOpenGLWidget):
         zoomScale = min(abs(scrollDirection), SCROLL_DELTA_LIMIT)
 
         if (keyModifiers & (Qt.ShiftModifier | Qt.ControlModifier | Qt.AltModifier)):
-
             # process wheel with buttons here
             # transfer event to the correct widget for changing the plane OR raising base contour level...
             if (keyModifiers & Qt.ShiftModifier):
@@ -890,7 +900,6 @@ class CcpnGLWidget(QOpenGLWidget):
                     self.strip.spectrumDisplay.increaseSpectrumScale()
                 else:
                     self.strip.spectrumDisplay.decreaseSpectrumScale()
-
             return
 
         # test whether the limits have been reached in either axis
@@ -900,7 +909,6 @@ class CcpnGLWidget(QOpenGLWidget):
 
         zoomIn = (100.0 + zoomScale) / 100.0
         zoomOut = 100.0 / (100.0 + zoomScale)
-
         h = self.h
         w = self.w
 
@@ -930,9 +938,7 @@ class CcpnGLWidget(QOpenGLWidget):
 
         tilePos = self.strip.tilePosition if self.strip else self.tilePosition
         if self.between(mx, mw[0], mw[0] + mw[2]) and self.between(my, mw[1], mw[1] + mw[3]):
-
             # if in the mainView
-
             if (scrollDirection > 0 and self._minReached) or \
                     (scrollDirection < 0 and self._maxReached):
                 return
@@ -946,7 +952,6 @@ class CcpnGLWidget(QOpenGLWidget):
 
             mbx = self.axisL + mb0 * (self.axisR - self.axisL)
             mby = self.axisB + mb1 * (self.axisT - self.axisB)
-
             if scrollDirection < 0:
                 self.axisL = mbx + zoomIn * (self.axisL - mbx)
                 self.axisR = mbx - zoomIn * (mbx - self.axisR)
@@ -963,14 +968,11 @@ class CcpnGLWidget(QOpenGLWidget):
                                                axisL=self.axisL, axisR=self.axisR,
                                                row=tilePos[0], column=tilePos[1],
                                                zoomAll=True)
-
             self._rescaleAllAxes()
             self._storeZoomHistory()
 
         elif self.between(mx, ba[0], ba[0] + ba[2]) and self.between(my, ba[1], ba[1] + ba[3]):
-
             # in the bottomAxisBar, so zoom in the X axis
-
             # check the X limits
             if (scrollDirection > 0 and self._minXReached) or (scrollDirection < 0 and self._maxXReached):
                 return
@@ -981,7 +983,6 @@ class CcpnGLWidget(QOpenGLWidget):
                 mb = 0.5
 
             mbx = self.axisL + mb * (self.axisR - self.axisL)
-
             if scrollDirection < 0:
                 self.axisL = mbx + zoomIn * (self.axisL - mbx)
                 self.axisR = mbx - zoomIn * (mbx - self.axisR)
@@ -996,23 +997,18 @@ class CcpnGLWidget(QOpenGLWidget):
                                                  axisL=self.axisL, axisR=self.axisR,
                                                  row=tilePos[0], column=tilePos[1],
                                                  aspectRatios=self._lockedAspectRatios)
-
                 self._storeZoomHistory()
 
             else:
                 self._scaleToXAxis()
-
                 self.GLSignals._emitAllAxesChanged(source=self, strip=self.strip,
                                                    axisB=self.axisB, axisT=self.axisT,
                                                    axisL=self.axisL, axisR=self.axisR,
                                                    row=tilePos[0], column=tilePos[1])
-
                 self._storeZoomHistory()
 
         elif self.between(mx, ra[0], ra[0] + ra[2]) and self.between(my, ra[1], ra[1] + ra[3]):
-
             # in the rightAxisBar, so zoom in the Y axis
-
             # check the Y limits
             if (scrollDirection > 0 and self._minYReached) or (scrollDirection < 0 and self._maxYReached):
                 return
@@ -1023,7 +1019,6 @@ class CcpnGLWidget(QOpenGLWidget):
                 mb = 0.5
 
             mby = self.axisB + mb * (self.axisT - self.axisB)
-
             if scrollDirection < 0:
                 self.axisB = mby + zoomIn * (self.axisB - mby)
                 self.axisT = mby - zoomIn * (mby - self.axisT)
@@ -1038,17 +1033,14 @@ class CcpnGLWidget(QOpenGLWidget):
                                                  axisL=self.axisL, axisR=self.axisR,
                                                  row=tilePos[0], column=tilePos[1],
                                                  aspectRatios=self._lockedAspectRatios)
-
                 self._storeZoomHistory()
 
             else:
                 self._scaleToYAxis()
-
                 self.GLSignals._emitAllAxesChanged(source=self, strip=self.strip,
                                                    axisB=self.axisB, axisT=self.axisT,
                                                    axisL=self.axisL, axisR=self.axisR,
                                                    row=tilePos[0], column=tilePos[1])
-
                 self._storeZoomHistory()
 
     def emitAllAxesChanged(self, allStrips=False):
@@ -1326,6 +1318,7 @@ class CcpnGLWidget(QOpenGLWidget):
             # if (self._useLockedAspect or self._useDefaultAspect):
             # ratios have changed so rescale the peak/multiplet symbols
             self._GLPeaks.rescale()
+            self._GLIntegrals.rescale()
             self._GLMultiplets.rescale()
 
         self._rescaleOverlayText()
@@ -1720,14 +1713,8 @@ class CcpnGLWidget(QOpenGLWidget):
         self._rescaleAllZoom(rescale=False)
 
     def initializeGL(self):
-        # GLversionFunctions = self.context().versionFunctions()
-        # GLversionFunctions.initializeOpenGLFunctions()
-        # self._GLVersion = GLversionFunctions.glGetString(GL.GL_VERSION)
-
         # initialise a common to all OpenGL windows
-        self.globalGL = GLGlobalData(parent=self, mainWindow=self.mainWindow)
         self.globalGL.initialiseShaders(self)
-
         # move outside GLGlobalData to check threading on windows
         self.globalGL.bindFonts()
 
@@ -1825,9 +1812,6 @@ class CcpnGLWidget(QOpenGLWidget):
         #     self._legend.addString(spectrum, (ii*15,ii*15),
         #                                       colour="#FE64C6", alpha=0.75)
 
-        self.viewports = GLViewports()
-        self._initialiseViewPorts()
-
         # set strings for the overlay text
         self.buildOverlayStrings()
 
@@ -1849,10 +1833,7 @@ class CcpnGLWidget(QOpenGLWidget):
 
         if self.strip:
             self.updateVisibleSpectrumViews()
-
             self.initialiseAxes(self.strip)
-            # NOTE:ED - why is this called here?
-            # self.initialiseTraces()
 
         # set the painting mode
         self._paintMode = PaintModes.PAINT_ALL
@@ -1871,11 +1852,7 @@ class CcpnGLWidget(QOpenGLWidget):
         self.GLSignals.glAxisLockChanged.connect(self._glAxisLockChanged)
         self.GLSignals.glAxisUnitsChanged.connect(self._glAxisUnitsChanged)
         self.GLSignals.glKeyEvent.connect(self._glKeyEvent)
-
         self.glReady = True
-
-        # make sure that the shaders are initialised
-        self._resizeGL()
 
     def _clearGLCursorQueue(self):
         """Clear the cursor glLists
@@ -1897,6 +1874,15 @@ class CcpnGLWidget(QOpenGLWidget):
         """Initialise all the viewports for the widget
         """
         self.viewports.clearViewports()
+
+        # these need to be able to change as the axis font-size change
+        smallFont = self.getAxisFont()
+        self.AXIS_INSIDE = False
+        self.AXIS_LINE = 7
+        self.AXIS_OFFSET = smallFont.base
+        self.AXIS_MARGINRIGHT = self.AXIS_LINE + (7 * smallFont.charWidth)
+        self.AXIS_MARGINBOTTOM = self.AXIS_LINE + smallFont.height
+        self.AXIS_MOUSEYOFFSET = self.AXIS_MARGINBOTTOM + (0 if self.AXIS_INSIDE else self.AXIS_LINE)
 
         # define the main viewports
         if self.AXIS_INSIDE:
@@ -2024,30 +2010,24 @@ class CcpnGLWidget(QOpenGLWidget):
         """
         scale = self.viewports.devicePixelRatio
         size = self.globalGL.glSmallFontSize
-
         # get the correct font depending on the scaling and set the scaled height/width
-        _font = list(self.globalGL.fonts.values())[0].closestFont(size * scale)
+        if font := list(self.globalGL.fonts.values())[0].closestFont(size * scale):
+            font.updateFromScale(round(scale))
+            return font
 
-        if not (0.9999 < scale < 1.0001):
-            _font.charHeight = _font.height / scale
-            _font.charWidth = _font.width / scale
-
-        return _font
+        raise RuntimeError(f'getSmallFont: Font not found')
 
     def getAxisFont(self, transparent=False):
         """Get the font for the axes
         """
         scale = self.viewports.devicePixelRatio
         size = self.globalGL.glAxisFontSize
-
         # get the correct font depending on the scaling and set the scaled height/width
-        _font = list(self.globalGL.fonts.values())[0].closestFont(size * scale)
+        if font := list(self.globalGL.fonts.values())[0].closestFont(size * scale):
+            font.updateFromScale(round(scale))
+            return font
 
-        if not (0.9999 < scale < 1.0001):
-            _font.charHeight = _font.height / scale
-            _font.charWidth = _font.width / scale
-
-        return _font
+        raise RuntimeError(f'getAxisFont: Font not found')
 
     def _setColourScheme(self, pal: QtGui.QPalette = None):
         """Update colours from colourScheme
@@ -2102,6 +2082,7 @@ class CcpnGLWidget(QOpenGLWidget):
             self.globalGL.glAxisFontSize = _size
 
         self.refreshDevicePixelRatio()
+        self._initialiseViewPorts()
         self.buildOverlayStrings()
 
     def setBackgroundColour(self, col, silent=False, makeCurrent=False):
@@ -2908,7 +2889,7 @@ class CcpnGLWidget(QOpenGLWidget):
         if self.stripIDString:
             smallFont = self.getSmallFont()
             offsets = [GLDefs.TITLEXOFFSET * smallFont.charWidth * self.deltaX,
-                       1.0 - (GLDefs.TITLEYOFFSET * smallFont.charHeight * self.deltaY),
+                       1.0 - (GLDefs.TITLEYOFFSET * smallFont.height * self.deltaY),
                        0.0, 0.0]
 
             self.stripIDString.attribs[:] = offsets * self.stripIDString.numVertices
@@ -3332,7 +3313,7 @@ class CcpnGLWidget(QOpenGLWidget):
         # GL.glBindTexture(GL.GL_TEXTURE_2D, self.globalGL.glSmallFont.textureId)
 
         GL.glActiveTexture(GL.GL_TEXTURE0)
-        GL.glBindTexture(GL.GL_TEXTURE_2D, self.getSmallFont()._parent.textureId)
+        GL.glBindTexture(GL.GL_TEXTURE_2D, self.getSmallFont().textureId)
         # GL.glActiveTexture(GL.GL_TEXTURE1)
         # GL.glBindTexture(GL.GL_TEXTURE_2D, self.getSmallFont(transparent=True).textureId)
 
@@ -3585,6 +3566,7 @@ class CcpnGLWidget(QOpenGLWidget):
 
             if self._drawBottomAxis:
                 # create the X axis labelling
+                yVal = self.AXIS_OFFSET
                 for axLabel in self.axisLabelling['0'].values():
                     axisX = axLabel[2]
                     axisXLabel = axLabel[3]
@@ -3596,10 +3578,9 @@ class CcpnGLWidget(QOpenGLWidget):
 
                     self._axisXLabelling.append(GLString(text=axisXText,
                                                          font=smallFont,
-                                                         x=axisX - (0.4 * smallFont.charWidth * self.deltaX * len(
-                                                                 axisXText)),
-                                                         y=self.AXIS_MARGINBOTTOM - GLDefs.TITLEYOFFSET * smallFont.charHeight,
-
+                                                         x=axisX - (0.4 * smallFont.charWidth * self.deltaX *
+                                                                    len(axisXText)),
+                                                         y=yVal,
                                                          colour=labelColour, GLContext=self,
                                                          obj=None))
 
@@ -3608,15 +3589,16 @@ class CcpnGLWidget(QOpenGLWidget):
                         text=self._visibleOrderingAxisCodes[0] if self._visibleOrderingAxisCodes else '*',
                         font=smallFont,
                         x=GLDefs.AXISTEXTXOFFSET * self.deltaX,
-                        y=self.AXIS_MARGINBOTTOM - GLDefs.TITLEYOFFSET * smallFont.charHeight,
+                        y=yVal,
                         colour=labelColour, GLContext=self,
                         obj=None))
                 # and the axis dimensions
                 xUnitsLabels = self.XAXES[self._xUnits]
                 self._axisXLabelling.append(GLString(text=xUnitsLabels,
                                                      font=smallFont,
-                                                     x=1.0 - (self.deltaX * len(xUnitsLabels) * smallFont.charWidth),
-                                                     y=self.AXIS_MARGINBOTTOM - GLDefs.TITLEYOFFSET * smallFont.charHeight,
+                                                     x=1.0 - (self.deltaX * len(xUnitsLabels) *
+                                                              smallFont.charWidth),
+                                                     y=yVal,
                                                      colour=labelColour, GLContext=self,
                                                      obj=None))
 
@@ -3624,6 +3606,7 @@ class CcpnGLWidget(QOpenGLWidget):
 
             if self._drawRightAxis:
                 # create the Y axis labelling
+                offset = (smallFont.charHeight // 2) + smallFont.base
                 for xx, ayLabel in enumerate(self.axisLabelling['1'].values()):
                     axisY = ayLabel[2]
                     axisYLabel = ayLabel[3]
@@ -3636,7 +3619,7 @@ class CcpnGLWidget(QOpenGLWidget):
                     self._axisYLabelling.append(GLString(text=axisYText,
                                                          font=smallFont,
                                                          x=self.AXIS_OFFSET,
-                                                         y=axisY - (GLDefs.AXISTEXTYOFFSET * self.deltaY),
+                                                         y=axisY - (offset * self.deltaY),
                                                          colour=labelColour, GLContext=self,
                                                          obj=None))
 
@@ -3646,7 +3629,7 @@ class CcpnGLWidget(QOpenGLWidget):
                                                                   len(self._visibleOrderingAxisCodes) > 1 else '*',
                         font=smallFont,
                         x=self.AXIS_OFFSET,
-                        y=1.0 - (GLDefs.TITLEYOFFSET * smallFont.charHeight * self.deltaY),
+                        y=1.0 - (GLDefs.TITLEYOFFSET * smallFont.height * self.deltaY),
                         colour=labelColour, GLContext=self,
                         obj=None))
                 # and the axis dimensions
@@ -4075,7 +4058,7 @@ class CcpnGLWidget(QOpenGLWidget):
             self.stripIDString = GLString(text=self.stripIDLabel,
                                           font=smallFont,
                                           x=GLDefs.TITLEXOFFSET * smallFont.charWidth * self.deltaX,
-                                          y=1.0 - (GLDefs.TITLEYOFFSET * smallFont.charHeight * self.deltaY),
+                                          y=1.0 - (GLDefs.TITLEYOFFSET * smallFont.height * self.deltaY),
                                           colour=colour, GLContext=self,
                                           obj=None, blendMode=False)
 
@@ -4449,7 +4432,7 @@ class CcpnGLWidget(QOpenGLWidget):
             if self._drawDeltaOffset:
                 newCoords += '\n d%s: %s\n d%s: %s' % (self._visibleOrderingAxisCodes[0], self.XMode(cursorX - startX),
                                                        self._visibleOrderingAxisCodes[1], self.YMode(cursorY - startY))
-                deltaOffset = smallFont.charHeight * 2.0 * self.pixelY
+                deltaOffset = smallFont.height * 2.0 * self.pixelY
 
             mx, my = cursorCoordinate[0], cursorCoordinate[1] - deltaOffset
             self.mouseString = GLString(text=newCoords,
@@ -4472,7 +4455,8 @@ class CcpnGLWidget(QOpenGLWidget):
             # oy = -min(max(_mouseOffsetT - 1.0, 0.0), _mouseOffsetB)
 
             xOff = self.pixelX * 80.0
-            yOff = self.pixelY * self.mouseString.height
+            yOff = self.pixelY * self.mouseString.height  # USE NUMBER OF ROWS * fontSize
+            # hmm, there is a scale difference between the single- and double-size font :|
             ox, oy = self._ensureOnScreen(mx, my, xROff=xOff, yTOff=yOff)
             self.mouseString.setStringOffset((ox, oy))
             self.mouseString.pushTextArrayVBOAttribs()

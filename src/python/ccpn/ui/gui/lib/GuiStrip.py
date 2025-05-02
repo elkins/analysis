@@ -16,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2025-03-06 18:17:32 +0000 (Thu, March 06, 2025) $"
-__version__ = "$Revision: 3.3.1 $"
+__dateModified__ = "$dateModified: 2025-05-02 11:23:05 +0100 (Fri, May 02, 2025) $"
+__version__ = "$Revision: 3.3.2 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -722,6 +722,7 @@ class GuiStrip(Frame):
     def _toggleLastAxisOnly(self):
         self.spectrumDisplay.setLastAxisOnly(lastAxisOnly=self.lastAxisOnlyCheckBox.isChecked())
         self.spectrumDisplay.showAxes()
+        self.spectrumDisplay.showAxesRedraw()
 
     def toggleLastAxisOnly(self):
         """
@@ -2840,6 +2841,7 @@ class GuiStrip(Frame):
 
         # rebuild the axes for strips
         spectrumDisplay.showAxes(stretchValue=True, widths=False)
+        spectrumDisplay.showAxesRedraw()
 
     def navigateToPosition(self, positions: List[float],
                            axisCodes: List[str] = None,

@@ -17,8 +17,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2025-04-09 18:34:02 +0100 (Wed, April 09, 2025) $"
-__version__ = "$Revision: 3.3.1 $"
+__dateModified__ = "$dateModified: 2025-05-02 11:23:07 +0100 (Fri, May 02, 2025) $"
+__version__ = "$Revision: 3.3.2 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -1791,7 +1791,6 @@ class GLLabelling():
             cols = [1.0, 0.2, 0.1]  # red for bad position
         else:
             cols = listCol
-
         # frequency = (spectrumFrequency[pIndex[0]], spectrumFrequency[pIndex[1]])
         try:
             _alias = obj.aliasing
@@ -1801,12 +1800,11 @@ class GLLabelling():
 
         if False:  # not pIndex:
             return
-
         else:
             if symbolType == 0 or symbolType == 3:
 
                 # draw a cross
-                # keep the cross square at 0.1ppm
+                # keep the cross/square at 0.1ppm
 
                 _selected = False
                 iCount = 0
@@ -2344,10 +2342,10 @@ class GLLabelling():
 
         if symbolType == 0 or symbolType == 3:  # a cross/plus
             offsets, offLen = self._rescaleSymbolOffsets(r, w)
-            for pp in range(0, len(drawList.pids), GLDefs.LENPID):
-                indexStart = 4 * drawList.pids[pp + 1]
-                drawList.vertices[indexStart:indexStart + offLen] = \
-                    drawList.offsets[indexStart:indexStart + offLen] + offsets
+            # apply the resize to just the x/y of the vertices (so as not to scrub over alias)
+            mask = np.tile(np.array([True, True, False, False]), drawList.numVertices)
+            allOffsets = np.tile(offsets, 4 * drawList.numVertices // offLen)
+            drawList.vertices[mask] = drawList.offsets[mask] + allOffsets[mask]
 
         elif symbolType == 1:  # an ellipse
             # only update the symbols defined without line-widths
@@ -2374,13 +2372,10 @@ class GLLabelling():
                                        -r, +w, 0.0, 0.0,
                                        0.0, 0.0, 0.0, 0.0]
 
-            for pp in range(0, len(drawList.pids), GLDefs.LENPID):
-                if drawList.pids[pp + 2] == 12:
-                    # not a very nice way to check whether the peak contains line-widths
-                    # and requires a fixed-size symbol
-                    indexStart = step * drawList.pids[pp + 1]
-                    drawList.vertices[indexStart:indexStart + end + xtra] = drawList.offsets[
-                                                                            indexStart:indexStart + end + xtra] + offsets
+            # apply the resize to just the x/y of the vertices (so as not to scrub over alias)
+            mask = np.tile(np.array([True, True, False, False]), drawList.numVertices)
+            allOffsets = np.tile(offsets, 4 * drawList.numVertices // len(offsets))
+            drawList.vertices[mask] = drawList.offsets[mask] + allOffsets[mask]
 
         elif symbolType == 2:  # filled ellipse
             numPoints = 12
@@ -2406,14 +2401,10 @@ class GLLabelling():
                                        -r, +w, 0.0, 0.0,
                                        0.0, 0.0, 0.0, 0.0]
 
-            for pp in range(0, len(drawList.pids), GLDefs.LENPID):
-                if drawList.pids[pp + 2] == 12:
-                    # not a very nice way to check whether the peak contains line-widths
-                    # and requires a fixed-size symbol
-                    indexStart = step * drawList.pids[pp + 1]
-                    drawList.vertices[indexStart:indexStart + end + xtra] = drawList.offsets[
-                                                                            indexStart:indexStart + end + xtra] + offsets
-
+            # apply the resize to just the x/y of the vertices (so as not to scrub over alias)
+            mask = np.tile(np.array([True, True, False, False]), drawList.numVertices)
+            allOffsets = np.tile(offsets, 4 * drawList.numVertices // len(offsets))
+            drawList.vertices[mask] = drawList.offsets[mask] + allOffsets[mask]
         else:
             raise ValueError('GL Error: bad symbol type')
 
@@ -3074,7 +3065,6 @@ class GL1dLabelling():
             if obj and obj == delObj:
                 offset = drawList.pids[pp + 1]
                 numPoints = drawList.pids[pp + 2]
-
                 indexStart = drawList.pids[pp + 6]
                 indexEnd = drawList.pids[pp + 7]
                 indexOffset = indexEnd - indexStart
@@ -3251,7 +3241,7 @@ class GL1dLabelling():
         symbolType = strip.symbolType
 
         drawList = self._GLSymbols[objListView]
-        drawList.indices = np.array([], dtype=np.uint32)
+        drawList.indices = np.empty(0, dtype=np.uint32)
 
         indexStart = 0
         indexEnd = 0
@@ -3339,13 +3329,6 @@ class GL1dLabelling():
             pxy = (0.0, 0.0)
             _badPos = True
 
-        if self._isSelected(obj):
-            cols = self._GLParent.highlightColour[:3]
-        elif _badPos:
-            cols = [1.0, 0.2, 0.1]  # red if the position is bad
-        else:
-            cols = listCol
-
         try:
             _alias = obj.aliasing
             if dims[0]:
@@ -3359,6 +3342,13 @@ class GL1dLabelling():
             iCount, _selected = self._makeSquareSymbol(drawList, indexEnd, vertexStart, 0, obj)
         else:
             iCount, _selected = self._makePlusSymbol(drawList, indexEnd, vertexStart, 0, obj)
+
+        if _selected:
+            cols = self._GLParent.highlightColour[:3]
+        elif _badPos:
+            cols = [1.0, 0.2, 0.1]  # red if the position is bad
+        else:
+            cols = listCol
 
         self._insertSymbolItemVertices(True, True, _selected, cols, drawList, 1.0, iCount,
                                        indexing, obj, objNum, pxy, dims, 0, r, vertexPtr, w, alias)
@@ -3426,13 +3416,12 @@ class GL1dLabelling():
             ind, vert = self._buildSymbolsCount(spectrumView, objListView, drawList)
             if ind:
                 for tcount, obj in enumerate(self.objects(pls)):
-
                     if meritEnabled and obj.figureOfMerit < meritThreshold:
-                        cols = meritCol
+                        defaultCol = meritCol
                     else:
-                        cols = listCol
+                        defaultCol = listCol
 
-                    self._insertSymbolItem(strip, obj, cols, indexing, r, w,
+                    self._insertSymbolItem(strip, obj, defaultCol, indexing, r, w,
                                            spectrumFrequency, symbolType, drawList,
                                            spectrumView)
 
@@ -3450,10 +3439,10 @@ class GL1dLabelling():
 
         if symbolType == 0 or symbolType == 3:  # a cross/plus
             offsets, offLen = self._rescaleSymbolOffsets(r, w)
-            for pp in range(0, len(drawList.pids), GLDefs.LENPID):
-                indexStart = 4 * drawList.pids[pp + 1]
-                drawList.vertices[indexStart:indexStart + offLen] = \
-                    drawList.offsets[indexStart:indexStart + offLen] + offsets
+            # apply the resize to just the x/y of the vertices (so as not to scrub over alias)
+            mask = np.tile(np.array([True, True, False, False]), drawList.numVertices)
+            allOffsets = np.tile(offsets, 4 * drawList.numVertices // offLen)
+            drawList.vertices[mask] = drawList.offsets[mask] + allOffsets[mask]
 
         elif symbolType == 1 or symbolType == 2:
             pass

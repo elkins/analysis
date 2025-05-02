@@ -16,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2025-03-10 18:59:59 +0000 (Mon, March 10, 2025) $"
-__version__ = "$Revision: 3.3.1 $"
+__dateModified__ = "$dateModified: 2025-05-02 11:23:08 +0100 (Fri, May 02, 2025) $"
+__version__ = "$Revision: 3.3.2 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -142,11 +142,15 @@ class SpectrumDisplayScrollArea(ScrollArea):
                 child: Gui1dWidgetAxis | GuiNdWidgetAxis
 
                 for child in children:
+                    if not child.isVisible():
+                        continue
                     if child._axisType == BOTTOMAXIS:
                         # resize the X axis widgets - allow for frame-border
+                        child.setAxisWidgetSize(0)
                         child.setGeometry(1, rect.height() + 1, _width, margins[3])
                     else:
                         # resize the Y axis widgets
+                        child.setAxisWidgetSize(1)
                         child.setGeometry(rect.width() + 1, 1, margins[2], _height)
 
             if self._cornerWidget:

@@ -16,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2025-01-07 16:32:27 +0000 (Tue, January 07, 2025) $"
-__version__ = "$Revision: 3.2.11 $"
+__dateModified__ = "$dateModified: 2025-05-02 11:23:08 +0100 (Fri, May 02, 2025) $"
+__version__ = "$Revision: 3.3.2 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -369,9 +369,9 @@ class PreferencesPopup(CcpnDialogMainWidget):
             prefs = self.application.preferences
             # change the colour theme
             if pal := setColourScheme(Theme.getByDataValue(prefs.appearance.themeStyle),
-                            prefs.appearance.themeColour,
-                            Theme.getByDataValue(prefs.general.colourScheme),
-                            force=True):
+                                      prefs.appearance.themeColour,
+                                      Theme.getByDataValue(prefs.general.colourScheme),
+                                      force=True):
                 self.application.ui.qtApp.setPalette(pal)
                 QtCore.QTimer.singleShot(0, partial(self.application.ui.qtApp.sigPaletteChanged.emit, pal,
                                                     prefs.appearance.themeStyle,
@@ -490,8 +490,10 @@ class PreferencesPopup(CcpnDialogMainWidget):
                     specDisplay.zPlaneNavigationMode = ZPlaneNavigationModes(
                             self.application.preferences.general.zPlaneNavigationMode).dataValue
                     specDisplay.attachZPlaneWidgets()
-                specDisplay._stripDirectionChangedInSettings(self.application.preferences.general.stripArrangement)
-                # specDisplay.setVisibleAxes()
+                    # don't want to change unless updated :|
+                # specDisplay._stripDirectionChangedInSettings(self.application.preferences.general.stripArrangement)
+                # should on call if the font-size has changed?
+                specDisplay.setVisibleAxes()
 
                 # update the ratios from preferences
                 specDisplay.strips[0].updateAxisRatios()
@@ -2057,7 +2059,7 @@ class PreferencesPopup(CcpnDialogMainWidget):
 
         self.userWorkingPathData.set(self.workingPathDataStore.path.asString())
 
-    def _setWorkingPathDataStore(self, option: str = None, path: str|Path = None):
+    def _setWorkingPathDataStore(self, option: str = None, path: str | Path = None):
         """Set the dataStore to path based on option
 
         If option is user-defined and path is provided workingPathDataStore
@@ -2996,4 +2998,3 @@ class PreferencesPopup(CcpnDialogMainWidget):
 
     def _changeThemeColour(self, value):
         self.preferences.appearance.themeColour = value
-

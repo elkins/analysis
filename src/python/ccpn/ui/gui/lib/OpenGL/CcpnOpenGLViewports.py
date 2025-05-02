@@ -4,7 +4,7 @@ Module Documentation here
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2025"
 __credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
                "Timothy J Ragan, Brian O Smith, Daniel Thompson",
                "Gary S Thompson & Geerten W Vuister")
@@ -16,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-08-23 19:25:21 +0100 (Fri, August 23, 2024) $"
-__version__ = "$Revision: 3.2.5 $"
+__dateModified__ = "$dateModified: 2025-05-02 11:23:08 +0100 (Fri, May 02, 2025) $"
+__version__ = "$Revision: 3.3.2 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -34,7 +34,7 @@ from ccpn.ui.gui.lib.OpenGL import GL
 viewportDimensions = namedtuple('viewportDimensions', 'left bottom width height')
 
 
-class GLViewports(object):
+class GLViewports:
     # Class to handle the different viewports in the display
     def __init__(self, pixelRatio=1.0):
         # define a new empty list
@@ -92,8 +92,7 @@ class GLViewports(object):
 
             return w, h
 
-        else:
-            raise RuntimeError(f'Error: viewport {name} does not exist')
+        raise RuntimeError(f'Error: viewport {name} does not exist')
 
     def getViewport(self, name):
         # change to the named viewport
@@ -116,8 +115,7 @@ class GLViewports(object):
 
             return viewportDimensions(l, b, max(wi, 1), max(he, 1))
 
-        else:
-            raise RuntimeError(f'Error: viewport {name} does not exist')
+        raise RuntimeError(f'Error: viewport {name} does not exist')
 
     def getViewportFromWH(self, name, width, height):
         # change to the named viewport
@@ -140,8 +138,7 @@ class GLViewports(object):
 
             return viewportDimensions(l, b, max(wi, 1), max(he, 1))
 
-        else:
-            raise RuntimeError(f'Error: viewport {name} does not exist')
+        raise RuntimeError(f'Error: viewport {name} does not exist')
 
     def clearViewports(self):
         """Clear all the current viewports

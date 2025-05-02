@@ -15,14 +15,15 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: Daniel Thompson $"
-__dateModified__ = "$dateModified: 2025-04-14 14:23:00 +0100 (Mon, April 14, 2025) $"
-__version__ = "$Revision: 3.3.1 $"
+__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
+__dateModified__ = "$dateModified: 2025-05-02 11:23:05 +0100 (Fri, May 02, 2025) $"
+__version__ = "$Revision: 3.3.2 $"
 #=========================================================================================
 # Created
 #=========================================================================================
 __author__ = "$Author: CCPN $"
 __date__ = "$Date: 2017-04-07 10:28:41 +0000 (Fri, April 07, 2017) $"
+
 #=========================================================================================
 # Start of code
 #=========================================================================================
@@ -66,10 +67,14 @@ from ccpn.ui.gui.lib.GuiStrip import GuiStrip, STRIP_MINIMUMWIDTH, STRIP_MINIMUM
 from ccpn.ui.gui.widgets.GLAxis import GuiNdWidgetAxis, Gui1dWidgetAxis
 from ccpn.ui.gui.widgets.SpectrumGroupToolBar import _spectrumGroupViewHasChanged
 from ccpn.ui.gui.lib.OpenGL.CcpnOpenGL import PEAKSELECT, MULTIPLETSELECT, CcpnGLWidget, GLNotifier
-from ccpn.ui.gui.lib.OpenGL.CcpnOpenGLDefs import AXISXUNITS, AXISYUNITS, \
-    SYMBOLTYPE, ANNOTATIONTYPE, SYMBOLSIZE, SYMBOLTHICKNESS, AXISASPECTRATIOS, AXISASPECTRATIOMODE, \
-    ALIASENABLED, ALIASSHADE, ALIASLABELSENABLED, CONTOURTHICKNESS, \
-    PEAKLABELSENABLED, MULTIPLETLABELSENABLED, MULTIPLETTYPE, MULTIPLETANNOTATIONTYPE, PEAKSYMBOLSENABLED, PEAKARROWSENABLED, MULTIPLETSYMBOLSENABLED, MULTIPLETARROWSENABLED, ARROWTYPES, ARROWSIZE, ARROWMINIMUM
+from ccpn.ui.gui.lib.OpenGL.CcpnOpenGLDefs import (AXISXUNITS, AXISYUNITS,
+                                                   SYMBOLTYPE, ANNOTATIONTYPE, SYMBOLSIZE, SYMBOLTHICKNESS,
+                                                   AXISASPECTRATIOS, AXISASPECTRATIOMODE,
+                                                   ALIASENABLED, ALIASSHADE, ALIASLABELSENABLED, CONTOURTHICKNESS,
+                                                   PEAKLABELSENABLED, MULTIPLETLABELSENABLED, MULTIPLETTYPE,
+                                                   MULTIPLETANNOTATIONTYPE, PEAKSYMBOLSENABLED,
+                                                   PEAKARROWSENABLED, MULTIPLETSYMBOLSENABLED, MULTIPLETARROWSENABLED,
+                                                   ARROWTYPES, ARROWSIZE, ARROWMINIMUM)
 from ccpn.ui.gui.lib.GuiSpectrumView import _spectrumViewHasChanged
 from ccpn.util.Constants import AXISUNITS
 from ccpn.util.Logging import getLogger
@@ -80,9 +85,10 @@ from ccpn.ui._implementation.IntegralListView import IntegralListView
 from ccpn.ui._implementation.MultipletListView import MultipletListView
 from ccpn.ui.gui.widgets.SettingsWidgets import SpectrumDisplaySettings
 from ccpn.ui._implementation.SpectrumView import SpectrumView
-from ccpn.core.lib.ContextManagers import undoStackBlocking, notificationBlanking, \
-    BlankedPartial, ccpNmrV3CoreSetter, notificationEchoBlocking, undoBlockWithoutSideBar, \
-    waypointBlocking
+from ccpn.core.lib.ContextManagers import (undoStackBlocking, notificationBlanking,
+                                           BlankedPartial, ccpNmrV3CoreSetter, notificationEchoBlocking,
+                                           undoBlockWithoutSideBar,
+                                           waypointBlocking)
 from ccpn.util.decorators import logCommand
 from ccpn.util.Common import makeIterableList
 from ccpn.core.lib import Undo
@@ -278,7 +284,6 @@ class GuiSpectrumDisplay(CcpnModule):
         # TBD: this might change so that we can use wrapper peak (GWV:NONO!)  (which would make nicer code in showPeaks and deletedPeak below)
         # self.inactivePeakItems = set() # contains unused peakItems
         self.inactivePeakItemDict = {}  # maps peakListView to apiPeak to set of peaks which are not being displayed
-
         self._spectrumUtilActions = {}  # Filled by _fillToolBar
 
     def _fillToolBar(self):
@@ -363,7 +368,8 @@ class GuiSpectrumDisplay(CcpnModule):
                                                                    # predicate=styleSheetPredicate, mutator=styleSheetMutator,
                                                                    setLayout=True, acceptDrops=False,
                                                                    scrollBarPolicies=('asNeeded', 'never'),
-                                                                   minimumSizes=(STRIP_MINIMUMWIDTH, STRIP_MINIMUMHEIGHT),
+                                                                   minimumSizes=(STRIP_MINIMUMWIDTH,
+                                                                                 STRIP_MINIMUMHEIGHT),
                                                                    spectrumDisplay=self,
                                                                    cornerWidget=True)  # not self.is1D)
             self._stripFrameScrollArea.setWidget(self.stripFrame)
@@ -382,12 +388,14 @@ class GuiSpectrumDisplay(CcpnModule):
         if INCLUDE_AXIS_WIDGET:
             # NOTE:ED - testing new axis widget - required actually adding tiling
             if self.is1D:
-                self._rightGLAxis = Gui1dWidgetAxis(self._stripFrameScrollArea, spectrumDisplay=self, mainWindow=self.mainWindow,
+                self._rightGLAxis = Gui1dWidgetAxis(self._stripFrameScrollArea, spectrumDisplay=self,
+                                                    mainWindow=self.mainWindow,
                                                     drawRightAxis=True, drawBottomAxis=False,
                                                     fullHeightRightAxis=False, fullWidthBottomAxis=False)
 
             else:
-                self._rightGLAxis = GuiNdWidgetAxis(self._stripFrameScrollArea, spectrumDisplay=self, mainWindow=self.mainWindow,
+                self._rightGLAxis = GuiNdWidgetAxis(self._stripFrameScrollArea, spectrumDisplay=self,
+                                                    mainWindow=self.mainWindow,
                                                     drawRightAxis=True, drawBottomAxis=False,
                                                     fullHeightRightAxis=False, fullWidthBottomAxis=False)
 
@@ -397,13 +405,15 @@ class GuiSpectrumDisplay(CcpnModule):
 
             # NOTE:ED - testing new axis widget - required actually adding tiling
             if self.is1D:
-                self._bottomGLAxis = Gui1dWidgetAxis(self._stripFrameScrollArea, spectrumDisplay=self, mainWindow=self.mainWindow,
+                self._bottomGLAxis = Gui1dWidgetAxis(self._stripFrameScrollArea, spectrumDisplay=self,
+                                                     mainWindow=self.mainWindow,
                                                      drawRightAxis=False, drawBottomAxis=True,
                                                      fullHeightRightAxis=False, fullWidthBottomAxis=False
                                                      )
 
             else:
-                self._bottomGLAxis = GuiNdWidgetAxis(self._stripFrameScrollArea, spectrumDisplay=self, mainWindow=self.mainWindow,
+                self._bottomGLAxis = GuiNdWidgetAxis(self._stripFrameScrollArea, spectrumDisplay=self,
+                                                     mainWindow=self.mainWindow,
                                                      drawRightAxis=False, drawBottomAxis=True,
                                                      fullHeightRightAxis=False, fullWidthBottomAxis=False)
 
@@ -516,13 +526,17 @@ class GuiSpectrumDisplay(CcpnModule):
         # initialise to the project defaults
         self._spectrumDisplaySettings._populateWidgets(prefsGen.aspectRatioMode, prefsGen.aspectRatios,
                                                        prefsGen.annotationType, prefsGen.stripArrangement,
-                                                       prefsGen.symbolSizePixel, prefsGen.symbolThickness, prefsGen.symbolType,
+                                                       prefsGen.symbolSizePixel, prefsGen.symbolThickness,
+                                                       prefsGen.symbolType,
                                                        prefsGen.arrowType, prefsGen.arrowSize, prefsGen.arrowMinimum,
                                                        prefsGen.multipletAnnotationType, prefsGen.multipletType,
                                                        prefsGen.xAxisUnits, prefsGen.yAxisUnits,
-                                                       prefsGen.aliasEnabled, prefsGen.aliasShade, prefsGen.aliasLabelsEnabled,
-                                                       prefsGen.peakSymbolsEnabled, prefsGen.peakLabelsEnabled, prefsGen.peakArrowsEnabled,
-                                                       prefsGen.multipletSymbolsEnabled, prefsGen.multipletLabelsEnabled, prefsGen.multipletArrowsEnabled,
+                                                       prefsGen.aliasEnabled, prefsGen.aliasShade,
+                                                       prefsGen.aliasLabelsEnabled,
+                                                       prefsGen.peakSymbolsEnabled, prefsGen.peakLabelsEnabled,
+                                                       prefsGen.peakArrowsEnabled,
+                                                       prefsGen.multipletSymbolsEnabled,
+                                                       prefsGen.multipletLabelsEnabled, prefsGen.multipletArrowsEnabled,
                                                        prefsGen.contourThickness,
                                                        prefsGen.zPlaneNavigationMode)
 
@@ -540,7 +554,8 @@ class GuiSpectrumDisplay(CcpnModule):
         """Restore the state for this widget
         """
         if self.mainWindow._spectrumModuleLayouts:
-            return self.mainWindow.moduleArea.restoreModuleState(self.mainWindow._spectrumModuleLayouts, self, discard=discard)
+            return self.mainWindow.moduleArea.restoreModuleState(self.mainWindow._spectrumModuleLayouts, self,
+                                                                 discard=discard)
 
     def _updateStripsFromSettings(self):
 
@@ -675,38 +690,38 @@ class GuiSpectrumDisplay(CcpnModule):
 
     def _registerNotifiers(self):
         self.setNotifier(self.project, [Notifier.CHANGE, Notifier.RENAME, Notifier.DELETE],
-                                       Spectrum.className,
-                                       callback=self._spectrumChanged)
+                         Spectrum.className,
+                         callback=self._spectrumChanged)
 
         self.setNotifier(self.project, [Notifier.CREATE, Notifier.DELETE, Notifier.CHANGE],
-                                       SpectrumView.className,
-                                       callback=self._spectrumViewChanged,
-                                       onceOnly=True)
+                         SpectrumView.className,
+                         callback=self._spectrumViewChanged,
+                         onceOnly=True)
 
         self.setNotifier(self.project, [Notifier.CREATE, Notifier.DELETE, Notifier.CHANGE],
-                                       PeakListView.className,
-                                       callback=self._listViewChanged,
-                                       onceOnly=True)
+                         PeakListView.className,
+                         callback=self._listViewChanged,
+                         onceOnly=True)
 
         self.setNotifier(self.project, [Notifier.CREATE, Notifier.DELETE],
-                                       IntegralListView.className,
-                                       callback=self._listViewChanged,
-                                       onceOnly=True)
+                         IntegralListView.className,
+                         callback=self._listViewChanged,
+                         onceOnly=True)
 
         self.setNotifier(self.project, [Notifier.CREATE, Notifier.DELETE],
-                                       MultipletListView.className,
-                                       callback=self._listViewChanged,
-                                       onceOnly=True)
+                         MultipletListView.className,
+                         callback=self._listViewChanged,
+                         onceOnly=True)
 
         self.setNotifier(self.project, [Notifier.CHANGE, Notifier.RENAME, Notifier.DELETE],
-                                       SpectrumGroup.className,
-                                       callback=self._spectrumGroupChanged,
-                                       onceOnly=True)
+                         SpectrumGroup.className,
+                         callback=self._spectrumGroupChanged,
+                         onceOnly=True)
 
         self.setNotifier(self.project, [Notifier.RENAME],
-                                        SpectrumDisplay.className,
-                                        callback=self._spectrumDisplayChanged,
-                                        onceOnly=True)
+                         SpectrumDisplay.className,
+                         callback=self._spectrumDisplayChanged,
+                         onceOnly=True)
 
     @property
     def _flipped(self):
@@ -919,7 +934,8 @@ class GuiSpectrumDisplay(CcpnModule):
     def _NdColourChanged(self, spectrumGroup):
         _posCol = spectrumGroup.positiveContourColour
         _negCol = spectrumGroup.negativeContourColour
-        _specViews = [specView for spec in spectrumGroup.spectra for specView in self.spectrumViews if specView.spectrum == spec]
+        _specViews = [specView for spec in spectrumGroup.spectra for specView in self.spectrumViews
+                      if specView.spectrum == spec]
 
         _posColours = (None,)
         if _posCol and _posCol.startswith('#'):
@@ -970,7 +986,8 @@ class GuiSpectrumDisplay(CcpnModule):
 
     def _1dColourChanged(self, spectrumGroup):
         _sliceCol = spectrumGroup.sliceColour
-        _specViews = [specView for spec in spectrumGroup.spectra for specView in self.spectrumViews if specView.spectrum == spec]
+        _specViews = [specView for spec in spectrumGroup.spectra for specView in self.spectrumViews if
+                      specView.spectrum == spec]
 
         _sliceColours = (None,)
         if _sliceCol and _sliceCol.startswith('#'):
@@ -1192,9 +1209,10 @@ class GuiSpectrumDisplay(CcpnModule):
 
             # show the required axis
             if self.stripArrangement == 'Y':
-                self._stripFrameScrollArea.setViewportMargins(0, 0, self._rightGLAxis.width(), 0)
-                # self._stripFrameScrollArea.setViewportMargins(0, 0, self._rightGLAxis.width(), self._bottomGLAxis.height())
-                aDict = self.strips[0]._CcpnGLWidget._getAxisDict()
+                axis = self._rightGLAxis
+                margin = axis.AXIS_MARGINRIGHT + (0 if axis.AXIS_INSIDE else axis.AXIS_LINE)
+                self._stripFrameScrollArea.setViewportMargins(0, 0, margin, 0)
+                # aDict = self.strips[0]._CcpnGLWidget._getAxisDict()
                 self._stripAddMode = (self.strips[0]._CcpnGLWidget.pixelX, self.strips[0]._CcpnGLWidget.pixelY)
                 self._rightGLAxis.show()
                 self._bottomGLAxis.hide()
@@ -1202,9 +1220,10 @@ class GuiSpectrumDisplay(CcpnModule):
                 self._stripAddMode = None
                 self._rightGLAxis._notifyAxesChange = True
             else:
-                self._stripFrameScrollArea.setViewportMargins(0, 0, 0, self._bottomGLAxis.height())
-                # self._stripFrameScrollArea.setViewportMargins(0, 0, self._rightGLAxis.width(), self._bottomGLAxis.height())
-                aDict = self.strips[0]._CcpnGLWidget._getAxisDict()
+                axis = self._bottomGLAxis
+                margin = axis.AXIS_MARGINBOTTOM + (0 if axis.AXIS_INSIDE else axis.AXIS_LINE)
+                self._stripFrameScrollArea.setViewportMargins(0, 0, 0, margin)
+                # aDict = self.strips[0]._CcpnGLWidget._getAxisDict()
                 self._stripAddMode = (self.strips[0]._CcpnGLWidget.pixelX, self.strips[0]._CcpnGLWidget.pixelY)
                 self._rightGLAxis.hide()
                 self._bottomGLAxis.show()
@@ -1219,8 +1238,8 @@ class GuiSpectrumDisplay(CcpnModule):
     def _forceRedrawFloatingAxes(self):
         """force a fractional delayed update of the extra axes
         """
-        # can't think of a better way yet - will be fixable of single window used for all viewports in fucture
-        QtCore.QTimer.singleShot(50, self._stripFrameScrollArea.refreshViewPort)
+        # can't think of a better way yet - will be fixable of single window used for all viewports in future
+        QtCore.QTimer.singleShot(0, self._stripFrameScrollArea.refreshViewPort)
 
     # def _setPlaneAxisWidgets(self):
     #     """Update the widgets in the planeToolbar
@@ -1600,7 +1619,8 @@ class GuiSpectrumDisplay(CcpnModule):
                     for peak in peaks:
                         if peak.peakList.spectrum in visibleSpectra:
                             if not replaceAnnotation:  # if want appending instead of replacing
-                                annotation = ', '.join(filter(None, set([peak.annotation, substance.name])))  # Filter to make sure is not duplicating any existing annotation
+                                annotation = ', '.join(filter(None, set([peak.annotation,
+                                                                         substance.name])))  # Filter to make sure is not duplicating any existing annotation
                             peak.annotation = annotation
 
     def _handleNmrAtoms(self, nmrAtoms):
@@ -1883,6 +1903,7 @@ class GuiSpectrumDisplay(CcpnModule):
                 self._rebuildStrip(_widgets, layout)
 
             self.showAxes()
+            self.showAxesRedraw()
             self.setColumnStretches(stretchValue=True)
 
     def _rebuildStrip(self, _widgets, layout):
@@ -2068,6 +2089,7 @@ class GuiSpectrumDisplay(CcpnModule):
         will default to the last strip if not selected.
         """
         self.showAxes(stretchValue=True, deletingStrip=deletingStrip)
+        self.showAxesRedraw()
         if self.strips:
             self.current.strip = self.strips[index]
         self._stripAddMode = None
@@ -2084,7 +2106,8 @@ class GuiSpectrumDisplay(CcpnModule):
     def setLastAxisOnly(self, lastAxisOnly: bool = True):
         self.lastAxisOnly = lastAxisOnly
 
-    def showAxes(self, strips=None, stretchValue=False, widths=True, minimumWidth=STRIP_MINIMUMWIDTH, deletingStrip=False):
+    def showAxes(self, strips=None, stretchValue=False, widths=True, minimumWidth=STRIP_MINIMUMWIDTH,
+                 deletingStrip=False):
         # use the strips as they are ordered in the model
         currentStrips = self.orderedStrips
 
@@ -2123,15 +2146,22 @@ class GuiSpectrumDisplay(CcpnModule):
             else:
                 getLogger().warning('Strip direction is not defined for spectrumDisplay: %s' % str(self.pid))
 
-            self.setColumnStretches(stretchValue=stretchValue, widths=widths, minimumWidth=minimumWidth, deletingStrip=deletingStrip)
+            self.setColumnStretches(stretchValue=stretchValue, widths=widths, minimumWidth=minimumWidth,
+                                    deletingStrip=deletingStrip)
+            self.showAxesRedraw()
 
-            # show the required _rightGLAxis/_bottomGLAxis
-            self.setVisibleAxes()
-
+    def showAxesRedraw(self):
+        # show the required _rightGLAxis/_bottomGLAxis
+        self.setVisibleAxes()
+        # CHECK:ED - this is nasty, potentially being called in the wrong place
         if hasattr(self, '_rightGLAxis'):
             self._rightGLAxis.redrawAxes()
+        else:
+            getLogger().debug2(f'NOT _rightGLAxis')
         if hasattr(self, '_bottomGLAxis'):
             self._bottomGLAxis.redrawAxes()
+        else:
+            getLogger().debug2(f'NOT _bottomGLAxis')
 
     @logCommand(get='self')
     def increaseTraceScale(self):
@@ -2256,7 +2286,8 @@ class GuiSpectrumDisplay(CcpnModule):
             for strip in strips[:-1]:
                 strip.setMinimumHeight(int(newHeight))
             strips[-1].setMinimumHeight(int(newHeight + axisHeight))
-            self.stripFrame.setMinimumHeight(int((newHeight + STRIP_SPACING) * len(strips) + axisHeight - STRIP_SPACING))
+            self.stripFrame.setMinimumHeight(
+                    int((newHeight + STRIP_SPACING) * len(strips) + axisHeight - STRIP_SPACING))
         else:
             strips[0].setMinimumHeight(int(newHeight))
             self.stripFrame.setMinimumHeight(int(newHeight))
@@ -2301,7 +2332,8 @@ class GuiSpectrumDisplay(CcpnModule):
                         result = self.strips[index]._clone()
 
                         if not isinstance(result, GuiStrip):
-                            raise RuntimeError('Expected an object of class %s, obtained %s' % (GuiStrip, result.__class__))
+                            raise RuntimeError(f'Expected an object of class {GuiStrip}, '
+                                               f'obtained {result.__class__}')
 
                     # required because the above clone is wrapped in notificationBlanking
                     result._finaliseAction('create')
@@ -2339,19 +2371,22 @@ class GuiSpectrumDisplay(CcpnModule):
 
         return result
 
-    def setColumnStretches(self, stretchValue=False, scaleFactor=1.0, widths=True, minimumWidth=None, deletingStrip=False):
+    def setColumnStretches(self, stretchValue=False, scaleFactor=1.0, widths=True, minimumWidth=None,
+                           deletingStrip=False):
         """Set the column widths of the strips so that the last strip accommodates the axis bar
                 if necessary."""
 
         if self.stripArrangement == 'Y':
 
             # strips are arranged in a row
-            self._setColumnStretches(stretchValue=stretchValue, scaleFactor=scaleFactor, widths=widths, minimumWidth=minimumWidth, deletingStrip=deletingStrip)
+            self._setColumnStretches(stretchValue=stretchValue, scaleFactor=scaleFactor, widths=widths,
+                                     minimumWidth=minimumWidth, deletingStrip=deletingStrip)
 
         elif self.stripArrangement == 'X':
 
             # strips are arranged in a column
-            self._setRowStretches(stretchValue=stretchValue, scaleFactor=scaleFactor, heights=widths, minimumHeight=minimumWidth, deletingStrip=deletingStrip)
+            self._setRowStretches(stretchValue=stretchValue, scaleFactor=scaleFactor, heights=widths,
+                                  minimumHeight=minimumWidth, deletingStrip=deletingStrip)
 
         elif self.stripArrangement == 'T':
 
@@ -2361,7 +2396,8 @@ class GuiSpectrumDisplay(CcpnModule):
         else:
             getLogger().warning('Strip direction is not defined for spectrumDisplay: %s' % str(self.pid))
 
-    def _setColumnStretches(self, stretchValue=False, scaleFactor=1.0, widths=True, minimumWidth=STRIP_MINIMUMWIDTH, deletingStrip=False):
+    def _setColumnStretches(self, stretchValue=False, scaleFactor=1.0, widths=True, minimumWidth=STRIP_MINIMUMWIDTH,
+                            deletingStrip=False):
         """Set the column widths of the strips so that the last strip accommodates the axis bar
         if necessary."""
         widgets = self.stripFrame.children()
@@ -2414,12 +2450,14 @@ class GuiSpectrumDisplay(CcpnModule):
                     thisLayout.setColumnStretch(col, 1 if stretchValue else 1)
 
                 if minimumWidth:
-                    self.stripFrame.setMinimumWidth(int((firstStripWidth + STRIP_SPACING) * len(self.orderedStrips) - STRIP_SPACING))
+                    self.stripFrame.setMinimumWidth(
+                            int((firstStripWidth + STRIP_SPACING) * len(self.orderedStrips) - STRIP_SPACING))
                 else:
                     self.stripFrame.setMinimumWidth(self.stripFrame.minimumSizeHint().width())
                 self.stripFrame.setMinimumHeight(STRIP_MINIMUMHEIGHT)
                 try:
-                    self._rightGLAxis.setMinimumHeight(STRIP_MINIMUMHEIGHT - self.strips[0]._stripToolBarWidget.height())
+                    self._rightGLAxis.setMinimumHeight(
+                            STRIP_MINIMUMHEIGHT - self.strips[0]._stripToolBarWidget.height())
                     self._rightGLAxis._notifyAxesChange = True
                     self._rightGLAxis.update()
                 except:
@@ -2427,7 +2465,8 @@ class GuiSpectrumDisplay(CcpnModule):
 
             self.stripFrame.show()
 
-    def _setRowStretches(self, stretchValue=False, scaleFactor=1.0, heights=True, minimumHeight=STRIP_MINIMUMHEIGHT, deletingStrip=False):
+    def _setRowStretches(self, stretchValue=False, scaleFactor=1.0, heights=True, minimumHeight=STRIP_MINIMUMHEIGHT,
+                         deletingStrip=False):
         """Set the row heights of the strips so that the last strip accommodates the axis bar
         if necessary."""
         widgets = self.stripFrame.children()
@@ -2481,7 +2520,8 @@ class GuiSpectrumDisplay(CcpnModule):
                     thisLayout.setRowStretch(rr, 1 if stretchValue else 1)
 
                 if minimumHeight:
-                    self.stripFrame.setMinimumHeight(int((firstStripHeight + STRIP_SPACING) * len(self.orderedStrips) - STRIP_SPACING))
+                    self.stripFrame.setMinimumHeight(
+                            int((firstStripHeight + STRIP_SPACING) * len(self.orderedStrips) - STRIP_SPACING))
                 else:
                     self.stripFrame.setMinimumHeight(self.stripFrame.minimumSizeHint().height())
                 self.stripFrame.setMinimumWidth(STRIP_MINIMUMWIDTH)
@@ -2643,7 +2683,6 @@ class GuiSpectrumDisplay(CcpnModule):
         except Exception:
             getLogger().warning('Error toggling peak symbols')
 
-
     def _togglePeakLabelVisibility(self):
         """Shortcut callback for toggling Peak Label visibility
         """
@@ -2702,17 +2741,20 @@ class GuiSpectrumDisplay(CcpnModule):
                 dims = [1] if self.is1D else displayOrder
 
                 if not self._isNew:
-                    # There is already a spectrum displayed; ie. the spectrumDisplay has definitions for
+                    # There is already a spectrum displayed; i.e. the spectrumDisplay has definitions for
                     # its x,y, and z,a,.. plane(s) display axes
 
                     # check for matching dimension types
-                    for dt1, dt2 in zip(self.dimensionTypes or [], spectrum.getByDimensions('dimensionTypes', dims)):
+                    for dt1, dt2 in zip(self.dimensionTypes or [],
+                                        spectrum.getByDimensions('dimensionTypes', dims)):
                         if dt1 != dt2:
-                            raise RuntimeError('Cannot display %s on %s; incompatible dimensionTypes' % (spectrum, self))
+                            raise RuntimeError(f'Cannot display {spectrum} on {self};'
+                                               f'incompatible dimensionTypes')
                         # For now: no multiple spectra with time/sampled axes (current implementation limit)
                         if dt2 == DIMENSION_SAMPLED or dt2 == DIMENSION_TIME:
-                            raise RuntimeError('Currently cannot display %s with "%s" axis on %s; SpectrumDisplay already contains other spectra with time/sampled axes' %
-                                               (spectrum, dt2, self))
+                            raise RuntimeError(f'Currently cannot display {spectrum} with "{dt2}" '
+                                               f'axis on {self}; SpectrumDisplay already contains other '
+                                               f'spectra with time/sampled axes')
 
                     # check the isotopeCodes exist and check compatibility
                     for ic1, ic2 in zip(self.isotopeCodes or [], spectrum.getByDimensions('isotopeCodes', dims)):
@@ -2934,7 +2976,8 @@ class GuiSpectrumDisplay(CcpnModule):
                                 pl._attachButton('_axisSelector')
                                 pl._hideAxisSelector()
 
-                    _currentStrip = _currentStrip if _currentStrip in self.strips else (self.strips[0] if self.strips else None)
+                    _currentStrip = _currentStrip if _currentStrip in self.strips else (
+                        self.strips[0] if self.strips else None)
                     if _currentStrip:
                         self.zPlaneFrame.attachZPlaneWidgets(_currentStrip)
                     self.zPlaneFrame.setVisible(True)

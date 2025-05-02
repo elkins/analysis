@@ -16,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2025-02-04 13:32:01 +0000 (Tue, February 04, 2025) $"
-__version__ = "$Revision: 3.3.1 $"
+__dateModified__ = "$dateModified: 2025-05-02 11:23:07 +0100 (Fri, May 02, 2025) $"
+__version__ = "$Revision: 3.3.2 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -30,12 +30,13 @@ __date__ = "$Date: 2018-12-20 14:07:55 +0000 (Thu, December 20, 2018) $"
 from imageio.v3 import imread
 import numpy as np
 import math
+from dataclasses import dataclass, field
 from collections import namedtuple
+from ccpn.core.lib.WeakRefLib import WeakRefDescriptor, _WeakRefDataClassMeta
 from ccpn.ui.gui.lib.OpenGL import GL
 from ccpn.ui.gui.lib.OpenGL.CcpnOpenGLArrays import GLVertexArray, GLRENDERMODE_DRAW
 from ccpn.ui.gui.lib.OpenGL.CcpnOpenGLDefs import LEFTBORDER, RIGHTBORDER, TOPBORDER, BOTTOMBORDER
 from ccpn.util.Colour import hexToRgbRatio
-from ccpn.util.AttrDict import AttrDict
 
 
 FONT_FILE = 0
@@ -45,11 +46,134 @@ GLGlyphTuple = namedtuple('GLGlyphTuple', 'xPos yPos width height xOffset yOffse
                                           'TX0 TY0 TX1 TY1 PX0 PY0 PX1 PY1')
 
 
+@dataclass
+class GlyphData(metaclass=_WeakRefDataClassMeta):
+    """
+    Small class to store glyph data per font.
+
+    :param parent: Weak reference to the parent object.
+    :type parent: WeakRefDescriptor
+    :param fontName: Name of the font.
+    :type fontName: str
+    :param fontSize: Size of the font.
+    :type fontSize: int
+    :param glyphs: List of glyphs, defaulting to a list of 256 None values.
+    :type glyphs: list[GLGlyphTuple | None]
+    :param width: Width of the glyph.
+    :type width: int
+    :param height: Height of the glyph.
+    :type height: int
+    :param spaceWidth: Width of the space character.
+    :type spaceWidth: int
+    :param charWidth: Width of the character.
+    :type charWidth: int
+    :param charHeight: Height of the character.
+    :type charHeight: int
+    :param base: Base value for the glyph.
+    :type base: int
+    :param _unscaled: Tuple containing unscaled glyph parameters.
+    :type _unscaled: tuple[int, ...]
+    :param fontTransparency: Transparency of the font, defaulting to 0.0.
+    :type fontTransparency: float
+    """
+
+    parent: WeakRefDescriptor = field(default_factory=WeakRefDescriptor)
+    fontName: str = None
+    fontSize: int = 0
+    glyphs: list[GLGlyphTuple | None] = field(default_factory=lambda: [None] * 256)
+    width: int = 0
+    height: int = 0
+    spaceWidth: int = 0
+    charWidth: int = 0
+    charHeight: int = 0
+    base: int = 0
+    _unscaled: tuple[int, ...] = None
+    # scale_width: int = 0
+    # scale_height: int = 0
+    # scale_charWidth: int = 0
+    # scale_charHeight: int = 0
+    # scale_base: int = 0
+    # scale_spaceWidth: int = 0
+    fontTransparency: float = field(default=0.0)
+
+    def updateFromScale(self, scale: int):
+        """
+        Update glyph parameters based on the given scale.
+
+        :param scale: Scale to apply to the glyph parameters.
+        :type scale: int
+        :raises RuntimeError: If _unscaled parameters are undefined.
+        """
+        # HACK:ED - don't like this much :|
+        if not self._unscaled:
+            raise RuntimeError('Parameters are undefined')
+        # devicePixelRatio uses a font that is twice the size for the high-res display
+        gw, gh, tx, ty, base = self._unscaled
+        self.width = gw // scale
+        self.height = gh // scale
+        self.charWidth = tx // scale
+        self.charHeight = ty // scale
+        self.base = base // scale
+
+    def setGlyphSize(self, width: int, height: int, charWidth: int, charHeight: int, base: int):
+        """
+        Set the main glyph parameters.
+
+        :param width: Width of the glyph.
+        :type width: int
+        :param height: Height of the glyph.
+        :type height: int
+        :param charWidth: Width of the character.
+        :type charWidth: int
+        :param charHeight: Height of the character.
+        :type charHeight: int
+        :param base: Base value for the glyph.
+        :type base: int
+        """
+        self.width = width
+        self.height = height
+        self.charWidth = charWidth
+        self.charHeight = charHeight
+        self.base = base
+        self._unscaled = width, height, charWidth, charHeight, base  # might be redundant now :)
+        self.updateFromScale(1)
+
+    def setGlyph(self, num: int, value: GLGlyphTuple):
+        """
+        Set the glyph tuple at the specified index with validation.
+
+        :param num: Index of the glyph (must be between 0 and 255).
+        :type num: int
+        :param value: Glyph value (must be of type GLGlyphTuple).
+        :type value: GLGlyphTuple
+        :raises ValueError: If num is not between 0 and 255 or value is not a GLGlyphTuple.
+        """
+        if not (0 <= num <= 255):
+            raise ValueError("num must be between 0 and 255")
+        if not isinstance(value, GLGlyphTuple):
+            raise ValueError("value must be of type GLGlyphTuple")
+        self.glyphs[num] = value
+
+    @property
+    def textureId(self) -> int:
+        """
+        Return the texture ID defined by the current parent.
+
+        :raises RuntimeError: If the parent is not defined.
+        :return: The texture ID from the parent.
+        :rtype: int
+        """
+        parent = self.parent
+        if parent:
+            return parent.textureId
+        raise RuntimeError('textureId: parent is not defined')
+
+
 #=========================================================================================
 # CcpnGLFont
 #=========================================================================================
 
-class CcpnGLFont():
+class CcpnGLFont:
     def __init__(self, fileName=None, base=0, fontTransparency=None, activeTexture=0, scale=None):
         self.fontName = None
         self.fontGlyph = {}  #[None] * 256
@@ -64,7 +188,8 @@ class CcpnGLFont():
         # no checking yet
         self.fontFile = self.fontInfo[FONT_FILE].replace('textures: ', '')
         self.fontPNG = imread(fileName.filepath / self.fontFile)
-        self._fontArray = np.array(self.fontPNG * (fontTransparency if fontTransparency is not None else 1.0), dtype=np.uint8)[:, :, 3]
+        self._fontArray = np.array(self.fontPNG * (fontTransparency if fontTransparency is not None else 1.0),
+                                   dtype=np.uint8)[:, :, 3]
 
         fontRows = []
         fontID = ()
@@ -126,17 +251,10 @@ class CcpnGLFont():
         fontSizeString = fullFontNameString.split()[-1]
 
         _fontSize = int(int(fontSizeString.replace('pt', '')) / scale)
-        _glyphs = self.fontGlyph[_fontSize] = AttrDict()
-
-        _glyphs.fontName = fullFontNameString.replace(fontSizeString, '').strip()
-        _glyphs.fontSize = _fontSize
-
-        _glyphs._parent = self
-        _glyphs.glyphs = [None] * 256
-        _glyphs.width = 0
-        _glyphs.height = 0
-        _glyphs.spaceWidth = 0
-        _glyphs.fontTransparency = fontTransparency
+        _glyphs = self.fontGlyph[_fontSize] = GlyphData(parent=self,
+                                                        fontName=fullFontNameString.replace(fontSizeString, '').strip(),
+                                                        fontSize=_fontSize,
+                                                        fontTransparency=fontTransparency)
 
         # texture sizes
         dx = 1.0 / float(self.fontPNG.shape[1])
@@ -153,9 +271,8 @@ class CcpnGLFont():
                 if chrNum < 256:
                     w = tx + LEFTBORDER + RIGHTBORDER
                     h = ty + TOPBORDER + BOTTOMBORDER
-
                     _kerns = [0] * 256
-                    _glyphs.glyphs[chrNum] = GLGlyphTuple(x, y, tx, ty, px, py, gw, gh, _kerns,
+                    _glyphs.setGlyph(chrNum, GLGlyphTuple(x, y, tx, ty, px, py, gw, gh, _kerns,
                                                           # coordinates in the texture
                                                           x * dx,
                                                           (y + h) * dy,
@@ -166,17 +283,13 @@ class CcpnGLFont():
                                                           gh - (py + h),
                                                           px + (w),
                                                           gh - py
-                                                          )
+                                                          ))
                     if chrNum == 32:
                         # store the width of the space character
                         _glyphs.spaceWidth = gw
-
-                    elif chrNum == 65:
-                        # use 'A' for the referencing the tab size
-                        _glyphs.width = gw
-                        _glyphs.height = gh
-                        _glyphs.charWidth = gw
-                        _glyphs.charHeight = gh
+                    elif chrNum == 71:  # A = 65, G = 71
+                        # use 'G' for the referencing the tab size
+                        _glyphs.setGlyphSize(gw, gh, tx, ty, base=gh - ty - py)
 
         # fill the kerning lists
         for row in range(_kerningRow + 1, _nextRow):
@@ -255,9 +368,9 @@ class GLString(GLVertexArray):
         self._position = (x, y)
         self._offset = (ox, oy)
         self._angle = (3.1415926535 / 180) * angle
-        self._scale = pixelScale or GLContext.viewports.devicePixelRatio  # add scale here to render from a larger font?
-        #                                                                   - may need different offsets
-        #                                                                   - also need to modify getSmallFont
+        self._scale = round(pixelScale or GLContext.viewports.devicePixelRatio) or 1
+        # add scale here to render from a larger font?      may need different offsets
+        #                                                   also need to modify getSmallFont
         self._alias = alias
         self.buildString()
 
@@ -305,7 +418,7 @@ class GLString(GLVertexArray):
 
             if (c > 32):  # visible characters
 
-                kerning = font._parent.get_kerning(charCode, prev, _glyphs) if (prev and ord(prev) > 32) else 0
+                kerning = font.parent.get_kerning(charCode, prev, _glyphs) if (prev and ord(prev) > 32) else 0
 
                 x0 = penX + glyph.PX0 + kerning
                 y0 = penY + glyph.PY0
@@ -360,8 +473,8 @@ class GLString(GLVertexArray):
                 #   vt[1] = vt[1] + font.height
 
                 # move all characters up by font height, centred bottom-left
-                self.vertices[1::4] += font.height
-                self.height += font.height
+                self.vertices[1::4] += font.height * self._scale  # rebuilt when changing devicePixelRatio :|
+                self.height += font.height * self._scale
 
             elif (c == 9):  # tab
                 penX += 4 * font.spaceWidth
@@ -371,12 +484,11 @@ class GLString(GLVertexArray):
             # penY = penY + glyph[GlyphHeight]
             prev = charCode
 
-        if not (0.9999 < self._scale < 1.0001):  # strange - need to remove
-            # apply font scaling for hi-res displays - shader will do this soon
-            self.vertices[::4] /= self._scale
-            self.vertices[1::4] /= self._scale
-            self.height /= self._scale
-            self.width /= self._scale
+        # apply font scaling for hi-res displays - shader will do this soon
+        self.vertices[::4] /= self._scale
+        self.vertices[1::4] /= self._scale
+        self.height /= self._scale
+        self.width /= self._scale
 
         # set the offsets for the characters to the desired coordinates
         self.numVertices = len(self.vertices) // 4
