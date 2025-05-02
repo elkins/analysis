@@ -1,7 +1,7 @@
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2025"
 __credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
                "Timothy J Ragan, Brian O Smith, Daniel Thompson",
                "Gary S Thompson & Geerten W Vuister")
@@ -13,8 +13,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-12-20 11:03:38 +0000 (Fri, December 20, 2024) $"
-__version__ = "$Revision: 3.2.11 $"
+__dateModified__ = "$dateModified: 2025-05-02 11:41:46 +0100 (Fri, May 02, 2025) $"
+__version__ = "$Revision: 3.3.2 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -118,16 +118,16 @@ class TempAreaWindow(Shortcuts, MainWindow):
         for spectrumDisplay in project.spectrumDisplays:
             if spectrumDisplay.isDeleted:
                 continue
-
             for strip in spectrumDisplay.strips:
                 if not strip.isDeleted:
                     strip.refreshDevicePixelRatio()
-
             # NOTE:ED - set pixel-ratio for extra axes
             if hasattr(spectrumDisplay, '_rightGLAxis'):
                 spectrumDisplay._rightGLAxis.refreshDevicePixelRatio()
             if hasattr(spectrumDisplay, '_bottomGLAxis'):
                 spectrumDisplay._bottomGLAxis.refreshDevicePixelRatio()
+            # force the spectrumDisplay to repaint
+            QtCore.QTimer().singleShot(0, spectrumDisplay.update)
 
     def closeEvent(self, *args, **kwargs):
         from ccpn.ui.gui.modules.PythonConsoleModule import PythonConsoleModule

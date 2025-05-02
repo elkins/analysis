@@ -16,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2025-04-14 15:59:37 +0100 (Mon, April 14, 2025) $"
-__version__ = "$Revision: 3.3.1 $"
+__dateModified__ = "$dateModified: 2025-05-02 11:41:46 +0100 (Fri, May 02, 2025) $"
+__version__ = "$Revision: 3.3.2 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -541,14 +541,18 @@ class GuiMainWindow(QtWidgets.QMainWindow, Shortcuts):
         getLogger().debug2('mainWindow screenchanged')
         project = self.application.project
         for spectrumDisplay in project.spectrumDisplays:
+            if spectrumDisplay.isDeleted:
+                continue
             for strip in spectrumDisplay.strips:
-                strip.refreshDevicePixelRatio()
-
-            # NOTE:ED - set pixelratio for extra axes
+                if not strip.isDeleted:
+                    strip.refreshDevicePixelRatio()
+            # NOTE:ED - set pixel-ratio for extra axes
             if hasattr(spectrumDisplay, '_rightGLAxis'):
                 spectrumDisplay._rightGLAxis.refreshDevicePixelRatio()
             if hasattr(spectrumDisplay, '_bottomGLAxis'):
                 spectrumDisplay._bottomGLAxis.refreshDevicePixelRatio()
+            # force the spectrumDisplay to repaint
+            QtCore.QTimer().singleShot(0, spectrumDisplay.update)
 
     @property
     def modules(self):
