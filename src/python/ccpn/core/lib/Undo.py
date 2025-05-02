@@ -20,8 +20,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2025-02-05 11:27:56 +0000 (Wed, February 05, 2025) $"
-__version__ = "$Revision: 3.3.1 $"
+__dateModified__ = "$dateModified: 2025-05-02 10:38:36 +0100 (Fri, May 02, 2025) $"
+__version__ = "$Revision: 3.3.2 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -338,7 +338,7 @@ class Undo(deque):
             return
 
         if self._debug:
-            getLogger().debug('undo._newItem %s %s %s' % (self.undoItemBlocking, undoPartial,
+            getLogger().debug2('undo._newItem %s %s %s' % (self.undoItemBlocking, undoPartial,
                                                           redoPartial))
 
         # clear out redos that are no longer going to be doable
@@ -385,10 +385,10 @@ class Undo(deque):
             return
 
         if self._debug:
-            getLogger().debug('undo.newItem %s %s %s %s %s %s %s' % (self.undoItemBlocking, undoMethod,
-                                                                     redoMethod, undoArgs,
-                                                                     undoKwargs, redoArgs,
-                                                                     redoKwargs))
+            getLogger().debug2('undo.newItem %s %s %s %s %s %s %s' % (self.undoItemBlocking, undoMethod,
+                                                                      redoMethod, undoArgs,
+                                                                      undoKwargs, redoArgs,
+                                                                      redoKwargs))
 
         if not undoArgs:
             undoArgs = ()
