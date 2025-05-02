@@ -13,7 +13,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2025-05-02 11:41:46 +0100 (Fri, May 02, 2025) $"
+__dateModified__ = "$dateModified: 2025-05-02 17:07:59 +0100 (Fri, May 02, 2025) $"
 __version__ = "$Revision: 3.3.2 $"
 #=========================================================================================
 # Created
@@ -102,7 +102,8 @@ class TempAreaWindow(Shortcuts, MainWindow):
             setCurrentMouseMode(mode)
             for sd in self.project.spectrumDisplays:
                 for strp in sd.strips:
-                    strp.mouseModeAction.setChecked(mode == PICK)
+                    strp.updateMouseMode(mode == PICK)
+                QtCore.QTimer().singleShot(0, sd.update)
             mouseModeText = ' Mouse Mode: '
             self.mainWindow.statusBar().showMessage(mouseModeText + mode)
 

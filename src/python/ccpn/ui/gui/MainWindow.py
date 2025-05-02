@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2025-05-02 11:41:46 +0100 (Fri, May 02, 2025) $"
+__dateModified__ = "$dateModified: 2025-05-02 17:07:58 +0100 (Fri, May 02, 2025) $"
 __version__ = "$Revision: 3.3.2 $"
 #=========================================================================================
 # Created
@@ -50,8 +50,8 @@ from ccpn.ui._implementation.Window import Window as _CoreClassMainWindow
 
 from ccpn.ui.gui import guiSettings
 
-from ccpn.ui.gui.lib.mouseEvents import SELECT, PICK, MouseModes, \
-    setCurrentMouseMode, getCurrentMouseMode
+from ccpn.ui.gui.lib.mouseEvents import (SELECT, PICK, MouseModes,
+                                         setCurrentMouseMode, getCurrentMouseMode)
 from ccpn.ui.gui.lib import GuiStrip
 from ccpn.ui.gui.lib.Shortcuts import Shortcuts
 from ccpn.ui.gui.guiSettings import (getColours, GUITABLE_SELECTED_BACKGROUND, consoleStyle)
@@ -64,8 +64,8 @@ from ccpn.ui.gui.widgets.Icon import Icon
 from ccpn.ui.gui.widgets import MessageDialog
 from ccpn.ui.gui.widgets.Action import Action
 from ccpn.ui.gui.widgets.IpythonConsole import IpythonConsole
-from ccpn.ui.gui.widgets.Menu import Menu, MenuBar, SHOWMODULESMENU, CCPNMACROSMENU, \
-    USERMACROSMENU, TUTORIALSMENU, PLUGINSMENU, CCPNPLUGINSMENU, HOWTOSMENU
+from ccpn.ui.gui.widgets.Menu import (Menu, MenuBar, SHOWMODULESMENU, CCPNMACROSMENU,
+                                      USERMACROSMENU, TUTORIALSMENU, PLUGINSMENU, CCPNPLUGINSMENU, HOWTOSMENU)
 from ccpn.ui.gui.widgets.SideBar import SideBar
 from ccpn.ui.gui.widgets.Frame import Frame
 from ccpn.ui.gui.widgets.CcpnModuleArea import CcpnModuleArea
@@ -2202,13 +2202,13 @@ class GuiMainWindow(QtWidgets.QMainWindow, Shortcuts):
     def stackSpectra(self):
         strip = self.application.current.strip
         if strip:  # and (strip.spectrumDisplay.window is self):
-            strip._toggleStackPhaseFromShortCut()
+            strip._toggleStackingFromShortCut()
 
     def setPhasingPivot(self):
 
         strip = self.application.current.strip
         if strip:  # and (strip.spectrumDisplay.window is self):
-            strip._setPhasingPivot()
+            strip._setPhasingPivotCallback()
 
     def removePhasingTraces(self):
         """
@@ -2635,14 +2635,14 @@ class GuiMainWindow(QtWidgets.QMainWindow, Shortcuts):
         else:
             getLogger().warning('No current strip. Select a strip first.')
 
-
     def _setMouseMode(self, mode):
         if mode in MouseModes:
             # self.mouseMode = mode
             setCurrentMouseMode(mode)
             for sd in self.project.spectrumDisplays:
                 for strp in sd.strips:
-                    strp.mouseModeAction.setChecked(mode == PICK)
+                    strp.updateMouseMode(mode == PICK)
+                QtCore.QTimer().singleShot(0, sd.update)
             mouseModeText = ' Mouse Mode: '
             self.statusBar().showMessage(mouseModeText + mode)
 

@@ -17,8 +17,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2025-04-03 10:16:24 +0100 (Thu, April 03, 2025) $"
-__version__ = "$Revision: 3.2.12 $"
+__dateModified__ = "$dateModified: 2025-05-02 17:07:59 +0100 (Fri, May 02, 2025) $"
+__version__ = "$Revision: 3.3.2 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -963,7 +963,6 @@ class GuiNdWidget(CcpnGLWidget):
                         # x is the double-quantum axis
                         yy = yPosList[0] - yPosList[1]
                         self.mouseCoordDQ = (xPosList[0], yy, 1)
-                        print(self.mouseCoordDQ)
                         _x, y = self._scaleAxisToRatio([0, yy])
                         if all(abs(y - val) > self.deltaY for val in foundY):
                             foundY.append(y)
@@ -1353,11 +1352,6 @@ class Gui1dWidget(CcpnGLWidget):
         self._updatePhasingColour()
         self.update()
 
-    def toggleShowSpectraOnPhasing(self):
-        self._showSpectraOnPhasing = not self._showSpectraOnPhasing
-        self._updatePhasingColour()
-        self.update()
-
     def _updatePhasingColour(self):
         for traces in [self._staticHTraces, self._staticVTraces]:
             for trace in traces:
@@ -1660,8 +1654,12 @@ class Gui1dWidget(CcpnGLWidget):
 
     def _buildSpectrumSetting(self, spectrumView, stackCount=0):
         delta = [self.XDIRECTION, self.YDIRECTION]
-        stack = [stackCount * self._stackingValue[0],
-                 stackCount * self._stackingValue[1]]
+        if self.stackingMode:
+            stack = [stackCount * self._stackingValue[0],
+                     stackCount * self._stackingValue[1]]
+        else:
+            # clear visible stacking
+            stack = [0.0, 0.0]
         flipped = self.strip.spectrumDisplay._flipped
         self._spectrumSettings[spectrumView] = specVals = spectrumView._getVisibleSpectrumViewParams(delta=delta,
                                                                                                      stacking=stack,

@@ -16,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2025-01-03 18:56:46 +0000 (Fri, January 03, 2025) $"
-__version__ = "$Revision: 3.2.11 $"
+__dateModified__ = "$dateModified: 2025-05-02 17:07:59 +0100 (Fri, May 02, 2025) $"
+__version__ = "$Revision: 3.3.2 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -35,10 +35,11 @@ from ccpn.core.PeakList import PeakList
 
 from ccpn.core.lib.ContextManagers import undoStackBlocking
 from ccpn.core.lib.ContextManagers import undoBlockWithSideBar as undoBlock
-from ccpn.ui.gui.lib.GuiStrip import GuiStrip, DefaultMenu, PeakMenu, \
-    IntegralMenu, MultipletMenu, PhasingMenu, AxisMenu
-from ccpn.ui.gui.lib.GuiStripContextMenus import _get1dPhasingMenu, _get1dDefaultMenu, \
-    _get1dPeakMenu, _get1dIntegralMenu, _get1dMultipletMenu, _get1dAxisMenu
+from ccpn.ui.gui.lib.GuiStrip import (GuiStrip, DefaultMenu, PeakMenu,
+                                      IntegralMenu, MultipletMenu, PhasingMenu, AxisMenu)
+from ccpn.ui.gui.lib.GuiStripContextMenus import (_get1dPhasingMenu, _get1dDefaultMenu,
+                                                  _get1dPeakMenu, _get1dIntegralMenu, _get1dMultipletMenu,
+                                                  _get1dAxisMenu)
 from ccpn.ui.gui.lib.StripLib import copyStripAxisPositionsAndWidths
 from ccpn.ui.gui.widgets.PlaneToolbar import StripHeaderWidget, StripLabelWidget
 from ccpn.ui.gui.widgets.Frame import OpenGLOverlayFrame
@@ -244,13 +245,13 @@ class GuiStrip1d(GuiStrip):
     def _checkMenuItems(self):
         """Update the menu check boxes from the strip
         """
+        state = self._CcpnGLWidget.stackingMode
         if self._defaultMenu:
-            item = self.mainWindow.getMenuAction('Stack Spectra', self._defaultMenu)
-            item.setChecked(self._CcpnGLWidget._stackingMode)
-
+            item = self.mainWindow.getMenuAction('Stack Spectra', self._defaultMenu)  # stackAction?
+            item.setChecked(state)
         if self._phasingMenu:
             item = self.mainWindow.getMenuAction('Stack Spectra', self._phasingMenu)
-            item.setChecked(self._CcpnGLWidget._stackingMode)
+            item.setChecked(state)
 
     def showExportDialog(self):
         """show the export strip to file dialog
@@ -440,7 +441,7 @@ class GuiStrip1d(GuiStrip):
 
             with undoBlock():
                 spectrum._noiseSD = float(
-                    noiseSD)  # need to set this first. Setting the noiseLevel will call a notifier to update the gui items etc
+                        noiseSD)  # need to set this first. Setting the noiseLevel will call a notifier to update the gui items etc
                 spectrum.noiseLevel = float(posValue)
                 spectrum.negativeNoiseLevel = float(negValue)
         except Exception as exc:
@@ -579,6 +580,8 @@ class GuiStrip1d(GuiStrip):
         self.calibrateYAction.setChecked(False)
         self.toggleCalibrateY()
 
+    #-----------------------------------------------------------------------------------------
+
     def _getInitialOffset(self):
         offSets = []
         offSet = 0  # Default
@@ -592,63 +595,68 @@ class GuiStrip1d(GuiStrip):
 
         return offSet
 
-    def _toggleOffsetWidget(self):
+    def _toggleOffsetWidget(self, visible: bool = False):
         from ccpn.ui.gui.widgets.Stack1DWidget import Offset1DWidget
 
         if self.offsetWidget is None:
+            # initialise the widget on the first call
             sdWid = self.spectrumDisplay.mainWidget
             self.widgetIndex += 1
             self.offsetWidget = Offset1DWidget(sdWid, mainWindow=self.mainWindow, strip1D=self,
                                                grid=(self.widgetIndex, 0))
             initialOffset = self._getInitialOffset()
-
             # offset is now a tuple
             self.offsetWidget.setInitialIntensity(initialOffset)
-            self.offsetWidget.setVisible(True)
-        else:
-            self.offsetWidget.setVisible(not self.offsetWidget.isVisible())
 
-    def setStackingMode(self, value):
-        if value != self.stackAction.isChecked():
-            self.stackAction.setChecked(value)
-            self._toggleStack()
+        self.offsetWidget.setVisible(visible)
 
-    def getStackingMode(self):
-        return self.stackAction.isChecked()
+    #-----------------------------------------------------------------------------------------
 
-    def _toggleStack(self):
+    @property
+    def stackingMode(self) -> bool | None:
+        try:
+            return self._CcpnGLWidget.stackingMode
+        except Exception:
+            getLogger().debugGL('OpenGL widget not instantiated')
+
+    def setStackingMode(self, visible: bool = False):
+        if visible != self.stackingMode:
+            # stackingMode has changed
+            self._setStackingMode(visible)
+
+    def _toggleStackingFromShortCut(self):
+        state = not self.stackingMode
+        self._setStackingMode(state)
+
+    def _setStackingMode(self, visible):
         """Toggle stacking mode for 1d spectra
         This vertically stacks the spectra for clarity
         """
-        if self.stackAction.isChecked():
-            self._toggleOffsetWidget()
+        # update both menus - need a much better method to handle these (dynamically created)
+        self.stackAction.setChecked(visible)
+        self.phaseMenuStackAction.setChecked(visible)
+
+        self._toggleOffsetWidget(visible)
+        if visible:
             self._stack1DSpectra(self.offsetWidget.value())
-        else:
-            self._toggleOffsetWidget()
 
-            try:
-                self._CcpnGLWidget.setStackingMode(False)
-            except Exception:
-                getLogger().debugGL('OpenGL widget not instantiated')
+        try:
+            self._CcpnGLWidget.setStackingMode(visible)
+        except Exception:
+            getLogger().debugGL('OpenGL widget not instantiated')
 
-    def _toggleStackPhaseFromShortCut(self):
-        self.stackActionPhase.setChecked(not self.stackActionPhase.isChecked())
-        self._toggleStackPhase()
-
-    def _toggleStackPhase(self):
+    def _toggleStackCallback(self):
         """Toggle stacking mode for 1d spectra
         This vertically stacks the spectra for clarity
         """
-        if self.stackActionPhase.isChecked():
-            self._toggleOffsetWidget()
-            self._stack1DSpectra(self.offsetWidget.value())
-        else:
-            self._toggleOffsetWidget()
+        self._setStackingMode(not self.stackingMode)
 
-            try:
-                self._CcpnGLWidget.setStackingMode(False)
-            except Exception:
-                getLogger().debugGL('OpenGL widget not instantiated')
+    def _togglePhaseMenuStackCallback(self):
+        """Toggle stacking mode for 1d spectra
+        This vertically stacks the spectra for clarity
+        """
+        # may need to handle menu items differently
+        self._setStackingMode(not self.stackingMode)
 
     def _stack1DSpectra(self, offSet=(0.0, 0.0)):
 
@@ -657,6 +665,59 @@ class GuiStrip1d(GuiStrip):
             self._CcpnGLWidget.setStackingMode(True)
         except Exception:
             getLogger().debugGL('OpenGL widget not instantiated')
+
+    #-----------------------------------------------------------------------------------------
+
+    @property
+    def showSpectraOnPhasing(self):
+        try:
+            # only store the state in the gl-widget
+            return self._CcpnGLWidget.showSpectraOnPhasing
+        except Exception:
+            getLogger().debugGL('OpenGL widget not instantiated')
+
+    @showSpectraOnPhasing.setter
+    def showSpectraOnPhasing(self, visible: bool):
+        if visible != self.showSpectraOnPhasing:
+            # value has changed
+            self._setShowSpectraOnPhasing(visible)
+
+    def _toggleShowSpectraOnPhasingCallback(self):
+        """Toggles whether spectraOnPhasing is visible.
+        """
+        visible = not self.showSpectraOnPhasing
+        self._setShowSpectraOnPhasing(visible)
+
+    def _setShowSpectraOnPhasing(self, visible: bool):
+        self.spectraOnPhasingAction.setChecked(visible)
+        try:
+            self._CcpnGLWidget.showSpectraOnPhasing = visible
+        except Exception:
+            getLogger().debugGL('OpenGL widget not instantiated')
+
+    def _setPhasingPivotCallback(self):
+
+        phasingFrame = self.spectrumDisplay.phasingFrame
+        flipAxis = self.spectrumDisplay._flipped
+        direction = phasingFrame.getDirection()
+        position = None
+        mouseMovedDict = self.current.mouseMovedDict
+        if direction == 0:
+            for mm in mouseMovedDict[AXIS_FULLATOMNAME].keys():
+                if mm[0] == self.axisCodes[flipAxis][0]:  # check the first letter?
+                    positions = mouseMovedDict[AXIS_FULLATOMNAME][mm]
+                    position = positions[0] if positions else None
+        else:  # don't think 1D gets here
+            for mm in mouseMovedDict[AXIS_FULLATOMNAME].keys():
+                if mm[0] == self.axisCodes[1 - flipAxis][0]:
+                    positions = mouseMovedDict[AXIS_FULLATOMNAME][mm]
+                    position = positions[0] if positions else None
+
+        if position is not None:
+            phasingFrame.pivotEntry.set(position)
+            self._updatePivot()
+
+    #-----------------------------------------------------------------------------------------
 
     def toggleHorizontalTrace(self):
         """Toggles whether horizontal trace is displayed.

@@ -57,7 +57,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2025-05-02 11:23:06 +0100 (Fri, May 02, 2025) $"
+__dateModified__ = "$dateModified: 2025-05-02 17:07:59 +0100 (Fri, May 02, 2025) $"
 __version__ = "$Revision: 3.3.2 $"
 #=========================================================================================
 # Created
@@ -609,7 +609,7 @@ class CcpnGLWidget(QOpenGLWidget):
         if rescaleStaticVTraces:
             self.rescaleStaticVTraces()
 
-    def mainViewHeight(self):
+    def mainViewHeight(self) -> int | None:
         if self.viewports:
             vp = self.viewports.getViewportFromWH(self._currentView, self.w, self.h)
             return vp.height
@@ -618,7 +618,7 @@ class CcpnGLWidget(QOpenGLWidget):
         self._stackingValue = val
 
     @property
-    def stackMode(self) -> bool:
+    def stackingMode(self) -> bool:
         return self._stackingMode
 
     def setStackingMode(self, value: bool):
@@ -4183,10 +4183,6 @@ class CcpnGLWidget(QOpenGLWidget):
     @showSpectraOnPhasing.setter
     def showSpectraOnPhasing(self, visible):
         self._showSpectraOnPhasing = visible
-        self.update()
-
-    def toggleShowSpectraOnPhasing(self):
-        self._showSpectraOnPhasing = not self._showSpectraOnPhasing
         self.update()
 
     @property

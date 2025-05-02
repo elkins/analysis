@@ -19,9 +19,9 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: Daniel Thompson $"
-__dateModified__ = "$dateModified: 2025-04-14 15:32:09 +0100 (Mon, April 14, 2025) $"
-__version__ = "$Revision: 3.3.1 $"
+__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
+__dateModified__ = "$dateModified: 2025-05-02 17:07:59 +0100 (Fri, May 02, 2025) $"
+__version__ = "$Revision: 3.3.2 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -846,8 +846,8 @@ def _copyYAxisCodeRangeFromStripMenuItem2(strip):
 def _showSpectraOnPhasingItem(strip):
     return _SCMitem(name='Show Spectra on Phasing',
                     typeItem=ItemTypes.get(ITEM), toolTip='Show Spectra while phasing traces are visible',
-                    checkable=True, checked=strip.showSpectraOnPhasing, shortcut='CH',
-                    callback=strip._toggleShowSpectraOnPhasing, stripMethodName='spectraOnPhasingAction')
+                    checkable=True, checked=strip.showSpectraOnPhasing,
+                    callback=strip._toggleShowSpectraOnPhasingCallback, stripMethodName='spectraOnPhasingAction')
 
 
 def _showActivePhaseTraceItem(strip):
@@ -929,7 +929,7 @@ def _decreaseTraceScaleItem(strip):
 def _setPivotItem(strip):
     return _SCMitem(name='Set Pivot',
                     typeItem=ItemTypes.get(ITEM), toolTip='Set pivot value',
-                    shortcut='PV', callback=strip._setPhasingPivot)
+                    shortcut='PV', callback=strip._setPhasingPivotCallback)
 
 
 def _exitPhasingConsoleItem(strip):
@@ -948,15 +948,15 @@ def _exitMouseModeItem(strip):
 def _stackSpectraDefaultItem(strip):
     return _SCMitem(name='Stack Spectra',
                     typeItem=ItemTypes.get(ITEM), toolTip='Stack Spectra',
-                    checkable=True, checked=strip._CcpnGLWidget._stackingMode,
-                    callback=strip._toggleStack, shortcut='SK', stripMethodName='stackAction')
+                    checkable=True, checked=strip.stackingMode,
+                    callback=strip._toggleStackCallback, shortcut='SK', stripMethodName='stackAction')
 
 
 def _stackSpectraPhaseItem(strip):
     return _SCMitem(name='Stack Spectra',
                     typeItem=ItemTypes.get(ITEM), toolTip='Stack Spectra',
-                    checkable=True, checked=strip._CcpnGLWidget._stackingMode,
-                    callback=strip._toggleStackPhase, stripMethodName='stackActionPhase')
+                    checkable=True, checked=strip.stackingMode,
+                    callback=strip._togglePhaseMenuStackCallback, stripMethodName='phaseMenuStackAction')
 
 
 #=========================================================================================
