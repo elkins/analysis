@@ -1,11 +1,14 @@
 # Our file structure
-/data
-/internal
-/src/python/ccpnmodel
-/src/python/ccpn/AnalysisAssign
-/src/python/ccpn/AnalysisScreen
-/src/python/ccpn/AnalysisMetabolomics
-/src/python/ccpn/AnalysisStructure
+/data/
+/internal/
+/src/python/ccpnmodel/
+/src/python/ccpn/AnalysisAssign/
+/src/python/ccpn/AnalysisScreen/
+/src/python/ccpn/AnalysisMetabolomics/
+/src/python/ccpn/AnalysisStructure/
+/src/python/ccpn/AnalysisDynamics/
+/src/python/ccpn/util/nef/
+/src/python/ccpn/util/nef/NEF/
 
 # Python
 # Byte-compiled / optimized / DLL files
