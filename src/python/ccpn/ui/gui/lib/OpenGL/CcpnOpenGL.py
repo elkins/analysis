@@ -57,8 +57,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2025-05-02 17:07:59 +0100 (Fri, May 02, 2025) $"
-__version__ = "$Revision: 3.3.2 $"
+__dateModified__ = "$dateModified: 2025-05-12 16:12:35 +0100 (Mon, May 12, 2025) $"
+__version__ = "$Revision: 3.3.2.1 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -356,6 +356,8 @@ class CcpnGLWidget(QOpenGLWidget):
         self._dottedCursorCoordinate = None
         self._dottedCursorVisible = None
         self._spectrumBordersVisible = True
+        self.buildSpectrumLabelling = True
+        self._spectrumLabelling = None
 
         self.gridList = []
         self._gridVisible = True  #self._preferences.showGrid
@@ -728,7 +730,7 @@ class CcpnGLWidget(QOpenGLWidget):
                     for listView in spectrumView.multipletListViews:
                         listView.buildLabels = True
                 self.buildMarks = True
-                self._spectrumLabelling.strings.clear()  # HACK:ED - need better method to spawn a rebuild
+                self.buildSpectrumLabelling = True
                 self.update()
 
     def _getValidAspectRatio(self, axisCode):
@@ -2083,6 +2085,7 @@ class CcpnGLWidget(QOpenGLWidget):
 
         self.refreshDevicePixelRatio()
         self._initialiseViewPorts()
+        # don't think this needs to be called with refreshDevicePixelRatio
         self.buildOverlayStrings()
 
     def setBackgroundColour(self, col, silent=False, makeCurrent=False):
@@ -3057,6 +3060,10 @@ class CcpnGLWidget(QOpenGLWidget):
         if self.buildMarks:
             self._marksList.renderMode = GLRENDERMODE_REBUILD
             self.buildMarks = False
+        if self.buildSpectrumLabelling and self._spectrumLabelling:
+            self.buildSpectrumLabelling = False
+            # not consistent with other labels or marks :|
+            self._spectrumLabelling.clear()
 
         self.buildMarksRulers()
 

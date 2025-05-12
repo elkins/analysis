@@ -16,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2025-05-02 11:23:08 +0100 (Fri, May 02, 2025) $"
-__version__ = "$Revision: 3.3.2 $"
+__dateModified__ = "$dateModified: 2025-05-12 16:12:36 +0100 (Mon, May 12, 2025) $"
+__version__ = "$Revision: 3.3.2.1 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -928,7 +928,7 @@ class Gui1dWidgetAxis(QtWidgets.QOpenGLWidget):
         self._mousePressed = False
         self._draggingLabel = False
 
-        self.buildMarks = True
+        self.buildMarks = False
         self._marksList = None
         self._infiniteLines = []
         self._regionList = None
@@ -940,6 +940,8 @@ class Gui1dWidgetAxis(QtWidgets.QOpenGLWidget):
         self._dottedCursorCoordinate = None
         self._dottedCursorVisible = None
         self._spectrumBordersVisible = True
+        self.buildSpectrumLabelling = False
+        self._spectrumLabelling = None
 
         self.gridList = []
         self._gridVisible = True
@@ -1674,8 +1676,10 @@ class Gui1dWidgetAxis(QtWidgets.QOpenGLWidget):
         newPixelRatio = self.devicePixelRatioF()
         if newPixelRatio != self.lastPixelRatio:
             self.lastPixelRatio = newPixelRatio
-            if hasattr(self, GLDefs.VIEWPORTSATTRIB):
+            if hasattr(self, GLDefs.VIEWPORTSATTRIB) and self.viewports:
                 self.viewports.devicePixelRatio = newPixelRatio
+
+                # nothing else required
             self.update()
 
     def _preferencesUpdate(self):
