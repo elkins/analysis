@@ -36,7 +36,7 @@ import matplotlib.pyplot as plt
 from ccpn.core.lib.PeakPickers.PeakPickerABC import PeakPickerABC, SimplePeak
 from ccpn.util.traits.CcpNmrTraits import CFloat, CInt, CBool, CList, Dict
 from ccpn.util.Logging import getLogger
-from ccpnc.peak import Peak as CPeak
+from ccpn.c_replacement.peak_compat import Peak as CPeak
 
 
 GAUSSIANMETHOD = 'gaussian'

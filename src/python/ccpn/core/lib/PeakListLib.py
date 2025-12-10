@@ -90,7 +90,7 @@ def _pickPeaksRegion(peakList, regionToPick: dict = {},
     :return: list of peaks.
     """
 
-    from ccpnc.peak import Peak as CPeak
+    from ccpn.c_replacement.peak_compat import Peak as CPeak
 
     spectrum = peakList.spectrum
     dataSource = spectrum._apiDataSource
