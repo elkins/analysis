@@ -48,7 +48,7 @@ def gauss_jordan_solve(matrix: np.ndarray, vector: np.ndarray) -> Tuple[np.ndarr
             return np.zeros(len(vector), dtype=np.float32), True
 
         return solution, False
-    except (np.linalg.LinAlgError, np.linalg.LinAlgWarning):
+    except np.linalg.LinAlgError:
         return np.zeros(len(vector), dtype=np.float32), True
 
 
