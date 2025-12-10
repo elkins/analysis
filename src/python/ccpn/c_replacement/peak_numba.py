@@ -260,6 +260,97 @@ def find_peaks(
     return peak_list
 
 
-def fit_peaks(*args, **kwargs):
-    """Gaussian/Lorentzian peak fitting - to be implemented in Phase 3."""
-    raise NotImplementedError("fitPeaks will be implemented in Phase 3")
+def fit_peaks(data_array: np.ndarray,
+             region_array: np.ndarray,
+             peak_array: np.ndarray,
+             method: int):
+    """Fit Gaussian or Lorentzian peaks using Levenberg-Marquardt optimization.
+
+    Args:
+        data_array: N-dimensional float32 array
+        region_array: int32 array (2 x ndim) [[first_x, first_y, ...],
+                                              [last_x, last_y, ...]]
+        peak_array: float32 array (npeaks x ndim) initial positions
+        method: 0=Gaussian, 1=Lorentzian
+
+    Returns:
+        List of (height, position_tuple, linewidth_tuple) for each peak
+    """
+    from ccpn.c_replacement.peak_fitting import fit_peak_region
+
+    # Validate inputs
+    if data_array.dtype != np.float32:
+        data_array = np.asarray(data_array, dtype=np.float32)
+    if region_array.dtype != np.int32:
+        region_array = np.asarray(region_array, dtype=np.int32)
+    if peak_array.dtype != np.float32:
+        peak_array = np.asarray(peak_array, dtype=np.float32)
+
+    if method not in (0, 1):
+        raise ValueError(f"method must be 0 (Gaussian) or 1 (Lorentzian), got {method}")
+
+    ndim = data_array.ndim
+    npeaks = peak_array.shape[0]
+
+    # Build initial parameter guess from peak positions
+    # For each peak: [height, pos_1, ..., pos_ndim, lw_1, ..., lw_ndim]
+    initial_params = []
+    for i in range(npeaks):
+        peak_pos = peak_array[i]
+
+        # Estimate initial height from data at peak position
+        if ndim == 2:
+            idx0 = int(np.clip(peak_pos[0], region_array[0,0], region_array[1,0] - 1))
+            idx1 = int(np.clip(peak_pos[1], region_array[0,1], region_array[1,1] - 1))
+            height = float(data_array[idx0, idx1])
+        elif ndim == 3:
+            idx0 = int(np.clip(peak_pos[0], region_array[0,0], region_array[1,0] - 1))
+            idx1 = int(np.clip(peak_pos[1], region_array[0,1], region_array[1,1] - 1))
+            idx2 = int(np.clip(peak_pos[2], region_array[0,2], region_array[1,2] - 1))
+            height = float(data_array[idx0, idx1, idx2])
+        else:
+            raise ValueError(f"fit_peaks only supports 2D and 3D data, got ndim={ndim}")
+
+        # Add height
+        initial_params.append(height)
+
+        # Add positions (relative to region start)
+        for dim in range(ndim):
+            initial_params.append(peak_pos[dim] - region_array[0, dim])
+
+        # Add initial linewidth guesses (default to 2.0 points)
+        for dim in range(ndim):
+            initial_params.append(2.0)
+
+    initial_params = np.array(initial_params, dtype=np.float32)
+
+    # Fit using scipy-based L-M optimizer
+    fitted_params, param_uncert, chisq = fit_peak_region(
+        data_array, region_array, initial_params, method, ndim, npeaks
+    )
+
+    # Extract results for each peak
+    results = []
+    param_idx = 0
+    for i in range(npeaks):
+        height = float(fitted_params[param_idx])
+        param_idx += 1
+
+        # Get fitted positions (convert back to global coordinates)
+        position = []
+        for dim in range(ndim):
+            pos_relative = fitted_params[param_idx + dim]
+            pos_global = pos_relative + region_array[0, dim]
+            position.append(float(pos_global))
+        param_idx += ndim
+
+        # Get fitted linewidths
+        linewidth = []
+        for dim in range(ndim):
+            lw = fitted_params[param_idx + dim]
+            linewidth.append(float(lw))
+        param_idx += ndim
+
+        results.append((height, tuple(position), tuple(linewidth)))
+
+    return results
