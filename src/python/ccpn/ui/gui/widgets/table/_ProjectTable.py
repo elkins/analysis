@@ -4,7 +4,7 @@ Module Documentation here
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2025"
 __credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
                "Timothy J Ragan, Brian O Smith, Daniel Thompson",
                "Gary S Thompson & Geerten W Vuister")
@@ -16,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-09-13 20:32:53 +0100 (Fri, September 13, 2024) $"
-__version__ = "$Revision: 3.2.7 $"
+__dateModified__ = "$dateModified: 2025-01-10 16:42:44 +0000 (Fri, January 10, 2025) $"
+__version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -36,15 +36,18 @@ from types import SimpleNamespace
 
 from ccpn.core.lib.ContextManagers import undoBlockWithoutSideBar, catchExceptions
 from ccpn.core.lib.Notifiers import Notifier
+from ccpn.core.lib.WeakRefLib import WeakRefDescriptor
 from ccpn.ui.gui.widgets.Base import Base
 from ccpn.ui.gui.widgets import MessageDialog
 from ccpn.ui.gui.widgets.table.TableABC import TableABC
 from ccpn.ui.gui.widgets.table._TableCommon import INDEX_ROLE
 from ccpn.ui.gui.widgets.table._TableDelegates import _TableDelegate
+from ccpn.ui.gui.widgets.table._TableAdditions import TableHeaderMenuCoreColumns
 from ccpn.ui._implementation.QueueHandler import QueueHandler
 from ccpn.util.Logging import getLogger
 from ccpn.util.OrderedSet import OrderedSet
 from ccpn.util.Common import NOTHING
+from ccpn.framework.Preferences import getPreferences
 
 
 #=========================================================================================
@@ -72,15 +75,24 @@ _TABLE_KWDS = ('parent', 'df',
                'ignoreStyleSheet',
                'mainWindow', 'moduleParent'
                )
+_TABLES = 'tables'
+_HIDDENCOLUMNS = 'hiddenColumns'
+_COLUMNHEADER = 'columnHeader'
 
 
 class _ProjectTableABC(TableABC, Base):
     className = '_ProjectTableABC'
     attributeName = '_ProjectTableABC'
 
+    defaultHidden = None  # initial hidden-columns if nothing loaded from preferences
+    _internalColumns = None  # internal columns are always hidden
+    _columnStatePrefs = None  # state saved-to/restored-from preferences
+    _columnStateLocal = None
+    # TableHeaderMenuCoreColumns includes functionality for saving state to preferences
+    TableHeaderMenuClass = TableHeaderMenuCoreColumns
+
     _OBJECT = '_object'
     _ISDELETED = 'isDeleted'
-
     OBJECTCOLUMN = '_object'
     INDEXCOLUMN = 'index'
     _INDEX = None
@@ -98,7 +110,7 @@ class _ProjectTableABC(TableABC, Base):
 
     selectCurrent = True
     callBackClass = None
-    search = False
+    search = None
     enableEditDelegate = True
 
     _enableSelectionCallback = True
@@ -107,8 +119,15 @@ class _ProjectTableABC(TableABC, Base):
     # set the queue handling parameters
     _maximumQueueLength = 0
     _logQueue = False
-
     _rowHeightScale = 1.0
+
+    # soft-links to external classes
+    moduleParent = WeakRefDescriptor()
+    mainWindow = WeakRefDescriptor()
+    application = WeakRefDescriptor()
+    project = WeakRefDescriptor()
+    current = WeakRefDescriptor()
+    _droppedNotifier = None
 
     def __init__(self, parent, *, df=None,
                  multiSelect=True, selectRows=True,
@@ -187,9 +206,7 @@ class _ProjectTableABC(TableABC, Base):
             # self.application.ui.qtApp.paletteChanged.connect(self._printPalette)
 
         self.moduleParent = moduleParent
-        self._table = None
         self._dataFrameObject = None
-
         self._setTableNotifiers()
 
         self._lastMouseItem = None
@@ -252,15 +269,30 @@ class _ProjectTableABC(TableABC, Base):
             color = pal.color(QtGui.QPalette.Active, QtGui.QPalette.ColorRole(colnum)).name()
             print(f"  Role: {colname:20}  {color}")
 
+    def _postInit(self):
+        from ccpn.ui.gui.widgets.DropBase import DropBase
+        from ccpn.ui.gui.lib.GuiNotifier import GuiNotifier
+
+        super()._postInit()
+
+        # add a dropped notifier to all project-tables
+        if self.moduleParent is not None:
+            # set the dropEvent to the mainWidget of the module, otherwise the event gets stolen by Frames
+            self.moduleParent.mainWidget._dropEventCallback = self._processDroppedItems
+
+        self._droppedNotifier = GuiNotifier(self,
+                                            [GuiNotifier.DROPEVENT], [DropBase.PIDS],
+                                            self._processDroppedItems)
+
     def setModel(self, model: QtCore.QAbstractItemModel) -> None:
         """Set the model for the view
         """
         super().setModel(model)
         model.showEditIcon = True
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Mouse/Keyboard handling
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     def mousePressEvent(self, event):
         """handle mouse press events
@@ -296,9 +328,9 @@ class _ProjectTableABC(TableABC, Base):
             self.current.guiTable = None
             # self.setStyleSheet(self._defaultStyleSheet)
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Table functions
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     def deleteSelectionFromTable(self):
         """Delete all objects in the selection from the project
@@ -338,17 +370,98 @@ class _ProjectTableABC(TableABC, Base):
             self.clearSelection()
             return True
 
-    #=========================================================================================
+    def postUpdateDf(self):
+        """Update hidden-columns after table has been refreshed.
+        """
+        super().postUpdateDf()
+        self.restoreFromPreferences()
+
+    #-----------------------------------------------------------------------------------------
+    # Preferences
+    #-----------------------------------------------------------------------------------------
+
+    def hasPreferenceState(self):
+        """Return True if there are currently hidden-columns stored in the preferences.
+        """
+        tableName = self.className
+        if not (prefs := getPreferences()):
+            getLogger().debug2(f'Cannot check hasPreferenceState {tableName}')
+            return
+        try:
+            if prefs[_TABLES][tableName][_HIDDENCOLUMNS] is not None:
+                getLogger().debug2(f'Checking hasPreferenceState')
+                return True
+        except Exception:
+            getLogger().debug2(f'No saved state')
+
+    def isMatchingPreferenceState(self):
+        """Return True if the hidden-columns stored in the preferences are different from the
+        current state.
+        """
+        tableName = self.className
+        if not (prefs := getPreferences()):
+            getLogger().debug2(f'Cannot check isMatchingPreferenceState {tableName}')
+            return
+        try:
+            if (hidden := prefs[_TABLES][tableName][_HIDDENCOLUMNS]) is not None:
+                getLogger().debug2(f'Checking isMatchingPreferenceState')
+                return hidden == self.hiddenColumns
+        except Exception:
+            getLogger().debug2(f'No saved state')
+
+    def saveToPreferences(self):
+        """Save the current visible/hidden columns to preferences.
+        This will affect new modules that are opened.
+        """
+        tableName = self.className
+        if not (prefs := getPreferences()):
+            getLogger().debug2(f'Cannot save hidden-columns {tableName}')
+            return
+        # store in preferences, should already be there
+        # needs to be in defaultV3settings to ensure re-load
+        table = prefs.setdefault(_TABLES, {}).setdefault(tableName, {})
+        table[_HIDDENCOLUMNS] = self.hiddenColumns
+
+    def restoreFromPreferences(self):
+        """Read the visible/hidden columns from preferences.
+        This will affect the current table.
+        """
+        tableName = self.className
+        if not (prefs := getPreferences()):
+            getLogger().debug2(f'Cannot restore hidden-columns {tableName}')
+            return
+        try:
+            if (hidden := prefs[_TABLES][tableName][_HIDDENCOLUMNS]) is not None:
+                getLogger().debug2(f'Restoring default hidden-columns {hidden}')
+                self.setHiddenColumns(hidden)
+        except Exception:
+            getLogger().debug2(f'No saved state')
+
+    def resetPreferences(self):
+        """Reset the visible/hidden columns in preferences to None.
+        This will affect the current table, and new modules, which will open with the internal defaults.
+        """
+        tableName = self.className
+        if not (prefs := getPreferences()):
+            getLogger().debug2(f'Cannot reset hidden-columns {tableName}')
+            return
+        # store in preferences, should already be there
+        # needs to be in defaultV3settings to ensure re-load
+        table = prefs.setdefault(_TABLES, {}).setdefault(tableName, {})
+        table[_HIDDENCOLUMNS] = None
+        self.resetHiddenColumns()
+
+    #-----------------------------------------------------------------------------------------
     # Header context menu
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Search methods
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Handle dropped items
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     def _processDroppedItems(self, data):
         """CallBack for Drop events
@@ -385,9 +498,9 @@ class _ProjectTableABC(TableABC, Base):
             if MessageDialog.showYesNo(title, msg):
                 _openItemObject(self.mainWindow, others)
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Table updates
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     def _getTableColumns(self, source=None):
         """format of column = ( Header Name, value, tipText, editOption)
@@ -462,17 +575,16 @@ class _ProjectTableABC(TableABC, Base):
     def populateEmptyTable(self):
         """Populate with an empty dataFrame containing the correct column headers.
         """
-        self._dataFrameObject = None
         _df = pd.DataFrame({val: [] for val in self.columnHeaders.values()})
         if self.OBJECTCOLUMN in _df.columns:
             # use the object as the index, object always exists even if isDeleted
             _df.set_index(_df[self.OBJECTCOLUMN], inplace=True, )
         self.updateDf(_df, resize=True)
-        self.headerColumnMenu.resetToDefaultHiddenColumns()
+        self.postUpdateDf()
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Build the dataFrame for the table
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     def buildTableDataFrame(self):
         """Return a Pandas dataFrame from an internal list of objects
@@ -480,9 +592,9 @@ class _ProjectTableABC(TableABC, Base):
         # MUST BE SUBCLASSED
         raise NotImplementedError(f'Code error: {self.__class__.__name__}.buildTableDataFrame not implemented')
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Notifiers
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     def _initialiseTableNotifiers(self):
         """Set the initial notifiers to empty
@@ -555,28 +667,31 @@ class _ProjectTableABC(TableABC, Base):
         if self._tableNotifier is not None:
             self._tableNotifier.unRegister()
             self._tableNotifier = None
-
         if self._rowNotifier is not None:
             self._rowNotifier.unRegister()
             self._rowNotifier = None
-
         if self._cellNotifiers:
             for cell in self._cellNotifiers:
                 if cell is not None:
                     cell.unRegister()
             self._cellNotifiers = []
-
         if self._selectCurrentNotifier is not None:
             self._selectCurrentNotifier.unRegister()
             self._selectCurrentNotifier = None
-
         if self._searchNotifier is not None:
             self._searchNotifier.unRegister()
             self._searchNotifier = None
+        if self._droppedNotifier:
+            self._droppedNotifier.unRegister()
+            self._droppedNotifier = None
 
-    def _close(self):
+    def _preClose(self):
+        from ccpn.ui.gui.lib.WidgetClosingLib import _debugAttrib, _PRECLOSE as MSG
+
+        _debugAttrib(self, MSG)
+
         self._clearTableNotifiers()
-        super()._close()
+        super()._preClose()
 
     def clearCurrentCallback(self):
         """Clear the callback function for current object/list change
@@ -586,9 +701,9 @@ class _ProjectTableABC(TableABC, Base):
             self._selectCurrentNotifier.unRegister()
             self._selectCurrentNotifier = None
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Notifier callbacks
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     def _updateTableCallback(self, data):
         """Notifier callback when the table has changed
@@ -650,9 +765,9 @@ class _ProjectTableABC(TableABC, Base):
         # enable callback on the checkboxes
         self._checkBoxCallback = checkBoxCallback
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Table methods
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     def getSelectedObjects(self, fromSelection=None):
         """Return the selected core objects
@@ -707,9 +822,31 @@ class _ProjectTableABC(TableABC, Base):
                     setattr(self.current, multiple, tuple(set(multipleAttr) - set(objList)))
             self._lastSelection = [None]
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
+    # Block table signals
+    #-----------------------------------------------------------------------------------------
+
+    def _blockTableEvents(self, blanking=True, disableScroll=False, tableState=None):
+        """Block all updates/signals/notifiers in the table.
+        Subclassed to blank notifiers.
+        """
+        super()._blockTableEvents(blanking, disableScroll, tableState)
+        # block on first entry; increased in superclass
+        if self._tableBlockingLevel == 1 and blanking and self.project:
+            self.project.blankNotification()
+
+    def _unblockTableEvents(self, blanking=True, disableScroll=False, tableState=None):
+        """Unblock all updates/signals/notifiers in the table.
+        Subclassed to unblank notifiers.
+        """
+        # unblock on last exit; decreased in superclass
+        if self._tableBlockingLevel == 1 and blanking and self.project:
+            self.project.unblankNotification()
+        super()._unblockTableEvents(blanking, disableScroll, tableState)
+
+    #-----------------------------------------------------------------------------------------
     # Highlight objects in table
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     def _highLightObjs(self, selection, scrollToSelection=True):
 
@@ -756,9 +893,9 @@ class _ProjectTableABC(TableABC, Base):
                 # clear the selection with no object updates
                 self.selectionModel().clearSelection()
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Notifier queue handling
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     def queueFull(self):
         """Method that is called when the queue is deemed to be too big.
@@ -767,9 +904,9 @@ class _ProjectTableABC(TableABC, Base):
         # MUST BE SUBCLASSED
         raise NotImplementedError(f'Code error: {self.__class__.__name__}.queueFull not implemented')
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Common object properties
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     @staticmethod
     def _getCommentText(obj):

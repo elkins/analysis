@@ -4,7 +4,7 @@ This file contains the routines for message dialogues
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2025"
 __credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
                "Timothy J Ragan, Brian O Smith, Daniel Thompson",
                "Gary S Thompson & Geerten W Vuister")
@@ -16,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-10-11 18:50:23 +0100 (Fri, October 11, 2024) $"
-__version__ = "$Revision: 3.2.7 $"
+__dateModified__ = "$dateModified: 2025-03-21 16:02:37 +0000 (Fri, March 21, 2025) $"
+__version__ = "$Revision: 3.3.1 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -417,7 +417,7 @@ def showInfo(title, message, parent=None, iconPath=None,
 
 
 def showNotImplementedMessage():
-    showInfo('Not implemented yet!',
+    showInfo('Not implemented yet',
              'This function has not been implemented in the current version')
 
 
@@ -481,7 +481,8 @@ def showSaveDiscardCancel(title, message, parent=None, iconPath=None):
         return None
 
 
-def showYesNoCancel(title, message, parent=None, iconPath=None):
+def showYesNoCancel(title, message, parent=None, iconPath=None,
+                    dontShowEnabled=False, defaultResponse=None, popupId=None):
     """Yes, No, Cancel query box.
 
     :param title: title of the widget
@@ -490,7 +491,13 @@ def showYesNoCancel(title, message, parent=None, iconPath=None):
     :param iconPath: optional icon to display
     :return: True for Yes, False for No or None for Cancel
     """
-    dialog = MessageDialog('Query', title, message, Question, iconPath, parent)
+    dialog = MessageDialog('Query', title, message, Question, iconPath, parent,
+                           dontShowEnabled=dontShowEnabled, defaultResponse=defaultResponse, popupId=popupId)
+
+    if dialog.dontShowPopup():
+        getLogger().debug(f'Popup {popupId!r} skipped with response={defaultResponse}')
+        return defaultResponse
+
     dialog.setStandardButtons(Yes | No | Cancel)
     dialog.setDefaultButton(Yes)
     result = dialog.exec_()
@@ -514,14 +521,6 @@ def showWarning(title, message, parent=None, iconPath=None, detailedText=None,
 
     # don't show checkbox required an 'accepted' response to work
     dialog.setStandardButtons(Close if not dontShowEnabled else Ok)
-    dialog.exec_()
-    return
-
-
-def showNYI(parent=None):
-    text = 'Not yet implemented'
-    dialog = MessageDialog(title=text, basicText=text, message='Sorry!', icon=Warning, iconPath=None, parent=parent)
-    dialog.setStandardButtons(Close)
     dialog.exec_()
     return
 

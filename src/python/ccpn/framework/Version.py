@@ -1,10 +1,13 @@
 """Top level application version file
 
 """
+from __future__ import annotations
+
+
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2025"
 __credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
                "Timothy J Ragan, Brian O Smith, Daniel Thompson",
                "Gary S Thompson & Geerten W Vuister")
@@ -16,8 +19,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-11-13 11:05:11 +0000 (Wed, November 13, 2024) $"
-__version__ = "$Revision: 3.2.11 $"
+__dateModified__ = "$dateModified: 2025-05-12 16:10:49 +0100 (Mon, May 12, 2025) $"
+__version__ = "$Revision: 3.3.2.1 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -26,6 +29,8 @@ __date__ = "$Date: 2017-04-07 10:28:41 +0000 (Fri, April 07, 2017) $"
 #=========================================================================================
 # Start of code
 #=========================================================================================
+
+import typing
 
 
 _DEBUG = False
@@ -61,7 +66,7 @@ class VersionString(str):
     In particular, A step from 3.2.1.0 -> 3.2.1.2 will not be recognised and the update sequence will terminate early.
     """
 
-    def __new__(cls, value=None, *args, **kwargs):
+    def __new__(cls, value=None, *args, **kwargs) -> VersionString:
         """First argument ('string' must be a valid pid string with at least one, non-initial PREFIXSEP
         Additional arguments are converted to string with disallowed characters changed to altCharacter
         """
@@ -95,7 +100,7 @@ class VersionString(str):
         _new = super().__new__(cls, value)
         _new._fields = _fields
 
-        return _new
+        return typing.cast(cls, _new)
 
     @property
     def majorVersion(self) -> str:
@@ -128,7 +133,7 @@ class VersionString(str):
     @property
     def asStr(self) -> str:
         """Convenience: return as string rather than object;
-        allows to do things as obj.asPid.str rather then str(obj.asPid)
+        allows to do things as obj.asPid.str rather than str(obj.asPid)
         """
         return str(self)
 
@@ -294,8 +299,8 @@ class VersionString(str):
 # - previous is included as a reference (not currently used)
 #=========================================================================================
 
-_previousApplicationVersion = VersionString('3.2.10')
-applicationVersion = VersionString('3.2.11')
+_previousApplicationVersion = VersionString('3.3.2')
+applicationVersion = VersionString('3.3.2.1')
 _lastApplicationVersion = VersionString('4.0.0')  # hide any messages beyond this point
 revision = '3'
 

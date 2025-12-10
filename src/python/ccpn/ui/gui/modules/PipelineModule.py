@@ -4,9 +4,10 @@ Module Documentation here
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
-__credits__ = ("Ed Brooksbank, Joanna Fox, Morgan Hayward, Victoria A Higman, Luca Mureddu",
-               "Eliza Płoskoń, Timothy J Ragan, Brian O Smith, Gary S Thompson & Geerten W Vuister")
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2025"
+__credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
+               "Timothy J Ragan, Brian O Smith, Daniel Thompson",
+               "Gary S Thompson & Geerten W Vuister")
 __licence__ = ("CCPN licence. See https://ccpn.ac.uk/software/licensing/")
 __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, L.G., & Vuister, G.W.",
                  "CcpNmr AnalysisAssign: a flexible platform for integrated NMR analysis",
@@ -14,9 +15,9 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-03-05 16:20:06 +0000 (Tue, March 05, 2024) $"
-__version__ = "$Revision: 3.2.2 $"
+__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
+__dateModified__ = "$dateModified: 2025-01-24 14:49:21 +0000 (Fri, January 24, 2025) $"
+__version__ = "$Revision: 3.3.1 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -67,6 +68,7 @@ from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QPushButton, QPr
 from PyQt5.QtCore import QThread, pyqtSignal, QObject
 import threading
 
+
 Qt = QtCore.Qt
 Qkeys = QtGui.QKeySequence
 DropHereLabel = 'Drop SP or SG here'
@@ -80,48 +82,7 @@ PipelineName = 'NewPipeline'
 PipelinePath = 'PipelinePath'
 
 
-class _PipelineProcess(QObject):
-    """
-    An Object need to attach a Thread to the pipeline"""
-    finished = pyqtSignal()
-    nextPipeStarted = pyqtSignal(str)
-
-    def __init__(self, pipeline):
-        super().__init__()
-        self.pipeline = pipeline
-
-    def run(self):
-
-        initialTime = time.time()
-        self.pipeline.project._logger.info(f'Pipeline: Started on {datetime.now()}')
-        self.pipeline.queue = []
-
-        if not self.pipeline.inputData:
-            self.pipeline.project._logger.info('Pipeline: No input data.')
-            showWarning('Pipeline', 'No input data')
-            return
-
-        guiPipes = self.pipeline.openGuiPipes
-        self.pipeline._kwargs = {}
-        if len(guiPipes) > 0:
-            for cc, guiPipe in enumerate(guiPipes):
-                pipe = guiPipe.pipe
-                if guiPipe.isActive:
-                    pipe.isActive = True
-                    pipe._kwargs = guiPipe.widgetsState
-                    self.pipeline.queue.append(pipe)
-                else:
-                    pipe.isActive = False
-
-        self.pipeline.runPipeline()
-        if self.pipeline.updateInputData:
-            self.pipeline._updateGuiInputData()
-        finalTime = time.time()
-        self.finished.emit()
-        self.pipeline.project._logger.info(f'Pipeline: Completed in {int(finalTime-initialTime)}s')
-
-
-class GuiPipeline(CcpnModule, Pipeline,):
+class GuiPipeline(CcpnModule, Pipeline):
     includeSettingsWidget = True
     _includeInLastSeen = False
     maxSettingsState = 2
@@ -130,7 +91,6 @@ class GuiPipeline(CcpnModule, Pipeline,):
     moduleName = 'Pipeline'
 
     def __init__(self, mainWindow, name=moduleName, pipes=None, templates=None, **kwds):
-        super(GuiPipeline, self)
 
         # this guarantees to open the module as Gui testing
         self.project = None
@@ -153,10 +113,10 @@ class GuiPipeline(CcpnModule, Pipeline,):
             pipes = LP
 
         self.rebuildTemplates = True
-        self.userPipes = self._loadUserPipes()
+        self._loadUserPipes()
 
         # init the CcpnModule
-        CcpnModule.__init__(self, mainWindow=mainWindow, name=name, closeFunc=self._closeAllGuiPipes)
+        CcpnModule.__init__(self, mainWindow=mainWindow, name=name)
 
         # init the Pipeline
         Pipeline.__init__(self, application=self.application, pipelineName=PipelineName, pipes=pipes)
@@ -173,8 +133,12 @@ class GuiPipeline(CcpnModule, Pipeline,):
 
         # set notifier
         if self.project is not None:
-            self._inputDataDeletedNotifier = Notifier(self.project, [Notifier.DELETE], 'Spectrum', self._updateInputDataFromNotifier)
+            self.setNotifier(self.project, [Notifier.DELETE], 'Spectrum', self._updateInputDataFromNotifier)
             # add for SpectrumGroup
+
+    def _closeModule(self):
+        self._closeAllGuiPipes()
+        super(GuiPipeline, self)._closeModule()
 
     @property
     def widgetsState(self):
@@ -197,9 +161,13 @@ class GuiPipeline(CcpnModule, Pipeline,):
             if widgetsState[PipelinePath]:
                 path = aPath(widgetsState[PipelinePath])
                 path = path.assureSuffix('.json')
-                self._openSavedPipeline(path)
+                try:
+                    self._openSavedPipeline(path)
+                except FileNotFoundError as es:
+                    getLogger().warning(str(es))
 
-    def _getGuiFromPipes(self, pipes):
+    @staticmethod
+    def _getGuiFromPipes(pipes):
         allGuiPipes = []
         for pipe in pipes:
             if pipe:
@@ -278,7 +246,6 @@ class GuiPipeline(CcpnModule, Pipeline,):
         self.saveIcon = Icon('icons/save')
         self.openRecentIcon = Icon('icons/document_open_recent')
         self.goIcon = Icon('icons/play')
-        self.stopIcon = Icon('icons/stop')
         self.filterIcon = Icon('icons/edit-find')
 
     def _setMainLayout(self):
@@ -327,7 +294,8 @@ class GuiPipeline(CcpnModule, Pipeline,):
         self.pipeTreeWidget._addPipesToTree()
         # search widget
         row += 1
-        self._resultWidget = ListWidget(self.inputFrame, contextMenu=False, callback=self.callbackResultWidget, grid=(row, 1))
+        self._resultWidget = ListWidget(self.inputFrame, contextMenu=False, callback=self.callbackResultWidget,
+                                        grid=(row, 1))
         self._resultWidget.itemDoubleClicked.connect(self._resultItemDoubleClickCallback)
         self._resultWidget.keyPressEvent = self._pipesResultskeyPressEvent
         self._resultWidget.hide()
@@ -343,19 +311,13 @@ class GuiPipeline(CcpnModule, Pipeline,):
                                           icons=[self.openRecentIcon, self.saveIcon],
                                           tipTexts=['', ''], direction='H')
         # self.saveOpenFrameLayout.addWidget(self.pipelineNameLabel)
-
         self.goButton = Button(self, text='', icon=self.goIcon, callback=self._runPipeline)
-        self.stopButton = Button(self, text='', icon=self.stopIcon, callback=None, enabled=True, )
-        self.pipelineProgressLabel  = Label(self)
-
-        # callback set at run time to safely stop the thread
+        self.pipelineProgressLabel = Label(self)
 
         self._addMenuToOpenButton()
         self.saveOpenButtons.setStyleSheet(transparentStyle)
         self.saveOpenFrameLayout.addWidget(self.goButton)
-        self.saveOpenFrameLayout.addWidget(self.stopButton)
         self.saveOpenFrameLayout.addWidget(self.pipelineProgressLabel)
-
         self.saveOpenFrameLayout.addStretch(1)
         self.saveOpenFrameLayout.addWidget(self.saveOpenButtons)
 
@@ -407,7 +369,8 @@ class GuiPipeline(CcpnModule, Pipeline,):
                 self._resultWidget.addItems(pipeNames)
                 # b = self._resultWidget.sizeHintForRow(0) * self._resultWidget.count() + 2 * self._resultWidget.frameWidth() #this make the search of dynamic sizes
                 # self._resultWidget.setMaximumHeight(b)
-                self._resultWidget.setMaximumHeight(abs(self._resultWidget.sizeHintForRow(0)) * 4)  # fix height by num of rows
+                self._resultWidget.setMaximumHeight(
+                        abs(self._resultWidget.sizeHintForRow(0)) * 4)  # fix height by num of rows
                 self._searchWidget.setClearButtonEnabled(True)
 
             else:
@@ -433,9 +396,10 @@ class GuiPipeline(CcpnModule, Pipeline,):
 
     def _closeAllGuiPipes(self):
         guiPipes = self.pipelineArea.currentGuiPipes
-        if len(guiPipes) > 0:
+        if guiPipes:
             for guiPipe in guiPipes:
                 guiPipe._closePipe()
+
         self.pipelineArea.currentGuiPipes.clear()
         self.currentGuiPipesNames.clear()
 
@@ -450,6 +414,7 @@ class GuiPipeline(CcpnModule, Pipeline,):
                         self.addPipe(name)
                     self._searchWidget.clear()
                     self.pipeTreeWidget.clearSelection()
+
         elif keyEvent.key() == Qt.Key_Escape or keyEvent.key() == Qt.Key_Delete:
             self._searchWidget.clear()
             self.pipeTreeWidget.clearSelection()
@@ -482,7 +447,8 @@ class GuiPipeline(CcpnModule, Pipeline,):
         return str(guiPipeName) + '-' + str(counter[str(guiPipeName)])
         # return str(guiPipeName)
 
-    ####################################_________ GUI CallBacks ____________###########################################
+    #-----------------------------------------------------------------------------------------
+    # GUI CallBacks
 
     def _selectPipe(self, selected):
 
@@ -507,7 +473,8 @@ class GuiPipeline(CcpnModule, Pipeline,):
                 else:
                     if not position:
                         position = self.addBoxPosition.get()
-                    newGuiPipe = guiPipe(parent=self, application=self.application, name=serialName, project=self.project, activateSignals=self._runAsThread)
+                    newGuiPipe = guiPipe(parent=self, application=self.application, name=serialName,
+                                         project=self.project)
                     newGuiPipe.setMaximumHeight(newGuiPipe.sizeHint().height())
                     self.pipelineArea.addDock(newGuiPipe, position=position, relativeTo=relativeTo)
                     autoActive = self.autoActiveCheckBox.get()
@@ -518,7 +485,7 @@ class GuiPipeline(CcpnModule, Pipeline,):
     @property
     def openGuiPipes(self):
         if len(self.pipelineArea.findAll()[1]) > 0:
-            return  self.pipelineArea.orderedBoxes(self.pipelineArea.topContainer)
+            return self.pipelineArea.orderedBoxes(self.pipelineArea.topContainer)
         return []
 
     def _getActivePipes(self):
@@ -530,97 +497,34 @@ class GuiPipeline(CcpnModule, Pipeline,):
                     activePipes.append(guiPipe)
         return activePipes
 
-    @staticmethod
-    def interpolate_progress(progress, start_percent, end_percent):
-        # Ensure progress is within the valid range (0 to 100)
-        progress = max(0, min(progress, 100))
-        # Calculate the interpolated value
-        interpolated_value = start_percent + (progress / 100) * (end_percent - start_percent)
-        return interpolated_value
-
-    def _updatePipeProgress(self, progressDict):
-        pipePercentCompleted = progressDict.get('percentage',0)
-        pipeIndex = progressDict.get('pipeIndex')
-
-        guiPipes = self._getActivePipes()
-        totPipes = len(guiPipes)
-        _pipeCompleted = pipePercentCompleted
-        mileStones = [0]
-        mileStones += [(i+1)/totPipes for i in range(totPipes)]
-        start, stop = mileStones[pipeIndex],  mileStones[pipeIndex+1]
-        totCompleted = self.interpolate_progress(pipePercentCompleted, start, stop)
-
-        if totCompleted > 100:
-            totCompleted = 100
-
-        self.pipelineProgressLabel.setText(f' {round(totCompleted*100,2)}%')
-
-        for cc, guiPipe in enumerate(guiPipes):
-            if guiPipe.isActive:
-                if cc == pipeIndex:
-                    msg = f'{int(pipePercentCompleted)}%'
-                    guiPipe.label.progressLabel.setText(msg)
-                    guiPipe._setRunningStyle()
-                    if pipePercentCompleted == 100 and cc+1 == len(guiPipes): # it's last pipe
-                        guiPipe._setCompletedStyle()
-
-                elif cc < pipeIndex:
-                    guiPipe._setCompletedStyle()
-                else:
-                    guiPipe._setStandbyStyle()
-
-
     def _runPipeline(self):
 
-        self.pipelineProgressLabel.setText('Running')
-        self._pipelineProcess = _PipelineProcess(self)
-        if self._runAsThread:
-            self._clearProgress()
-            self._setThreadStyle(True)
-            self.runningThread = QThread()
-            self._pipelineProcess.moveToThread(self.runningThread)
-            self.runningThread.started.connect(self._pipelineProcess.run)
-            self._pipelineProcess.finished.connect(partial(self._pipelineFinished, self.runningThread))
-            self.stopButton.clicked.connect(partial(self._stopPipeline, self.runningThread))
-            self.runningThread.start()
-        else:
-            self._setThreadStyle(False)
-            self._pipelineProcess.run()
-            self.pipelineProgressLabel.setText('Ready')
-            showInfo('Done', 'Pipeline completed')
-
-    def _stopPipeline(self, thread=None):
-        self.pipelineProgressLabel.setText('Stopped')
-        self._pipelineFinished(thread)
-
-    def _pipelineFinished(self, thread=None):
-
-        self.pipelineProgressLabel.setText('Ready')
-        self.stopPipeline()
-
-        if thread is not None:
-            thread.quit()
-            thread.wait()
-
-    def _clearProgress(self):
+        initialTime = time.time()
+        getLogger().info(f'Pipeline: Started on {datetime.now()}')
+        self.queue = []
+        if not self.inputData:
+            getLogger().info('Pipeline: No input data.')
+            showWarning('Pipeline', 'No input data')
+            return
         guiPipes = self.openGuiPipes
         self._kwargs = {}
         if len(guiPipes) > 0:
             for cc, guiPipe in enumerate(guiPipes):
-                guiPipe._setStandbyStyle()
+                pipe = guiPipe.pipe
+                if guiPipe.isActive:
+                    pipe.isActive = True
+                    pipe._kwargs = guiPipe.widgetsState
+                    self.queue.append(pipe)
+                else:
+                    pipe.isActive = False
+        self.runPipeline()
+        if self.updateInputData:
+            self._updateGuiInputData()
+        finalTime = time.time()
+        getLogger().info(f'Pipeline: Completed in {int(finalTime - initialTime)}s')
 
-
-    def _closeModule(self):
-        """Re-implementation of closeModule function from CcpnModule to unregister notification """
-        self._unregisterNotifier()
-        super()._closeModule()
-
-    ####################################_________ others____________###########################################
-
-    def _unregisterNotifier(self):
-        """Cleanup of Notifierers"""
-        if self._inputDataDeletedNotifier:
-            self._inputDataDeletedNotifier.unRegister()
+    #-----------------------------------------------------------------------------------------
+    # others
 
     def _getGuiPipeClassFromClassName(self, name):
         for guiPipe in self.guiPipes:
@@ -632,7 +536,8 @@ class GuiPipeline(CcpnModule, Pipeline,):
             if guiPipe.pipeName == name:
                 return guiPipe
 
-    ####################################_________ Saving Restoring  SETUP ____________####################################
+    #-----------------------------------------------------------------------------------------
+    # Saving Restoring  SETUP
 
     def _openJsonFile(self, path):
         if path is not None:
@@ -748,7 +653,8 @@ class GuiPipeline(CcpnModule, Pipeline,):
                 fp.close()
                 getLogger().info('Pipeline File saved in: ' + str(pipelineFilePath))
 
-    #################################### _________ GUI PIPELINE SETTINGS ____________ ####################################
+    #-----------------------------------------------------------------------------------------
+    # GUI PIPELINE SETTINGS
 
     def _pipelineBoxesWidgetParams(self, currentGuiPipesName):
         self.savePipelineParams = []
@@ -779,9 +685,6 @@ class GuiPipeline(CcpnModule, Pipeline,):
     def _createSettingsWidgets(self):
 
         row = 0
-        self.threadActive = Label(self.settingsWidget, 'Run in a Thread (Experimental)', grid=(row, 0))
-        self.threadActiveCheckBox = CheckBox(self.settingsWidget, checked=self._runAsThread, callback=self._runAsThreadCallback, grid=(row, 1))
-        row += 1
         self.addBoxLabel = Label(self.settingsWidget, 'Add Pipes', grid=(row, 0))
         self.addBoxPosition = RadioButtons(self.settingsWidget, texts=['top', 'bottom'],
                                            callback=self._addPipeDirectionCallback, selectedInd=1, direction='v',
@@ -792,7 +695,6 @@ class GuiPipeline(CcpnModule, Pipeline,):
         self.autoActiveCheckBox = CheckBox(self.settingsWidget, callback=self._autoActiveCallback, grid=(row, 1))
         self.autoActiveCheckBox.setChecked(True)
         self.settingsWidget.getLayout().setAlignment(QtCore.Qt.AlignLeft | QtCore.Qt.AlignTop)
-        self._runAsThreadCallback()
 
     def _itemsDropped(self):
         self.setDataSelection()
@@ -836,16 +738,6 @@ class GuiPipeline(CcpnModule, Pipeline,):
 
     def _autoActiveCallback(self):
         value = self.autoActiveCheckBox.get()
-
-    def _runAsThreadCallback(self):
-        value = self.threadActiveCheckBox.get()
-        self._runAsThread = value
-        self.stopButton.setEnabled(value)
-        # activate/deactivate Signals from Pipes
-        self._setThreadStyle(active=value)
-        guiPipes = self._getActivePipes()
-        for guiPipe in guiPipes:
-            guiPipe._setPipeSignal(value)
 
     def _setThreadStyle(self, active=True):
 
@@ -929,16 +821,16 @@ class GuiPipeline(CcpnModule, Pipeline,):
         self.setDataSelection()
 
 
-#################################### _________ RUN GUI TESTING ____________ ####################################
+#=========================================================================================
+# RUN GUI TESTING
+#=========================================================================================
 
-
-if __name__ == '__main__':
+def main():
     from ccpn.ui.gui.widgets.Application import TestApplication
     from ccpn.ui.gui.widgets.CcpnModuleArea import CcpnModuleArea
 
     # analysis specific
     from ccpn.pipes import loadedPipes
-
 
     app = TestApplication()
     win = QtWidgets.QMainWindow()
@@ -956,3 +848,7 @@ if __name__ == '__main__':
     win.show()
 
     app.start()
+
+
+if __name__ == '__main__':
+    main()

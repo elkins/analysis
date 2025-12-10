@@ -5,7 +5,7 @@ CheckBox widget
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2025"
 __credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
                "Timothy J Ragan, Brian O Smith, Daniel Thompson",
                "Gary S Thompson & Geerten W Vuister")
@@ -17,8 +17,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-09-06 11:32:59 +0100 (Fri, September 06, 2024) $"
-__version__ = "$Revision: 3.2.6 $"
+__dateModified__ = "$dateModified: 2025-02-28 15:53:53 +0000 (Fri, February 28, 2025) $"
+__version__ = "$Revision: 3.3.1 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -28,15 +28,14 @@ __date__ = "$Date: 2017-04-07 10:28:41 +0000 (Fri, April 07, 2017) $"
 # Start of code
 #=========================================================================================
 
-from PyQt5 import QtGui, QtWidgets, QtCore
-
+from PyQt5 import QtWidgets
 from ccpn.ui.gui.widgets.Base import Base
 from ccpn.ui.gui.widgets.LineEdit import LineEdit
 from ccpn.ui.gui.widgets.Widget import Widget
+from ccpn.util.Logging import getLogger
 
 
 class CheckBox(QtWidgets.QCheckBox, Base):
-
     highlightColour = None
 
     def __init__(self, parent=None, checked=False, text='', callback=None, checkable=True, **kwds):
@@ -62,7 +61,15 @@ class CheckBox(QtWidgets.QCheckBox, Base):
         self.setChecked(checked)
 
     def setCallback(self, callback):
-        self.clicked.connect(callback)
+        try:
+            # shouldn't be any external connections
+            self.clicked.disconnect()
+        except Exception:
+            getLogger().debug2(f"No callback to disconnect {self}:{self.clicked.signal}")
+        else:
+            getLogger().debug2(f"{self}:{self.clicked.signal} disconnected")
+        if callback:
+            self.clicked.connect(callback)
 
     def getText(self):
         """Get the text of the button"""
@@ -87,6 +94,10 @@ class CheckBox(QtWidgets.QCheckBox, Base):
 
     def setObject(self, value):
         self._object = value
+
+    def close(self):
+        self.setCallback(None)
+        super().close()
 
 
 class EditableCheckBox(Widget):

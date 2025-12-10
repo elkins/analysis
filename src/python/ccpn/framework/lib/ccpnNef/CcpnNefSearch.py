@@ -4,9 +4,10 @@ Module Documentation here
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2022"
-__credits__ = ("Ed Brooksbank, Joanna Fox, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
-               "Timothy J Ragan, Brian O Smith, Gary S Thompson & Geerten W Vuister")
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2025"
+__credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
+               "Timothy J Ragan, Brian O Smith, Daniel Thompson",
+               "Gary S Thompson & Geerten W Vuister")
 __licence__ = ("CCPN licence. See https://ccpn.ac.uk/software/licensing/")
 __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, L.G., & Vuister, G.W.",
                  "CcpNmr AnalysisAssign: a flexible platform for integrated NMR analysis",
@@ -15,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2022-12-21 12:16:43 +0000 (Wed, December 21, 2022) $"
-__version__ = "$Revision: 3.1.0 $"
+__dateModified__ = "$dateModified: 2025-04-11 13:04:32 +0100 (Fri, April 11, 2025) $"
+__version__ = "$Revision: 3.3.1 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -55,9 +56,9 @@ class SearchABC():
         self._replace = replace
         self._validFramesOnly = validFramesOnly
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Traverse all saveFrames in dataBlock
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     def _traverse(self, selection: typing.Optional[dict] = None,
                   traverseFunc=None):
@@ -103,9 +104,9 @@ class SearchABC():
         """
         return self._traverse(selection, traverseFunc)
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Main loop-traverse
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     def processLoopItem(self, loop, rowNum, row, k, val, searchValues, replaceValues):
         """Process the values in the loop
@@ -119,9 +120,9 @@ class SearchABC():
         # MUST BE SUBCLASSED
         raise NotImplementedError("Code error: function not implemented")
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Main loop-traverse
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     def _replaceLoop(self, loop: StarIo.NmrLoop,
                      searchValues=None, replaceValues=None,
@@ -179,22 +180,24 @@ class SearchABC():
         if searchValues:
             return self._traverseDataBlock(selection=None,
                                            traverseFunc=partial(self._replaceFrame,
-                                                                searchValues=searchValues, replaceValues=replaceValues,
-                                                                frameSearchList=frameSearchList, attributeSearchList=attributeSearchList,
-                                                                loopSearchList=loopSearchList, rowSearchList=rowSearchList))
+                                                                searchValues=searchValues,
+                                                                replaceValues=replaceValues,
+                                                                frameSearchList=frameSearchList,
+                                                                attributeSearchList=attributeSearchList,
+                                                                loopSearchList=loopSearchList,
+                                                                rowSearchList=rowSearchList))
 
 
 #=========================================================================================
 # Basic Search
 #=========================================================================================
 
-
 class SearchBasic(SearchABC):
     debugFound = True
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # replace methods
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     def processLoopItem(self, loop, rowNum, row, k, val, searchValues, replaceValues):
         """Process the row of a loop
@@ -223,9 +226,9 @@ class SearchBasic(SearchABC):
         elif self.debugNotFound:
             getLogger().debug(f'{self.__class__.__name__}.processFrame: not found {saveFrame} {k}')
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # replace entry-point
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     def replace(self, searchValues=None, replaceValues=None,
                 frameSearchList=None, attributeSearchList=None,
@@ -249,13 +252,12 @@ class SearchBasic(SearchABC):
 # Search for deeper elements
 #=========================================================================================
 
-
 class SearchDeep(SearchABC):
     debugFound = True
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # replace methods
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     def processLoopItem(self, loop, rowNum, row, k, val, searchValues, replaceValues):
         """Process the row of a loop
@@ -291,9 +293,9 @@ class SearchDeep(SearchABC):
         elif self.debugNotFound:
             getLogger().debug(f'{self.__class__.__name__}.processFrame: not found {saveFrame} {k}')
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # replace entry-point
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     def replace(self, searchValues=None, replaceValues=None,
                 frameSearchList=None, attributeSearchList=None,

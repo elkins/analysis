@@ -4,7 +4,7 @@ Module documentation here
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2025"
 __credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
                "Timothy J Ragan, Brian O Smith, Daniel Thompson",
                "Gary S Thompson & Geerten W Vuister")
@@ -15,9 +15,9 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-05-22 14:42:25 +0100 (Wed, May 22, 2024) $"
-__version__ = "$Revision: 3.2.5 $"
+__modifiedBy__ = "$modifiedBy: Daniel Thompson $"
+__dateModified__ = "$dateModified: 2025-03-12 15:54:52 +0000 (Wed, March 12, 2025) $"
+__version__ = "$Revision: 3.3.1 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -104,6 +104,7 @@ class NmrResidue(AbstractWrapperObject):
 
     # Qualified name of matching API class
     _apiClassQualifiedName = ApiResonanceGroup._metaclass.qualifiedName()
+    _wrappedData: ApiResonanceGroup
 
     # used in chemical shift mapping
     _delta = None
@@ -114,9 +115,9 @@ class NmrResidue(AbstractWrapperObject):
     # Number of fields that comprise the object's pid; Used to get parent id's
     _numberOfIdFields = 2
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # CCPN properties
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     @property
     def _apiResonanceGroup(self) -> ApiResonanceGroup:
@@ -240,7 +241,7 @@ class NmrResidue(AbstractWrapperObject):
         """NmrChain containing NmrResidue. Use self.assignTo to reset the NmrChain"""
         return self._project._data2Obj[self._wrappedData.nmrChain]
 
-    nmrChain = _parent
+    nmrChain: NmrChain = _parent
 
     @property
     def residueType(self) -> str:
@@ -339,9 +340,9 @@ class NmrResidue(AbstractWrapperObject):
         #
         return result
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # property STUBS: hot-fixed later
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     @property
     def nmrAtoms(self) -> list['NmrAtom']:
@@ -350,9 +351,9 @@ class NmrResidue(AbstractWrapperObject):
         """
         return []
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # getter STUBS: hot-fixed later
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     def getNmrAtom(self, relativeId: str) -> 'NmrAtom | None':
         """STUB: hot-fixed later
@@ -360,9 +361,9 @@ class NmrResidue(AbstractWrapperObject):
         """
         return None
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Core methods
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     @logCommand(get='self')
     def connectNext(self, nmrResidue: typing.Union['NmrResidue', str]) -> NmrChain:
@@ -1243,8 +1244,11 @@ class NmrResidue(AbstractWrapperObject):
                     existingNmrAtom = self.getNmrAtom(nmrAtom.name)
                     if existingNmrAtom is None:
                         # move resonance
-                        resonance = nmrAtom._wrappedData
-                        resonance.resonanceGroup = apiResonanceGroup
+                        # resonance = nmrAtom._wrappedData
+                        # resonance.resonanceGroup = apiResonanceGroup
+                        # Note: DT tried doing this with renames but caused undo issues.
+                        tempAtom = self.fetchNmrAtom(nmrAtom.name, isotopeCode=nmrAtom.isotopeCode)
+                        absorbResonance(tempAtom, nmrAtom)
                     else:
                         absorbResonance(existingNmrAtom, nmrAtom)
 
@@ -1297,7 +1301,7 @@ class NmrResidue(AbstractWrapperObject):
             ll = self._project.getObjectsByPartialId(className=self.className, idStartsWith=partialId)
             if ll and ll != [self]:
                 raise ValueError(
-                    f'Cannot rename {self} to {self.nmrChain.id}.{sequenceCode}.{residueType or ""} - assignment already exists')
+                        f'Cannot rename {self} to {self.nmrChain.id}.{sequenceCode}.{residueType or ""} - assignment already exists')
 
         oldSequenceCode = apiResonanceGroup.sequenceCode
         oldResidueType = apiResonanceGroup.residueType
@@ -1312,9 +1316,9 @@ class NmrResidue(AbstractWrapperObject):
 
         return (oldSequenceCode, oldResidueType)
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Implementation methods
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     @classmethod
     def _getAllWrappedData(cls, parent: NmrChain) -> list:
@@ -1395,10 +1399,10 @@ class NmrResidue(AbstractWrapperObject):
             nmrAt._childActions.append(nmrAt._renameChemicalShifts)
             nmrAt._finaliseChildren.extend((sh, 'change') for sh in nmrAt.chemicalShifts)
 
-    #===========================================================================================
+    #-----------------------------------------------------------------------------------------==
     # new<Object> and other methods
     # Call appropriate routines in their respective locations
-    #===========================================================================================
+    #-----------------------------------------------------------------------------------------==
 
     @logCommand(get='self')
     def newNmrAtom(self, name: str = None, isotopeCode: str = None, comment: str = None, **kwds):

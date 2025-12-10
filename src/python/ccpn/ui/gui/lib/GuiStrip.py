@@ -4,7 +4,7 @@ Module Documentation here
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2025"
 __credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
                "Timothy J Ragan, Brian O Smith, Daniel Thompson",
                "Gary S Thompson & Geerten W Vuister")
@@ -16,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-10-18 14:25:34 +0100 (Fri, October 18, 2024) $"
-__version__ = "$Revision: 3.2.7 $"
+__dateModified__ = "$dateModified: 2025-05-02 17:07:59 +0100 (Fri, May 02, 2025) $"
+__version__ = "$Revision: 3.3.2 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -41,7 +41,7 @@ from ccpn.core.Peak import Peak
 from ccpn.core.PeakList import PeakList
 from ccpn.core.lib.Notifiers import Notifier, _removeDuplicatedNotifiers
 from ccpn.core.lib.ContextManagers import undoStackBlocking, undoBlockWithoutSideBar
-from ccpn.ui.gui.guiSettings import getColours, CCPNGLWIDGET_HEXHIGHLIGHT, CCPNGLWIDGET_HEXFOREGROUND
+from ccpn.ui.gui.guiSettings import getColours, CCPNGLWIDGET_HEXHIGHLIGHT, CCPNGLWIDGET_HEXFOREGROUND, consoleStyle
 from ccpn.util.Logging import getLogger
 from ccpn.util.Constants import AXIS_MATCHATOMTYPE, AXIS_FULLATOMNAME
 from ccpn.util.decorators import logCommand
@@ -55,13 +55,17 @@ from ccpn.ui.gui.widgets.DropBase import DropBase
 # from ccpn.ui.gui.widgets.Label import Label
 from ccpn.ui.gui.widgets import MessageDialog
 from ccpn.ui.gui.lib.GuiNotifier import GuiNotifier
-from ccpn.ui.gui.lib.OpenGL.CcpnOpenGLDefs import AXISXUNITS, AXISYUNITS, \
-    SYMBOLTYPE, ANNOTATIONTYPE, SYMBOLSIZE, SYMBOLTHICKNESS, AXISASPECTRATIOS, AXISASPECTRATIOMODE, \
-    BOTTOMAXIS, RIGHTAXIS, ALIASENABLED, ALIASSHADE, ALIASLABELSENABLED, CONTOURTHICKNESS, \
-    PEAKSYMBOLSENABLED, PEAKLABELSENABLED, PEAKARROWSENABLED, \
-    MULTIPLETSYMBOLSENABLED, MULTIPLETLABELSENABLED, MULTIPLETARROWSENABLED, \
-    SPECTRUM_STACKEDMATRIXOFFSET, \
-    ARROWTYPES, ARROWSIZE, ARROWMINIMUM, MULTIPLETANNOTATIONTYPE, MULTIPLETTYPE
+from ccpn.ui.gui.lib.OpenGL.CcpnOpenGLDefs import (AXISXUNITS, AXISYUNITS,
+                                                   SYMBOLTYPE, ANNOTATIONTYPE, SYMBOLSIZE, SYMBOLTHICKNESS,
+                                                   AXISASPECTRATIOS, AXISASPECTRATIOMODE,
+                                                   BOTTOMAXIS, RIGHTAXIS, ALIASENABLED, ALIASSHADE, ALIASLABELSENABLED,
+                                                   CONTOURTHICKNESS,
+                                                   PEAKSYMBOLSENABLED, PEAKLABELSENABLED, PEAKARROWSENABLED,
+                                                   MULTIPLETSYMBOLSENABLED, MULTIPLETLABELSENABLED,
+                                                   MULTIPLETARROWSENABLED,
+                                                   SPECTRUM_STACKEDMATRIXOFFSET,
+                                                   ARROWTYPES, ARROWSIZE, ARROWMINIMUM, MULTIPLETANNOTATIONTYPE,
+                                                   MULTIPLETTYPE)
 from ccpn.util.Constants import AXISUNIT_PPM, AXISUNIT_HZ, AXISUNIT_POINT
 
 
@@ -266,18 +270,6 @@ class GuiStrip(Frame):
         self.setMinimumWidth(STRIP_MINIMUMWIDTH)
         self.setMinimumHeight(STRIP_MINIMUMHEIGHT)
 
-        # stripArrangement = getattr(self.spectrumDisplay, 'stripArrangement', None)
-        # if stripArrangement == 'X':
-        #     headerGrid = (0, 0)
-        #     openGLGrid = (0, 1)
-        #     stripToolBarGrid = (0, 2)
-        # else:
-        #     headerGrid = (0, 0)
-        #     openGLGrid = (1, 0)
-        #     stripToolBarGrid = (2, 0)
-
-        # headerGrid = (0, 0)
-        # headerSpan = (1, 5)
         openGLGrid = (1, 0)
         openGlSpan = (10, 5)
         stripToolBarGrid = (11, 0)
@@ -425,7 +417,7 @@ class GuiStrip(Frame):
         self._CcpnGLWidget._applyXLimit = self._preferences.zoomXLimitApply
         self._CcpnGLWidget._applyYLimit = self._preferences.zoomYLimitApply
 
-        self.showSpectraOnPhasing = False
+        # self.showSpectraOnPhasing = False
 
         self._storedPhasingData = [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]]
         self.showActivePhaseTrace = True
@@ -645,37 +637,6 @@ class GuiStrip(Frame):
         # spawn a redraw event of the GL windows
         self._CcpnGLWidget.GLSignals.emitPaintEvent()
 
-    # GWV 07/01/2022: removed
-    # @property
-    # def xUnits(self):
-    #     """Current xUnits
-    #     """
-    #     return self._CcpnGLWidget._xUnits
-    #
-    # @xUnits.setter
-    # def xUnits(self, units):
-    #     """set the xUnits
-    #     """
-    #     self._CcpnGLWidget._xUnits = units
-    #
-    #     # spawn a redraw event of the GL windows
-    #     self._CcpnGLWidget.GLSignals.emitPaintEvent()
-    #
-    # @property
-    # def yUnits(self):
-    #     """Current yUnits
-    #     """
-    #     return self._CcpnGLWidget._yUnits
-    #
-    # @yUnits.setter
-    # def yUnits(self, units):
-    #     """set the yUnits
-    #     """
-    #     self._CcpnGLWidget._yUnits = units
-    #
-    #     # spawn a redraw event of the GL windows
-    #     self._CcpnGLWidget.GLSignals.emitPaintEvent()
-
     @property
     def sideBandsVisible(self):
         """True if sideBands are visible.
@@ -761,6 +722,7 @@ class GuiStrip(Frame):
     def _toggleLastAxisOnly(self):
         self.spectrumDisplay.setLastAxisOnly(lastAxisOnly=self.lastAxisOnlyCheckBox.isChecked())
         self.spectrumDisplay.showAxes()
+        self.spectrumDisplay.showAxesRedraw()
 
     def toggleLastAxisOnly(self):
         """
@@ -785,10 +747,11 @@ class GuiStrip(Frame):
             peak = peaks[-1]
             peakTableModule = self.application.showPeakTable(peakList=peak.peakList)
 
-    def setStackingMode(self, value):
+    @property
+    def stackingMode(self):
         pass
 
-    def getStackingMode(self):
+    def setStackingMode(self, value):
         pass
 
     def _updateStripLabel(self, callbackDict):
@@ -928,13 +891,13 @@ class GuiStrip(Frame):
     def refresh(self):
         """Refresh the display for strip and redraw contours
         """
-        self._CcpnGLWidget._updateVisibleSpectrumViews()
-
-        # redraw the contours
         from ccpn.ui.gui.lib.OpenGL.CcpnOpenGL import GLNotifier
 
         GLSignals = GLNotifier(parent=self)
 
+        # signal to redraw the contours - SHOULD be _notifyContoursChange -
+        #   but it doesn't change the planecounts :|
+        self._CcpnGLWidget._notifySpectrumViewsChange = True
         for specNum, thisSpecView in enumerate(self.spectrumViews):
             thisSpecView.buildContours = True
 
@@ -1293,16 +1256,6 @@ class GuiStrip(Frame):
         if row:
             axisName.addSeparator()
 
-    # def _addItemsToMarkAxesMenuXAxisView(self):
-    #     """Setup the menu for the main view for marking axis codes
-    #     """
-    #     axisName = self.markAxesMenu
-    #
-    # def _addItemsToMarkAxesMenuYAxisView(self):
-    #     """Setup the menu for the main view for marking axis codes
-    #     """
-    #     axisName = self.markAxesMenu
-
     def _addItemsToMatchAxisCodesFromMenusMainView(self):
         """Set up the menu for the main view
         """
@@ -1364,43 +1317,6 @@ class GuiStrip(Frame):
 
             axisName.setEnabled(True if count else False)
 
-    # def _enableNdAxisMenuItems(self, axisName, axisMenu):
-    #
-    #     from ccpn.ui.gui.lib.OpenGL.CcpnOpenGLDefs import BOTTOMAXIS, RIGHTAXIS, AXISCORNER
-    #
-    #     axisMenuItems = (self.copyAllAxisFromMenu2, self.copyXAxisFromMenu2, self.copyYAxisFromMenu2,
-    #                      self.matchXAxisCodeToMenu2, self.matchYAxisCodeToMenu2)
-    #     enabledList = {BOTTOMAXIS: (False, True, False, True, False),
-    #                    RIGHTAXIS : (False, False, True, False, True),
-    #                    AXISCORNER: (True, True, True, True, True)
-    #                    }
-    #     if axisName in enabledList:
-    #         axisSelect = enabledList[axisName]
-    #         for menuItem, select in zip(axisMenuItems, axisSelect):
-    #             # only disable if already enabled
-    #             if menuItem.isEnabled():
-    #                 menuItem.setEnabled(select)
-    #     else:
-    #         getLogger().warning('Error selecting menu item')
-
-    # def _enable1dAxisMenuItems(self, axisName):
-    #
-    #     from ccpn.ui.gui.lib.OpenGL.CcpnOpenGLDefs import BOTTOMAXIS, RIGHTAXIS, AXISCORNER
-    #
-    #     axisMenuItems = (self.copyAllAxisFromMenu2, self.copyXAxisFromMenu2, self.copyYAxisFromMenu2)
-    #     enabledList = {BOTTOMAXIS: (False, True, False),
-    #                    RIGHTAXIS : (False, False, True),
-    #                    AXISCORNER: (True, True, True)
-    #                    }
-    #     if axisName in enabledList:
-    #         axisSelect = enabledList[axisName]
-    #         for menuItem, select in zip(axisMenuItems, axisSelect):
-    #             # only disable if already enabled
-    #             if menuItem.isEnabled():
-    #                 menuItem.setEnabled(select)
-    #     else:
-    #         getLogger().warning('Error selecting menu item')
-
     def _updateDisplayedIntegrals(self, data):
         """Callback when integrals have changed.
         """
@@ -1445,24 +1361,21 @@ class GuiStrip(Frame):
     def _newPhasingTrace(self):
         self._CcpnGLWidget.newTrace()
 
-    def _setPhasingPivot(self):
+    def _setPhasingPivotCallback(self):
 
         phasingFrame = self.spectrumDisplay.phasingFrame
         direction = phasingFrame.getDirection()
-        # position = self.current.cursorPosition[0] if direction == 0 else self.current.cursorPosition[1]
-        # position = self.current.positions[0] if direction == 0 else self.current.positions[1]
-
-        position = None  #GWV; not sure what it should be
+        position = None
         mouseMovedDict = self.current.mouseMovedDict
         if direction == 0:
-            for mm in mouseMovedDict[AXIS_MATCHATOMTYPE].keys():
-                if mm[0] == self.axisCodes[0][0]:
-                    positions = mouseMovedDict[AXIS_MATCHATOMTYPE][mm]
+            for mm in mouseMovedDict[AXIS_FULLATOMNAME].keys():
+                if mm[0] == self.axisCodes[0][0]:  # check the first letter?
+                    positions = mouseMovedDict[AXIS_FULLATOMNAME][mm]
                     position = positions[0] if positions else None
         else:
-            for mm in mouseMovedDict[AXIS_MATCHATOMTYPE].keys():
+            for mm in mouseMovedDict[AXIS_FULLATOMNAME].keys():
                 if mm[0] == self.axisCodes[1][0]:
-                    positions = mouseMovedDict[AXIS_MATCHATOMTYPE][mm]
+                    positions = mouseMovedDict[AXIS_FULLATOMNAME][mm]
                     position = positions[0] if positions else None
 
         if position is not None:
@@ -1523,17 +1436,6 @@ class GuiStrip(Frame):
             elif self._vTraceActive:
                 self._newConsoleDirection = 1
                 phasingFrame.directionList.setIndex(1)
-
-        # for spectrumView in self.spectrumViews:
-        #     spectrumView._turnOnPhasing()
-
-        # # make sure that all traces are clear
-        # from ccpn.util.CcpnOpenGL import GLNotifier
-        # GLSignals = GLNotifier(parent=self)
-        # if self.spectrumDisplay.is1D:
-        #   GLSignals.emitEvent(triggers=[GLNotifier.GLADD1DPHASING], display=self.spectrumDisplay)
-        # else:
-        #   GLSignals.emitEvent(triggers=[GLNotifier.GLCLEARPHASING], display=self.spectrumDisplay)
 
         vals = self.spectrumDisplay.phasingFrame.getValues(self._newConsoleDirection)
         self.spectrumDisplay.phasingFrame.slider0.setValue(vals[0])
@@ -1689,25 +1591,24 @@ class GuiStrip(Frame):
         self.showActivePhaseTrace = not self.showActivePhaseTrace
         self._CcpnGLWidget.showActivePhaseTrace = self.showActivePhaseTrace
 
-    def _toggleShowSpectraOnPhasing(self):
+    def _toggleShowSpectraOnPhasingCallback(self):
         """Toggles whether spectraOnPhasing is visible.
         """
-        self.showSpectraOnPhasing = not self.showSpectraOnPhasing
-        self._CcpnGLWidget.showSpectraOnPhasing = self.showSpectraOnPhasing
+        pass
 
-    def _showSpectraOnPhasing(self):
-        """Displays spectraOnPhasing in strip.
-        """
-        self.showSpectraOnPhasing = True
-        self._CcpnGLWidget.showSpectraOnPhasing = True
+    @property
+    def showSpectraOnPhasing(self):
+        return False
 
-    def _hideSpectraOnPhasing(self):
-        """Hides spectraOnPhasing in strip.
-        """
-        self.showSpectraOnPhasing = False
-        self._CcpnGLWidget.showSpectraOnPhasing = False
+    @showSpectraOnPhasing.setter
+    def showSpectraOnPhasing(self, value):
+        pass
 
-    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    def updateMouseMode(self, state):
+        self.mouseModeAction.setChecked(state)
+        self._CcpnGLWidget.update()  # spawns update from bottom-up
+
+    #-----------------------------------------------------------------------------------------
     # symbolLabelling
 
     def _setSymbolLabelling(self):
@@ -1776,7 +1677,7 @@ class GuiStrip(Frame):
                                                                      ARROWMINIMUM           : self.arrowMinimum,
                                                                      })
 
-    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    #-----------------------------------------------------------------------------------------
     # symbolTypes
 
     def _setSymbolType(self):
@@ -1832,7 +1733,17 @@ class GuiStrip(Frame):
         """
         self.symbolType = value
 
-    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    def togglePeakSymbolVisibility(self):
+        """Toggle the peak symbol visibility.
+        """
+        self.peakSymbolsEnabled = not self.peakSymbolsEnabled
+
+    def togglePeakLabelVisibility(self):
+        """Toggle the peak symbol visibility.
+        """
+        self.peakLabelsEnabled = not self.peakLabelsEnabled
+
+    #-----------------------------------------------------------------------------------------
     # multipletLabelling
 
     def _setMultipletLabelling(self):
@@ -2014,7 +1925,7 @@ class GuiStrip(Frame):
                 self.arrowMinimum = _arrowMinimum
                 self._setSymbolsPaintEvent()
 
-    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    #-----------------------------------------------------------------------------------------
     # symbolSize
 
     @property
@@ -2038,7 +1949,7 @@ class GuiStrip(Frame):
             if self.spectrumViews:
                 self._emitSymbolChanged()
 
-    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    #-----------------------------------------------------------------------------------------
     # symbolThickness
 
     @property
@@ -2062,7 +1973,7 @@ class GuiStrip(Frame):
             if self.spectrumViews:
                 self._emitSymbolChanged()
 
-    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    #-----------------------------------------------------------------------------------------
     # arrowTypes
 
     @property
@@ -2102,7 +2013,7 @@ class GuiStrip(Frame):
                                                          self._CcpnGLWidget.GLSignals.GLALLMULTIPLETS,
                                                          ])
 
-    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    #-----------------------------------------------------------------------------------------
     # arrowSize
 
     @property
@@ -2126,7 +2037,7 @@ class GuiStrip(Frame):
             if self.spectrumViews:
                 self._emitSymbolChanged()
 
-    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    #-----------------------------------------------------------------------------------------
     # arrowMinimum
 
     @property
@@ -2150,7 +2061,7 @@ class GuiStrip(Frame):
             if self.spectrumViews:
                 self._emitSymbolChanged()
 
-    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    #-----------------------------------------------------------------------------------------
     # contourThickness
 
     @property
@@ -2173,7 +2084,7 @@ class GuiStrip(Frame):
             if self.spectrumViews:
                 self._emitSymbolChanged()
 
-    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    #-----------------------------------------------------------------------------------------
     # aliasEnabled
 
     @property
@@ -2196,7 +2107,7 @@ class GuiStrip(Frame):
             if self.spectrumViews:
                 self._emitSymbolChanged()
 
-    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    #-----------------------------------------------------------------------------------------
     # aliasShade
 
     @property
@@ -2219,7 +2130,7 @@ class GuiStrip(Frame):
             if self.spectrumViews:
                 self._emitSymbolChanged()
 
-    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    #-----------------------------------------------------------------------------------------
     # aliasLabelsEnabled
 
     @property
@@ -2242,7 +2153,7 @@ class GuiStrip(Frame):
             if self.spectrumViews:
                 self._emitSymbolChanged()
 
-    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    #-----------------------------------------------------------------------------------------
     # peakSymbolsEnabled
 
     @property
@@ -2265,7 +2176,7 @@ class GuiStrip(Frame):
             if self.spectrumViews:
                 self._emitSymbolChanged()
 
-    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    #-----------------------------------------------------------------------------------------
     # peakLabelsEnabled
 
     @property
@@ -2288,7 +2199,7 @@ class GuiStrip(Frame):
             if self.spectrumViews:
                 self._emitSymbolChanged()
 
-    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    #-----------------------------------------------------------------------------------------
     # peakArrowsEnabled
 
     @property
@@ -2311,7 +2222,7 @@ class GuiStrip(Frame):
             if self.spectrumViews:
                 self._emitSymbolChanged()
 
-    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    #-----------------------------------------------------------------------------------------
     # multipletSymbolsEnabled
 
     @property
@@ -2334,7 +2245,7 @@ class GuiStrip(Frame):
             if self.spectrumViews:
                 self._emitSymbolChanged()
 
-    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    #-----------------------------------------------------------------------------------------
     # multipletLabelsEnabled
 
     @property
@@ -2357,7 +2268,7 @@ class GuiStrip(Frame):
             if self.spectrumViews:
                 self._emitSymbolChanged()
 
-    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    #-----------------------------------------------------------------------------------------
     # multipletArrowsEnabled
 
     @property
@@ -2380,7 +2291,7 @@ class GuiStrip(Frame):
             if self.spectrumViews:
                 self._emitSymbolChanged()
 
-    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    #-----------------------------------------------------------------------------------------
 
     def updateAxisRatios(self):
         # notify strips to update fixed/locked state
@@ -2492,23 +2403,6 @@ class GuiStrip(Frame):
         """
         return self._CcpnGLWidget.getObjectsUnderMouse()
 
-    # GWV 24/12/21: not used and method does not return anything
-    # def _showMousePosition(self, pos: QtCore.QPointF):
-    #     """Displays mouse position for both axes by axis code.
-    #     """
-    #     if self.isDeleted:
-    #         return
-    #
-    #     # position = self.viewBox.mapSceneToView(pos)
-    #     try:
-    #         # this only calls a single _wrapper function
-    #         if self.spectrumDisplay.is1D:
-    #             fmt = "%s: %.3f\n%s: %.4g"
-    #         else:
-    #             fmt = "%s: %.2f\n%s: %.2f"
-    #     except:
-    #         fmt = "%s: %.3f  %s: %.4g"
-
     def autoRange(self):
         self._CcpnGLWidget.autoRange()
 
@@ -2527,80 +2421,6 @@ class GuiStrip(Frame):
         """Zooms y-axis of strip to the specified region
         """
         self._CcpnGLWidget.zoomY(y1, y2)
-
-    # def showZoomPopup(self):
-    #     """
-    #     Creates and displays a popup for zooming to a region in the strip.
-    #     """
-    #     zoomPopup = QtWidgets.QDialog()
-    #
-    #     Label(zoomPopup, text='x1', grid=(0, 0))
-    #     x1LineEdit = FloatLineEdit(zoomPopup, grid=(0, 1))
-    #     Label(zoomPopup, text='x2', grid=(0, 2))
-    #     x2LineEdit = FloatLineEdit(zoomPopup, grid=(0, 3))
-    #     Label(zoomPopup, text='y1', grid=(1, 0))
-    #     y1LineEdit = FloatLineEdit(zoomPopup, grid=(1, 1))
-    #     Label(zoomPopup, text='y2', grid=(1, 2))
-    #     y2LineEdit = FloatLineEdit(zoomPopup, grid=(1, 3))
-    #
-    #     def _zoomTo():
-    #         x1 = x1LineEdit.get()
-    #         y1 = y1LineEdit.get()
-    #         x2 = x2LineEdit.get()
-    #         y2 = y2LineEdit.get()
-    #         if None in (x1, y1, x2, y2):
-    #             getLogger().warning('Zoom: must specify region completely')
-    #             return
-    #         self.zoomToRegion(xRegion=(x1, x2), yRegion=(y1, y2))
-    #         zoomPopup.close()
-    #
-    #     Button(zoomPopup, text='OK', callback=_zoomTo, grid=(2, 0), gridSpan=(1, 2))
-    #     Button(zoomPopup, text='Cancel', callback=zoomPopup.close, grid=(2, 2), gridSpan=(1, 2))
-    #
-    #     zoomPopup.exec_()
-
-    # TODO. Set limit range properly for each case: 1D/nD, flipped axis
-    # def setZoomLimits(self, xLimits, yLimits, factor=5):
-    #   '''
-    #
-    #   :param xLimits: List [min, max], e.g ppm [0,15]
-    #   :param yLimits:  List [min, max]  eg. intensities [-300,2500]
-    #   :param factor:
-    #   :return: Limits the viewBox from zooming in too deeply(crashing the program) to zooming out too far.
-    #   '''
-    #   ratio = (abs(xLimits[0] - xLimits[1])/abs(yLimits[0] - yLimits[1]))/factor
-    #   if max(yLimits)>max(xLimits):
-    #     self.viewBox.setLimits(xMin=-abs(min(xLimits)) * factor,
-    #                            xMax=max(xLimits) * factor,
-    #                            yMin=-abs(min(yLimits)) * factor,
-    #                            yMax=max(yLimits) * factor,
-    #                            minXRange=((max(xLimits) - min(xLimits))/max(xLimits)) * ratio,
-    #                            maxXRange=max(xLimits) * factor,
-    #                            minYRange=(((max(yLimits) - min(yLimits))/max(yLimits))),
-    #                            maxYRange=max(yLimits) * factor
-    #                            )
-    #   else:
-    #     self.viewBox.setLimits(xMin=-abs(min(xLimits)) * factor,
-    #                            xMax=max(xLimits) * factor,
-    #                            yMin=-abs(min(yLimits)) * factor,
-    #                            yMax=max(yLimits) * factor,
-    #                            minXRange=((max(xLimits) - min(xLimits))/max(xLimits)),
-    #                            maxXRange=max(xLimits) * factor,
-    #                            minYRange=(((max(yLimits) - min(yLimits))/max(yLimits)))*ratio,
-    #                            maxYRange=max(yLimits) * factor
-    #                            )
-
-    # def removeZoomLimits(self):
-    #   self.viewBox.setLimits(xMin=None,
-    #                          xMax=None,
-    #                          yMin=None,
-    #                          yMax=None,
-    #                          # Zoom Limits
-    #                          minXRange=None,
-    #                          maxXRange=None,
-    #                          minYRange=None,
-    #                          maxYRange=None
-    #                          )
 
     def _resetAllZoom(self):
         """
@@ -2913,17 +2733,6 @@ class GuiStrip(Frame):
             if glReport:
                 return glReport.report()
 
-    # def axisRegionChanged(self, axis):
-    #     """Notifier function: Update strips etc. for when axis position or width changes.
-    #     """
-    #     if self.isDeleted:
-    #         return
-    #
-    #     self._setPlaneAxisWidgets(axis=axis)
-    #
-    #     # # can't remember why this is here
-    #     # self.beingUpdated = False
-
     @logCommand(get='self')
     def moveTo(self, newIndex: int):
         """Move strip to index newIndex in orderedStrips.
@@ -3029,6 +2838,7 @@ class GuiStrip(Frame):
 
         # rebuild the axes for strips
         spectrumDisplay.showAxes(stretchValue=True, widths=False)
+        spectrumDisplay.showAxesRedraw()
 
     def navigateToPosition(self, positions: List[float],
                            axisCodes: List[str] = None,
@@ -3078,7 +2888,7 @@ class GuiStrip(Frame):
         """
         return self._CcpnGLWidget._firstVisible
 
-    def _toggleStackPhaseFromShortCut(self):
+    def _toggleStackingFromShortCut(self):
         """Not implemented, to be overwritten by subclasses
         """
         pass
@@ -3541,59 +3351,3 @@ def _updateSelectedMultiplets(data):
 
     GLSignals = GLNotifier(parent=None)
     GLSignals.emitEvent(triggers=[GLNotifier.GLHIGHLIGHTMULTIPLETS], targets=data[Notifier.OBJECT].multiplets)
-
-# def _axisRegionChanged(cDict):
-#     """Notifier function: Update strips etc. for when axis position or width changes.
-#     """
-#     axis = cDict[Notifier.OBJECT]
-#     strip = axis.strip
-#
-#     position = axis.position
-#     width = axis.width
-#     region = (position - width / 2., position + width / 2.)
-#
-#     index = strip.axisOrder.index(axis.code)
-#     if not strip.beingUpdated:
-#
-#         strip.beingUpdated = True
-#
-#         try:
-#             if index == 0:
-#                 # X axis
-#                 padding = strip.application.preferences.general.stripRegionPadding
-#                 strip.viewBox.setXRange(*region, padding=padding)
-#             elif index == 1:
-#                 # Y axis
-#                 padding = strip.application.preferences.general.stripRegionPadding
-#                 strip.viewBox.setYRange(*region, padding=padding)
-#             else:
-#
-#                 if len(strip.axisOrder) > 2:
-#                     n = index - 2
-#                     if n >= 0:
-#
-#                         if strip.planeAxisBars and n < len(strip.planeAxisBars):
-#                             # strip.planeAxisBars[n].setPosition(ppmPosition, ppmWidth)
-#                             strip.planeAxisBars[n].updatePosition()
-#
-#                         # planeLabel = strip.planeToolbar.planeLabels[n]
-#                         # planeSize = planeLabel.singleStep()
-#                         # planeLabel.setValue(position)
-#                         # strip.planeToolbar.planeCounts[n].setValue(width / planeSize)
-#
-#         finally:
-#             strip.beingUpdated = False
-
-# NB The following two notifiers could be replaced by wrapper notifiers on
-# Mark, 'change'. But it would be rather more clumsy, so leave it as it is.
-
-# def _rulerCreated(project: Project, apiRuler: ApiRuler):
-#     """Notifier function for creating rulers"""
-#     for strip in project.strips:
-#         strip.plotWidget._addRulerLine(apiRuler)
-
-
-# def _rulerDeleted(project: Project, apiRuler: ApiRuler):
-#     """Notifier function for deleting rulers"""
-#     for strip in project.strips:
-#         strip.plotWidget._removeRulerLine(apiRuler)

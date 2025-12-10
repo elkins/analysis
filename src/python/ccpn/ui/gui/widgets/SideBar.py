@@ -16,7 +16,7 @@ SidebarClassTreeItems: A Tree with a number of dynamically added items of type V
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2025"
 __credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
                "Timothy J Ragan, Brian O Smith, Daniel Thompson",
                "Gary S Thompson & Geerten W Vuister")
@@ -28,8 +28,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-08-28 10:35:47 +0100 (Wed, August 28, 2024) $"
-__version__ = "$Revision: 3.2.5 $"
+__dateModified__ = "$dateModified: 2025-03-24 11:29:03 +0000 (Mon, March 24, 2025) $"
+__version__ = "$Revision: 3.3.1 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -39,7 +39,7 @@ __date__ = "$Date: 2017-03-23 16:50:22 +0000 (Thu, March 23, 2017) $"
 # Start of code
 #=========================================================================================
 
-import json
+# import json
 import fnmatch
 from contextlib import contextmanager
 from PyQt5 import QtGui, QtWidgets, QtCore
@@ -77,29 +77,27 @@ from ccpn.core.lib.Pid import Pid
 # from ccpn.ui.gui.guiSettings import sidebarFont
 from ccpn.ui.gui.widgets.Base import Base
 from ccpn.ui.gui.widgets.DropBase import DropBase
-from ccpn.ui.gui.widgets.MessageDialog import showInfo, showWarning
+from ccpn.ui.gui.widgets.MessageDialog import showNotImplementedMessage
 from ccpn.ui.gui.widgets.Menu import Menu
 from ccpn.ui.gui.widgets.LineEdit import LineEdit
 from ccpn.ui.gui.widgets.Label import Label
-from ccpn.ui.gui.widgets.Frame import Frame
-from ccpn.ui.gui.widgets.Spacer import Spacer as CCPNSpacer
-from ccpn.util.Constants import ccpnmrJsonData
+# from ccpn.ui.gui.widgets.Frame import Frame
+# from ccpn.ui.gui.widgets.Spacer import Spacer as CCPNSpacer
+# from ccpn.util.Constants import ccpnmrJsonData
 from ccpn.util.Common import copyToClipboard
 from ccpn.core.lib.Notifiers import Notifier, NotifierBase
 from ccpn.ui.gui.lib.GuiNotifier import GuiNotifier
 from ccpn.ui.gui.lib.mouseEvents import makeDragEvent
-from ccpn.ui.gui.widgets.Font import setWidgetFont, getFontHeight, getFont, SIDEBARFONT
-from ccpn.ui.gui.widgets.Icon import Icon
-from ccpn.ui.gui.guiSettings import getColours, LABEL_FOREGROUND
+from ccpn.ui.gui.widgets.Font import setWidgetFont, getFontHeight, SIDEBARFONT
+# from ccpn.ui.gui.widgets.Icon import Icon
+# from ccpn.ui.gui.guiSettings import getColours, LABEL_FOREGROUND
 # from PyQt5.QtCore import QStringListModel
 # from PyQt5.QtGui import QListView, QAbstractItemView
 
-from ccpn.ui.gui.lib.MenuActions import _createNewStructureData, _createNewPeakList, _createNewChemicalShiftList, _createNewMultipletList, _createNewNmrResidue, \
-    _createNewNmrAtom, _createNewComplex, _createNewRestraintTable, _createNewSampleComponent, _createNewSubstance, \
-    _createNewNote, _createNewIntegralList, _createNewSample, _createNewStructureEnsemble, _raiseNewChainPopup, _raiseChainPopup, _raiseComplexEditorPopup, \
+from ccpn.ui.gui.lib.MenuActions import _raiseNewChainPopup, _raiseChainPopup, _raiseComplexEditorPopup, \
     _raiseStructureDataPopup, _raiseChemicalShiftListPopup, _raisePeakListPopup, _raiseMultipletListPopup, _raiseCreateNmrChainPopup, _raiseNmrChainPopup, \
     _raiseNmrResiduePopup, _raiseNmrResidueNewPopup, _raiseNmrAtomPopup, _raiseNmrAtomNewPopup, _raiseNotePopup, _raiseIntegralListPopup, \
-    _raiseRestraintTableEditPopup, _raiseRestraintTableNewPopup, _raiseSamplePopup, _raiseAtomNewPopup, _raiseAtomPopup, \
+    _raiseRestraintTableEditPopup, _raiseRestraintTableNewPopup, _raiseSamplePopup, _raiseAtomPopup, \
     _raiseSampleComponentPopup, _raiseSpectrumPopup, _raiseSpectrumGroupEditorPopup, _raiseStructureEnsemblePopup, \
     _raiseSubstancePopup, _raiseDataTablePopup, _raiseViolationTablePopup, _raiseCollectionPopup
 
@@ -112,8 +110,7 @@ from ccpn.ui.gui.lib.MenuActions import _openItemNoteTable, _openItemChemicalShi
     _openItemSpectrumInGroupDisplay, _openItemAtomItem, _openItemDataTable, _openItemViolationTable, _openItemCollectionModule
 
 from ccpn.util.OrderedSet import OrderedSet
-from ccpn.core.lib.ContextManagers import undoBlock, notificationEchoBlocking, \
-    undoBlockWithoutSideBar, undoStackBlocking
+from ccpn.core.lib.ContextManagers import notificationEchoBlocking, undoStackBlocking
 
 
 ALL_NOTIFIERS = (Notifier.DELETE, Notifier.CREATE, Notifier.RENAME, Notifier.CHANGE)
@@ -205,8 +202,8 @@ class SidebarABC(NotifierBase):
     def id(self):
         """An unique identifier for self
         """
-        id = '%s-%d' % (self.itemType, self._indx)
-        return id
+        _id = f'{self.itemType}-{self._indx:d}'
+        return _id
 
     @property
     def root(self):
@@ -351,7 +348,8 @@ class SidebarABC(NotifierBase):
         for itm in self.children:
             itm.printTree()
 
-    def _getExpanded(self, item, data: list):
+    @staticmethod
+    def _getExpanded(item, data: list):
         """Add the name of expanded item to the data list
         """
         if item.widget:
@@ -360,7 +358,8 @@ class SidebarABC(NotifierBase):
             if expandedState:
                 data.append(item.widget.text(0))
 
-    def _setExpanded(self, item, data: list):
+    @staticmethod
+    def _setExpanded(item, data: list):
         """Set the expanded flag if item is in data
         """
         if item.widget:
@@ -502,12 +501,12 @@ class SidebarABC(NotifierBase):
         """Resets the tree from self downward, deleting widget and
         optionally the notifiers; remove all children
         """
-        if (self.children):
-
+        if self.children:
             # recurse into the tree, otherwise just delete the notifiers
             for itm in self.children:
-                itm.reset()
-
+                itm.reset(deleteNotifiers)
+        # not inside 'if' - cleanups empty top-level items prior to closing project
+        if deleteNotifiers:
             self.deleteAllNotifiers()
 
         # remove the widgets associated with the sidebar items
@@ -599,11 +598,11 @@ class SidebarABC(NotifierBase):
 
     @property
     def _tabs(self):
-        "Number of tabs depending in self.level"
+        """Number of tabs depending on self.level"""
         return '\t' * self.level
 
     def __str__(self):
-        return '<%s:%r>' % (self.id, self.name)
+        return f'<{self.id}:{self.name!r}>'
 
     def __repr__(self):
         return str(self)
@@ -619,6 +618,9 @@ class SidebarTree(SidebarABC):
         """Builds the tree from self downward
         """
         super().buildTree(parent=parent, parentWidget=parentWidget, sidebar=sidebar, obj=obj, level=level)  # this will do all the common things
+        # Just a debugging breakpoint and Project closed on reload fix
+        if level == 0:
+            self.closed = False
         # make the widget
         # self.widget = self.givenName
         self.widget = self.makeWidget(parentWidget, self.givenName)
@@ -815,9 +817,8 @@ class SidebarClassCollectionItems(SidebarClassItems):
 # Callback routines
 #===========================================================================================================
 
-def NYI(*args, **kwds):
-    info = showInfo('Not implemented yet!',
-                    'This function has not been implemented in the current version')
+def NIY(*args, **kwds):
+    showNotImplementedMessage()
 
 
 #===========================================================================================================
@@ -931,7 +932,7 @@ class SideBarStructure(object):
                                       callback=_raiseChainPopup(),
                                       menuAction=_openItemChainTable(position='bottom', relativeTo=None), isDraggable=True, children=[
                         SidebarClassTreeItems(klass=Residue, rebuildOnRename='Chain-ClassTreeItems',
-                                              callback=NYI, menuAction=_openItemResidueTable(position='bottom', relativeTo=None), isDraggable=True,
+                                              callback=NIY, menuAction=_openItemResidueTable(position='bottom', relativeTo=None), isDraggable=True,
                                               children=[
                                                   # SidebarItem('<New Atom>', callback=_raiseAtomNewPopup(editMode=False)),
 
@@ -1236,6 +1237,17 @@ class SideBar(QtWidgets.QTreeWidget, SideBarStructure, Base, NotifierBase):
         self._searchNotifiers = []
         self._setStyle()
 
+    def closeEvent(self, event):
+        """Clean-up and close.
+        """
+        from ccpn.ui.gui.guiSettings import consoleStyle
+        from ccpn.util.Logging import getLogger
+
+        getLogger().debug(f'{consoleStyle.fg.yellow}==> closeEvent  {self}{consoleStyle.reset}')
+        self.clearSideBar()
+        self.deleteAllNotifiers()
+        super().closeEvent(event)
+
     def _setStyle(self):
         """Set the focus/noFocus colours for the widget
         """
@@ -1277,17 +1289,17 @@ class SideBar(QtWidgets.QTreeWidget, SideBarStructure, Base, NotifierBase):
             # call the original search selection
             self._searchWidgetSideBarCallback(pid)
 
-    def _clearQTreeWidget(self, tree):
+    @staticmethod
+    def _clearQTreeWidget(tree: QtWidgets.QTreeWidget):
         """Clear contents of the sidebar.
         """
         iterator = QtWidgets.QTreeWidgetItemIterator(tree, QtWidgets.QTreeWidgetItemIterator.All)
         while iterator.value():
             iterator.value().takeChildren()
             iterator += 1
-        i = tree.topLevelItemCount()
-        while i > -1:
-            tree.takeTopLevelItem(i)
-            i -= 1
+        # Clear top-level items
+        for i in range(tree.topLevelItemCount()):
+            tree.takeTopLevelItem(0)
 
     def buildTree(self, project, clear=True):
         """Build the new tree structure from the project.

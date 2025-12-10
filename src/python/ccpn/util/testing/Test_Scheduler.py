@@ -4,9 +4,10 @@ Module Documentation here
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2023"
-__credits__ = ("Ed Brooksbank, Joanna Fox, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
-               "Timothy J Ragan, Brian O Smith, Gary S Thompson & Geerten W Vuister")
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2025"
+__credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
+               "Timothy J Ragan, Brian O Smith, Daniel Thompson",
+               "Gary S Thompson & Geerten W Vuister")
 __licence__ = ("CCPN licence. See https://ccpn.ac.uk/software/licensing/")
 __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, L.G., & Vuister, G.W.",
                  "CcpNmr AnalysisAssign: a flexible platform for integrated NMR analysis",
@@ -15,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2023-01-06 13:28:12 +0000 (Fri, January 06, 2023) $"
-__version__ = "$Revision: 3.1.0 $"
+__dateModified__ = "$dateModified: 2025-03-13 17:53:32 +0000 (Thu, March 13, 2025) $"
+__version__ = "$Revision: 3.3.1 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -34,6 +35,8 @@ import unittest
 import datetime
 from functools import partial
 from itertools import zip_longest
+
+from ccpn.ui.gui.guiSettings import consoleStyle
 from ccpn.util.UpdateQueue import UpdateQueue
 from ccpn.util.UpdateScheduler import UpdateScheduler
 
@@ -50,7 +53,8 @@ def main():
         """Simple application class with timer to process a queue when not busy
         """
 
-        def __init__(self, applicationName='Testing', applicationVersion='0.0.1', organizationName='CCPN', organizationDomain='ccpn.ac.uk'):
+        def __init__(self, applicationName='Testing', applicationVersion='0.0.1', organizationName='CCPN',
+                     organizationDomain='ccpn.ac.uk'):
             super().__init__([applicationName, ])
 
             self.setApplicationVersion(applicationVersion)
@@ -59,7 +63,8 @@ def main():
 
             self._queuePending = UpdateQueue()
             self._queueActive = None
-            self._scheduler = UpdateScheduler(self, self._queueProcess, name='QueueTester', log=False, completeCallback=None)
+            self._scheduler = UpdateScheduler(self, self._queueProcess, name='QueueTester', log=False,
+                                              completeCallback=None)
 
             self._lock = QtCore.QMutex()
             self._counter = 0
@@ -68,18 +73,18 @@ def main():
             self._progressSuspension = 0
 
         def start(self):
-            print(f'   GO!                 {datetime.datetime.now()}')
+            print(f'{consoleStyle.fg.green}   GO!                 {datetime.datetime.now()}{consoleStyle.reset}')
             # start loading random stuff on the queue form two threads
             QtCore.QTimer.singleShot(0, partial(self._namedQTimerThread, 'thread1'))
             QtCore.QTimer.singleShot(0, partial(self._namedQTimerThread, 'thread2'))
             QtCore.QTimer.singleShot(0, partial(self._namedQTimerThread, 'thread3'))
 
             def _enableBlocking():
-                print('BLOCKING')
+                print(f'{consoleStyle.fg.red}BLOCKING{consoleStyle.reset}')
                 self._progressSuspension = 1
 
             def _disableBlocking():
-                print('BLOCKING RELEASED')
+                print(f'{consoleStyle.fg.red}BLOCKING RELEASED{consoleStyle.reset}')
                 self._progressSuspension = 0
 
             # block after 3 seconds - simulate overriding block
@@ -92,44 +97,47 @@ def main():
         def _queueProcess(self):
             """Process current items in the queue
             """
-            print(f'   processing                 {datetime.datetime.now()}')
+            print(f'{consoleStyle.fg.blue}   processing                 {datetime.datetime.now()}{consoleStyle.reset}')
             with QtCore.QMutexLocker(self._lock):
                 # protect the queue switching
                 self._queueActive = self._queuePending
                 self._queuePending = UpdateQueue()
 
-            print(f'   len {len(self._queueActive)}')
+            print(f'{consoleStyle.fg.blue}   len {len(self._queueActive)}{consoleStyle.reset}')
             vals = []
-            for itm in self._queueActive.items():
+            for itm in list(self._queueActive.items()):
                 vals.append(itm)
-            print(f'       {vals}')
+            print(f'{consoleStyle.fg.blue}       {vals}{consoleStyle.reset}')
 
             # example pause for 1 second whilst processing events (may happen in qui)
             for ii in range(20):
                 self.processEvents()
                 time.sleep(1 / 20)
             self.handledEvents.extend(vals)
-            print(f'       {vals} - end sleep')
+            print(f'{consoleStyle.fg.blue}       {vals} - end sleep{consoleStyle.reset}')
 
         def _queueAppend(self, itm):
             """Append a new item to the queue
             """
             self._queuePending.put(itm)
             if not self._scheduler.isActive and not self._scheduler.isBusy:
-                print(f'   append & run                    {datetime.datetime.now()}      {itm}')
+                print(f'{consoleStyle.fg.magenta}   append & run                    {datetime.datetime.now()}'
+                      f'      {itm}{consoleStyle.reset}')
                 self._scheduler.start()
 
             elif self._scheduler.isBusy:
-                print(f'   append busy                     {datetime.datetime.now()}      {itm}')
+                print(f'{consoleStyle.fg.magenta}   append busy                     {datetime.datetime.now()}'
+                      f'      {itm}{consoleStyle.reset}')
                 self._scheduler.signalRestart()
 
             elif self._scheduler.isActive:
-                print(f'   append queued                   {datetime.datetime.now()}      {itm}')
+                print(f'{consoleStyle.fg.magenta}   append queued                   {datetime.datetime.now()}'
+                      f'      {itm}{consoleStyle.reset}')
 
         def _namedQTimerThread(self, name, count=0):
             """Randomly add items to the queue
             """
-            val = f'{name} - {count}'
+            val = f'{consoleStyle.fg.yellow}{name} - {count}{consoleStyle.reset}'
 
             # add to the deferred queue and store in the realEvents list which holds when the events were created
             self._queueAppend(val)
@@ -137,7 +145,8 @@ def main():
 
             if count < 15:
                 # create another random event
-                QtCore.QTimer.singleShot(int(random.random() * 800) + 200, partial(self._namedQTimerThread, name, count + 1))
+                QtCore.QTimer.singleShot(int(random.random() * 800) + 200,
+                                         partial(self._namedQTimerThread, name, count + 1))
 
         def _buttonClicked(self, *args):
             """Handle user clicking button
@@ -194,19 +203,19 @@ class SchedulerTester(QtCore.QObject):
         self.exitSignal = False
 
     def start(self):
-        print(f'   GO!                 {datetime.datetime.now()}')
+        print(f'{consoleStyle.fg.green}   GO!                 {datetime.datetime.now()}{consoleStyle.reset}')
 
         # start loading random stuff on the queue form two threads
-        QtCore.QTimer.singleShot(0, partial(self._namedQTimerThread, 'thread1'))
-        QtCore.QTimer.singleShot(0, partial(self._namedQTimerThread, 'thread2'))
-        QtCore.QTimer.singleShot(0, partial(self._namedQTimerThread, 'thread3'))
+        QtCore.QTimer.singleShot(0, partial(self._namedQTimerThread, 'thread1', priority=1))
+        QtCore.QTimer.singleShot(0, partial(self._namedQTimerThread, 'thread2', priority=1))
+        QtCore.QTimer.singleShot(0, partial(self._namedQTimerThread, 'thread3', priority=1))
 
         def _enableBlocking():
-            print('BLOCKING')
+            print(f'{consoleStyle.fg.red}BLOCKING{consoleStyle.reset}')
             self._progressSuspension = 1
 
         def _disableBlocking():
-            print('BLOCKING RELEASED')
+            print(f'{consoleStyle.fg.red}BLOCKING RELEASED{consoleStyle.reset}')
             self._progressSuspension = 0
 
         # block after 7 seconds - simulate overriding block
@@ -217,7 +226,9 @@ class SchedulerTester(QtCore.QObject):
     def _queueProcess(self):
         """Process current items in the queue
         """
-        print(f'   processing                 {datetime.datetime.now()}')
+        print(f'{consoleStyle.fg.blue}   processing                 {datetime.datetime.now()}{consoleStyle.reset}')
+        print(f'{consoleStyle.fg.darkmagenta}~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~'
+              f'{consoleStyle.reset}')
         with QtCore.QMutexLocker(self._lock):
             # protect the queue switching
             self._queueActive = self._queuePending
@@ -232,36 +243,42 @@ class SchedulerTester(QtCore.QObject):
 
         # add the events to the processed queue
         self.handledEvents.extend(vals)
-        print(f'       {vals} - end sleep')
+        print(f'{consoleStyle.fg.blue}       {vals} - end sleep{consoleStyle.reset}')
 
-    def _queueAppend(self, itm):
+    def _queueAppend(self, itm, *, priority=1):
         """Append a new item to the queue
         """
-        self._queuePending.put(itm)
+        self._queuePending.put(itm, priority=priority)
         if not self._scheduler.isActive and not self._scheduler.isBusy:
-            print(f'   append & run                    {datetime.datetime.now()}      {itm}')
+            print(f'{consoleStyle.fg.darkyellow}   append & run                    {datetime.datetime.now()}     '
+                  f' {itm}{consoleStyle.reset}')
             self._scheduler.start()
 
         elif self._scheduler.isBusy:
-            print(f'   append busy                     {datetime.datetime.now()}      {itm}')
+            print(f'{consoleStyle.fg.darkyellow}   append busy                     {datetime.datetime.now()}      '
+                  f'{itm}{consoleStyle.reset}')
             self._scheduler.signalRestart()
 
         else:
-            print(f'   append queued                   {datetime.datetime.now()}      {itm}')
+            print(f'{consoleStyle.fg.darkyellow}   append queued                   {datetime.datetime.now()}      '
+                  f'{itm}{consoleStyle.reset}')
+        for itm in self._queuePending.items():
+            print(itm)
 
-    def _namedQTimerThread(self, name, count=0):
+    def _namedQTimerThread(self, name, *, priority=1, count=0):
         """Add items to the queue at random intervals
         """
-        val = f'{name} - {count}'
-        print(f'new event  -  _namedQTimerThread  {val}')
+        val = f'{name} - {priority}:{count}'
+        print(f'{consoleStyle.fg.darkblue}new event  -  _namedQTimerThread  {val}{consoleStyle.reset}')
 
         # add to the deferred queue and store in the realEvents list which holds when the events were created
-        self._queueAppend(val)
+        self._queueAppend(val, priority=priority)
         self.realEvents.append(val)
 
         if count < 15:
             # create another random event
-            QtCore.QTimer.singleShot(int(random.random() * 800) + 200, partial(self._namedQTimerThread, name, count + 1))
+            QtCore.QTimer.singleShot(int(random.random() * 800) + 200,
+                                     partial(self._namedQTimerThread, name, priority=priority, count=count + 1))
 
         else:
             self.exitSignal += 1
@@ -270,7 +287,8 @@ class SchedulerTester(QtCore.QObject):
     def _finalise(self):
         """Action when the current queue has been emptied
         """
-        print(f'   active queue processed - pending queue contains {len(self._queuePending)} items')
+        print(f'{consoleStyle.fg.darkblue}   active queue processed - pending queue contains '
+              f'{len(self._queuePending)} items{consoleStyle.reset}')
 
     @property
     def queueEmpty(self):
@@ -285,7 +303,7 @@ class TestScheduler(unittest.TestCase):
 
     @staticmethod
     def _queueEnd():
-        print('END')
+        print(f'{consoleStyle.fg.red}END{consoleStyle.reset}')
 
     def test_scheduler(self):
         # create a simple app
@@ -308,13 +326,14 @@ class TestScheduler(unittest.TestCase):
         # print out the final list of processes and check the order
         print('\n'.join([f'{qVal}    {rVal}' for qVal, rVal in zip_longest(obj.handledEvents, obj.realEvents)]))
         self.assertListEqual(obj.handledEvents, obj.realEvents)
+        # not sure how to check/test different priorities other than visually at the end
 
     @staticmethod
     @QtCore.pyqtSlot(str)
     def _threadFinished(name):
         """Thread has completed all tasks
         """
-        print(f'thread finished - {name}')
+        print(f'{consoleStyle.fg.yellow}thread finished - {name}{consoleStyle.reset}')
 
 
 if __name__ == '__main__':

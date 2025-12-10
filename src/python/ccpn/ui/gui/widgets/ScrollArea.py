@@ -4,7 +4,7 @@
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2025"
 __credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
                "Timothy J Ragan, Brian O Smith, Daniel Thompson",
                "Gary S Thompson & Geerten W Vuister")
@@ -16,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-08-23 19:25:21 +0100 (Fri, August 23, 2024) $"
-__version__ = "$Revision: 3.2.5 $"
+__dateModified__ = "$dateModified: 2025-05-02 11:23:08 +0100 (Fri, May 02, 2025) $"
+__version__ = "$Revision: 3.3.2 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -97,10 +97,11 @@ class SpectrumDisplayScrollArea(ScrollArea):
 
     def __init__(self, parent, scrollBarPolicies=('asNeeded', 'asNeeded'),
                  setLayout=True, minimumSizes=(50, 50),
-                 spectrumDisplay=None, cornerWidget=False, **kwds):
+                 spectrumDisplay=None, cornerWidget=False, **kwargs):
         """Initialise the widget
         """
-        super().__init__(parent=parent, scrollBarPolicies=scrollBarPolicies, setLayout=setLayout, minimumSizes=minimumSizes)
+        super().__init__(parent=parent, scrollBarPolicies=scrollBarPolicies,
+                         setLayout=setLayout, minimumSizes=minimumSizes, **kwargs)
         self._spectrumDisplay = spectrumDisplay
 
         # grab the background from the container
@@ -138,12 +139,18 @@ class SpectrumDisplayScrollArea(ScrollArea):
             margins = self._viewportMargins
 
             if children := self.findChildren((Gui1dWidgetAxis, GuiNdWidgetAxis)):
+                child: Gui1dWidgetAxis | GuiNdWidgetAxis
+
                 for child in children:
+                    if not child.isVisible():
+                        continue
                     if child._axisType == BOTTOMAXIS:
                         # resize the X axis widgets - allow for frame-border
+                        child.setAxisWidgetSize(0)
                         child.setGeometry(1, rect.height() + 1, _width, margins[3])
                     else:
                         # resize the Y axis widgets
+                        child.setAxisWidgetSize(1)
                         child.setGeometry(rect.width() + 1, 1, margins[2], _height)
 
             if self._cornerWidget:
@@ -156,8 +163,9 @@ class SpectrumDisplayScrollArea(ScrollArea):
         self._updateAxisWidgets()
 
         if children := self.findChildren((Gui1dWidgetAxis, GuiNdWidgetAxis)):
+            child: Gui1dWidgetAxis | GuiNdWidgetAxis
             for child in children:
-                child._updateAxes = True
+                child._notifyAxesChange = True
                 child.update()
 
     def setViewportMargins(self, *margins):

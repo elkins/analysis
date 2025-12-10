@@ -4,7 +4,7 @@ Module Documentation here
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2025"
 __credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
                "Timothy J Ragan, Brian O Smith, Daniel Thompson",
                "Gary S Thompson & Geerten W Vuister")
@@ -16,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-09-13 20:32:52 +0100 (Fri, September 13, 2024) $"
-__version__ = "$Revision: 3.2.7 $"
+__dateModified__ = "$dateModified: 2025-01-10 16:43:20 +0000 (Fri, January 10, 2025) $"
+__version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -28,41 +28,47 @@ __date__ = "$Date: 2022-04-29 16:52:01 +0100 (Fri, April 29, 2022) $"
 #=========================================================================================
 
 import pandas as pd
-from collections import OrderedDict
 from PyQt5 import QtWidgets, QtCore
-from ccpn.framework.Application import getApplication
+from collections import OrderedDict
+from abc import ABC, abstractmethod
 from ccpn.core.lib.DataFrameObject import DataFrameObject
 from ccpn.core.lib.Notifiers import Notifier
+from ccpn.core.lib.WeakRefLib import WeakRefDescriptor
 from ccpn.ui.gui.widgets.Spacer import Spacer
 from ccpn.ui.gui.widgets.Frame import Frame
+from ccpn.ui.gui.widgets.table.TableABC import _TableABCMeta
 from ccpn.ui.gui.widgets.table._ProjectTable import _ProjectTableABC
 from ccpn.ui.gui.widgets.Font import getFontHeight
 from ccpn.util.Logging import getLogger
 
 
-_TABLES = 'tables'
-_HIDDENCOLUMNS = 'hiddenColumns'
+_DEBUG = False
 
 
 #=========================================================================================
 # _CoreTableWidgetABC
 #=========================================================================================
 
-class _CoreTableWidgetABC(_ProjectTableABC):
+
+class _CoreTableWidgetABCMeta(_TableABCMeta, type(ABC)):
+    """Metaclass implementing a post-initialise hook, ALWAYS called after __init__ has finished
+    """
+    # required to resolve metaclass conflict due to the addition of ABC
+    ...
+
+
+class _CoreTableWidgetABC(_ProjectTableABC, ABC, metaclass=_CoreTableWidgetABCMeta):
     """Class to present a table for core objects
     """
-    defaultHidden = None
-    _internalColumns = None
-
     # define overriding attributes here for subclassing - not setting will default to these
     _enableSearch = True
     _enableDelete = True
     _enableExport = True
     _enableCopyCell = True
+    _table = WeakRefDescriptor()
 
     def __init__(self, parent, *,
                  showHorizontalHeader=True, showVerticalHeader=False,
-                 hiddenColumns=None,
                  **kwds):
         """Initialise the widgets for the module.
         """
@@ -73,21 +79,12 @@ class _CoreTableWidgetABC(_ProjectTableABC):
                          setLayout=True,
                          **kwds)
 
-        self.headerColumnMenu.setInternalColumns(self._internalColumns)
-        self.headerColumnMenu.setDefaultColumns(self.defaultHidden)
-        # Initialise the notifier for processing dropped items
-        self._postInitTableCommonWidgets()
-
-    def setClassDefaultColumns(self, texts):
-        """Set a list of default column-headers that are hidden when first shown.
-        """
-        self.headerColumnMenu.saveColumns(texts)
-
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Properties
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     @property
+    @abstractmethod
     def _sourceObjects(self):
         """Return the list of source objects, e.g., _table.peaks/_table.nmrResidues
         """
@@ -95,11 +92,13 @@ class _CoreTableWidgetABC(_ProjectTableABC):
         raise NotImplementedError(f'Code error: {self.__class__.__name__}._sourceObjects not implemented')
 
     @_sourceObjects.setter
+    @abstractmethod
     def _sourceObjects(self, value):
         # MUST BE SUBCLASSED
         raise NotImplementedError(f'Code error: {self.__class__.__name__}._sourceObjects not implemented')
 
     @property
+    @abstractmethod
     def _sourceCurrent(self):
         """Return the list of source objects in the current list, e.g., current.peaks/current.nmrResidues
         """
@@ -107,13 +106,14 @@ class _CoreTableWidgetABC(_ProjectTableABC):
         raise NotImplementedError(f'Code error: {self.__class__.__name__}._sourceCurrent not implemented')
 
     @_sourceCurrent.setter
+    @abstractmethod
     def _sourceCurrent(self, value):
         # MUST BE SUBCLASSED
         raise NotImplementedError(f'Code error: {self.__class__.__name__}._sourceCurrent not implemented')
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Selection/Action callbacks
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     def selectionCallback(self, selected, deselected, selection, lastItem):
         """set as current the selected core-objects on the table
@@ -121,13 +121,12 @@ class _CoreTableWidgetABC(_ProjectTableABC):
         try:
             objs = list(selection[self._OBJECT])
             self._sourceCurrent = objs
-
         except Exception as es:
             getLogger().debug2(f'{self.__class__.__name__}.selectionCallback: No selection\n{es}')
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Create table and row methods
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     def _newRowFromUniqueId(self, df, obj, uniqueId):
         """Create a new row to insert into the dataFrame or replace row
@@ -160,7 +159,6 @@ class _CoreTableWidgetABC(_ProjectTableABC):
             self._columnDefs = self._getTableColumns(self._table)
 
             objects = []
-
             for col, obj in enumerate(self._sourceObjects):
                 listItem = OrderedDict()
                 for header in self._columnDefs.columns:
@@ -170,12 +168,9 @@ class _CoreTableWidgetABC(_ProjectTableABC):
                         # NOTE:ED - catch any nasty surprises in tables
                         getLogger().debug2(f'Error creating table information {es}')
                         listItem[header.headerText] = None
-
                 allItems.append(listItem)
                 objects.append(obj)
-
             df = pd.DataFrame(allItems, columns=self._columnDefs.headings)
-
         else:
             self._columnDefs = self._getTableColumns()
             df = pd.DataFrame(columns=self._columnDefs.headings)
@@ -204,16 +199,13 @@ class _CoreTableWidgetABC(_ProjectTableABC):
 
             rowObjs = []
             _triggerType = Notifier.CHANGE
-
             if (attr := self.cellClassNames.get(type(cellData))):
                 rowObjs, _triggerType = self.getCellToRows(cellData, attr)
-
             # update the correct row by calling row handler
             for rowObj in rowObjs:
                 rowData = {Notifier.OBJECT : rowObj,
                            Notifier.TRIGGER: _triggerType or data[Notifier.TRIGGER],
                            }
-
                 self._updateRowCallback(rowData)
 
     def _updateRowCallback(self, data):
@@ -244,7 +236,6 @@ class _CoreTableWidgetABC(_ProjectTableABC):
                         # remove from the table
                         self.model()._deleteRow(obj)
                         self._reindexTable()
-
                 elif trigger == Notifier.CREATE:
                     # uniqueIds in the visible table
                     if obj in (objSet - tableSet):
@@ -259,20 +250,17 @@ class _CoreTableWidgetABC(_ProjectTableABC):
                             self._reindexTable()
                         # highlight the new row
                         self._highlightRow(obj)
-
                 elif trigger == Notifier.CHANGE:
                     # uniqueIds in the visible table
                     if obj in (objSet & tableSet):
                         # visible table dataframe update - object MUST be in the table
                         newRow = self._newRowFromUniqueId(df, obj, None)
                         self.model()._updateRow(obj, newRow)
-
                 elif trigger == Notifier.RENAME:
                     if obj in (objSet & tableSet):
                         # visible table dataframe update
                         newRow = self._newRowFromUniqueId(df, obj, None)
                         self.model()._updateRow(obj, newRow)
-
                     elif obj in (objSet - tableSet):
                         # insert renamed object INTO the table
                         newRow = self._newRowFromUniqueId(df, obj, None)
@@ -280,7 +268,6 @@ class _CoreTableWidgetABC(_ProjectTableABC):
                         self._reindexTable()
                         # highlight the new row
                         self._highlightRow(obj)
-
                     elif obj in (tableSet - objSet):
                         # remove renamed object OUT of the table
                         self.model()._deleteRow(obj)
@@ -318,10 +305,6 @@ class _CoreTableWidgetABC(_ProjectTableABC):
             # table will automatically replace this on the update
             df[self._INDEX] = [objs.index(obj) if obj in objs else 0 for obj in tableObjs]
 
-    # def _searchCallBack(self, data):
-    #     # print(f'>>> _searchCallBack')
-    #     pass
-
     def _selectCurrentCallBack(self, data):
         """Callback from a notifier to highlight the current objects
         :param data:
@@ -332,29 +315,23 @@ class _CoreTableWidgetABC(_ProjectTableABC):
         objs = data['value']
         self._selectOnTableCurrent(objs)
 
-    def _selectionChangedCallback(self, selected, deselected):
-        """Handle item selection as changed in table - call user callback
-        Includes checking for clicking below last row
-        """
-        self._changeTableSelection(None)
-
     def _selectOnTableCurrent(self, objs):
         """Highlight the list of objects on the table
         :param objs:
         """
         self.highlightObjects(objs)
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Table context menu
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Table functions
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Updates
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     def _updateAllModule(self, data=None):
         """Updates the table and the settings widgets
@@ -375,23 +352,69 @@ class _CoreTableWidgetABC(_ProjectTableABC):
         """
         self._update()
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # object properties
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
+
+    ...
 
 
 #=========================================================================================
 # _CoreTableFrameABC
 #=========================================================================================
 
-class _CoreTableFrameABC(Frame):
-    """Frame containing the pulldown and the table widget
+class _CoreTableFrameABCMeta(type(Frame), type(ABC)):
+    """
+    Metaclass for validating required attributes in classes derived from `_CoreTableFrameABC`.
+
+    This metaclass ensures that subclasses define the necessary attributes in their
+    class body before allowing an instance to be created.
+
+    **Required Class Attributes**:
+        - ``_TableKlass``: The class used for the table widget.
+        - ``_PulldownKlass``: The class used for the pulldown widget.
+    """
+
+    def __call__(cls, *args, **kwargs):
+        """
+        Overrides the default behavior for instance creation.
+
+        This method is called when an instance of a class using this metaclass is created.
+        It validates that all required class attributes are defined and not `None` before
+        proceeding with the creation of the instance.
+
+        :param args: Positional arguments for the class constructor.
+        :param kwargs: Keyword arguments for the class constructor.
+        :raises AttributeError: If any required class attribute is not defined or is `None`.
+        :return: The created instance of the class.
+        """
+        # Perform validation to ensure required attributes are defined
+        required_attrs = ['_TableKlass', '_PulldownKlass']
+        for attr in required_attrs:
+            # Check if the attribute exists and is not None
+            if not hasattr(cls, attr) or getattr(cls, attr) is None:
+                raise AttributeError(f"{cls.__name__} must define {attr} in its class body.")
+        # Default instance creation
+        return super().__call__(*args, **kwargs)
+
+
+class _CoreTableFrameABC(Frame, ABC, metaclass=_CoreTableFrameABCMeta):
+    """Frame containing the pulldown and the table widget.
+    There is no subclassed _CoreMITableFrameABC, separate class not required.
     """
     _TableKlass = _CoreTableWidgetABC
     _PulldownKlass = None
-
-    _activePulldownClass = None
+    # this is not a subclassed attribute (i.e. from activePulldownClass which is defined at module-level)
+    _activePulldownKlass = None
     _activeCheckbox = None
+
+    # soft-links to external classes
+    _table = WeakRefDescriptor()
+    mainWindow = WeakRefDescriptor()
+    application = WeakRefDescriptor()
+    project = WeakRefDescriptor()
+    current = WeakRefDescriptor()
+    moduleParent = WeakRefDescriptor()
 
     def __init__(self, parent, mainWindow=None, moduleParent=None,
                  obj=None, selectFirstItem=False, **kwds):
@@ -414,6 +437,8 @@ class _CoreTableFrameABC(Frame):
         elif selectFirstItem:
             # self._modulePulldown.selectFirstItem()
             # ensures that the module and contained widgets are initialised before selecting the first item
+            # NOTE:ED - should NOT use the pulldown-callback to active
+            #   - should call a method :| callbacks should be disabled on initialise
             QtCore.QTimer.singleShot(0, self._modulePulldown.selectFirstItem)
 
     def _setWidgets(self, container=None):
@@ -463,14 +488,15 @@ class _CoreTableFrameABC(Frame):
     def setActivePulldownClass(self, coreClass, checkBox):
         """Set up the callback properties for changing the current object from the pulldown
         """
-        self._activePulldownClass = coreClass
+        self._activePulldownKlass = coreClass
         self._activeCheckbox = checkBox
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Properties
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     @property
+    @abstractmethod
     def _tableCurrent(self):
         """Return the list of source objects, e.g., _table.peaks/_table.nmrResidues
         """
@@ -478,6 +504,7 @@ class _CoreTableFrameABC(Frame):
         raise NotImplementedError(f'Code error: {self.__class__.__name__}._tableCurrent not implemented')
 
     @_tableCurrent.setter
+    @abstractmethod
     def _tableCurrent(self, value):
         # MUST BE SUBCLASSED
         raise NotImplementedError(f'Code error: {self.__class__.__name__}._tableCurrent not implemented')
@@ -494,9 +521,9 @@ class _CoreTableFrameABC(Frame):
         """
         return self._tableWidget
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Implementation
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     def selectTable(self, table=None):
         """Manually select a table from the pullDown
@@ -523,15 +550,9 @@ class _CoreTableFrameABC(Frame):
             raise RuntimeError(f'Col has to be >= {self._addWidgetCol}')
         self._moduleHeaderFrame.getLayout().addWidget(widget, row, col, rowSpan, colSpan)
 
-    def _cleanupWidget(self):
-        """CCPN-INTERNAL: used to clean-up when closing
-        """
-        self._modulePulldown.unRegister()
-        self._tableWidget._close()
-
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Process dropped items
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     def _processDroppedItems(self, data):
         """CallBack for Drop events
@@ -558,18 +579,16 @@ class _CoreTableFrameABC(Frame):
         if selectableObjects:
             _openItemObject(self.mainWindow, selectableObjects[1:])
             pulldown.select(selectableObjects[0].pid)
-
         elif othersClassNames := list({obj.className for obj in others if hasattr(obj, 'className')}):
             title, msg = (
                 'Dropped wrong item.', f"Do you want to open the {''.join(othersClassNames)} in a new module?") if len(
                     othersClassNames) == 1 else ('Dropped wrong items.', 'Do you want to open items in new modules?')
-
             if showYesNo(title, msg):
                 _openItemObject(self.mainWindow, others)
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Widget/Notifier Callbacks
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     def _selectionPulldownCallback(self, item):
         """Notifier Callback for selecting object from the pull down menu
@@ -578,16 +597,15 @@ class _CoreTableFrameABC(Frame):
         self._tableWidget._update()
 
         # update the current object from the pulldown
-        if self._activePulldownClass and self._activeCheckbox and _table != self._tableCurrent and self._activeCheckbox.isChecked():
+        if self._activePulldownKlass and self._activeCheckbox and _table != self._tableCurrent and self._activeCheckbox.isChecked():
             self._tableCurrent = _table
 
     def _selectCurrentPulldownClass(self, data):
-        """Respond to change in current activePulldownClass
+        """Respond to change in current _activePulldownKlass
         """
-        if self._activePulldownClass and self._activeCheckbox and self._activeCheckbox.isChecked():
+        if self._activePulldownKlass and self._activeCheckbox and self._activeCheckbox.isChecked():
             _table = self._tableWidget._table = self._tableCurrent
             self._tableWidget._update()
-
             if _table:
                 self._modulePulldown.select(_table.pid, blockSignals=True)
             else:

@@ -4,7 +4,7 @@
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2025"
 __credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
                "Timothy J Ragan, Brian O Smith, Daniel Thompson",
                "Gary S Thompson & Geerten W Vuister")
@@ -16,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-08-07 13:10:49 +0100 (Wed, August 07, 2024) $"
-__version__ = "$Revision: 3.2.5 $"
+__dateModified__ = "$dateModified: 2025-03-13 18:50:05 +0000 (Thu, March 13, 2025) $"
+__version__ = "$Revision: 3.3.1 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -51,6 +51,7 @@ TraceParameters = collections.namedtuple('TraceParameters', 'inRange pointPositi
 class SpectrumCache():
     # matrix: np.array = None
     matrix: QtGui.QMatrix4x4 = None
+    pointMatrix: QtGui.QMatrix4x4 = None
     stackedMatrix: np.array = None
     spinningRate: float = None
 
@@ -85,6 +86,9 @@ class SpectrumCache():
     delta: list = field(default_factory=list)
     stackedMatrixOffset: list = field(default_factory=list)
     mvMatrices: list[QtGui.QMatrix4x4] = field(default_factory=list)
+    mvPointMatrices: list[QtGui.QMatrix4x4] = field(default_factory=list)
+    pixelScales: list[QtGui.QVector4D] = field(default_factory=list)
+    aliasPositions: list[tuple] = field(default_factory=list)
 
 
 @dataclass
@@ -270,8 +274,10 @@ class GuiSpectrumView(QtWidgets.QGraphicsObject):
                                       minFoldingFrequency, maxFoldingFrequency,
                                       isTimeDomain, spectrometerFrequency, ppmToPoint)
 
-    def _getVisibleSpectrumViewParams(self, dimRange=None, delta=None, stacking=None) -> SpectrumCache:
+    def _getVisibleSpectrumViewParams(self, dimRange=None, delta=None, stacking=None,
+                                      flipped: bool = False, pixelX: float = 0.0, pixelY: float = 0.0) -> SpectrumCache:
         """Get parameters for axisDim'th axis (zero-origin) of spectrum.
+        :param flipped:
         """
         # MUST BE SUBCLASSED
         raise NotImplementedError(f'Code error: function {repr(sys._getframe().f_code.co_name)} not implemented')

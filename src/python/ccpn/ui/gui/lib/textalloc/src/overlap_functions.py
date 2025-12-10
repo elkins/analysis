@@ -31,7 +31,7 @@ Available from github; https://github.com/ckjellson/textalloc
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2025"
 __credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
                "Timothy J Ragan, Brian O Smith, Daniel Thompson",
                "Gary S Thompson & Geerten W Vuister")
@@ -43,8 +43,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-08-09 11:25:08 +0100 (Fri, August 09, 2024) $"
-__version__ = "$Revision: 3.2.5 $"
+__dateModified__ = "$dateModified: 2025-03-14 17:56:48 +0000 (Fri, March 14, 2025) $"
+__version__ = "$Revision: 3.2.12 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -55,44 +55,6 @@ __date__ = "$Date: 2022 $"
 #=========================================================================================
 
 import numpy as np
-
-
-def non_overlapping_with_points(
-        points_xy: np.ndarray, boxes_xyxy: np.ndarray, x_margin: float, y_margin: float
-        ) -> np.ndarray:
-    """Finds boxes_xyxy not overlapping with points.
-
-    Args:
-        points_xy (np.ndarray): Array of shape (N,2) containing coordinates for all scatter-points
-        boxes_xyxy (np.ndarray): Array of shape (K,4) with K candidate boxes
-        x_margin (float): fraction of the x-dimension to use as margins for text boxes
-        y_margin (float): fraction of the y-dimension to use as margins for text boxes
-
-    Returns:
-        np.ndarray: Boolean array of shape (K,) with True for non-overlapping boxes_xyxy with points
-    """
-    # # ensure that the boxes are bottom-left -> top-right
-    # boxes_xyxy = np.stack([np.min([boxes_xyxy[:, 0], boxes_xyxy[:, 2]], axis=0),
-    #                        np.min([boxes_xyxy[:, 1], boxes_xyxy[:, 3]], axis=0),
-    #                        np.max([boxes_xyxy[:, 0], boxes_xyxy[:, 2]], axis=0),
-    #                        np.max([boxes_xyxy[:, 1], boxes_xyxy[:, 3]], axis=0),
-    #                        ], axis=1)
-
-    return np.invert(
-            np.bitwise_or.reduce(
-                    np.bitwise_and(
-                            boxes_xyxy[:, 0:1] - x_margin < points_xy[:, 0],
-                            np.bitwise_and(
-                                    boxes_xyxy[:, 2:3] + x_margin > points_xy[:, 0],
-                                    np.bitwise_and(
-                                            boxes_xyxy[:, 1:2] - y_margin < points_xy[:, 1],
-                                            boxes_xyxy[:, 3:4] + y_margin > points_xy[:, 1],
-                                            ),
-                                    ),
-                            ),
-                    axis=1,
-                    )
-            )
 
 
 def non_overlapping_points_to_boxes(
@@ -132,20 +94,12 @@ def non_overlapping_points_to_boxes(
     elif by_boxes is not None:
         by_points = not by_boxes
 
-    return np.invert(
-            np.bitwise_or.reduce(
-                    np.bitwise_and(
-                            boxes_xyxy[:, 0:1] - x_margin < points_xy[:, 0],
-                            np.bitwise_and(
-                                    boxes_xyxy[:, 2:3] + x_margin > points_xy[:, 0],
-                                    np.bitwise_and(
-                                            boxes_xyxy[:, 1:2] - y_margin < points_xy[:, 1],
-                                            boxes_xyxy[:, 3:4] + y_margin > points_xy[:, 1],
-                                            ),
-                                    ),
-                            ),
-                    axis=int(not by_points),  # can choose whether to collate by points_xy or boxes_xyxy
-                    )
+    return ~np.bitwise_or.reduce(
+            (boxes_xyxy[:, 0:1] - x_margin < points_xy[:, 0]) &
+            (boxes_xyxy[:, 1:2] - y_margin < points_xy[:, 1]) &
+            (boxes_xyxy[:, 2:3] + x_margin > points_xy[:, 0]) &
+            (boxes_xyxy[:, 3:4] + y_margin > points_xy[:, 1]),
+            axis=int(not by_points),  # can choose whether to collate by points_xy or boxes_xyxy
             )
 
 
@@ -192,119 +146,16 @@ def non_overlapping_points_to_ellipses(
     elif by_ellipses is not None:
         by_points = not by_ellipses
 
-    return np.invert(
-            np.bitwise_or.reduce(
-                    ((points_xy[:, 0] - ellipses_xyab[:, 0:1])**2 / (ellipses_xyab[:, 2:3] + x_margin)**2) +
-                    ((points_xy[:, 1] - ellipses_xyab[:, 1:2])**2 / (ellipses_xyab[:, 3:4] + y_margin)**2) <= 1,
-                    axis=int(not by_points),  # can choose whether to collate by points_xy or ellipses_xyab
-                    )
+    return ~np.bitwise_or.reduce(
+            ((points_xy[:, 0] - ellipses_xyab[:, 0:1])**2 / (ellipses_xyab[:, 2:3] + x_margin)**2) +
+            ((points_xy[:, 1] - ellipses_xyab[:, 1:2])**2 / (ellipses_xyab[:, 3:4] + y_margin)**2) <= 1,
+            axis=int(not by_points),  # can choose whether to collate by points_xy or ellipses_xyab
             )
-
-
-def non_overlapping_with_lines(
-        lines_xyxy: np.ndarray, boxes_xyxy: np.ndarray, x_margin: float, y_margin: float
-        ) -> np.ndarray:
-    """Finds boxes_xyxy not overlapping with lines
-
-    Args:
-        lines_xyxy (np.ndarray): line segments
-        boxes_xyxy (np.ndarray): candidate boxes
-        x_margin (float): fraction of the x-dimension to use as margins for text boxes
-        y_margin (float): fraction of the y-dimension to use as margins for text boxes
-
-    Returns:
-        np.ndarray: Boolean array of shape (K,) with True for non-overlapping boxes_xyxy with lines.
-    """
-    non_intersecting = np.invert(
-            np.any(
-                    np.bitwise_or(
-                            line_intersect(
-                                    np.hstack(
-                                            [
-                                                boxes_xyxy[:, 0:1] - x_margin,
-                                                boxes_xyxy[:, 1:2] - y_margin,
-                                                boxes_xyxy[:, 0:1] - x_margin,
-                                                boxes_xyxy[:, 3:4] + y_margin,
-                                                ]
-                                            ),
-                                    lines_xyxy,
-                                    ),
-                            np.bitwise_or(
-                                    line_intersect(
-                                            np.hstack(
-                                                    [
-                                                        boxes_xyxy[:, 0:1] - x_margin,
-                                                        boxes_xyxy[:, 3:4] + y_margin,
-                                                        boxes_xyxy[:, 2:3] + x_margin,
-                                                        boxes_xyxy[:, 3:4] + y_margin,
-                                                        ]
-                                                    ),
-                                            lines_xyxy,
-                                            ),
-                                    np.bitwise_or(
-                                            line_intersect(
-                                                    np.hstack(
-                                                            [
-                                                                boxes_xyxy[:, 2:3] + x_margin,
-                                                                boxes_xyxy[:, 3:4] + y_margin,
-                                                                boxes_xyxy[:, 2:3] + x_margin,
-                                                                boxes_xyxy[:, 1:2] - y_margin,
-                                                                ]
-                                                            ),
-                                                    lines_xyxy,
-                                                    ),
-                                            line_intersect(
-                                                    np.hstack(
-                                                            [
-                                                                boxes_xyxy[:, 2:3] + x_margin,
-                                                                boxes_xyxy[:, 1:2] - y_margin,
-                                                                boxes_xyxy[:, 0:1] - x_margin,
-                                                                boxes_xyxy[:, 1:2] - y_margin,
-                                                                ]
-                                                            ),
-                                                    lines_xyxy,
-                                                    ),
-                                            ),
-                                    ),
-                            ),
-                    axis=1,
-                    )
-            )
-
-    non_inside = np.invert(
-            np.any(
-                    np.bitwise_and(
-                            boxes_xyxy[:, 0:1] - x_margin < lines_xyxy[:, 0],
-                            np.bitwise_and(
-                                    boxes_xyxy[:, 1:2] - y_margin < lines_xyxy[:, 1],
-                                    np.bitwise_and(
-                                            boxes_xyxy[:, 2:3] + x_margin > lines_xyxy[:, 0],
-                                            np.bitwise_and(
-                                                    boxes_xyxy[:, 3:4] + y_margin > lines_xyxy[:, 1],
-                                                    np.bitwise_and(
-                                                            boxes_xyxy[:, 0:1] - x_margin < lines_xyxy[:, 2],
-                                                            np.bitwise_and(
-                                                                    boxes_xyxy[:, 1:2] - y_margin < lines_xyxy[:, 3],
-                                                                    np.bitwise_and(
-                                                                            boxes_xyxy[:, 2:3] + x_margin > lines_xyxy[
-                                                                                                            :, 2],
-                                                                            boxes_xyxy[:, 3:4] + y_margin > lines_xyxy[
-                                                                                                            :, 3],
-                                                                            ),
-                                                                    ),
-                                                            ),
-                                                    ),
-                                            ),
-                                    ),
-                            ),
-                    axis=1,
-                    )
-            )
-    return np.bitwise_and(non_intersecting, non_inside)
 
 
 def non_overlapping_lines_to_boxes(
-        lines_xyxy: np.ndarray, boxes_xyxy: np.ndarray, x_margin: float, y_margin: float
+        lines_xyxy: np.ndarray, boxes_xyxy: np.ndarray, x_margin: float, y_margin: float,
+        *, by_lines: bool = None, by_boxes: bool = None
         ) -> np.ndarray:
     """Finds boxes_xyxy not overlapping with lines.
 
@@ -315,100 +166,90 @@ def non_overlapping_lines_to_boxes(
         boxes_xyxy (np.ndarray): target boxes_xyxy
         x_margin (float): fraction of the x-dimension to use as margins for text boxes_xyxy
         y_margin (float): fraction of the y-dimension to use as margins for text boxes_xyxy
+        by_lines (bool): return the list referenced by lines or boxes.
+        by_boxes (bool): return the list referenced by boxes or lines.
 
     Returns:
         np.ndarray: Boolean array of shape (K,) with True for non-overlapping boxes_xyxy with lines.
+        
+    Raises:
+        ValueError if by_lines and by_boxes are both specified.
     """
-    non_intersecting = np.invert(
-            np.any(
-                    np.bitwise_or(
-                            line_intersect(
-                                    lines_xyxy,
-                                    np.hstack(
-                                            [
-                                                # left-hand side of box
-                                                boxes_xyxy[:, 0:1] - x_margin,  # bottom-left
-                                                boxes_xyxy[:, 1:2] - y_margin,
-                                                boxes_xyxy[:, 0:1] - x_margin,  # top-left
-                                                boxes_xyxy[:, 3:4] + y_margin,
-                                                ]
-                                            ),
-                                    ),
-                            np.bitwise_or(
-                                    line_intersect(
-                                            lines_xyxy,
-                                            np.hstack(
-                                                    [
-                                                        # top-edge of box
-                                                        boxes_xyxy[:, 0:1] - x_margin,  # top-left
-                                                        boxes_xyxy[:, 3:4] + y_margin,
-                                                        boxes_xyxy[:, 2:3] + x_margin,  # top-right
-                                                        boxes_xyxy[:, 3:4] + y_margin,
-                                                        ]
-                                                    ),
-                                            ),
-                                    np.bitwise_or(
-                                            line_intersect(
-                                                    lines_xyxy,
-                                                    np.hstack(
-                                                            [
-                                                                # right-hand side of box
-                                                                boxes_xyxy[:, 2:3] + x_margin,  # top-right
-                                                                boxes_xyxy[:, 3:4] + y_margin,
-                                                                boxes_xyxy[:, 2:3] + x_margin,  # bottom-right
-                                                                boxes_xyxy[:, 1:2] - y_margin,
-                                                                ]
-                                                            ),
-                                                    ),
-                                            line_intersect(
-                                                    lines_xyxy,
-                                                    np.hstack(
-                                                            [
-                                                                # bottom-edge of box
-                                                                boxes_xyxy[:, 2:3] + x_margin,  # bottom-right
-                                                                boxes_xyxy[:, 1:2] - y_margin,
-                                                                boxes_xyxy[:, 0:1] - x_margin,  # bottom-left
-                                                                boxes_xyxy[:, 1:2] - y_margin,
-                                                                ]
-                                                            ),
-                                                    ),
-                                            ),
-                                    ),
-                            ),
-                    axis=1,
-                    )
-            )
+    if by_lines is not None and by_boxes is not None:
+        raise ValueError('non_overlapping_lines_to_boxes: use either by_lines or by_boxes')
 
-    non_inside = np.invert(
-            np.any(
-                    np.bitwise_and(
-                            lines_xyxy[:, 0:1] + x_margin < boxes_xyxy[:, 0],
-                            np.bitwise_and(
-                                    lines_xyxy[:, 1:2] + y_margin < boxes_xyxy[:, 1],
-                                    np.bitwise_and(
-                                            lines_xyxy[:, 2:3] - x_margin > boxes_xyxy[:, 0],
-                                            np.bitwise_and(
-                                                    lines_xyxy[:, 3:4] - y_margin > boxes_xyxy[:, 1],
-                                                    np.bitwise_and(
-                                                            lines_xyxy[:, 0:1] + x_margin < boxes_xyxy[:, 2],
-                                                            np.bitwise_and(
-                                                                    lines_xyxy[:, 1:2] + y_margin < boxes_xyxy[:, 3],
-                                                                    np.bitwise_and(
-                                                                            lines_xyxy[:, 2:3] - x_margin > boxes_xyxy[
-                                                                                                            :, 2],
-                                                                            lines_xyxy[:, 3:4] - y_margin > boxes_xyxy[
-                                                                                                            :, 3],
-                                                                            ),
-                                                                    ),
-                                                            ),
-                                                    ),
-                                            ),
-                                    ),
-                            ),
-                    axis=1,
-                    )
-            )
-    return np.bitwise_and(non_intersecting, non_inside)
+    if by_lines is None and by_boxes is None:
+        # default to reference by lines
+        by_lines = True
+    elif by_boxes is not None:
+        by_lines = not by_boxes
+
+    non_intersecting = \
+        ~np.bitwise_or.reduce(
+                line_intersect(
+                        lines_xyxy,
+                        np.hstack(
+                                [
+                                    # left-hand side of box
+                                    boxes_xyxy[:, 0:1] - x_margin,  # bottom-left
+                                    boxes_xyxy[:, 1:2] - y_margin,
+                                    boxes_xyxy[:, 0:1] - x_margin,  # top-left
+                                    boxes_xyxy[:, 3:4] + y_margin,
+                                    ]
+                                ),
+                        ) |
+                line_intersect(
+                        lines_xyxy,
+                        np.hstack(
+                                [
+                                    # top-edge of box
+                                    boxes_xyxy[:, 0:1] - x_margin,  # top-left
+                                    boxes_xyxy[:, 3:4] + y_margin,
+                                    boxes_xyxy[:, 2:3] + x_margin,  # top-right
+                                    boxes_xyxy[:, 3:4] + y_margin,
+                                    ]
+                                ),
+                        ) |
+                line_intersect(
+                        lines_xyxy,
+                        np.hstack(
+                                [
+                                    # right-hand side of box
+                                    boxes_xyxy[:, 2:3] + x_margin,  # top-right
+                                    boxes_xyxy[:, 3:4] + y_margin,
+                                    boxes_xyxy[:, 2:3] + x_margin,  # bottom-right
+                                    boxes_xyxy[:, 1:2] - y_margin,
+                                    ]
+                                ),
+                        ) |
+                line_intersect(
+                        lines_xyxy,
+                        np.hstack(
+                                [
+                                    # bottom-edge of box
+                                    boxes_xyxy[:, 2:3] + x_margin,  # bottom-right
+                                    boxes_xyxy[:, 1:2] - y_margin,
+                                    boxes_xyxy[:, 0:1] - x_margin,  # bottom-left
+                                    boxes_xyxy[:, 1:2] - y_margin,
+                                    ]
+                                ),
+                        ),
+                axis=int(by_lines)
+                )
+
+    non_inside = \
+        ~np.bitwise_or.reduce(
+                (boxes_xyxy[:, 0:1] - x_margin < lines_xyxy[:, 0]) &
+                (boxes_xyxy[:, 1:2] - y_margin < lines_xyxy[:, 1]) &
+                (boxes_xyxy[:, 2:3] + x_margin > lines_xyxy[:, 0]) &
+                (boxes_xyxy[:, 3:4] + y_margin > lines_xyxy[:, 1]) &
+                (boxes_xyxy[:, 0:1] - x_margin < lines_xyxy[:, 2]) &
+                (boxes_xyxy[:, 1:2] - y_margin < lines_xyxy[:, 3]) &
+                (boxes_xyxy[:, 2:3] + x_margin > lines_xyxy[:, 2]) &
+                (boxes_xyxy[:, 3:4] + y_margin > lines_xyxy[:, 3]),
+                axis=int(not by_lines)
+                )
+    return non_intersecting & non_inside
 
 
 def non_overlapping_lines_to_lines(cand_xyxy: np.ndarray, lines_xyxy: np.ndarray) -> np.ndarray:
@@ -421,9 +262,7 @@ def non_overlapping_lines_to_lines(cand_xyxy: np.ndarray, lines_xyxy: np.ndarray
     Returns:
         np.ndarray: Boolean array with True for non-overlapping line segments with candidates.
     """
-    return np.invert(np.any(line_intersect(cand_xyxy, lines_xyxy),
-                            axis=1)
-                     )
+    return ~np.bitwise_or.reduce(line_intersect(cand_xyxy, lines_xyxy), axis=1)
 
 
 def line_intersect(cand_xyxy: np.ndarray, lines_xyxy: np.ndarray) -> np.ndarray:
@@ -484,22 +323,13 @@ def non_overlapping_boxes_to_boxes(
     Returns:
         np.ndarray: Boolean array of shape (K,) with True for non-overlapping cand_xyxy with boxes.
     """
-    return np.invert(
-            np.any(
-                    np.invert(
-                            np.bitwise_or(
-                                    cand_xyxy[:, 0:1] - x_margin > boxes_xyxy[:, 2],
-                                    np.bitwise_or(
-                                            cand_xyxy[:, 2:3] + x_margin < boxes_xyxy[:, 0],
-                                            np.bitwise_or(
-                                                    cand_xyxy[:, 1:2] - y_margin > boxes_xyxy[:, 3],
-                                                    cand_xyxy[:, 3:4] + y_margin < boxes_xyxy[:, 1],
-                                                    ),
-                                            ),
-                                    )
-                            ),
-                    axis=1,
-                    )
+    return ~np.bitwise_or.reduce(
+            np.invert((cand_xyxy[:, 0:1] - x_margin > boxes_xyxy[:, 2]) |
+                      (cand_xyxy[:, 2:3] + x_margin < boxes_xyxy[:, 0]) |
+                      (cand_xyxy[:, 1:2] - y_margin > boxes_xyxy[:, 3]) |
+                      (cand_xyxy[:, 3:4] + y_margin < boxes_xyxy[:, 1]),
+                      ),
+            axis=1,
             )
 
 
@@ -591,60 +421,45 @@ def non_overlapping_boxes_to_ellipses(
     # Check if these t-values are within the range [0, 1] (which means within the line segment)
     valid_intersections[intersect_indices] = (0 <= t1) & (t1 <= 1) | (0 <= t2) & (t2 <= 1)
 
-    non_intersecting = np.invert(
-            np.bitwise_or.reduce(
-                    np.bitwise_or.reduce(
-                            valid_intersections,
-                            axis=0,
-                            ),
-                    axis=int(by_boxes),  # can choose whether to collate by boxes_xyxy or ellipses_xyab
-                    )
-            )
+    non_intersecting = \
+        ~np.bitwise_or.reduce(
+                np.bitwise_or.reduce(
+                        valid_intersections,
+                        axis=0,
+                        ),
+                axis=int(by_boxes),  # can choose whether to collate by boxes_xyxy or ellipses_xyab
+                )
 
     # boxes are completely inside ellipses
-    non_inside_box = np.invert(
-            np.bitwise_or.reduce(
-                    np.bitwise_or.reduce([
-                        ((boxes_xyxy[:, 0] - ellipses_xyab[:, 0:1])**2 / (ellipses_xyab[:, 2:3] + x_margin)**2) +
-                        ((boxes_xyxy[:, 1] - ellipses_xyab[:, 1:2])**2 / (ellipses_xyab[:, 3:4] + y_margin)**2) <= 1,
+    non_inside_box = \
+        ~np.bitwise_or.reduce(
+                np.bitwise_or.reduce([
+                    ((boxes_xyxy[:, 0] - ellipses_xyab[:, 0:1])**2 / (ellipses_xyab[:, 2:3] + x_margin)**2) +
+                    ((boxes_xyxy[:, 1] - ellipses_xyab[:, 1:2])**2 / (ellipses_xyab[:, 3:4] + y_margin)**2) <= 1,
 
-                        ((boxes_xyxy[:, 2] - ellipses_xyab[:, 0:1])**2 / (ellipses_xyab[:, 2:3] + x_margin)**2) +
-                        ((boxes_xyxy[:, 3] - ellipses_xyab[:, 1:2])**2 / (ellipses_xyab[:, 3:4] + y_margin)**2) <= 1,
+                    ((boxes_xyxy[:, 2] - ellipses_xyab[:, 0:1])**2 / (ellipses_xyab[:, 2:3] + x_margin)**2) +
+                    ((boxes_xyxy[:, 3] - ellipses_xyab[:, 1:2])**2 / (ellipses_xyab[:, 3:4] + y_margin)**2) <= 1,
 
-                        ((boxes_xyxy[:, 0] - ellipses_xyab[:, 0:1])**2 / (ellipses_xyab[:, 2:3] + x_margin)**2) +
-                        ((boxes_xyxy[:, 3] - ellipses_xyab[:, 1:2])**2 / (ellipses_xyab[:, 3:4] + y_margin)**2) <= 1,
+                    ((boxes_xyxy[:, 0] - ellipses_xyab[:, 0:1])**2 / (ellipses_xyab[:, 2:3] + x_margin)**2) +
+                    ((boxes_xyxy[:, 3] - ellipses_xyab[:, 1:2])**2 / (ellipses_xyab[:, 3:4] + y_margin)**2) <= 1,
 
-                        ((boxes_xyxy[:, 2] - ellipses_xyab[:, 0:1])**2 / (ellipses_xyab[:, 2:3] + x_margin)**2) +
-                        ((boxes_xyxy[:, 1] - ellipses_xyab[:, 1:2])**2 / (ellipses_xyab[:, 3:4] + y_margin)**2) <= 1,
-                        ]),
-                    axis=int(not by_boxes),  # can choose whether to collate by boxes_xyxy or ellipses_xyab
-                    )
-            )
+                    ((boxes_xyxy[:, 2] - ellipses_xyab[:, 0:1])**2 / (ellipses_xyab[:, 2:3] + x_margin)**2) +
+                    ((boxes_xyxy[:, 1] - ellipses_xyab[:, 1:2])**2 / (ellipses_xyab[:, 3:4] + y_margin)**2) <= 1,
+                    ]),
+                axis=int(not by_boxes),  # can choose whether to collate by boxes_xyxy or ellipses_xyab
+                )
 
     # ellipses are completely inside boxes
-    non_inside_ellipse = np.invert(
-            np.bitwise_or.reduce(
-                    np.bitwise_and(
-                            ellipses_xyab[:, 0:1] - ellipses_xyab[:, 2:3] > boxes_xyxy[:, 0],
-                            np.bitwise_and(
-                                    ellipses_xyab[:, 0:1] + ellipses_xyab[:, 2:3] < boxes_xyxy[:, 2],
-                                    np.bitwise_and(
-                                            ellipses_xyab[:, 1:2] - ellipses_xyab[:, 3:4] > boxes_xyxy[:, 1],
-                                            ellipses_xyab[:, 1:2] + ellipses_xyab[:, 3:4] < boxes_xyxy[:, 3],
-                                            ),
-                                    ),
-                            ),
-                    axis=int(not by_boxes),
-                    )
-            )
+    non_inside_ellipse = \
+        ~np.bitwise_or.reduce(
+                (ellipses_xyab[:, 0:1] - ellipses_xyab[:, 2:3] > boxes_xyxy[:, 0]) &
+                (ellipses_xyab[:, 0:1] + ellipses_xyab[:, 2:3] < boxes_xyxy[:, 2]) &
+                (ellipses_xyab[:, 1:2] - ellipses_xyab[:, 3:4] > boxes_xyxy[:, 1]) &
+                (ellipses_xyab[:, 1:2] + ellipses_xyab[:, 3:4] < boxes_xyxy[:, 3]),
+                axis=int(not by_boxes),
+                )
 
-    return np.bitwise_and(
-            non_intersecting,
-            np.bitwise_and(
-                    non_inside_box,
-                    non_inside_ellipse
-                    )
-            )
+    return non_intersecting & non_inside_box & non_inside_ellipse
 
 
 def non_overlapping_lines_to_ellipses(
@@ -719,28 +534,26 @@ def non_overlapping_lines_to_ellipses(
     # Check if these t-values are within the range [0, 1] (which means within the line segment)
     valid_intersections[intersect_indices] = (0 <= t1) & (t1 <= 1) | (0 <= t2) & (t2 <= 1)
 
-    non_intersecting = np.invert(
-            np.bitwise_or.reduce(
-                    valid_intersections,
-                    axis=int(by_lines),  # can choose whether to collate by lines_xyxy or ellipses_xyab
-                    )
-            )
+    non_intersecting = \
+        ~np.bitwise_or.reduce(
+                valid_intersections,
+                axis=int(by_lines),  # can choose whether to collate by lines_xyxy or ellipses_xyab
+                )
 
-    non_inside = np.invert(
-            np.bitwise_or.reduce(
-                    np.bitwise_or(
-                            ((lines_xyxy[:, 0] - ellipses_xyab[:, 0:1])**2 / (ellipses_xyab[:, 2:3] + x_margin)**2) +
-                            ((lines_xyxy[:, 1] - ellipses_xyab[:, 1:2])**2 / (
-                                    ellipses_xyab[:, 3:4] + y_margin)**2) <= 1,
+    non_inside = \
+        ~np.bitwise_or.reduce(
+                np.bitwise_or(
+                        ((lines_xyxy[:, 0] - ellipses_xyab[:, 0:1])**2 / (ellipses_xyab[:, 2:3] + x_margin)**2) +
+                        ((lines_xyxy[:, 1] - ellipses_xyab[:, 1:2])**2 / (
+                                ellipses_xyab[:, 3:4] + y_margin)**2) <= 1,
 
-                            ((lines_xyxy[:, 2] - ellipses_xyab[:, 0:1])**2 / (ellipses_xyab[:, 2:3] + x_margin)**2) +
-                            ((lines_xyxy[:, 3] - ellipses_xyab[:, 1:2])**2 / (ellipses_xyab[:, 3:4] + y_margin)**2) <= 1
-                            ),
-                    axis=int(not by_lines)
-                    )
-            )
+                        ((lines_xyxy[:, 2] - ellipses_xyab[:, 0:1])**2 / (ellipses_xyab[:, 2:3] + x_margin)**2) +
+                        ((lines_xyxy[:, 3] - ellipses_xyab[:, 1:2])**2 / (ellipses_xyab[:, 3:4] + y_margin)**2) <= 1
+                        ),
+                axis=int(not by_lines)
+                )
 
-    return np.bitwise_and(non_intersecting, non_inside)
+    return non_intersecting & non_inside
 
 
 def inside_plot(
@@ -762,17 +575,11 @@ def inside_plot(
     Returns:
         np.ndarray: Boolean array of shape (K,) with True for non-overlapping boxes_xyxy with boxes.
     """
-    return np.invert(
-            np.bitwise_or(
-                    boxes_xyxy[:, 0] < xmin_bound,
-                    np.bitwise_or(
-                            boxes_xyxy[:, 1] < ymin_bound,
-                            np.bitwise_or(
-                                    boxes_xyxy[:, 2] > xmax_bound, boxes_xyxy[:, 3] > ymax_bound
-                                    ),
-                            ),
-                    )
-            )
+    return ~((boxes_xyxy[:, 0] < xmin_bound) |
+             (boxes_xyxy[:, 1] < ymin_bound) |
+             (boxes_xyxy[:, 2] > xmax_bound) |
+             (boxes_xyxy[:, 3] > ymax_bound)
+             )
 
 
 #=========================================================================================
@@ -802,13 +609,13 @@ def main():
     cc = y + np.cos(angs) * disty
 
     lines = np.vstack([np.tile([x, y], (ss.shape[0], 1)).transpose(), ss, cc]).transpose()
-    lines_xyxy = np.array([[47, 16, 36, -44],
-                           [60, 72, 87, 20],
-                           [-71, 11, -32, -32],
+    lines_xyxy = np.array([[47, 16, 37, -44],
                            [-10, 110, 20, 110],
+                           [-71, 11, -32, -32],
+                           [60, 72, 87, 19],
                            [-80, 100, -60, 60],
                            [-10, -60, -22, -125]
-                           ])
+                           ], dtype=int)
 
     print('~~~~~~~~~~~~~~~~~~~~~~~~~')
     print('clockwise from top, inner loop first')
@@ -818,7 +625,7 @@ def main():
 
     lInt = line_intersect(lines, lines_xyxy)
     print(lInt)
-    print(np.invert(np.any(lInt, axis=1)))  # good lines
+    print(~np.bitwise_or.reduce(lInt, axis=1))  # good lines
 
     print('lines_to_lines - should be same as above')
     print(non_overlapping_lines_to_lines(lines, lines_xyxy))
@@ -830,7 +637,7 @@ def main():
                            [65, 20, 60 + 87, 20 + 60],
                            [-30, -20, -30 + 30, -20 + 55],
                            [90, 90, 140, 130],
-                           [60, -90, 75, -75]])
+                           [60, -90, 75, -75]], dtype=int)
 
     # ensure that the boxes are bottom-left -> top-right
     boxes_xyxy = np.stack([np.min([boxes_xyxy[:, 0], boxes_xyxy[:, 2]], axis=0),
@@ -839,7 +646,8 @@ def main():
                            np.max([boxes_xyxy[:, 1], boxes_xyxy[:, 3]], axis=0),
                            ], axis=1)
 
-    print(non_overlapping_lines_to_boxes(lines, boxes_xyxy, 0, 0))
+    print('line ', ltob := non_overlapping_lines_to_boxes(lines_xyxy, boxes_xyxy, 0, 0))
+    print('box  ', btol := non_overlapping_lines_to_boxes(lines_xyxy, boxes_xyxy, 0, 0, by_lines=False))
 
     print('points_to_boxes')
     print('point ', ptob := non_overlapping_points_to_boxes(points, boxes_xyxy, 0, 0))
@@ -854,7 +662,7 @@ def main():
                               [110, 110, 35 / 2, 24 / 2],
                               [-22, -95, 50 / 2, 50 / 2],
                               [52.5, -9, 20 / 2, 20 / 2],
-                              ])
+                              ], dtype=int)
     print('points_to_ellipses')
     print('point   ', ptoe := non_overlapping_points_to_ellipses(points, ellipses_xyab, 0, 0))
     print('ellipse ', etop := non_overlapping_points_to_ellipses(points, ellipses_xyab, 0, 0, by_points=False))
@@ -872,22 +680,28 @@ def main():
     # create matplotlib figures
     fig = plt.figure(figsize=(10, 8), dpi=100)
     axS = fig.gca()
-
+    axS.set_title('All points/lines/rectangles/ellipses')
     for ii in range(len(ss)):
-        axS.plot([ss[ii], x], [cc[ii], y], 'x-', linewidth=1, markersize=12)
+        axS.plot([ss[ii], x], [cc[ii], y],
+                 'x-', linewidth=1, markersize=12)
     for ii in range(lines_xyxy.shape[0]):
         row = lines_xyxy[ii, :]
-        axS.plot(row[::2], row[1::2], linewidth=1, color=cols[ii % len(cols)])
+        axS.plot(row[::2], row[1::2],
+                 linewidth=1, color=cols[ii % len(cols)])
         axS.text(row[0], row[1], str(ii), fontsize=16, color=cols[ii % len(cols)])
     for ii in range(boxes_xyxy.shape[0]):
         row = boxes_xyxy[ii, :]
-        axS.add_patch(Rectangle(row[:2], row[2] - row[0], row[3] - row[1],
+        axS.add_patch(Rectangle((float(row[0]), float(row[1])),
+                                float(row[2] - row[0]),
+                                float(row[3] - row[1]),
                                 linewidth=1, fill=True, facecolor='#34562610', edgecolor=cols[ii % len(cols)]))
         axS.text(row[0], row[1], str(ii), fontsize=16, color=cols[ii % len(cols)])
     for ii in range(ellipses_xyab.shape[0]):
         row = ellipses_xyab[ii, :]
         # convert semi-major to major axes
-        axS.add_patch(Ellipse(row[:2], row[2] * 2, row[3] * 2,
+        axS.add_patch(Ellipse((float(row[0]), float(row[1])),
+                              float(row[2] * 2),
+                              float(row[3] * 2),
                               linewidth=1, fill=True, facecolor='#34562610', edgecolor=cols[ii % len(cols)]))
         axS.text(row[0], row[1] - row[3], str(ii), fontsize=16, color=cols[ii % len(cols)])
 
@@ -895,6 +709,7 @@ def main():
 
     # overlapping points->boxes/ellipses
     _, axS = plt.subplots(figsize=(10, 8), dpi=100)
+    axS.set_title('Overlapping points to ellipses/rectangles\nBold elements denote points inside 2D elements')
     axS.set_xlim(xlim)
     axS.set_ylim(ylim)
     for ii in range(len(ss)):
@@ -903,20 +718,45 @@ def main():
                  mew=1 if (ptoe[ii] & ptob[ii]) else 3)
     for ii in range(boxes_xyxy.shape[0]):
         row = boxes_xyxy[ii, :]
-        axS.add_patch(Rectangle(row[:2], row[2] - row[0], row[3] - row[1],
+        axS.add_patch(Rectangle((float(row[0]), float(row[1])),
+                                float(row[2] - row[0]),
+                                float(row[3] - row[1]),
                                 linewidth=1 if btop[ii] else 4,
                                 fill=True, facecolor='#34562610', edgecolor=cols[ii % len(cols)]))
         axS.text(row[0], row[1], str(ii), fontsize=16, color=cols[ii % len(cols)])
     for ii in range(ellipses_xyab.shape[0]):
         row = ellipses_xyab[ii, :]
         # convert semi-major to major axes
-        axS.add_patch(Ellipse(row[:2], row[2] * 2, row[3] * 2,
+        axS.add_patch(Ellipse((float(row[0]), float(row[1])),
+                              float(row[2] * 2),
+                              float(row[3] * 2),
                               linewidth=1 if etop[ii] else 4,
                               fill=True, facecolor='#34562610', edgecolor=cols[ii % len(cols)]))
         axS.text(row[0], row[1] - row[3], str(ii), fontsize=16, color=cols[ii % len(cols)])
 
+    # overlapping lines->boxes
+    _, axS = plt.subplots(figsize=(10, 8), dpi=100)
+    axS.set_title('Overlapping lines to boxes\nBold elements denote lines inside/intersecting boxes')
+    axS.set_xlim(xlim)
+    axS.set_ylim(ylim)
+    for ii in range(lines_xyxy.shape[0]):
+        row = lines_xyxy[ii, :]
+        axS.plot(row[::2], row[1::2],
+                 linewidth=1 if ltob[ii] else 4,
+                 color=cols[ii % len(cols)])
+        axS.text(row[0], row[1], str(ii), fontsize=16, color=cols[ii % len(cols)])
+    for ii in range(boxes_xyxy.shape[0]):
+        row = boxes_xyxy[ii, :]
+        axS.add_patch(Rectangle((float(row[0]), float(row[1])),
+                                float(row[2] - row[0]),
+                                float(row[3] - row[1]),
+                                linewidth=1 if btol[ii] else 4,
+                                fill=True, facecolor='#34562610', edgecolor=cols[ii % len(cols)]))
+        axS.text(row[0], row[1], str(ii), fontsize=16, color=cols[ii % len(cols)])
+
     # overlapping lines->ellipses
     _, axS = plt.subplots(figsize=(10, 8), dpi=100)
+    axS.set_title('Overlapping ellipses to lines\nBold elements denote lines inside/intersecting 2D elements')
     axS.set_xlim(xlim)
     axS.set_ylim(ylim)
     for ii in range(lines_xyxy.shape[0]):
@@ -927,25 +767,32 @@ def main():
     for ii in range(ellipses_xyab.shape[0]):
         row = ellipses_xyab[ii, :]
         # convert semi-major to major axes
-        axS.add_patch(Ellipse(row[:2], row[2] * 2, row[3] * 2,
+        axS.add_patch(Ellipse((float(row[0]), float(row[1])),
+                              float(row[2] * 2),
+                              float(row[3] * 2),
                               linewidth=1 if etol[ii] else 4,
                               fill=True, facecolor='#34562610', edgecolor=cols[ii % len(cols)]))
         axS.text(row[0], row[1] - row[3], str(ii), fontsize=16, color=cols[ii % len(cols)])
 
     # overlapping boxes->ellipses
     _, axS = plt.subplots(figsize=(10, 8), dpi=100)
+    axS.set_title('Overlapping ellipses to rectangles\nBold elements denote an overlap')
     axS.set_xlim(xlim)
     axS.set_ylim(ylim)
     for ii in range(boxes_xyxy.shape[0]):
         row = boxes_xyxy[ii, :]
-        axS.add_patch(Rectangle(row[:2], row[2] - row[0], row[3] - row[1],
+        axS.add_patch(Rectangle((float(row[0]), float(row[1])),
+                                float(row[2] - row[0]),
+                                float(row[3] - row[1]),
                                 linewidth=1 if btoe[ii] else 4,
                                 fill=True, facecolor='#34562610', edgecolor=cols[ii % len(cols)]))
         axS.text(row[0], row[1], str(ii), fontsize=16, color=cols[ii % len(cols)])
     for ii in range(ellipses_xyab.shape[0]):
         row = ellipses_xyab[ii, :]
         # convert semi-major to major axes
-        axS.add_patch(Ellipse(row[:2], row[2] * 2, row[3] * 2,
+        axS.add_patch(Ellipse((float(row[0]), float(row[1])),
+                              float(row[2] * 2),
+                              float(row[3] * 2),
                               linewidth=1 if etob[ii] else 4,
                               fill=True, facecolor='#34562610', edgecolor=cols[ii % len(cols)]))
         axS.text(row[0], row[1] - row[3], str(ii), fontsize=16, color=cols[ii % len(cols)])

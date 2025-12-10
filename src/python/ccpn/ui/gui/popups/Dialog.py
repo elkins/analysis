@@ -4,7 +4,7 @@ Module Documentation here
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2025"
 __credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
                "Timothy J Ragan, Brian O Smith, Daniel Thompson",
                "Gary S Thompson & Geerten W Vuister")
@@ -16,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-10-16 14:44:19 +0100 (Wed, October 16, 2024) $"
-__version__ = "$Revision: 3.2.7 $"
+__dateModified__ = "$dateModified: 2025-04-11 14:46:40 +0100 (Fri, April 11, 2025) $"
+__version__ = "$Revision: 3.3.1 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -27,6 +27,7 @@ __date__ = "$Date: 2017-07-04 15:21:16 +0000 (Tue, July 04, 2017) $"
 # Start of code
 #=========================================================================================
 
+import traceback
 from PyQt5 import QtWidgets, QtCore, QtGui
 from contextlib import contextmanager, suppress
 from dataclasses import dataclass
@@ -41,19 +42,18 @@ from ccpn.ui.gui.lib.ChangeStateHandler import ChangeDict
 from ccpn.util.Logging import getLogger
 
 
-def _updateGl(self, spectrumList):
-    from ccpn.ui.gui.lib.OpenGL.CcpnOpenGL import GLNotifier
-
-    # # spawn a redraw-event of the contours
-    # for spec in spectrumList:
-    #     for specViews in spec.spectrumViews:
-    #         specViews.buildContours = True
-
-    GLSignals = GLNotifier(parent=self)
-    GLSignals.emitPaintEvent()
-
-
-HORIZONTAL = 'horizontal'
+ORIENTATIONS = {'h'                 : QtCore.Qt.Horizontal,  # 1
+                'horizontal'        : QtCore.Qt.Horizontal,
+                'H'                 : QtCore.Qt.Horizontal,
+                'Horizontal'        : QtCore.Qt.Horizontal,
+                QtCore.Qt.Horizontal: QtCore.Qt.Horizontal,
+                'v'                 : QtCore.Qt.Vertical,  # 2
+                'vertical'          : QtCore.Qt.Vertical,
+                'V'                 : QtCore.Qt.Vertical,
+                'Vertical'          : QtCore.Qt.Vertical,
+                QtCore.Qt.Vertical  : QtCore.Qt.Vertical,
+                }
+HORIZONTAL = 'horizontal'  # should use orientations dict
 VERTICAL = 'vertical'
 ORIENTATIONLIST = (HORIZONTAL, VERTICAL)
 DEFAULTSPACING = 3
@@ -64,18 +64,63 @@ _DONTSHOWPOPUP = 'dontShowPopup'
 _POPUPS = 'popups'
 
 _DEBUG = False
+_POSTINIT = '_postInit'
+_INITCALLED = '_init_called'
+_INITFINALISED = '_init_finalised'
 
 
-class _DialogHook(type(QtWidgets.QDialog), type(Base)):
-    """Metaclass implementing a post-initialise hook, ALWAYS called after __init__ has finished
+_MetaQDialog = type(QtWidgets.QDialog)
+_MetaBase = type(Base)
+
+
+class _DialogHook(_MetaQDialog, _MetaBase):
+    """
+    Metaclass that implements a post-initialisation hook for dialog classes.
+
+    This metaclass ensures that a `_postInit` method, if defined, is always called after the
+    `__init__` method of a class instance has finished execution.
+
+    **Post-Initialisation**:
+        The `_postInit` method of the instance is invoked after its creation, if it is defined and callable.
+        Subclasses should implement this method to define post-construction logic.
+
+    :ivar _DEBUG: Optional debug flag to enable verbose logging during instance creation.
+    :ivar _POSTINIT: Constant (or attribute) expected to define the name of the post-initialisation hook method.
     """
 
-    def __call__(self, *args, **kwargs):
-        if _DEBUG: getLogger().debug2(f'--> pre-create dialog {self}')
+    def __call__(metacls, *args, **kwargs):
+        """
+        Overrides the default behavior for instance creation.
+
+        This method creates a new instance of the class, and calls the `_postInit` method,
+        if it is defined, on the instance after creation.
+
+        :param args: Positional arguments for the class constructor.
+        :param kwargs: Keyword arguments for the class constructor.
+        :return: The newly created and fully initialised instance.
+        """
+        # Log pre-creation debug information, if enabled
+        if _DEBUG: getLogger().debug2(f'--> pre-create dialog {metacls}')
+        # Create the class instance
         instance = super().__call__(*args, **kwargs)
-        # call the post-__init__ hook
-        instance._postInit()
-        if _DEBUG: getLogger().debug2(f'--> post-create dialog {self}')
+        # Check if a post-initialisation method is defined and callable
+        if (_postInit := getattr(instance, _POSTINIT, None)) and callable(_postInit):
+            # Call the post-initialisation hook
+            try:
+                _postInit()
+                if _DEBUG: getLogger().debug2(f'--> _postInit {instance}')
+                # a flag to mark that the class has finished initialising, only if _postInit succeeded
+                setattr(instance, _INITFINALISED, True)
+            except RuntimeError as es:
+                # super().__init__ or similar was never called;
+                # instance has not been instantiated correctly and should not be returned :(
+                if _DEBUG:
+                    getLogger().warning(f'--> _postInit {es}', stacklevel=2)
+                    traceback.print_exc()
+                return
+        # Log post-creation debug information, if enabled
+        if _DEBUG: getLogger().debug2(f'--> post-create dialog {instance}')
+        # Return the newly created instance
         return instance
 
 
@@ -123,9 +168,14 @@ class CcpnDialogMainWidget(QtWidgets.QDialog, Base, metaclass=_DialogHook):
     # a dict to store any required widgets' states between popups
     _storedState = {}
     storeStateOnReject = False
+    _init_called = False
+    _init_finalised = False
 
-    def __init__(self, parent=None, windowTitle='', setLayout=False,
-                 orientation=HORIZONTAL, size=None, minimumSize=None, **kwds):
+    def __init__(self, parent=None, windowTitle:str='', setLayout:bool=False,
+                 orientation: str | int=HORIZONTAL,
+                 size: QtCore.QSize | tuple[int, int] | list[int, int] | None=None,
+                 minimumSize: QtCore.QSize | tuple[int, int] | list[int, int] | None=None,
+                 **kwds):
         if _DEBUG: getLogger().debug2(f'--> pre __init__ {self}')
 
         # error-flag to disable exec_ if there is an error during initialising
@@ -144,15 +194,19 @@ class CcpnDialogMainWidget(QtWidgets.QDialog, Base, metaclass=_DialogHook):
         self._orientation = orientation
         # get the initial size as a QSize
         try:
-            self._size = QtCore.QSize(*size) if size else None
+            self._size: QtCore.QSize | None = QtCore.QSize(*size) \
+                if isinstance(size, list | tuple) else \
+                size if isinstance(size, QtCore.QSize) else None
         except Exception:
             raise TypeError(f'bad size {size}') from None
 
         # get the initial size as a QSize
         try:
-            self._minimumSize = QtCore.QSize(*minimumSize) if minimumSize else None
+            self._minimumSize: QtCore.QSize | None = QtCore.QSize(*minimumSize) \
+                if isinstance(minimumSize, list | tuple) else \
+                minimumSize if isinstance(minimumSize, QtCore.QSize) else None
         except Exception:
-            raise TypeError(f'bad minimumSize {size}') from None
+            raise TypeError(f'bad minimumSize {minimumSize}') from None
 
         # set up the mainWidget area
         self.mainWidget = Frame(self, setLayout=True, showBorder=False, grid=(0, 0))
@@ -209,6 +263,7 @@ class CcpnDialogMainWidget(QtWidgets.QDialog, Base, metaclass=_DialogHook):
         ## otherwise will raise threading issues
         # self.setAttribute(QtCore.Qt.WA_DeleteOnClose, True)
         if _DEBUG: getLogger().debug2(f'--> post __init__ {self}')
+        setattr(self, _INITCALLED, True)
 
     def _postInit(self):
         """post-initialise functions
@@ -237,15 +292,11 @@ class CcpnDialogMainWidget(QtWidgets.QDialog, Base, metaclass=_DialogHook):
     def _setDialogSize(self):
         """Set the fixed/free dialog size from size or sizeHint
         """
-        # get the initial size as a QSize
-        try:
-            size = self._size if isinstance(self._size, QtCore.QSize) else \
-                QtCore.QSize(*self._size) if self._size else None
-        except Exception:
-            raise TypeError(f'bad size {self._size}') from None
-
         # get the size of the title
         fontMetric = QtGui.QFontMetrics(self.font())
+
+        # get the initial size as a QSize
+        size = self._size
         # get an estimate for an average character width - 100 is arbitrary
         _w = max(self.sizeHint().width(),
                  (100 + fontMetric.boundingRect(self.windowTitle()).width()) if self.FORCEWIDTHTOTITLE else 0)
@@ -253,12 +304,7 @@ class CcpnDialogMainWidget(QtWidgets.QDialog, Base, metaclass=_DialogHook):
                              size.height() if size else self.sizeHint().height())
 
         # get the initial minimumSize as a QSize
-        try:
-            minimumSize = self._minimumSize if isinstance(self._minimumSize, QtCore.QSize) else \
-                QtCore.QSize(*self._minimumSize) if self._minimumSize else None
-        except Exception:
-            raise TypeError(f'bad minimumSize {self._minimumSize}') from None
-
+        minimumSize = self._minimumSize
         _minimumSize = QtCore.QSize(minimumSize.width() if minimumSize else _w,
                                     minimumSize.height() if minimumSize else self.sizeHint().height())
 
@@ -715,29 +761,24 @@ class CcpnDialogMainWidget(QtWidgets.QDialog, Base, metaclass=_DialogHook):
 
         return True
 
-    def accept(self) -> None:
-        result = super(CcpnDialogMainWidget, self).accept()
+    def done(self, state) -> None:
+        from ccpn.ui.gui.guiSettings import consoleStyle
+        from ccpn.ui.gui.lib.WidgetClosingLib import CloseHandler
 
-        # store the state of any required widgets
-        self.storeWidgetState()
-
-        getLogger().debug2(f'Clean up dialog {self} on accept')
-        self._cleanupDialog()
-        self._storeDontShow()
-
-        return result
-
-    def reject(self) -> None:
-        result = super(CcpnDialogMainWidget, self).reject()
-
-        if self.storeStateOnReject:
+        # only called on Accepted or Rejected
+        if state == self.Accepted:
+            # store the state of any required widgets
+            self.storeWidgetState()
+            self._storeDontShow()
+        elif self.storeStateOnReject:
             # store the state of any required widgets
             self.storeWidgetState()
 
-        getLogger().debug2(f'Clean up dialog {self} on reject')
-        self._cleanupDialog()
-
-        return result
+        getLogger().debug(f'{consoleStyle.fg.yellow}done {self}   '
+                          f'Accepted={state == self.Accepted}{consoleStyle.reset}')
+        result = super(CcpnDialogMainWidget, self).done(state)
+        with CloseHandler(self):
+            return result
 
     def _storeDontShow(self):
         if self._dontShowEnabled:
@@ -751,11 +792,6 @@ class CcpnDialogMainWidget(QtWidgets.QDialog, Base, metaclass=_DialogHook):
                     # should really get from a property rather than a widget
                     #  - if widget does not show then the initial state may not be set
                     popup[_DONTSHOWPOPUP] = self._dontShowCheckBox.isChecked()
-
-    def _cleanupDialog(self):
-        """Clean-up any extra widgets/data before closing
-        """
-        getLogger().debug2(f'Cleaning-up dialog {self} - subclass as required')
 
     def _refreshGLItems(self):
         """emit a signal to rebuild any required GL items
@@ -940,8 +976,8 @@ def _verifyPopupApply(self, attributeName, value, last, *postArgs, **postKwds):
             # delete from dict - empty dict implies no changes
             del self._changes[attributeName]
 
-        getLogger().debug2(
-                f">>>attrib {attributeName} {self._changes[attributeName] if attributeName in self._changes else 'None'}")
+        getLogger().debug2(f">>> attrib {attributeName} "
+                           f"{self._changes[attributeName] if attributeName in self._changes else 'None'}")
 
         if getattr(self, 'LIVEDIALOG', None):
             self._changeSettings()
@@ -971,7 +1007,6 @@ def _verifyPopupApply(self, attributeName, value, last, *postArgs, **postKwds):
 
 from functools import partial
 import textwrap
-import html
 from ccpn.ui.gui.widgets.Font import getFontHeight
 from ccpn.ui.gui.lib.DynamicSizeAdjust import dynamicSizeAdjust
 
@@ -1049,7 +1084,6 @@ class DetailedTextDialog(CcpnDialogMainWidget):
         self._initialised = False
         self._lastMsgWasError = None
         self._showBoxes = False
-        self._lock = QtCore.QMutex()
 
         # Derive application, project, and current from mainWindow
         self.mainWindow = mainWindow
@@ -1178,7 +1212,7 @@ class DetailedTextDialog(CcpnDialogMainWidget):
         except Exception:
             return None
 
-    def exec_(self) -> int:
+    def exec_(self):
         if super().exec_() is not None:
             # return the id of the pressed button, should match Yes, No, etc.
             return self.dialogButtons._clickedButtonId
@@ -1277,7 +1311,7 @@ def showRetryIgnoreCancel(title, basicText, message, detailedText=None, parent=N
 def main():
     from ccpn.ui.gui.widgets.Application import newTestApplication
 
-    app = newTestApplication()
+    app = newTestApplication()  # noqa: handle must be kept to prevent immediate garbage-collection
     for popup in (showInfo, showOkCancel, showYesNo, showYesNoWarning,
                   showRetryIgnoreCancel, showRetryIgnoreCancel, showRetryIgnoreCancel):
         result = popup('Details',

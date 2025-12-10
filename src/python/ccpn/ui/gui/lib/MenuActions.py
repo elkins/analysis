@@ -4,7 +4,7 @@ Module Documentation here
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2025"
 __credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
                "Timothy J Ragan, Brian O Smith, Daniel Thompson",
                "Gary S Thompson & Geerten W Vuister")
@@ -15,9 +15,9 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-09-30 16:31:48 +0100 (Mon, September 30, 2024) $"
-__version__ = "$Revision: 3.2.9.alpha $"
+__modifiedBy__ = "$modifiedBy: Daniel Thompson $"
+__dateModified__ = "$dateModified: 2025-04-14 15:32:09 +0100 (Mon, April 14, 2025) $"
+__version__ = "$Revision: 3.3.1 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -49,7 +49,7 @@ from ccpn.core.ViolationTable import ViolationTable
 from ccpn.core.Collection import Collection
 from ccpn.ui.gui.popups.SpectrumGroupEditor import SpectrumGroupEditor
 from ccpn.ui.gui.widgets.Menu import Menu
-from ccpn.ui.gui.widgets.MessageDialog import showInfo, showWarning, showYesNoWarning
+from ccpn.ui.gui.widgets.MessageDialog import showWarning, showYesNoWarning, showNotImplementedMessage
 from ccpn.ui.gui.widgets.Font import setWidgetFont
 from ccpn.ui.gui.widgets.Icon import Icon
 from ccpn.ui.gui.popups.ChainPopup import ChainPopup
@@ -485,6 +485,8 @@ class OpenItemABC:
             contextMenu.addAction(self.contextMenuText, self.openAction)
 
         spectra = [obj for obj in objs if isinstance(obj, Spectrum)]
+        specStr = 'Spectrum' if len(spectra) == 1 else 'Spectra'
+
         if spectra:
             contextMenu.addAction('Make SpectrumGroup From Selected',
                                   partial(_raiseSpectrumGroupEditorPopup(useNone=True, editMode=False,
@@ -494,6 +496,7 @@ class OpenItemABC:
             contextMenu.addAction('Split Planes to SpectrumGroup', partial(self._splitPlanesToSpectrumGroup, objs))
         contextMenu.addAction('Copy Pid to Clipboard', partial(self._copyPidsToClipboard, objs))
         self._addCollectionMenu(contextMenu, objs)
+        contextMenu.addAction(f'Reload {specStr}', partial(self._reloadSpectra, spectra))
         contextMenu.addAction('Delete', partial(self._deleteItemObject, thisObj, objs))
         canBeCloned = all(hasattr(obj, 'clone') for obj in objs)
         if canBeCloned:
@@ -644,6 +647,12 @@ class OpenItemABC:
                             'This functionality has been implemented for Time Domain spectra only.')
                 return
             splitPseudo3DSpectrumIntoPlanes(obj)
+
+    @staticmethod
+    def _reloadSpectra(objs):
+        for obj in set(objs):
+            if isinstance(obj, Spectrum):
+                obj.reload()
 
     @staticmethod
     def _createNewCollection(pulldown, popup, items=None):
@@ -872,6 +881,8 @@ class _openItemChemicalShiftListTable(OpenItemABC):
         contextMenu.addSeparator()
         contextMenu.addAction('Create Synthetic PeakList', partial(self._openCreateSyntheticPeakListFromCSLPopup, objs))
         contextMenu.addSeparator()
+        contextMenu.addAction('Delete Orphaned ChemicalShifts', partial(self._deleteOrphanedChemicalShifts, objs))
+        contextMenu.addSeparator()
         contextMenu.addAction('Copy Pid to Clipboard', partial(self._copyPidsToClipboard, objs))
         self._addCollectionMenu(contextMenu, objs)
         contextMenu.addAction('Duplicate', partial(self._duplicateAction, objs))
@@ -900,6 +911,25 @@ class _openItemChemicalShiftListTable(OpenItemABC):
             popup = ChemicalShiftList2SpectrumPopup(chemicalShiftList=objs[0])
             popup.show()
             popup.raise_()
+
+    @staticmethod
+    def _deleteOrphanedChemicalShifts(objs):
+        csl = objs[0]
+        orphanList = [cs for cs in list(csl.chemicalShifts) if cs.orphan]
+
+        if not orphanList:
+            showWarning('Delete Orphaned Chemical Shifts',
+                        'This Chemical Shift List contains no orphaned '
+                        'Chemical Shifts')
+            return
+
+        ok = showYesNoWarning('Delete Orphaned Chemical Shifts', f'Do you wish to delete {len(orphanList)} '
+                              f'orphaned Chemical Shift{"s" if len(orphanList) > 1 else ""}?')
+
+        if ok:
+            with undoBlockWithoutSideBar():
+                for cs in orphanList:
+                    csl.deleteChemicalShift(uniqueId=cs.uniqueId)
 
     @staticmethod
     def _collectSpectra(objs):
@@ -990,6 +1020,28 @@ class _openItemNmrChainTable(_openItemNmrClass):
     openItemMethod = 'showNmrResidueTable'
     objectArgumentName = 'nmrChain'
 
+    def _openContextMenu(self, parentWidget, position, thisObj, objs, deferExec=False):
+        """Open a context menu.
+        """
+        contextMenu = Menu('', parentWidget, isFloatWidget=True)
+        if self.openAction:
+            contextMenu.addAction(self.contextMenuText, self.openAction)
+        contextMenu.addSeparator()
+        contextMenu.addAction('Renumber NmrChain', partial(self._renumberChain, objs))
+        contextMenu.addSeparator()
+        contextMenu.addAction('Copy Pid to Clipboard', partial(self._copyPidsToClipboard, objs))
+        self._addCollectionMenu(contextMenu, objs)
+        contextMenu.addAction('Delete', partial(self._deleteItemObject, thisObj, objs))
+        contextMenu.addSeparator()
+        contextMenu.addAction('Edit Properties', partial(parentWidget._raiseObjectProperties, self.node.widget))
+        contextMenu.move(position)
+        contextMenu.exec()
+
+    def _renumberChain(self, objs):
+        from ccpn.ui.gui.popups.ChainRenumberPopup import ChainRenumberPopup
+        popup = ChainRenumberPopup(mainWindow=self.mainWindow, chain=objs[0])
+        popup.show()
+        popup.raise_()
 
 class _openItemNmrResidueItem(_openItemNmrClass):
     objectArgumentName = 'nmrResidue'
@@ -1067,10 +1119,19 @@ class _openItemChainTable(OpenItemABC):
         """Open a context menu.
         """
         contextMenu = super()._openContextMenu(parentWidget, position, thisObj, objs, deferExec=True)
+        contextMenu.addSeparator()
+        contextMenu.addAction('Renumber Chain', partial(self._renumberChain, objs))
+        contextMenu.addSeparator()
         newFromAction = contextMenu.addAction('New Chain from selected...', partial(self._newFromSelected, objs))
         contextMenu.moveActionBelowName(newFromAction, 'Clone')
         contextMenu.move(position)
         contextMenu.exec()
+
+    def _renumberChain(self, objs):
+        from ccpn.ui.gui.popups.ChainRenumberPopup import ChainRenumberPopup
+        popup = ChainRenumberPopup(mainWindow=self.mainWindow, chain=objs[0])
+        popup.show()
+        popup.raise_()
 
     def _cloneObject(self, objs):
         objs = [obj for obj in objs if isinstance(obj, Chain)]
@@ -1164,6 +1225,7 @@ class _openItemSampleDisplay(OpenItemABC):
     @staticmethod
     def _openSampleSpectraOnDisplay(sample, spectrumDisplay, autoRange=False):
         # with undoBlockWithoutSideBar():
+        found = False
         with undoStackBlocking() as _:  # Do not add to undo/redo stack
             with notificationEchoBlocking():
                 if len(sample.spectra) > 0 and len(spectrumDisplay.strips) > 0:
@@ -1172,21 +1234,27 @@ class _openItemSampleDisplay(OpenItemABC):
                         if sampleComponent.substance is not None:
                             for spectrum in sampleComponent.substance.referenceSpectra:
                                 spectrumDisplay.displaySpectrum(spectrum)
+                                found = True
                     for spectrum in sample.spectra:
                         spectrumDisplay.displaySpectrum(spectrum)
-                    if autoRange:
+                        found = True
+                    if found and autoRange:
                         spectrumDisplay.autoRange()
+        if not found:
+            showWarning('Open Linked Spectra', f'Sample {sample.id} has no linked spectra.')
 
     def _openSampleSpectra(self, sample, position=None, relativeTo=None):
         """Add spectra linked to sample and sampleComponent. Particularly used for screening
         """
-        if len(sample.spectra) > 0:
-            mainWindow = self.mainWindow
+        if not sample.spectra:
+            showWarning('Open Linked Spectra', f'Sample {sample.id} has no linked spectra.')
+            return
 
-            spectrumDisplay = mainWindow.newSpectrumDisplay(sample.spectra[0])
-            mainWindow.moduleArea.addModule(spectrumDisplay, position=position, relativeTo=relativeTo)
-            self._openSampleSpectraOnDisplay(sample, spectrumDisplay, autoRange=True)
-            mainWindow.application.current.strip = spectrumDisplay.strips[0]
+        mainWindow = self.mainWindow
+        spectrumDisplay = mainWindow.newSpectrumDisplay(sample.spectra[0])
+        mainWindow.moduleArea.addModule(spectrumDisplay, position=position, relativeTo=relativeTo)
+        self._openSampleSpectraOnDisplay(sample, spectrumDisplay, autoRange=True)
+        mainWindow.application.current.strip = spectrumDisplay.strips[0]
 
     openItemDirectMethod = _openSampleSpectra
 
@@ -1286,6 +1354,8 @@ class _openItemSpectrumInGroupDisplay(_openItemSpectrumDisplay):
             self._addCollectionMenu(contextMenu, objs)
             contextMenu.addSeparator()
 
+            specStr = 'Spectrum' if len(spectra) == 1 else 'Spectra'
+            contextMenu.addAction(f'Reload {specStr}', partial(self._reloadSpectra, spectra))
         contextMenu.addAction('Delete', partial(self._deleteItemObject, thisObj, objs))
         canBeCloned = all(hasattr(obj, 'clone') for obj in objs)
         if canBeCloned:
@@ -1445,5 +1515,4 @@ def _openItemObjects(mainWindow, objs, **kwds):
                             spectrumDisplay = returnObj
 
                 else:
-                    showInfo('Not implemented yet!',
-                             'This function has not been implemented in the current version')
+                    showNotImplementedMessage()

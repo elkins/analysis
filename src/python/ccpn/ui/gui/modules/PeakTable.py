@@ -4,7 +4,7 @@
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2025"
 __credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
                "Timothy J Ragan, Brian O Smith, Daniel Thompson",
                "Gary S Thompson & Geerten W Vuister")
@@ -16,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-09-20 19:28:10 +0100 (Fri, September 20, 2024) $"
-__version__ = "$Revision: 3.2.7 $"
+__dateModified__ = "$dateModified: 2025-03-06 11:26:40 +0000 (Thu, March 06, 2025) $"
+__version__ = "$Revision: 3.3.1 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -39,11 +39,11 @@ from ccpn.ui.gui.widgets.Label import Label
 from ccpn.ui.gui.widgets.PulldownList import PulldownList
 from ccpn.ui.gui.widgets.PulldownListsForObjects import PeakListPulldown
 from ccpn.ui.gui.widgets.Column import ColumnClass
-from ccpn.ui.gui.lib.GuiStripContextMenus import _selectedPeaksMenuItem, _addMenuItems, \
-    _getNdPeakMenuItems, _setEnabledAllItems
-from ccpn.ui.gui.widgets.SettingsWidgets import ModuleSettingsWidget
-from ccpn.ui.gui.lib._CoreTableFrame import _CoreTableWidgetABC, _CoreTableFrameABC
 from ccpn.ui.gui.widgets.table._TableAdditions import TableMenuABC
+from ccpn.ui.gui.widgets.SettingsWidgets import ModuleSettingsWidget
+from ccpn.ui.gui.lib.GuiStripContextMenus import (_selectedPeaksMenuItem, _addMenuItems,
+                                                  _getNdPeakMenuItems, _setEnabledAllItems)
+from ccpn.ui.gui.lib._CoreTableFrame import _CoreTableWidgetABC, _CoreTableFrameABC
 from ccpn.util.Common import makeIterableList
 from ccpn.util.Logging import getLogger
 
@@ -100,7 +100,6 @@ class PeakTableModule(CcpnTableModule):
                                             'checked' : False,
                                             '_init'   : None}),
                      ))
-
             self._settings = ModuleSettingsWidget(parent=settingsWidget, mainWindow=self.mainWindow,
                                                   settingsDict=settingsDict,
                                                   grid=(0, 0))
@@ -151,17 +150,6 @@ class PeakTableModule(CcpnTableModule):
         pids = self.project.getPidsByObjects(peaks)
         self._mainFrame.guiTable.selectRowsByValues(pids, 'Pid')
 
-    def _closeModule(self):
-        """CCPN-INTERNAL: used to close the module
-        """
-        if self.activePulldownClass:
-            if self._settings:
-                self._settings._cleanupWidget()
-        if self.tableFrame:
-            self.tableFrame._cleanupWidget()
-
-        super()._closeModule()
-
     def _getLastSeenWidgetsState(self):
         """ Internal. Used to restore last closed module in the same program instance. """
         widgetsState = self.widgetsState
@@ -207,21 +195,21 @@ class _PeakTableOptions(TableMenuABC):
         parent._navigateToPeakMenuMain.setEnabled(False)
         _setEnabledAllItems(submenu, bool(parent.current.peaks))
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Properties
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     pass
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Class methods
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     pass
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Implementation
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     pass
 
@@ -238,6 +226,8 @@ class _NewPeakTableWidget(_CoreTableWidgetABC):
 
     defaultHidden = ['Pid', 'Spectrum', 'PeakList', 'Id', 'HeightError', 'VolumeError']
     _internalColumns = ['isDeleted', '_object']  # columns that are always hidden
+    _internalDimensions = ['Assign F{dim}', 'Pos F{dim}', 'LW F{dim} (Hz)']
+    # _peakInternalColumns = ['isDeleted', '_object']  # for the property below (my not be required yet)
 
     # define self._columns here
     columnHeaders = {'#'          : '#',
@@ -336,9 +326,9 @@ class _NewPeakTableWidget(_CoreTableWidgetABC):
 
     positionsUnit = UNITS[0]  # default
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Properties
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     @property
     def _sourceObjects(self):
@@ -364,9 +354,33 @@ class _NewPeakTableWidget(_CoreTableWidgetABC):
         else:
             self.current.clearPeaks()
 
-    #=========================================================================================
+    @property
+    def _dimensions(self) -> tuple[int, int]:
+        if self._table and self._table.spectrum:
+            return self._table.spectrum.dimensionCount, self._table.spectrum.MAXDIM
+        return (0, 0)
+
+    # not sure if this is required now - uses _peakInternalColumns
+    # @property
+    # def _internalColumns(self) -> list[str]:
+    #     dim, maxDim = self._dimensions
+    #     cols = list(OrderedSet(self._peakInternalColumns) |
+    #                 OrderedSet(colGroup.format(dim=dd)
+    #                            for colGroup in self._internalDimensions
+    #                            for dd in range(dim + 1, maxDim + 1)))
+    #     return cols
+    #
+    # @_internalColumns.setter
+    # def _internalColumns(self, value: list[str]):
+    #     dim, maxDim = self._dimensions
+    #     self._peakInternalColumns = list(OrderedSet(value) |
+    #                                      OrderedSet(colGroup.format(dim=dd)
+    #                                                 for colGroup in self._internalDimensions
+    #                                                 for dd in range(dim + 1, maxDim + 1)))
+
+    #-----------------------------------------------------------------------------------------
     # Widget callbacks
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     def actionCallback(self, selection, lastItem):
         """If current strip contains the double-clicked peak will navigateToPositionInStrip
@@ -398,9 +412,9 @@ class _NewPeakTableWidget(_CoreTableWidgetABC):
         else:
             logger.warning('Impossible to navigate to peak position. Set a current strip first')
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Create table and row methods
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     def getCellToRows(self, cellItem, attribute=None):
         """Get the list of objects which cellItem maps to for this table
@@ -423,9 +437,9 @@ class _NewPeakTableWidget(_CoreTableWidgetABC):
 
         self._update()
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Table context menu
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     # currently in _PeakTableOptions
 
@@ -435,9 +449,9 @@ class _NewPeakTableWidget(_CoreTableWidgetABC):
 
         super().addTableMenuOptions(menu)
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Table functions
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     def _getTableColumns(self, peakList=None):
         """Add default columns plus the ones according to peakList.spectrum dimension
@@ -528,13 +542,13 @@ class _NewPeakTableWidget(_CoreTableWidgetABC):
 
         return colDefs
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Updates
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Widgets callbacks
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     def _pulldownUnitsCallback(self, unit):
         # update the table with new units
@@ -544,24 +558,24 @@ class _NewPeakTableWidget(_CoreTableWidgetABC):
     def _pulldownPLcallback(self, data):
         self._updateAllModule()
 
-    def _copyPeaks(self):
-        from ccpn.ui.gui.popups.CopyPeaksPopup import CopyPeaks
-
-        popup = CopyPeaks(parent=self.mainWindow, mainWindow=self.mainWindow)
-        self._selectedPeakList = self.project.getByPid(self.pLwidget.getText())
-        if self._selectedPeakList is not None:
-            spectrum = self._selectedPeakList.spectrum
-            popup._selectSpectrum(spectrum)
-            popup._selectPeaks(self.current.peaks)
-        popup.exec_()
+    # def _copyPeaks(self):
+    #     from ccpn.ui.gui.popups.CopyPeaksPopup import CopyPeaks
+    #
+    #     popup = CopyPeaks(parent=self.mainWindow, mainWindow=self.mainWindow)
+    #     self._selectedPeakList = self.project.getByPid(self.pLwidget.getText())
+    #     if self._selectedPeakList is not None:
+    #         spectrum = self._selectedPeakList.spectrum
+    #         popup._selectSpectrum(spectrum)
+    #         popup._selectPeaks(self.current.peaks)
+    #     popup.exec_()
 
     def _setPositionUnit(self, value):
         if value in UNITS:
             self.positionsUnit = value
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # object properties
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     @staticmethod
     def _setFigureOfMerit(obj, value):
@@ -608,9 +622,9 @@ class _PeakTableFrame(_CoreTableFrameABC):
         self.addWidgetToTop(self.posUnitPulldownLabel, 2)
         self.addWidgetToTop(self.posUnitPulldown, 3)
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Properties
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     @property
     def _tableCurrent(self):
@@ -622,9 +636,9 @@ class _PeakTableFrame(_CoreTableFrameABC):
     def _tableCurrent(self, value):
         self.current.peakList = value
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Widgets callbacks
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     def _pulldownUnitsCallback(self, unit):
         """Pass units change callback to the table

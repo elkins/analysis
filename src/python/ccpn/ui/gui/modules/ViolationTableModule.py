@@ -4,7 +4,7 @@ Module Documentation here
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2025"
 __credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
                "Timothy J Ragan, Brian O Smith, Daniel Thompson",
                "Gary S Thompson & Geerten W Vuister")
@@ -16,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-06-21 19:48:44 +0100 (Fri, June 21, 2024) $"
-__version__ = "$Revision: 3.2.4 $"
+__dateModified__ = "$dateModified: 2025-01-06 17:44:15 +0000 (Mon, January 06, 2025) $"
+__version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -34,7 +34,6 @@ from collections import OrderedDict
 from ccpn.core.ViolationTable import ViolationTable as KlassTable
 from ccpn.ui.gui.modules.CcpnModule import CcpnTableModule
 from ccpn.ui.gui.widgets.Spacer import Spacer
-# from ccpn.ui.gui.widgets.HLine import HLine
 from ccpn.ui.gui.widgets.Label import Label
 from ccpn.ui.gui.widgets.LineEdit import LineEdit
 from ccpn.ui.gui.widgets.PulldownListsForObjects import ViolationTablePulldown as KlassPulldown, RestraintTablePulldown
@@ -44,11 +43,10 @@ from ccpn.ui.gui.widgets.Splitter import Splitter
 from ccpn.ui.gui.widgets.MoreLessFrame import MoreLessFrame
 from ccpn.ui.gui.widgets.SettingsWidgets import ModuleSettingsWidget
 from ccpn.ui.gui.widgets.table.Table import Table
-# from ccpn.ui.gui.guiSettings import getColours, DIVIDER
 from ccpn.core.lib.ContextManagers import undoBlockWithoutSideBar
 from ccpn.core.lib.Notifiers import Notifier
-from ccpn.framework.Application import getApplication
 from ccpn.util.Logging import getLogger
+from ccpn.util.Common import camelCaseToString, NOTHING
 
 
 ALL = '<all>'
@@ -63,7 +61,7 @@ _HIDDENCOLUMNS = 'hiddenColumns'
 #=========================================================================================
 
 class ViolationTableModule(CcpnTableModule):
-    """This class implements the module by wrapping a ViolationTable instance
+    """This class implements the module by wrapping a ViolationTable instance.
     """
     className = 'ViolationTableModule'
     includeSettingsWidget = True
@@ -73,10 +71,12 @@ class ViolationTableModule(CcpnTableModule):
     activePulldownClass = KlassTable
     _includeInLastSeen = False
 
-    def __init__(self, mainWindow=None, name=f'{KlassTable.className}',
+    def __init__(self, mainWindow=None, name=NOTHING,
                  table=None, selectFirstItem=False):
-        """Initialise the Module widgets
+        """Initialise the Module widgets.
         """
+        if name is NOTHING:
+            name = camelCaseToString(KlassTable.className)
         super().__init__(mainWindow=mainWindow, name=name)
 
         # Derive application, project, and current from mainWindow
@@ -99,18 +99,19 @@ class ViolationTableModule(CcpnTableModule):
             self._modulePulldown.selectFirstItem()
 
     def _setWidgets(self):
-        """Set up the widgets for the module
+        """Set up the widgets for the module.
         """
         self._settings = None
         if self.activePulldownClass:
             # add to settings widget - see sequenceGraph for more detailed example
-            settingsDict = OrderedDict(((LINKTOPULLDOWNCLASS, {'label'   : f'Link to current {self.activePulldownClass.className}',
-                                                               'tipText' : f'Set/update current {self.activePulldownClass.className} when selecting from pulldown',
-                                                               'callBack': None,
-                                                               'enabled' : True,
-                                                               'checked' : False,
-                                                               '_init'   : None}),
-                                        ))
+            settingsDict = OrderedDict(
+                    ((LINKTOPULLDOWNCLASS, {'label'   : f'Link to current {self.activePulldownClass.className}',
+                                            'tipText' : f'Set/update current {self.activePulldownClass.className} when selecting from pulldown',
+                                            'callBack': None,
+                                            'enabled' : True,
+                                            'checked' : False,
+                                            '_init'   : None}),
+                     ))
             self._settings = ModuleSettingsWidget(parent=self.settingsWidget, mainWindow=self.mainWindow,
                                                   settingsDict=settingsDict,
                                                   grid=(0, 0))
@@ -208,49 +209,22 @@ class ViolationTableModule(CcpnTableModule):
         # assume all are initially closed
 
     def _setCallbacks(self):
-        """Set the active callbacks for the module
+        """Set the active callbacks for the module.
         """
+        self._activeCheckbox = None
         if self.activePulldownClass:
-            self._setCurrentPulldown = self.setNotifier(self.current,
-                                                        [Notifier.CURRENT],
-                                                        targetName=self.activePulldownClass._pluralLinkName,
-                                                        callback=self._selectCurrentPulldownClass)
+            self.setNotifier(self.current,
+                             [Notifier.CURRENT],
+                             targetName=self.activePulldownClass._pluralLinkName,
+                             callback=self._selectCurrentPulldownClass)
 
             # set the active callback from the pulldown
             self._activeCheckbox = self._settings.checkBoxes[LINKTOPULLDOWNCLASS]['widget']
-
-        self._violationNotifier = self.setNotifier(self.project, [Notifier.CHANGE, Notifier.DELETE],
-                                                   KlassTable.__name__, self._updateViolationTable, onceOnly=True)
-
-    def _maximise(self):
-        """
-        Maximise the attached table
-        """
-        if not self._table:
-            self.clear()
-
-    def _closeModule(self):
-        """
-        CCPN-INTERNAL: used to close the module
-        """
-        if self._modulePulldown:
-            self._modulePulldown.unRegister()
-        if self._tableWidget:
-            self._tableWidget._close()
-        if self.rtWidget:
-            self.rtWidget.unRegister()
-        if self._metadata:
-            self._metadata.close()
-        if self.activePulldownClass and self._setCurrentPulldown:
-            self._setCurrentPulldown.unRegister()
-        if self._violationNotifier:
-            self._violationNotifier.unRegister()
-
-        super()._closeModule()
+        self.setNotifier(self.project, [Notifier.CHANGE, Notifier.DELETE],
+                         KlassTable.__name__, self._updateViolationTable, onceOnly=True)
 
     def _selectTable(self, table=None):
-        """
-        Manually select a ViolationTable from the pullDown
+        """Manually select a ViolationTable from the pull-down.
         """
         if not isinstance(table, KlassTable):
             getLogger().warning(f'select: Object {table} is not of type {KlassTable.className}')
@@ -262,7 +236,7 @@ class ViolationTableModule(CcpnTableModule):
                     self._modulePulldown.select(self._table.pid)
 
     def _selectionPulldownCallback(self, item):
-        """Notifier Callback for selecting violationTable from the pull down menu
+        """Notifier Callback for selecting violationTable from the pull-down menu.
         """
         if item is not None:
             self._table = self.project.getByPid(item)
@@ -277,7 +251,7 @@ class ViolationTableModule(CcpnTableModule):
                     self._tableCurrent = None
 
     def _rtPulldownCallback(self, item):
-        """Notifier Callback for selecting restraintTable from the pull down menu
+        """Notifier Callback for selecting restraintTable from the pull-down menu.
         """
         try:
             if not self._table:
@@ -292,7 +266,7 @@ class ViolationTableModule(CcpnTableModule):
             showWarning('Violation Table', str(es))
 
     def _update(self):
-        """Update the table
+        """Update the table.
         """
         if not self._table:
             getLogger().debug(f'no table to update {self}')
@@ -320,7 +294,7 @@ class ViolationTableModule(CcpnTableModule):
         self._tableWidget.postUpdateDf()  # populateTable is skipped
 
     def _updateEmptyTable(self):
-        """Update with an empty table
+        """Update with an empty table.
         """
         self._tableWidget.updateDf(pd.DataFrame({}))
         self.rtWidget.setIndex(0, blockSignals=True)
@@ -332,7 +306,7 @@ class ViolationTableModule(CcpnTableModule):
         self._tableWidget.postUpdateDf()  # populateEmptyTable is skipped
 
     def _applyComment(self):
-        """Set the values in the violationTable
+        """Set the values in the violationTable.
         """
         if self._table:
             comment = self.lineEditComment.text()
@@ -345,7 +319,7 @@ class ViolationTableModule(CcpnTableModule):
                 showWarning('Data Table', str(es))
 
     def _selectCurrentPulldownClass(self, data):
-        """Respond to change in current activePulldownClass
+        """Respond to change in current activePulldownClass.
         """
         if self.activePulldownClass and self._activeCheckbox and self._activeCheckbox.isChecked():
             _table = self._table = self._tableCurrent
@@ -358,7 +332,7 @@ class ViolationTableModule(CcpnTableModule):
                 self._updateEmptyTable()
 
     def _updateViolationTable(self, data):
-        """Respond to change in violationTable
+        """Respond to change in violationTable.
         """
         if data:
             trigger = data.get(Notifier.TRIGGER)
@@ -372,13 +346,13 @@ class ViolationTableModule(CcpnTableModule):
                 if obj.pid == self._modulePulldown.getText():
                     self._update()
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Properties
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     @property
     def _tableCurrent(self):
-        """Return the current object, e.g., current.multiplet/current.nmrResidue
+        """Return the current object, e.g., current.multiplet/current.nmrResidue.
         """
         return self.current.violationTable
 
@@ -386,12 +360,19 @@ class ViolationTableModule(CcpnTableModule):
     def _tableCurrent(self, value):
         self.current.violationTable = value
 
-    #=========================================================================================
+    @property
+    def tableFrame(self):
+        # a bit of a hack as subclasses from CcpnTableModule
+        getLogger().debug(f'{self.__class__.__name__}.tableFrame: '
+                          f'a bit of a hack as subclasses from CcpnTableModule')
+        return None
+
+    #-----------------------------------------------------------------------------------------
     # Callbacks
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     def _moreLessCallback(self, moreLessFrame):
-        """Resize the opened/closed moreLessFrame
+        """Resize the opened/closed moreLessFrame.
         """
         if self._mlFrame.contentsVisible:
             # set an arbitrarily large height and remove size-constraint from spacer
@@ -411,8 +392,7 @@ class ViolationTableModule(CcpnTableModule):
 #=========================================================================================
 
 class _ViolationTableWidget(Table):
-    """
-    Class to present a ViolationTable
+    """Class to present a ViolationTable.
     """
     className = '_ViolationTableWidget'
     attributeName = KlassTable._pluralLinkName
@@ -438,38 +418,36 @@ class _ViolationTableWidget(Table):
             self.current = mainWindow.application.current
         else:
             self.application = self.project = self.current = None
-        self.className  =self.__class__.__name__
         kwds['setLayout'] = True
 
         # Initialise the scroll widget and common settings
         self._initTableCommonWidgets(parent, **kwds)
-
         # initialise the currently attached dataFrame
         self.dataFrameObject = None
 
         # initialise the table
-        super().__init__(parent=parent,
+        super().__init__(parent=parent, acceptDrops=True,
                          grid=(3, 0), gridSpan=(1, 6), showVerticalHeader=showVerticalHeader,
                          )
-
         self.moduleParent = moduleParent
 
-        self.headerColumnMenu.setInternalColumns(self._internalColumns)
-        self.headerColumnMenu.setDefaultColumns(self.defaultHidden)
-        # Initialise the notifier for processing dropped items
-        self._postInitTableCommonWidgets()
+    def _postInit(self):
+        from ccpn.ui.gui.widgets.DropBase import DropBase
+        from ccpn.ui.gui.lib.GuiNotifier import GuiNotifier
 
-        # may refactor the remaining modules so this isn't needed
-        self._widgetScrollArea.setFixedHeight(self._widgetScrollArea.sizeHint().height())
+        super()._postInit()
 
-    def setClassDefaultColumns(self, texts):
-        """set a list of default column-headers that are hidden when first shown.
-        """
-        self.headerColumnMenu.saveColumns(texts)
+        # add a dropped notifier
+        if self.moduleParent is not None:
+            # set the dropEvent to the mainWidget of the module, otherwise the event gets stolen by Frames
+            self.moduleParent.mainWidget._dropEventCallback = self._processDroppedItems
+            self.moduleParent.setGuiNotifier(self,
+                                             [GuiNotifier.DROPEVENT], [DropBase.PIDS],
+                                             self._processDroppedItems)
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Selection/action callbacks
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     def selectionCallback(self, selected, deselected, selection, lastItem):
         pass
@@ -477,19 +455,19 @@ class _ViolationTableWidget(Table):
     def actionCallback(self, selection, lastItem):
         pass
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Handle drop events
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     def _processDroppedItems(self, data):
-        """
-        CallBack for Drop events
+        """CallBack for drop-events.
         """
         pids = data.get('pids', [])
         self._handleDroppedItems(pids, KlassTable, self.moduleParent._modulePulldown)
 
     def _handleDroppedItems(self, pids, objType, pulldown):
-        """
+        """Handle items dropped onto the table.
+
         :param pids: the selected objects pids
         :param objType: the instance of the obj to handle, E.g. PeakList
         :param pulldown: the pulldown of the module wich updates the table
@@ -519,15 +497,15 @@ class _ViolationTableWidget(Table):
                 if showYesNo(title, msg):
                     _openItemObject(self.mainWindow, others)
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Table context menu
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     # add edit/add parameters to meta-data table
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Implementation
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     def mousePressEvent(self, e: QtGui.QMouseEvent) -> None:
         super(_ViolationTableWidget, self).mousePressEvent(e)
@@ -535,7 +513,8 @@ class _ViolationTableWidget(Table):
         self.setCurrent()
 
     def setCurrent(self):
-        """Set self to current.guiTable"""
+        """Set self to current.guiTable.
+        """
         if self.current is not None:
             self.current.guiTable = self
 
@@ -545,7 +524,7 @@ class _ViolationTableWidget(Table):
 #=========================================================================================
 
 def main():
-    """Show the dataTableModule
+    """Show the dataTableModule.
     """
     from ccpn.ui.gui.widgets.Application import newTestApplication
     from ccpn.framework.Application import getApplication
@@ -564,6 +543,4 @@ def main():
 
 
 if __name__ == '__main__':
-    """Call the test function
-    """
     main()

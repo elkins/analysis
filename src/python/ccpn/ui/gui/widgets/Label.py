@@ -4,9 +4,9 @@
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
-__credits__ = ("Ed Brooksbank, Morgan Hayward, Morgan Hayward, Victoria A Higman, Luca Mureddu",
-               "Eliza Płoskoń, Timothy J Ragan, Brian O Smith, Daniel Thompson",
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2025"
+__credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
+               "Timothy J Ragan, Brian O Smith, Daniel Thompson",
                "Gary S Thompson & Geerten W Vuister")
 __licence__ = ("CCPN licence. See https://ccpn.ac.uk/software/licensing/")
 __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, L.G., & Vuister, G.W.",
@@ -15,9 +15,9 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-08-27 15:33:12 +0100 (Tue, August 27, 2024) $"
-__version__ = "$Revision: 3.2.5 $"
+__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
+__dateModified__ = "$dateModified: 2025-04-09 17:55:10 +0100 (Wed, April 09, 2025) $"
+__version__ = "$Revision: 3.3.1 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -27,7 +27,9 @@ __date__ = "$Date: 2017-04-07 10:28:41 +0000 (Fri, April 07, 2017) $"
 # Start of code
 #=========================================================================================
 
+from typing import Callable
 from PyQt5 import QtGui, QtWidgets
+from PyQt5.QtCore import pyqtSignal as Signal
 from pyqtgraph.widgets.VerticalLabel import VerticalLabel as pyqtVerticalLabel
 
 from ccpn.ui.gui.widgets.Base import Base
@@ -36,6 +38,7 @@ import ccpn.ui.gui.guiSettings as guiSettings
 from ccpn.ui.gui.widgets.Icon import Icon
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_agg import FigureCanvasAgg
+
 
 #
 # def maTex2Pixmap(mathTex, fontSize=15):
@@ -93,7 +96,6 @@ def maTex2Pixmap(mathTex, fontSize=14):
     fig.set_canvas(FigureCanvasAgg(fig))
     renderer = fig.canvas.get_renderer()
 
-
     # Plot the mathTex expression
     ax = fig.add_axes([0, 0, 1, 1])
     ax.axis('off')
@@ -119,7 +121,6 @@ def maTex2Pixmap(mathTex, fontSize=14):
     return qpixmap
 
 
-
 class Label(QtWidgets.QLabel, Base):
     _styleSheet = """QLabel {
             color: %s;
@@ -132,8 +133,10 @@ class Label(QtWidgets.QLabel, Base):
 
     def __init__(self, parent=None,
                  text='', textColour=None, textSize=None, bold=False, italic=False,
-                 margins=[2, 1, 2, 1], icon=None, iconSize=(16, 16),
+                 margins=None, icon=None, iconSize=(16, 16),
                  **kwds):
+        margins = margins or [2, 1, 2, 1]
+
         super().__init__(parent)
         Base._init(self, **kwds)
 
@@ -155,7 +158,7 @@ class Label(QtWidgets.QLabel, Base):
             self.setFont(_font)
 
         colours = guiSettings.getColours()
-        self._colour = textColour or None #colours[guiSettings.LABEL_FOREGROUND]
+        self._colour = textColour or None  #colours[guiSettings.LABEL_FOREGROUND]
         self._setStyleSheet()
 
         if isinstance(icon, Icon):
@@ -192,9 +195,14 @@ class Label(QtWidgets.QLabel, Base):
         self._setStyleSheet()
 
 
+#=========================================================================================
+# DividerLabel
+#=========================================================================================
+
 class DividerLabel(Label):
 
-    def __init__(self, parent=None, text='', icon=None, iconSize=(25, 25), margins=[10, 1, 10, 1], hAlign='c', **kwds):
+    def __init__(self, parent=None, text='', icon=None, iconSize=(25, 25), margins=None, hAlign='c', **kwds):
+        margins = margins or [10, 1, 10, 1]
         super().__init__(parent=parent, text=text, icon=icon, iconSize=iconSize, margins=margins, hAlign=hAlign, **kwds)
 
         self.icon = icon
@@ -203,15 +211,24 @@ class DividerLabel(Label):
             self.setPixmap(icon.pixmap(*iconSize))
 
 
+#=========================================================================================
+# ActiveLabel
+#=========================================================================================
+
 class ActiveLabel(Label):
+    """
+    Label with definable callback
+    """
+    sigClicked = Signal()
 
     def __init__(self, parent=None, mainWindow=None,
-                 text='', textColour=None, textSize=12, bold=False,
-                 margins=[2, 1, 2, 1], selectionCallback=None, actionCallback=None, **kwds):
+                 text='', textColour=None, textSize=None, bold=False,
+                 margins=None, selectionCallback=None, actionCallback=None, **kwds):
+
+        margins = margins or [2, 1, 2, 1]
         super().__init__(parent=parent, text=text, textColour=textColour, textSize=textSize, bold=bold,
                          margins=margins, **kwds)
 
-        self.mainWindow = mainWindow
         self._selectionCallback = selectionCallback
         self._actionCallback = actionCallback
         self._enterCallback = None
@@ -236,6 +253,7 @@ class ActiveLabel(Label):
         if self._selectionCallback:
             self._selectionCallback()
         super().mouseReleaseEvent(ev)
+        self.sigClicked.emit()  # noqa
 
     def mouseDoubleClickEvent(self, ev):
         """Handle double click and call _actionCallback if set
@@ -244,7 +262,13 @@ class ActiveLabel(Label):
             self._actionCallback()
         super().mouseDoubleClickEvent(ev)
 
-    def setEnterLeaveCallback(self, enterCallback, leaveCallback):
+    def setEnterLeaveCallback(self, enterCallback: Callable | None = None, leaveCallback: Callable | None = None):
+        if enterCallback is not None and not callable(enterCallback):
+            raise TypeError(f'{self.__class__.__name__}.setEnterLeaveCallback: '
+                            f'enterCallback must be callable or None')
+        if leaveCallback is not None and not callable(leaveCallback):
+            raise TypeError(f'{self.__class__.__name__}.setLeaveLeaveCallback: '
+                            f'leaveCallback must be callable or None')
         self._enterCallback = enterCallback
         self._leaveCallback = leaveCallback
 
@@ -257,6 +281,11 @@ class ActiveLabel(Label):
         super().leaveEvent(ev)
         if self._leaveCallback:
             self._leaveCallback()
+
+    def close(self):
+        # clean callbacks
+        self.setEnterLeaveCallback()
+        super().close()
 
 
 class VerticalLabel(pyqtVerticalLabel, Base):
@@ -295,7 +324,7 @@ class VerticalLabel(pyqtVerticalLabel, Base):
             self.setFont(_font)
 
         colours = guiSettings.getColours()
-        self._colour = textColour or None #colours[guiSettings.LABEL_FOREGROUND]
+        self._colour = textColour or None  #colours[guiSettings.LABEL_FOREGROUND]
         self._setStyleSheet()
 
         if isinstance(icon, Icon):
@@ -328,6 +357,7 @@ class VerticalLabel(pyqtVerticalLabel, Base):
         """
         self._colour = colour.name()
         self._setStyleSheet()
+
 
 def maTex2Pixmap2(mathTex, fontSize=10):
     """
@@ -368,22 +398,24 @@ def maTex2Pixmap2(mathTex, fontSize=10):
 
 if __name__ == '__main__':
 
+    import ccpn.core  # noqa: required into imports sorted, but pycharm flags as unused
     from ccpn.ui.gui.widgets.Application import TestApplication
     from ccpn.ui.gui.popups.Dialog import CcpnDialog
 
+
     mathExamples = [
-        r'$\sqrt{\frac{1}{N}\sum_{i=0}^N (\alpha_i*\delta_i)^2}$',
-        '$k_{soil}=A\\frac{\\sum f_j k_j \\theta_j}{\\sum f_j \\theta_j}$',
-        '$\\lambda_{soil}=k_{soil} / C_{soil}-k_{soil} / C_{soil} $',
-        r'$Y = B +6+\frac{(A + x + B - \sqrt{(A + x + B)^2 - 4 A x})}{2 A}$',
-        r'$Y = \mathregular{B} + \mathregular{6} + \frac{(A + x + B - \sqrt{(A + x + B)^2 - 4 A x})}{2 A}$'
+        r'$\sqrt{\frac{1}{N}\sum_{i=0}^N (\alpha_i \delta_i)^2}$',
+        r'$k_{soil}=A\frac{\sum f_j k_j \theta_j}{\sum f_j \theta_j}$',
+        r'$\lambda_{soil}=k_{soil} / C_{soil} - k_{soil} / C_{soil}$',
+        r'$Y = B + 6 + \frac{(A + x + B - \sqrt{(A + x + B)^2 - 4 A x})}{2 A}$',
+        r'$Y = B + 6 + \frac{(A + x + B - \sqrt{(A + x + B)^2 - 4 A x})}{2 A}$'
         ]
 
     app = TestApplication()
     popup = CcpnDialog(windowTitle='Test Table', setLayout=True)
     fontSize = 14
     for i, mathExample in enumerate(mathExamples):
-        pixmap = maTex2Pixmap(f'{mathExample}',fontSize=fontSize)
+        pixmap = maTex2Pixmap(f'{mathExample}', fontSize=fontSize)
         label = Label(popup, text='', icon=pixmap, grid=(i, 0))
         pixmap2 = maTex2Pixmap2(f'{mathExample}', fontSize=fontSize)
         label2 = Label(popup, text='', icon=pixmap2, grid=(i, 1))

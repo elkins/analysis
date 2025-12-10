@@ -6,9 +6,10 @@ It works in concert with a wrapper object for storing/retrieving attibute values
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2023"
-__credits__ = ("Ed Brooksbank, Joanna Fox, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
-               "Timothy J Ragan, Brian O Smith, Gary S Thompson & Geerten W Vuister")
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2025"
+__credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
+               "Timothy J Ragan, Brian O Smith, Daniel Thompson",
+               "Gary S Thompson & Geerten W Vuister")
 __licence__ = ("CCPN licence. See https://ccpn.ac.uk/software/licensing/")
 __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, L.G., & Vuister, G.W.",
                  "CcpNmr AnalysisAssign: a flexible platform for integrated NMR analysis",
@@ -17,8 +18,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2023-08-02 16:51:36 +0100 (Wed, August 02, 2023) $"
-__version__ = "$Revision: 3.2.0 $"
+__dateModified__ = "$dateModified: 2025-05-02 17:07:59 +0100 (Fri, May 02, 2025) $"
+__version__ = "$Revision: 3.3.2 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -28,54 +29,52 @@ __date__ = "$Date: 2017-04-04 09:51:15 +0100 (Tue, April 04, 2017) $"
 # Start of code
 #=========================================================================================
 
-import os
-import time
-from functools import partial
+# import os
+# import time
+# from functools import partial
 
-from PyQt5 import QtWidgets, QtCore, QtGui
-from PyQt5.QtGui import QKeySequence
-from PyQt5.QtCore import pyqtSlot
-
-from ccpn.core.Project import Project
-
-from ccpn.core.lib.Notifiers import Notifier
-from ccpn.core.lib.ContextManagers import undoBlock, undoBlockWithoutSideBar, notificationEchoBlocking
-
-from ccpn.ui.gui import guiSettings
-
-from ccpn.ui.gui.lib.mouseEvents import SELECT, PICK, MouseModes, \
-    setCurrentMouseMode, getCurrentMouseMode
-from ccpn.ui.gui.lib import GuiStrip
-# from ccpn.ui.gui.lib.GuiWindow import GuiWindow
+from PyQt5 import QtWidgets  #, QtCore, QtGui
+# from PyQt5.QtGui import QKeySequence
+# from PyQt5.QtCore import pyqtSlot
+#
+# from ccpn.core.Project import Project
+#
+# from ccpn.core.lib.Notifiers import Notifier
+# from ccpn.core.lib.ContextManagers import undoBlock, undoBlockWithoutSideBar, notificationEchoBlocking
+#
+# from ccpn.ui.gui import guiSettings
+#
+# from ccpn.ui.gui.lib.mouseEvents import (SELECT, PICK, MouseModes,
+#                                          setCurrentMouseMode, getCurrentMouseMode)
+# from ccpn.ui.gui.lib import GuiStrip
+# # from ccpn.ui.gui.lib.GuiWindow import GuiWindow
 from ccpn.ui.gui.lib.Shortcuts import Shortcuts
 
-from ccpn.ui.gui.modules.MacroEditor import MacroEditor
-
-from ccpn.ui.gui.widgets.PlotterWidget import plotter
-from ccpn.ui.gui.widgets.Icon import Icon
-from ccpn.ui.gui.widgets import MessageDialog
-from ccpn.ui.gui.widgets.Action import Action
-from ccpn.ui.gui.widgets.IpythonConsole import IpythonConsole
-from ccpn.ui.gui.widgets.Menu import Menu, MenuBar, SHOWMODULESMENU, CCPNMACROSMENU, \
-    USERMACROSMENU, TUTORIALSMENU, PLUGINSMENU, CCPNPLUGINSMENU, HOWTOSMENU
-from ccpn.ui.gui.widgets.SideBar import SideBar  #,SideBar
-from ccpn.ui.gui.widgets.Frame import Frame
-from ccpn.ui.gui.widgets.CcpnModuleArea import CcpnModuleArea
-from ccpn.ui.gui.widgets.Splitter import Splitter
-from ccpn.ui.gui.widgets.Font import setWidgetFont
-from ccpn.ui.gui.widgets.Label import Label
-from ccpn.ui.gui.widgets.MessageDialog import showWarning, progressManager
-
-from ccpn.util.Common import camelCaseToString
-from ccpn.util.Logging import getLogger
-from ccpn.util.decorators import logCommand
-from ccpn.util.Colour import colorSchemeTable
-
-
-
-#from collections import OrderedDict
-from ccpn.ui.gui.widgets.DropBase import DropBase
-from ccpn.ui.gui.lib.MenuActions import _openItemObject
+# from ccpn.ui.gui.modules.MacroEditor import MacroEditor
+#
+# from ccpn.ui.gui.widgets.PlotterWidget import plotter
+# from ccpn.ui.gui.widgets.Icon import Icon
+# from ccpn.ui.gui.widgets import MessageDialog
+# from ccpn.ui.gui.widgets.Action import Action
+# from ccpn.ui.gui.widgets.IpythonConsole import IpythonConsole
+# from ccpn.ui.gui.widgets.Menu import (Menu, MenuBar, SHOWMODULESMENU, CCPNMACROSMENU,
+#                                       USERMACROSMENU, TUTORIALSMENU, PLUGINSMENU, CCPNPLUGINSMENU, HOWTOSMENU)
+# from ccpn.ui.gui.widgets.SideBar import SideBar  #,SideBar
+# from ccpn.ui.gui.widgets.Frame import Frame
+# from ccpn.ui.gui.widgets.CcpnModuleArea import CcpnModuleArea
+# from ccpn.ui.gui.widgets.Splitter import Splitter
+# from ccpn.ui.gui.widgets.Font import setWidgetFont
+# from ccpn.ui.gui.widgets.Label import Label
+# from ccpn.ui.gui.widgets.MessageDialog import showWarning, progressManager
+#
+# from ccpn.util.Common import camelCaseToString
+# from ccpn.util.Logging import getLogger
+# from ccpn.util.decorators import logCommand
+# from ccpn.util.Colour import colorSchemeTable
+#
+# #from collections import OrderedDict
+# from ccpn.ui.gui.widgets.DropBase import DropBase
+# from ccpn.ui.gui.lib.MenuActions import _openItemObject
 
 
 # For readability there should be a class:
@@ -89,7 +88,6 @@ from ccpn.ui.gui.lib.MenuActions import _openItemObject
 
 MAXITEMLOGGING = 4
 KEY_DELAY = 0.75
-
 
 _PEAKS = 1
 _INTEGRALS = 2
@@ -1718,7 +1716,7 @@ class GuiMainWindow(Shortcuts, QtWidgets.QMainWindow):
     # def stackSpectra(self):
     #     strip = self.application.current.strip
     #     if strip:  # and (strip.spectrumDisplay.window is self):
-    #         strip._toggleStackPhaseFromShortCut()
+    #         strip._toggleStackingFromShortCut()
     #
     # def setPhasingPivot(self):
     #

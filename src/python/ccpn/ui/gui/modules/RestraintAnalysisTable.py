@@ -4,7 +4,7 @@ Module Documentation here
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2025"
 __credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
                "Timothy J Ragan, Brian O Smith, Daniel Thompson",
                "Gary S Thompson & Geerten W Vuister")
@@ -16,14 +16,13 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-10-02 16:39:51 +0100 (Wed, October 02, 2024) $"
-__version__ = "$Revision: 3.2.7 $"
+__dateModified__ = "$dateModified: 2025-01-06 18:26:12 +0000 (Mon, January 06, 2025) $"
+__version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
 #=========================================================================================
 __author__ = "$Author: Ed Brooksbank $"
 __date__ = "$Date: 2021-04-26 11:53:10 +0100 (Mon, April 26, 2021) $"
-
 #=========================================================================================
 # Start of code
 #=========================================================================================
@@ -811,25 +810,6 @@ class RestraintAnalysisTableModule(CcpnTableModule):
         """
         self._mainFrame.selectTable(table)
 
-    def _closeModule(self):
-        """CCPN-INTERNAL: used to close the module
-        """
-        rss = self.resources
-        if self.activePulldownClass and self._setCurrentPulldown:
-            self._setCurrentPulldown.unRegister()
-        if self._settings:
-            self._settings._cleanupWidget()
-        if self.tableFrame:
-            self.tableFrame._cleanupWidget()
-        if rss._displayListWidget:
-            rss._displayListWidget._close()
-        if rss._resTableWidget:
-            rss._resTableWidget._close()
-        if rss._outTableWidget:
-            rss._outTableWidget._close()
-        self._unRegisterNotifiers()
-        super()._closeModule()
-
     def _getLastSeenWidgetsState(self):
         """Internal. Used to restore last closed module in the same program instance.
         """
@@ -936,29 +916,20 @@ class RestraintAnalysisTableModule(CcpnTableModule):
     def _registerNotifiers(self):
         """Register notifiers for the module
         """
-        self._collectionNotifier = self.setNotifier(self.project, [Notifier.RENAME, Notifier.CREATE, Notifier.DELETE],
-                                                    Collection.__name__, self._updatePulldownNotify, onceOnly=True)
-        self._sDataNotifier = self.setNotifier(self.project, [Notifier.RENAME, Notifier.CREATE, Notifier.DELETE],
-                                               StructureData.__name__, self._updatePulldownNotify, onceOnly=True)
-        self._ensembleNotifier = self.setNotifier(self.project, [Notifier.RENAME, Notifier.CREATE, Notifier.DELETE],
-                                                  StructureEnsemble.__name__, self._updatePulldownNotify, onceOnly=True)
-        self._restraintTableNotifier = self.setNotifier(self.project,
-                                                        [Notifier.RENAME, Notifier.CREATE, Notifier.DELETE],
-                                                        RestraintTable.__name__, self._updatePulldownNotify,
-                                                        onceOnly=True)
-        self._violationTableNotifier = self.setNotifier(self.project,
-                                                        [Notifier.RENAME, Notifier.CREATE, Notifier.DELETE],
-                                                        ViolationTable.__name__, self._updatePulldownNotify,
-                                                        onceOnly=True)
-
-    def _unRegisterNotifiers(self):
-        """Register notifiers for the module
-        """
-        rss = self.resources
-        if rss._collectionPulldown:
-            rss._collectionPulldown.unRegister()
-        if self._collectionNotifier:
-            self._collectionNotifier.unRegister()
+        self.setNotifier(self.project, [Notifier.RENAME, Notifier.CREATE, Notifier.DELETE],
+                         Collection.__name__, self._updatePulldownNotify, onceOnly=True)
+        self.setNotifier(self.project, [Notifier.RENAME, Notifier.CREATE, Notifier.DELETE],
+                         StructureData.__name__, self._updatePulldownNotify, onceOnly=True)
+        self.setNotifier(self.project, [Notifier.RENAME, Notifier.CREATE, Notifier.DELETE],
+                         StructureEnsemble.__name__, self._updatePulldownNotify, onceOnly=True)
+        self.setNotifier(self.project,
+                         [Notifier.RENAME, Notifier.CREATE, Notifier.DELETE],
+                         RestraintTable.__name__, self._updatePulldownNotify,
+                         onceOnly=True)
+        self.setNotifier(self.project,
+                         [Notifier.RENAME, Notifier.CREATE, Notifier.DELETE],
+                         ViolationTable.__name__, self._updatePulldownNotify,
+                         onceOnly=True)
 
     def updateRestraintTables(self, restraintTables):
         """Update the selected restraint lists from the parent module

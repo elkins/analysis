@@ -4,9 +4,9 @@ Module Documentation here
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
-__credits__ = ("Ed Brooksbank, Morgan Hayward, Morgan Hayward, Victoria A Higman, Luca Mureddu",
-               "Eliza Płoskoń, Timothy J Ragan, Brian O Smith, Daniel Thompson",
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2025"
+__credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
+               "Timothy J Ragan, Brian O Smith, Daniel Thompson",
                "Gary S Thompson & Geerten W Vuister")
 __licence__ = ("CCPN licence. See https://ccpn.ac.uk/software/licensing/")
 __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, L.G., & Vuister, G.W.",
@@ -15,9 +15,9 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: Daniel Thompson $"
-__dateModified__ = "$dateModified: 2024-10-03 10:41:26 +0100 (Thu, October 03, 2024) $"
-__version__ = "$Revision: 3.2.7 $"
+__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
+__dateModified__ = "$dateModified: 2025-01-24 14:55:32 +0000 (Fri, January 24, 2025) $"
+__version__ = "$Revision: 3.3.1 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -29,12 +29,12 @@ __date__ = "$Date: 2017-04-07 10:28:41 +0000 (Fri, April 07, 2017) $"
 
 import sys
 import os
-from PyQt5 import QtWidgets, QtCore
+from PyQt5 import QtWidgets
+
+from ccpn.core.lib.WeakRefLib import WeakRefDescriptor
 from ccpn.util.Path import aPath
 from ccpn.util.Common import makeIterableList
-from ccpn.util.AttrDict import AttrDict
 from ccpn.util.Logging import getLogger
-from ccpn.util.decorators import singleton
 from ccpn.framework.Application import getApplication
 
 
@@ -104,6 +104,7 @@ class FileDialogABC(QtWidgets.QFileDialog):
 
     # path attribute to read from preferences.general dict in __new__
     _initialPath = USERWORKINGPATH
+    _preferences: WeakRefDescriptor()
 
     def __init__(self, parent=None,
                  acceptMode='open',
@@ -142,6 +143,7 @@ class FileDialogABC(QtWidgets.QFileDialog):
         if _am is None:
             raise TypeError(f'{self.__class__.__name__}: acceptMode \'{acceptMode}\' not defined')
 
+        _general = {}
         try:
             # read the preferences from the application
             application = getApplication()
@@ -241,8 +243,9 @@ class FileDialogABC(QtWidgets.QFileDialog):
 
             # add a multi-selection option - only for non-native dialogs
             for view in self.findChildren((QtWidgets.QListView, QtWidgets.QTreeView)):
-                if isinstance(view.model(), QtWidgets.QFileSystemModel):
+                view: QtWidgets.QAbstractItemView
 
+                if isinstance(view.model(), QtWidgets.QFileSystemModel):
                     # set the selection mode for the dialog
                     if self._multiSelect:
                         view.setSelectionMode(QtWidgets.QAbstractItemView.ExtendedSelection)
@@ -366,7 +369,7 @@ class FileDialogABC(QtWidgets.QFileDialog):
             self.hide()
 
     # overrides Qt function, which does not pay any attention to whether Cancel button selected
-    def selectedFiles(self):
+    def selectedFiles(self) -> list[str]:
         """Return the list of selected files
         """
         if self.useNative and not sys.platform.lower() == 'linux':
@@ -386,8 +389,7 @@ class FileDialogABC(QtWidgets.QFileDialog):
         """Return the first selected file.
         """
         # Qt does not have this but useful if you know you only want one file
-        files = self.selectedFiles()
-        if files and len(files) > 0:
+        if (files := self.selectedFiles()) and len(files) > 0:
             return files[0]
         else:
             return None
@@ -521,6 +523,11 @@ class AdminFileDialog(FileDialogABC):
     _multiSelect = True
 
 
+class PPTxFileDialog(FileDialogABC):
+    _text = '{} PPTx File'
+    _multiSelect = False
+
+
 class LineButtonFileDialog(FileDialogABC):
     """Special class for a lineEdit button in pipelines
     """
@@ -601,11 +608,9 @@ class LineEditButtonDialog(Widget):
         return self.set(value)
 
 
-
-if __name__ == '__main__':
+def main():
     from ccpn.ui.gui.widgets.Application import TestApplication
     from ccpn.ui.gui.popups.Dialog import CcpnDialog
-
 
     app = TestApplication()
     popup = CcpnDialog(windowTitle='Test LineEditButtonDialog')
@@ -615,3 +620,7 @@ if __name__ == '__main__':
     popup.show()
     popup.raise_()
     app.start()
+
+
+if __name__ == '__main__':
+    main()

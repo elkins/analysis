@@ -1,7 +1,7 @@
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2025"
 __credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
                "Timothy J Ragan, Brian O Smith, Daniel Thompson",
                "Gary S Thompson & Geerten W Vuister")
@@ -12,9 +12,9 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-10-03 09:42:40 +0100 (Thu, October 03, 2024) $"
-__version__ = "$Revision: 3.2.9.alpha $"
+__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
+__dateModified__ = "$dateModified: 2025-03-21 16:10:08 +0000 (Fri, March 21, 2025) $"
+__version__ = "$Revision: 3.3.1 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -67,9 +67,7 @@ from typing import List
 
 from PyQt5 import QtWidgets
 from PyQt5.QtWidgets import QApplication
-from PyQt5.QtCore import QTimer
-
-from distutils.dir_util import copy_tree
+from PyQt5.QtCore import QTimer, QEvent
 
 from ccpn.core.IntegralList import IntegralList
 from ccpn.core.PeakList import PeakList
@@ -105,7 +103,7 @@ from ccpn.ui.gui.popups.RegisterPopup import RegisterPopup
 from ccpn.ui.gui import Layout
 
 from ccpn.util import Logging
-from ccpn.util.Path import Path, aPath, fetchDir
+from ccpn.util.Path import Path, aPath
 from ccpn.util.AttrDict import AttrDict
 from ccpn.util.Common import uniquify, isWindowsOS, isMacOS, isIterable, getProcess
 from ccpn.util.Logging import getLogger
@@ -177,6 +175,9 @@ class Framework(NotifierBase, GuiBase):
         #   required to use save/saveAs but keep the project.readOnly status until the next load
         self._saveOverrideState = False
 
+        # _echoBlocking context manager
+        self._echoBlocking = 0
+
         #-----------------------------------------------------------------------------------------
         # Initialisations
         #-----------------------------------------------------------------------------------------
@@ -191,6 +192,7 @@ class Framework(NotifierBase, GuiBase):
         self.useFileLogger = not getattr(self.args, 'noLogging', False)
 
         # map to 0-3, with 0 no debug
+        self._debugLevel = 0
         _level = ([self.args.debug,
                    self.args.debug2,
                    self.args.debug3 or self.args.debug3_backup_thread,
@@ -226,6 +228,7 @@ class Framework(NotifierBase, GuiBase):
         self._process = getProcess()
 
         self._autoBackupThread = None
+        self._undoRedoHandlerBlocked = False
 
         self._tip_of_the_day = None
         self._initial_show_timer = None
@@ -333,6 +336,14 @@ class Framework(NotifierBase, GuiBase):
             self.project._updateLoggerState()
             if self.mainWindow:
                 self.mainWindow._setReadOnlyIcon()
+
+    def getRegistrationDetails(self):
+        """Get the Registration details for the current User as a dict """
+        from ccpn.util import Register
+
+        registrationDict = Register.loadDict()
+        skipValues = ['termsConditions', 'hashcode']
+        return {k: v for k, v in registrationDict.items() if k not in skipValues}
 
     #-----------------------------------------------------------------------------------------
     # Useful (?) directories as Path instances
@@ -627,7 +638,7 @@ class Framework(NotifierBase, GuiBase):
         self._current = Current(project=newProject)
 
         # This wraps the underlying data, including the wrapped graphics data
-        newProject._initialiseProject()
+        newProject._initialiseProject(application=self, debugLevel=self._debugLevel)
 
         # GWV: this really should not be here; moved to the_update_v2 method
         #      that already existed and gets called
@@ -670,18 +681,34 @@ class Framework(NotifierBase, GuiBase):
     # Utilities
     #-----------------------------------------------------------------------------------------
 
+    @property
+    def _loggingLevel(self) -> int:
+        """Convert the project _debugLevel (0, 1-3)
+        :return the Logging defined level
+        """
+        _conversion = {
+            3: Logging.DEBUG3,
+            2: Logging.DEBUG2,
+            1: Logging.DEBUG,
+            0: Logging.INFO,
+            }
+        return _conversion.get(self._debugLevel, Logging.INFO)
+
+    @property
+    def debugLevel(self) -> int:
+        """:return the current debug level; 0: off, 1-3: debug level 1-3
+        """
+        return self._debugLevel
+
     def setDebug(self, level: int):
         """Set the debugging level
         :param level: 0: off, 1-3: debug level 1-3
         """
-        if level == 3:
-            self._debugLevel = Logging.DEBUG3
-        elif level == 2:
-            self._debugLevel = Logging.DEBUG2
-        elif level == 1:
-            self._debugLevel = Logging.DEBUG
-        elif level == 0:
-            self._debugLevel = Logging.INFO
+        if 0 <= level <= 3:
+            self._debugLevel = level
+            # update the logger
+            logger = getLogger()
+            Logging.setLevel(logger, level=self._loggingLevel)
         else:
             raise ValueError(f'Invalid debug level ({level}); should be 0-3')
 
@@ -690,11 +717,7 @@ class Framework(NotifierBase, GuiBase):
         """:return True if either of the debug flags has been set
         CCPNINTERNAL: used throughout to check
         """
-        if self._debugLevel == Logging.DEBUG1 or \
-                self._debugLevel == Logging.DEBUG2 or \
-                self._debugLevel == Logging.DEBUG3:
-            return True
-        return False
+        return self._debugLevel > 0
 
     def _savePreferences(self):
         """Save the user preferences to file
@@ -1012,8 +1035,8 @@ class Framework(NotifierBase, GuiBase):
         :param prefix: prefix appended to the name
         :param suffix: suffix of the name
         """
-        dir = self._temporaryDirectory.name
-        with tempfile.NamedTemporaryFile(prefix=prefix, suffix=suffix, dir=dir) as tFile:
+        _dir = self._temporaryDirectory.name
+        with tempfile.NamedTemporaryFile(prefix=prefix, suffix=suffix, dir=_dir) as tFile:
             path = tFile.name
         return Path(path)
 
@@ -1077,13 +1100,17 @@ class Framework(NotifierBase, GuiBase):
         """Load project defined by path
         :return a Project instance
         """
+        getLogger().debug(f'--> Loading Project {path}')
         result = self.ui.loadProject(path)
-        getLogger().debug('--> LOADED PROJECT')
 
         return result
 
-    def _saveProjectAs(self, newPath=None, overwrite=False) -> bool:
+    def _saveProjectAs(self, newPath=None, overwrite=False, copySubDirectories: bool = True) -> bool:
         """Save project to newPath (optionally overwrite)
+
+        :param newPath: new path for storing project files
+        :param overwrite: flag to overwrite if path exists
+        :param copySubDirectories: flag to set the copying of the project's subdirectories
         :return True if successful
         """
         if self.preferences.general.keepSpectraInsideProject:
@@ -1091,23 +1118,26 @@ class Framework(NotifierBase, GuiBase):
 
         with self._setSaveOverride(True):
             try:
-                self.project.saveAs(newPath=newPath, overwrite=overwrite)
+                self.project.saveAs(newPath=newPath, overwrite=overwrite, copySubDirectories=copySubDirectories)
                 Layout.saveLayoutToJson(self.ui.mainWindow)
                 self.current._dumpStateToFile(self.statePath)
                 self._getUndo().markSave()
 
-            except (PermissionError, FileNotFoundError):
+            except (PermissionError, FileNotFoundError) as es:
+                getLogger().debug(f'_saveProjectAs() caught: {es}')
                 failMessage = f'Folder {newPath} may be read-only'
                 getLogger().warning(failMessage)
-                raise
+                raise es
 
             except RuntimeWarning as es:
+                getLogger().debug(f'_saveProjectAs() caught: {es}')
                 failMessage = f'saveAs: unable to save {es}'
                 getLogger().warning(failMessage)
-                raise
+                raise es
 
             except Exception as es:
-                failMessage = f'saveAs: unable to save {es}'
+                getLogger().debug(f'_saveProjectAs() caught: {es}')
+                failMessage = f'saveAs: {es}'
                 getLogger().warning(failMessage)
                 return False
 
@@ -1576,28 +1606,87 @@ class Framework(NotifierBase, GuiBase):
     # undo/redo
     #-----------------------------------------------------------------------------------------
 
-    @logCommand('application.')
-    def undo(self):
+    @contextlib.contextmanager
+    def _undoRedoHandler(self, text='INSERT MESSAGE'):
+        """
+        Context manager to handle undo/redo operations with a busy handler.
+
+        This context manager blocks the handler, displays a busy message, and pauses
+        auto-backups to prevent clashes with the current save operation. It also removes
+        specific posted events from the QApplication instance.
+
+        :param text: The message to display in the busy handler.
+        :type text: str
+        """
         from ccpn.core.lib.ContextManagers import busyHandler
 
-        if self.project._undo.canUndo():
-            if not self.project._undo.locked:
-                # may need to put some more information in this busy popup
-                with busyHandler(title='Busy', text='Undo ...', raiseErrors=True):
-                    self.project._undo.undo()
-        else:
-            getLogger().warning('nothing to undo')
+        # Define a set of event-types to remove at exit
+        eventTypes = {QEvent.KeyPress,
+                      QEvent.KeyRelease,
+                      QEvent.Shortcut,
+                      QEvent.ShortcutOverride,
+                      QEvent.MouseButtonPress,
+                      QEvent.MouseButtonRelease,
+                      QEvent.MouseButtonDblClick,
+                      }
+
+        self._undoRedoHandlerBlocked = True
+        qtApp = QApplication.instance()
+        try:
+            if self.hasGui:
+                # Create a busy-popup for long events
+                with busyHandler(title='Busy', text=text, raiseErrors=True):
+                    # Stop the auto-backups so they don't clash with current save
+                    with self.pauseAutoBackups():
+                        yield
+            else:
+                yield
+        finally:
+            if qtApp:
+                # Remove all keypress/key-release/shortcut/shortcut-override events
+                # to prevent multiple undo/redo events accumulating on the event-stack
+                for eventType in eventTypes:
+                    # Remove each event-type in the set
+                    qtApp.removePostedEvents(qtApp, eventType)
+            self._undoRedoHandlerBlocked = False
+
+    @logCommand('application.')
+    def undo(self):
+        """
+        Undo the last action.
+
+        This method attempts to undo the last action in the undo stack. If there is nothing
+        to undo, it logs a warning message. It also ensures that the undo/redo handler is not
+        blocked before proceeding with the undo operation.
+
+        :raises: Logs a warning if there is nothing to undo.
+        """
+        if undoStack := self._getUndo():
+            if not undoStack.canUndo():
+                getLogger().warning('nothing to undo')
+            if self._undoRedoHandlerBlocked:
+                return
+            with self._undoRedoHandler('Undo ...'):
+                undoStack.undo()
 
     @logCommand('application.')
     def redo(self):
-        from ccpn.core.lib.ContextManagers import busyHandler
+        """
+        Redo the last undone action.
 
-        if self.project._undo.canRedo():
-            if not self.project._undo.locked:
-                with busyHandler(title='Busy', text='Redo...', raiseErrors=True):
-                    self.project._undo.redo()
-        else:
-            getLogger().warning('nothing to redo.')
+        This method attempts to redo the last undone action in the undo stack. If there is nothing
+        to redo, it logs a warning message. It also ensures that the undo/redo handler is not
+        blocked before proceeding with the redo operation.
+
+        :raises: Logs a warning if there is nothing to redo.
+        """
+        if undoStack := self._getUndo():
+            if not undoStack.canRedo():
+                getLogger().warning('nothing to redo')
+            if self._undoRedoHandlerBlocked:
+                return
+            with self._undoRedoHandler('Redo ...'):
+                undoStack.redo()
 
     def _getUndo(self):
         """Return the undo object for the project
@@ -1812,8 +1901,8 @@ class Framework(NotifierBase, GuiBase):
         else:
             from ccpn.ui.gui.popups.SpectrumProjectionPopup import SpectrumProjectionPopup
 
-            popup = SpectrumProjectionPopup(parent=self.ui.mainWindow, mainWindow=self.ui.mainWindow)
-            popup.exec_()
+            if popup := SpectrumProjectionPopup(parent=self.ui.mainWindow, mainWindow=self.ui.mainWindow):
+                popup.exec_()
 
     def showExperimentTypePopup(self):
         """
@@ -2227,8 +2316,7 @@ class Framework(NotifierBase, GuiBase):
                              collection=None, selectFirstItem=False):
         """Displays Collection Module
         """
-        MessageDialog.showNYI(parent=self.mainWindow)
-        # pass
+        MessageDialog.showNotImplementedMessage()
 
     @logCommand('application.')
     def showNotesEditor(self, position: str = 'bottom', relativeTo: CcpnModule = None,
@@ -2400,7 +2488,8 @@ class Framework(NotifierBase, GuiBase):
         return self.showChemicalShiftPerturbationModule(position=position, relativeTo=relativeTo)
 
     def showChemicalShiftPerturbationModule(self, position: str = 'top', relativeTo: CcpnModule = None):
-        from ccpn.ui.gui.modules.experimentAnalysis.ChemicalShiftPerturbationGuiModule import ChemicalShiftPerturbationGuiModule
+        from ccpn.ui.gui.modules.experimentAnalysis.ChemicalShiftPerturbationGuiModule import \
+            ChemicalShiftPerturbationGuiModule
 
         mainWindow = self.ui.mainWindow
         if not relativeTo:

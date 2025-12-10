@@ -4,7 +4,7 @@
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2025"
 __credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
                "Timothy J Ragan, Brian O Smith, Daniel Thompson",
                "Gary S Thompson & Geerten W Vuister")
@@ -16,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-10-18 14:25:34 +0100 (Fri, October 18, 2024) $"
-__version__ = "$Revision: 3.2.7 $"
+__dateModified__ = "$dateModified: 2025-05-02 17:07:59 +0100 (Fri, May 02, 2025) $"
+__version__ = "$Revision: 3.3.2 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -35,10 +35,11 @@ from ccpn.core.PeakList import PeakList
 
 from ccpn.core.lib.ContextManagers import undoStackBlocking
 from ccpn.core.lib.ContextManagers import undoBlockWithSideBar as undoBlock
-from ccpn.ui.gui.lib.GuiStrip import GuiStrip, DefaultMenu, PeakMenu, \
-    IntegralMenu, MultipletMenu, PhasingMenu, AxisMenu
-from ccpn.ui.gui.lib.GuiStripContextMenus import _get1dPhasingMenu, _get1dDefaultMenu, \
-    _get1dPeakMenu, _get1dIntegralMenu, _get1dMultipletMenu, _get1dAxisMenu
+from ccpn.ui.gui.lib.GuiStrip import (GuiStrip, DefaultMenu, PeakMenu,
+                                      IntegralMenu, MultipletMenu, PhasingMenu, AxisMenu)
+from ccpn.ui.gui.lib.GuiStripContextMenus import (_get1dPhasingMenu, _get1dDefaultMenu,
+                                                  _get1dPeakMenu, _get1dIntegralMenu, _get1dMultipletMenu,
+                                                  _get1dAxisMenu)
 from ccpn.ui.gui.lib.StripLib import copyStripAxisPositionsAndWidths
 from ccpn.ui.gui.widgets.PlaneToolbar import StripHeaderWidget, StripLabelWidget
 from ccpn.ui.gui.widgets.Frame import OpenGLOverlayFrame
@@ -165,12 +166,14 @@ class GuiStrip1d(GuiStrip):
         # self._frameGuide.addSpacer(8, 8, grid=(1, 0))
         row = 2
 
-        self.stripLabel = StripLabelWidget(qtParent=self._frameGuide, mainWindow=self.mainWindow, strip=self, grid=(row, 1), gridSpan=(1, 1))
+        self.stripLabel = StripLabelWidget(qtParent=self._frameGuide, mainWindow=self.mainWindow, strip=self,
+                                           grid=(row, 1), gridSpan=(1, 1))
         row += 1
         # set the ID label in the new widget
         self.stripLabel._populate()
 
-        self.header = StripHeaderWidget(qtParent=self._frameGuide, mainWindow=self.mainWindow, strip=self, grid=(row, 1), gridSpan=(1, 1))
+        self.header = StripHeaderWidget(qtParent=self._frameGuide, mainWindow=self.mainWindow, strip=self,
+                                        grid=(row, 1), gridSpan=(1, 1))
         row += 1
 
         Spacer(self._frameGuide, 1, 1, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding, grid=(row, 2))
@@ -184,23 +187,13 @@ class GuiStrip1d(GuiStrip):
 
         self._setStripTiling()
 
-    def close(self):
-        """Clean up and close
+    def closeEvent(self, event):
+        """Clean-up and close.
         """
-        try:
-            del self._defaultMenu
-            del self._phasingMenu
-            del self._peakMenu
-            del self._integralMenu
-            del self._multipletMenu
-            del self._axisMenu
-            del self._contextMenus
-        except Exception:
-            getLogger().debug(f'there was a problem cleaning-up strip {self}')
-        else:
-            getLogger().debug(f'cleaning-up strip {self}')
+        from ccpn.ui.gui.lib.WidgetClosingLib import CloseHandler
 
-        super().close()
+        with CloseHandler(self):
+            super().closeEvent(event)
 
     @property
     def symbolType(self):
@@ -252,13 +245,13 @@ class GuiStrip1d(GuiStrip):
     def _checkMenuItems(self):
         """Update the menu check boxes from the strip
         """
+        state = self._CcpnGLWidget.stackingMode
         if self._defaultMenu:
-            item = self.mainWindow.getMenuAction('Stack Spectra', self._defaultMenu)
-            item.setChecked(self._CcpnGLWidget._stackingMode)
-
+            item = self.mainWindow.getMenuAction('Stack Spectra', self._defaultMenu)  # stackAction?
+            item.setChecked(state)
         if self._phasingMenu:
             item = self.mainWindow.getMenuAction('Stack Spectra', self._phasingMenu)
-            item.setChecked(self._CcpnGLWidget._stackingMode)
+            item.setChecked(state)
 
     def showExportDialog(self):
         """show the export strip to file dialog
@@ -384,7 +377,6 @@ class GuiStrip1d(GuiStrip):
                 #self.peakListViewDict[peakList] = peakListView
                 return peakListView
 
-
     # -------- Noise threshold lines -------- #
 
     def _removeNoiseThresholdLines(self):
@@ -407,7 +399,6 @@ class GuiStrip1d(GuiStrip):
         self._noiseThresholdLinesActive = value
         self._updateNoiseThresholdLines()
 
-
     def _updateVisibility(self):
         """Update visibility list in the OpenGL
         """
@@ -426,10 +417,12 @@ class GuiStrip1d(GuiStrip):
             negValue = spectrum.negativeNoiseLevel or -posValue
 
             brush = hexToRgbRatio(spectrum.sliceColour) + (0.3,)  # sliceCol plus an offset
-            positiveLine = self._CcpnGLWidget.addInfiniteLine(values=posValue, colour=brush, movable=True, lineStyle='dashed',
+            positiveLine = self._CcpnGLWidget.addInfiniteLine(values=posValue, colour=brush, movable=True,
+                                                              lineStyle='dashed',
                                                               lineWidth=2.0, obj=spectrum, orientation='h', )
             negativeLine = self._CcpnGLWidget.addInfiniteLine(values=negValue, colour=brush, movable=True,
-                                                              lineStyle='dashed', obj=spectrum, orientation='h', lineWidth=2.0)
+                                                              lineStyle='dashed', obj=spectrum, orientation='h',
+                                                              lineWidth=2.0)
             positiveLine.editingFinished.connect(partial(self._posLineThresholdMoveFinished, positiveLine, spectrum))
             negativeLine.editingFinished.connect(partial(self._negLineThresholdMoveFinished, negativeLine, spectrum))
             self._noiseThresholdLines[spectrum.pid] = [positiveLine, negativeLine]
@@ -441,12 +434,14 @@ class GuiStrip1d(GuiStrip):
 
         try:
             from ccpn.core.lib.SpectrumLib import _getNoiseRegionFromLimits
+
             intensities = np.array(spectrum.intensities)
             noiseRegion = _getNoiseRegionFromLimits(intensities, negValue, posValue)
             noiseSD = np.std(noiseRegion)
 
             with undoBlock():
-                spectrum._noiseSD = float(noiseSD) # need to set this first. Setting the noiseLevel will call a notifier to update the gui items etc
+                spectrum._noiseSD = float(
+                        noiseSD)  # need to set this first. Setting the noiseLevel will call a notifier to update the gui items etc
                 spectrum.noiseLevel = float(posValue)
                 spectrum.negativeNoiseLevel = float(negValue)
         except Exception as exc:
@@ -477,8 +472,6 @@ class GuiStrip1d(GuiStrip):
             # Define the noiseSD, the standard deviation of the region between the lines boundary
             self._setNoiseLevelsFromLines(spectrum, negValue, posValue)
 
-
-
     # -------- Picking Exclusion Area -------- #
 
     def _removePickingExclusionArea(self):
@@ -486,7 +479,6 @@ class GuiStrip1d(GuiStrip):
             if region is not None:
                 self._CcpnGLWidget.removeExternalRegion(region)
         self._pickingExclusionAreas.clear()
-
 
     def _updatePeakPickingExclusionArea(self):
         """Update the regions. We must delete all and recreate, not simpy hide/show.
@@ -501,7 +493,6 @@ class GuiStrip1d(GuiStrip):
         self._pickingExclusionAreaActive = value
         self._updatePeakPickingExclusionArea()
 
-
     def _initPickingExclusionArea(self, spectra=None):
 
         if not self._pickingExclusionAreaActive:
@@ -515,13 +506,14 @@ class GuiStrip1d(GuiStrip):
             negValue = spectrum.negativeContourBase or -posValue
             colour = spectrum.positiveContourColour
             brush = hexToRgbRatio(spectrum.sliceColour) + (0.3,)  # sliceCol plus an offset
-            _GLlinearRegions = self._CcpnGLWidget.addExternalRegion(values=(posValue, negValue), orientation='h', bounds=None,
-                                                                   brush=brush, colour=colour, movable=True)
+            _GLlinearRegions = self._CcpnGLWidget.addExternalRegion(values=(posValue, negValue), orientation='h',
+                                                                    bounds=None,
+                                                                    brush=brush, colour=colour, movable=True)
             # _GLlinearRegions.valuesChanged.connect(partial(self._setContourBaseValues, spectrum))
             _GLlinearRegions.editingFinished.connect(partial(self._setContourBaseValues, spectrum))
             self._pickingExclusionAreas[spectrum.pid] = _GLlinearRegions
 
-    def _setContourBaseValues(self,  spectrum, _dict, *args):
+    def _setContourBaseValues(self, spectrum, _dict, *args):
         values = _dict.get('values', [])
         if len(values) == 0:
             return
@@ -588,6 +580,8 @@ class GuiStrip1d(GuiStrip):
         self.calibrateYAction.setChecked(False)
         self.toggleCalibrateY()
 
+    #-----------------------------------------------------------------------------------------
+
     def _getInitialOffset(self):
         offSets = []
         offSet = 0  # Default
@@ -601,62 +595,68 @@ class GuiStrip1d(GuiStrip):
 
         return offSet
 
-    def _toggleOffsetWidget(self):
+    def _toggleOffsetWidget(self, visible: bool = False):
         from ccpn.ui.gui.widgets.Stack1DWidget import Offset1DWidget
 
         if self.offsetWidget is None:
+            # initialise the widget on the first call
             sdWid = self.spectrumDisplay.mainWidget
             self.widgetIndex += 1
-            self.offsetWidget = Offset1DWidget(sdWid, mainWindow=self.mainWindow, strip1D=self, grid=(self.widgetIndex, 0))
+            self.offsetWidget = Offset1DWidget(sdWid, mainWindow=self.mainWindow, strip1D=self,
+                                               grid=(self.widgetIndex, 0))
             initialOffset = self._getInitialOffset()
-
             # offset is now a tuple
             self.offsetWidget.setInitialIntensity(initialOffset)
-            self.offsetWidget.setVisible(True)
-        else:
-            self.offsetWidget.setVisible(not self.offsetWidget.isVisible())
 
-    def setStackingMode(self, value):
-        if value != self.stackAction.isChecked():
-            self.stackAction.setChecked(value)
-            self._toggleStack()
+        self.offsetWidget.setVisible(visible)
 
-    def getStackingMode(self):
-        return self.stackAction.isChecked()
+    #-----------------------------------------------------------------------------------------
 
-    def _toggleStack(self):
+    @property
+    def stackingMode(self) -> bool | None:
+        try:
+            return self._CcpnGLWidget.stackingMode
+        except Exception:
+            getLogger().debugGL('OpenGL widget not instantiated')
+
+    def setStackingMode(self, visible: bool = False):
+        if visible != self.stackingMode:
+            # stackingMode has changed
+            self._setStackingMode(visible)
+
+    def _toggleStackingFromShortCut(self):
+        state = not self.stackingMode
+        self._setStackingMode(state)
+
+    def _setStackingMode(self, visible):
         """Toggle stacking mode for 1d spectra
         This vertically stacks the spectra for clarity
         """
-        if self.stackAction.isChecked():
-            self._toggleOffsetWidget()
+        # update both menus - need a much better method to handle these (dynamically created)
+        self.stackAction.setChecked(visible)
+        self.phaseMenuStackAction.setChecked(visible)
+
+        self._toggleOffsetWidget(visible)
+        if visible:
             self._stack1DSpectra(self.offsetWidget.value())
-        else:
-            self._toggleOffsetWidget()
 
-            try:
-                self._CcpnGLWidget.setStackingMode(False)
-            except Exception:
-                getLogger().debugGL('OpenGL widget not instantiated')
+        try:
+            self._CcpnGLWidget.setStackingMode(visible)
+        except Exception:
+            getLogger().debugGL('OpenGL widget not instantiated')
 
-    def _toggleStackPhaseFromShortCut(self):
-        self.stackActionPhase.setChecked(not self.stackActionPhase.isChecked())
-        self._toggleStackPhase()
-
-    def _toggleStackPhase(self):
+    def _toggleStackCallback(self):
         """Toggle stacking mode for 1d spectra
         This vertically stacks the spectra for clarity
         """
-        if self.stackActionPhase.isChecked():
-            self._toggleOffsetWidget()
-            self._stack1DSpectra(self.offsetWidget.value())
-        else:
-            self._toggleOffsetWidget()
+        self._setStackingMode(not self.stackingMode)
 
-            try:
-                self._CcpnGLWidget.setStackingMode(False)
-            except Exception:
-                getLogger().debugGL('OpenGL widget not instantiated')
+    def _togglePhaseMenuStackCallback(self):
+        """Toggle stacking mode for 1d spectra
+        This vertically stacks the spectra for clarity
+        """
+        # may need to handle menu items differently
+        self._setStackingMode(not self.stackingMode)
 
     def _stack1DSpectra(self, offSet=(0.0, 0.0)):
 
@@ -665,6 +665,59 @@ class GuiStrip1d(GuiStrip):
             self._CcpnGLWidget.setStackingMode(True)
         except Exception:
             getLogger().debugGL('OpenGL widget not instantiated')
+
+    #-----------------------------------------------------------------------------------------
+
+    @property
+    def showSpectraOnPhasing(self):
+        try:
+            # only store the state in the gl-widget
+            return self._CcpnGLWidget.showSpectraOnPhasing
+        except Exception:
+            getLogger().debugGL('OpenGL widget not instantiated')
+
+    @showSpectraOnPhasing.setter
+    def showSpectraOnPhasing(self, visible: bool):
+        if visible != self.showSpectraOnPhasing:
+            # value has changed
+            self._setShowSpectraOnPhasing(visible)
+
+    def _toggleShowSpectraOnPhasingCallback(self):
+        """Toggles whether spectraOnPhasing is visible.
+        """
+        visible = not self.showSpectraOnPhasing
+        self._setShowSpectraOnPhasing(visible)
+
+    def _setShowSpectraOnPhasing(self, visible: bool):
+        self.spectraOnPhasingAction.setChecked(visible)
+        try:
+            self._CcpnGLWidget.showSpectraOnPhasing = visible
+        except Exception:
+            getLogger().debugGL('OpenGL widget not instantiated')
+
+    def _setPhasingPivotCallback(self):
+
+        phasingFrame = self.spectrumDisplay.phasingFrame
+        flipAxis = self.spectrumDisplay._flipped
+        direction = phasingFrame.getDirection()
+        position = None
+        mouseMovedDict = self.current.mouseMovedDict
+        if direction == 0:
+            for mm in mouseMovedDict[AXIS_FULLATOMNAME].keys():
+                if mm[0] == self.axisCodes[flipAxis][0]:  # check the first letter?
+                    positions = mouseMovedDict[AXIS_FULLATOMNAME][mm]
+                    position = positions[0] if positions else None
+        else:  # don't think 1D gets here
+            for mm in mouseMovedDict[AXIS_FULLATOMNAME].keys():
+                if mm[0] == self.axisCodes[1 - flipAxis][0]:
+                    positions = mouseMovedDict[AXIS_FULLATOMNAME][mm]
+                    position = positions[0] if positions else None
+
+        if position is not None:
+            phasingFrame.pivotEntry.set(position)
+            self._updatePivot()
+
+    #-----------------------------------------------------------------------------------------
 
     def toggleHorizontalTrace(self):
         """Toggles whether horizontal trace is displayed.

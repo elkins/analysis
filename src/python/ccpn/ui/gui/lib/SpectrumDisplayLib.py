@@ -4,7 +4,7 @@ Module Documentation here
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2025"
 __credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
                "Timothy J Ragan, Brian O Smith, Daniel Thompson",
                "Gary S Thompson & Geerten W Vuister")
@@ -16,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-08-09 11:25:08 +0100 (Fri, August 09, 2024) $"
-__version__ = "$Revision: 3.2.5 $"
+__dateModified__ = "$dateModified: 2025-04-02 12:46:27 +0100 (Wed, April 02, 2025) $"
+__version__ = "$Revision: 3.2.12 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -156,20 +156,20 @@ def makeStripPlotFromSingles(spectrumDisplay: GuiSpectrumDisplay, nmrAtoms: List
 def navigateToPeakInStrip(spectrumDisplay: GuiSpectrumDisplay, strip, peak, widths=None, markPositions=False):
     from ccpn.core.lib.AxisCodeLib import getAxisCodeMatchIndices
 
+    if spectrumDisplay.stripArrangement not in 'YXT':
+        return
     spCodes = spectrumDisplay.axisCodes
-    pos = [None] * len(spCodes)
-    newWidths = ['full'] * len(spCodes)
-    mappedNewWidths = [None] * len(spCodes)
+    pos: list[float | None] = [None] * len(spCodes)
+    newWidths: list[str | float | None] = ['full'] * len(spCodes)
+    mappedNewWidths: list[str | float | None] = [None] * len(spCodes)
     index = 'YXT'.index(spectrumDisplay.stripArrangement)
 
     if widths is None and index < 2:
         # set the width in case of nD (n>2)
         _widths = {'H': 0.3, 'C': 1.0, 'N': 1.0}
-        # _ac = strip.axisCodes[0]
         _ac = spCodes[index]  # primary axisCode based in stripArrangement
         _w = _widths.setdefault(_ac[0], 1.0)
         newWidths[index] = _w
-        # newWidths = [_w, 'full']
     else:
         newWidths = widths
 
@@ -188,8 +188,10 @@ def navigateToPeakInStrip(spectrumDisplay: GuiSpectrumDisplay, strip, peak, widt
 
 def navigateToNmrResidueInStrip(spectrumDisplay: GuiSpectrumDisplay, strip, nmrResidue, widths=None,
                                 markPositions=False):
+    if spectrumDisplay.stripArrangement not in 'YXT':
+        return
     spCodes = spectrumDisplay.axisCodes
-    newWidths = ['full'] * len(spCodes)
+    newWidths: list[str | float | None] = ['full'] * len(spCodes)
     index = 'YXT'.index(spectrumDisplay.stripArrangement)
 
     if widths is None and index < 2:
@@ -198,7 +200,6 @@ def navigateToNmrResidueInStrip(spectrumDisplay: GuiSpectrumDisplay, strip, nmrR
         _ac = spCodes[index]  # primary axisCode based in stripArrangement
         _w = _widths.setdefault(_ac[0], 1.0)
         newWidths[index] = _w
-        # newWidths = [_w, 'full']
     else:
         newWidths = widths
 
@@ -270,6 +271,7 @@ def arrangeLabelPositions(spectrumDisplay: GuiSpectrumDisplay, selected: bool = 
 
     strip = spectrumDisplay.strips[0]
     px, py = strip._CcpnGLWidget.pixelX, strip._CcpnGLWidget.pixelY  # ppm-per-pixel
+    dx = dy = strip.symbolSize  # in pixels
     # ppmPoss = strip.positions
     # ppmWidths = strip.widths
 
@@ -283,7 +285,7 @@ def arrangeLabelPositions(spectrumDisplay: GuiSpectrumDisplay, selected: bool = 
 
     mltLabels = [(_data2Obj.get(
             mLabel.stringObject._wrappedData.findFirstMultipletView(
-                multipletListView=mlv._wrappedData.multipletListView)),
+                    multipletListView=mlv._wrappedData.multipletListView)),
                   mLabel.stringObject,
                   mLabel)
         for mlv, ss in strip._CcpnGLWidget._GLMultiplets._GLLabels.items() if mlv.isDisplayed
@@ -341,21 +343,32 @@ def arrangeLabelPositions(spectrumDisplay: GuiSpectrumDisplay, selected: bool = 
                 posX, posY = pos[dims[0]], pos[dims[1]]
         except Exception:
             posX, posY = 0.0, 0.0
-        try:
-            lineWX, lineWY = lWidths[dims[0]], lWidths[dims[1]]
-            vPPX, vPPY = ppms[dims[0]], ppms[dims[1]]
-        except Exception:
-            lineWX, lineWY = 0.0, 0.0
-            vPPX, vPPY = 0, 0
         posnX.append(int(posX / px))  # pixelPosition
         posnY.append(int(posY / py))
-        lineWXs.append(max(abs(lineWX * vPPX / px / 2.0), 1e-3))  # semi-major axis
-        lineWYs.append(max(abs(lineWY * vPPY / py / 2.0), 1e-3))
+
+        if strip.symbolType in {1, 2}:
+            lWidths = obj.ppmLineWidths  # actually Hz, so need spectrumeterFrequencies to get ppms
+            sFreq = obj.spectrum.spectrometerFrequencies
+            if None not in lWidths:
+                try:
+                    lineWX, lineWY = lWidths[dims[0]], lWidths[dims[1]]
+                    # vPPX, vPPY = ppms[dims[0]], ppms[dims[1]]
+                    lineWXs.append(abs(lineWX / (px * sFreq[dims[0]]) // 2))  # semi-major axis
+                    lineWYs.append(abs(lineWY / (py * sFreq[dims[1]]) // 2))
+                except Exception:
+                    # lineWX, lineWY = 0.0, 0.0
+                    # vPPX, vPPY = 0, 0
+                    # need to maintain the correct array-length
+                    lineWXs.append(dx)  # semi-major axis
+                    lineWYs.append(dy)
+            else:
+                lineWXs.append(dx)  # semi-major axis
+                lineWYs.append(dy)
 
         ws.append(label.width)
         hs.append(label.height)
 
-    posnX, posnY = np.array(posnX), np.array(posnY)
+    posnX, posnY = np.array(posnX, dtype=int), np.array(posnY, dtype=int)
     minX, maxX = np.min(posnX), np.max(posnX)
     minY, maxY = np.min(posnY), np.max(posnY)
     # meanX, meanY = np.mean(posnX), np.mean(posnY)
@@ -367,29 +380,31 @@ def arrangeLabelPositions(spectrumDisplay: GuiSpectrumDisplay, selected: bool = 
     sortPos = np.argsort(-posnY)
     posnX = posnX[sortPos]
     posnY = posnY[sortPos]
-    lineWXs, lineWYs = np.abs(np.array(lineWXs)), np.abs(np.array(lineWYs))
-    lineWXs = lineWXs[sortPos]
-    lineWYs = lineWYs[sortPos]
     labels = [labels[ind] for ind in sortPos]
 
     texts = [val.text for _, _, val in labels]  # grab the labels
     # if symbolType is lineWidths then need to apply ellipse-avoidance
     if strip.symbolType in {0, 3}:
         # square or cross
-        dx = dy = strip.symbolSize
-        x_boxes = [np.array([xx - dx, xx + dx]) for xx in posnX]
-        y_boxes = [np.array([yy - dy, yy + dy]) for yy in posnY]
+        x_boxes = [np.array([xx - dx, xx + dx], dtype=int) for xx in posnX]
+        y_boxes = [np.array([yy - dy, yy + dy], dtype=int) for yy in posnY]
         # no ellipses
         x_points = None
         y_points = None
         a_ellipses = None
         b_ellipses = None
     else:
+        lineWXs, lineWYs = np.abs(np.array(lineWXs, dtype=int)), np.abs(np.array(lineWYs, dtype=int))
+        lineWXs = lineWXs[sortPos]
+        lineWYs = lineWYs[sortPos]
+        # Create a boolean mask where both arrays are nonzero
+        mask = (lineWXs != 0) & (lineWYs != 0)
+        # Filter both arrays
         # outline/filled lineWidths symbols
-        x_points = np.array(posnX)
-        y_points = np.array(posnY)
-        a_ellipses = np.array(lineWXs)
-        b_ellipses = np.array(lineWYs)
+        x_points = posnX[mask]
+        y_points = posnY[mask]
+        a_ellipses = lineWXs[mask]
+        b_ellipses = lineWYs[mask]
         # no boxes
         x_boxes = None
         y_boxes = None

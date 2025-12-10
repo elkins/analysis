@@ -11,18 +11,20 @@ ScrollableWidget(parent=None, setLayout=False,
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (http://www.ccpn.ac.uk) 2014 - 2020"
-__credits__ = ("Ed Brooksbank, Luca Mureddu, Timothy J Ragan & Geerten W Vuister")
-__licence__ = ("CCPN licence. See http://www.ccpn.ac.uk/v3-software/downloads/license")
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2025"
+__credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
+               "Timothy J Ragan, Brian O Smith, Daniel Thompson",
+               "Gary S Thompson & Geerten W Vuister")
+__licence__ = ("CCPN licence. See https://ccpn.ac.uk/software/licensing/")
 __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, L.G., & Vuister, G.W.",
                  "CcpNmr AnalysisAssign: a flexible platform for integrated NMR analysis",
-                 "J.Biomol.Nmr (2016), 66, 111-124, http://doi.org/10.1007/s10858-016-0060-y")
+                 "J.Biomol.Nmr (2016), 66, 111-124, https://doi.org/10.1007/s10858-016-0060-y")
 #=========================================================================================
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2020-07-10 18:32:44 +0100 (Fri, July 10, 2020) $"
-__version__ = "$Revision: 3.0.1 $"
+__dateModified__ = "$dateModified: 2025-02-25 15:04:59 +0000 (Tue, February 25, 2025) $"
+__version__ = "$Revision: 3.3.1 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -42,6 +44,7 @@ class Widget(QtWidgets.QWidget, Base):
     """
     Class to handle a simple widget item
     """
+
     def __init__(self, parent=None, setLayout=False, acceptDrops=False, **kwds):
         """General widget; default accepts drops (for now)
         """
@@ -60,7 +63,8 @@ class WidgetCorner(Widget):
     Item is to be resized by parent handler
     """
 
-    def __init__(self, parent, spectrumDisplay=None, mainWindow=None, setLayout=False, acceptDrops=False, background=None, **kwds):
+    def __init__(self, parent, spectrumDisplay=None, mainWindow=None, setLayout=False, acceptDrops=False,
+                 background=None, **kwds):
         """Initialise the widget
         """
         super().__init__(parent=parent, setLayout=setLayout, acceptDrops=acceptDrops, **kwds)
@@ -80,9 +84,9 @@ class WidgetCorner(Widget):
             self._background = QtGui.QColor(colour)
         except:
             # otherwise assume to be a tuple (0..1, 0..1, 0..1, 0..1, 0..1)
-            if type(colour) != tuple or len(colour) != 4 or any(not(0 <= col <= 1) for col in colour):
+            if type(colour) != tuple or len(colour) != 4 or any(not (0 <= col <= 1) for col in colour):
                 raise TypeError("colour must be a tuple(r, g, b, alpha)")
-            
+
             self._background = QtGui.QColor(rgbRatioToHex(*colour[:3]))
 
     def paintEvent(self, a0: QtGui.QPaintEvent):
@@ -96,18 +100,18 @@ class WidgetCorner(Widget):
 
 
 class ScrollableWidget(Widget):
-    "A scrollable Widget"
+    """A scrollable Widget"""
 
     def __init__(self, parent=None, setLayout=False,
                  minimumSizes=(50, 50), scrollBarPolicies=('asNeeded', 'asNeeded'), **kwds):
 
-        # define a scroll area; check kwds if these apply to gridding
+        # define a scroll area; check kwds if these apply to grid
         kw1 = {}
         for key in 'grid gridSpan stretch hAlign vAlign'.split():
             if key in kwds:
                 kw1[key] = kwds[key]
                 del (kwds[key])
-        kw1['setLayout'] = True  ## always assure a layout for the scrollarea
+        kw1['setLayout'] = True  ## always assure a layout for the scroll-area
 
         self.scrollArea = ScrollArea(parent=parent,
                                      scrollBarPolicies=scrollBarPolicies, minimumSizes=minimumSizes,
@@ -127,32 +131,32 @@ class ScrollableWidget(Widget):
         self.setScrollBarPolicies(scrollBarPolicies)
 
     def setMinimumSizes(self, minimumSizes):
-        "Set (minimumWidth, minimumHeight)"
+        """Set (minimumWidth, minimumHeight)"""
         self.setMinimumWidth(minimumSizes[0])
         self.setMinimumHeight(minimumSizes[1])
 
     def getScrollArea(self):
-        "return scroll area (for external usage)"
+        """return scroll area (for external usage)"""
         return self.scrollArea
 
     def setScrollBarPolicies(self, scrollBarPolicies=('asNeeded', 'asNeeded')):
-        "Set the scrolbar policy: always, never, asNeeded"
+        """Set the scrolbar policy: always, never, asNeeded"""
         self.scrollArea.setScrollBarPolicies(scrollBarPolicies)
 
 
-if __name__ == '__main__':
+def main():
     from ccpn.ui.gui.widgets.Application import TestApplication
     from ccpn.ui.gui.widgets.BasePopup import BasePopup
     from ccpn.ui.gui.widgets.Label import Label
-    from ccpn.ui.gui.widgets.Widget import Widget
-
 
     class TestPopup(BasePopup):
         def body(self, parent):
-            widget = Widget(parent, grid=(0, 0))
+            # parent doesn't have a layout
+            widget = Widget(parent, grid=(0, 0), setLayout=True)
             policyDict = dict(
                     hAlign='c',
                     stretch=(1, 0),
+                    setLayout=True,
                     #hPolicy = 'center',
                     #vPolicy = 'center'
                     )
@@ -160,17 +164,21 @@ if __name__ == '__main__':
             #TODO: find the cause of the empty space between the widgets
             #frame3 = ScrollableFrame(parent=parent, showBorder=True, bgColor=(255, 0, 255), grid=(2,0))
             frame1 = Widget(parent=widget, grid=(0, 0), bgColor=(255, 255, 0), **policyDict)
-            label1 = Label(parent=frame1, grid=(0, 0), text="WIDGET-1", bold=True, textColour='black', textSize='32')
+            Label(parent=frame1, grid=(0, 0), text="WIDGET-1", bold=True, textColour='black', textSize=32)
 
             frame2 = Widget(parent=widget, grid=(1, 0), bgColor=(255, 0, 0), **policyDict)
-            label2 = Label(parent=frame2, grid=(0, 0), text="WIDGET-2", bold=True, textColour='black', textSize='32')
+            Label(parent=frame2, grid=(0, 0), text="WIDGET-2", bold=True, textColour='black', textSize=32)
 
-            scroll4 = ScrollableWidget(parent=widget, grid=(2, 0))
-            label4 = Label(parent=scroll4, text="ScrollableWidget", grid=(1, 0), **policyDict,
-                           bold=True, textColour='black', textSize='32')
+            scroll4 = ScrollableWidget(parent=widget, grid=(2, 0), **policyDict)
+            Label(parent=scroll4, text="ScrollableWidget", grid=(1, 0),
+                  bold=True, textColour='black', textSize=32)
 
 
     app = TestApplication()
     popup = TestPopup(title='Test Frame')
     popup.resize(200, 400)
     app.start()
+
+
+if __name__ == '__main__':
+    main()

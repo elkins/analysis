@@ -4,7 +4,7 @@ This module contains the code for the ValidateSpectra popup
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2025"
 __credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
                "Timothy J Ragan, Brian O Smith, Daniel Thompson",
                "Gary S Thompson & Geerten W Vuister")
@@ -15,9 +15,9 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-09-13 15:20:23 +0100 (Fri, September 13, 2024) $"
-__version__ = "$Revision: 3.2.7 $"
+__modifiedBy__ = "$modifiedBy: Daniel Thompson $"
+__dateModified__ = "$dateModified: 2025-01-28 17:30:00 +0000 (Tue, January 28, 2025) $"
+__version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -252,7 +252,7 @@ class PathRowABC(object):
         else:
             self.setText(path)  # This also validates the path
 
-        if self.isValid and self.initDone and self.hasChanged:  # This avoids setting on initialisation
+        if self.initDone and self.hasChanged:  # This avoids setting on initialisation
             self.setPath(path)
 
     def revert(self):
@@ -589,19 +589,13 @@ class SpectrumPathRow(PathRowABC):
         return dataStore, dataSource
 
     def _reopenCallback(self):
-        """Callback when pressing reload
+        """Callback when pressing reload or called on save and close if AUTODETECT is still set.
         """
         _path = self.getText()
         if len(_path) == 0:
             showWarning(f'Auto-detect dataFormat for {self.obj.name}',
                         f'Undefined path'
                         )
-            return
-
-        ok = showOkCancel(f'Auto-detect dataFormat for {self.obj.name}',
-                          f'This will try to open "{_path}" and determine the dataFormat')
-
-        if not ok:
             return
 
         dataStore, dataSource = self._reopen(path=_path, dataFormat=None)
@@ -639,7 +633,7 @@ class SpectrumPathRow(PathRowABC):
         # For speed reasons, we check if it any different from before, or was not valid to start with
         if self.hasChanged:
             try:
-                self.spectrum._openFile(path=path, dataFormat=self.dataFormat)
+                self.spectrum._openFile(path=path, dataFormat=self.dataFormat, requireValid=False)
             except Exception as es:
                 getLogger().debug2(f'ignoring filePath, dataFormat error {es}')
 
@@ -1133,6 +1127,8 @@ class ValidateSpectraPopup(CcpnDialog):
         self.dataRow.update()
 
         for spectrum, row in self.spectrumData.items():
+            if row.dataFormat is None:
+                # auto detect new format.
+                row._reopenCallback()
             row.update()
-
         self.accept()

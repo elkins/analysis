@@ -3,7 +3,7 @@ In this file there are several functions needed for snapping 1D peaks.
 
 WARNING:
     The 1D peak snapping algorithm is not simply the action of finding the closest maximum for an existing peak.
-    It is highly optimised for screening routines following industrial collaborations and extensive testing.
+    It is highly optimised for screening routines following industrial collaborations and extensive testing on large datasets.
     Do any refactoring with extra caution!
 
 """
@@ -12,8 +12,9 @@ WARNING:
 # Licence, Reference and Credits
 #=========================================================================================
 __copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
-__credits__ = ("Ed Brooksbank, Joanna Fox, Morgan Hayward, Victoria A Higman, Luca Mureddu",
-               "Eliza Płoskoń, Timothy J Ragan, Brian O Smith, Gary S Thompson & Geerten W Vuister")
+__credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
+               "Timothy J Ragan, Brian O Smith, Daniel Thompson",
+               "Gary S Thompson & Geerten W Vuister")
 __licence__ = ("CCPN licence. See https://ccpn.ac.uk/software/licensing/")
 __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, L.G., & Vuister, G.W.",
                  "CcpNmr AnalysisAssign: a flexible platform for integrated NMR analysis",
@@ -22,8 +23,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-03-04 17:37:18 +0000 (Mon, March 04, 2024) $"
-__version__ = "$Revision: 3.2.2 $"
+__dateModified__ = "$dateModified: 2024-12-19 18:53:56 +0000 (Thu, December 19, 2024) $"
+__version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -154,7 +155,6 @@ def _getLimitsRange(peak, leftPpm, rightPpm, maxSteps=10):
         limits.append([ppmLeft, ppmRight])
     return limits
 
-
 def _snap(peak, x,y, maxima, minimalHeightThreshold,  defaultLimitPpm=0.5, maxLimitPpm=1, figOfMeritLimit=0.5, deltaFactor=0.5, retry=True, ):
     # mainWindow.newMark(colour='#C71585', positions=[minimalHeightThreshold], axisCodes=['intensity'], style='simple', units=(), labels=(), strips=None)
     # peak.annotation = '' if not peak.annotation else peak.annotation
@@ -230,6 +230,8 @@ def _snap(peak, x,y, maxima, minimalHeightThreshold,  defaultLimitPpm=0.5, maxLi
         peak._snapFlag = snapFlag
 
     return [position], height, snapFlag
+
+
 
 
 def _find1DCoordsForPeaks(peaks,
@@ -330,16 +332,6 @@ def _countNearUnpickedMaxima(peaks, tolerancePpm = 0.5, snrThreshold=3.5):
         getLogger().warning(f'Cannot find any unpicked near given peaks for {spectrum.pid}. Error: {err}')
         return [0]*len(peaks)
     return counts
-
-
-
-
-
-
-
-
-
-# ### NEW END =====
 
 def _getSnappingPeakLimits(peak, otherPeaksPointPosition, deltaFactor = 0.5, defaultLimitPpm = 0.250, maxLimitPpm = 1.0):
     """

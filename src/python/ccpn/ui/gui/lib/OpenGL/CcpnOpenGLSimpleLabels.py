@@ -4,9 +4,10 @@ Module Documentation here
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2023"
-__credits__ = ("Ed Brooksbank, Joanna Fox, Morgan Hayward, Victoria A Higman, Luca Mureddu",
-               "Eliza Płoskoń, Timothy J Ragan, Brian O Smith, Gary S Thompson & Geerten W Vuister")
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2025"
+__credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
+               "Timothy J Ragan, Brian O Smith, Daniel Thompson",
+               "Gary S Thompson & Geerten W Vuister")
 __licence__ = ("CCPN licence. See https://ccpn.ac.uk/software/licensing/")
 __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, L.G., & Vuister, G.W.",
                  "CcpNmr AnalysisAssign: a flexible platform for integrated NMR analysis",
@@ -15,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2023-12-14 15:20:38 +0000 (Thu, December 14, 2023) $"
-__version__ = "$Revision: 3.2.1 $"
+__dateModified__ = "$dateModified: 2025-05-12 16:12:36 +0100 (Mon, May 12, 2025) $"
+__version__ = "$Revision: 3.3.2.1 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -39,7 +40,7 @@ import ccpn.ui.gui.lib.OpenGL.CcpnOpenGLDefs as GLDefs
 from ccpn.core.lib.AxisCodeLib import getAxisCodeMatchIndices
 
 
-class GLSimpleStrings():
+class GLSimpleStrings:
     """
     Class to handle grouped labels with an optional infinite line if required
     Labels can be locked to screen co-ordinates or top/bottom, left/right justified
@@ -55,7 +56,6 @@ class GLSimpleStrings():
         self.resizeGL = resizeGL
         self.axisCodes = self.strip.axisCodes
         self.current = self.strip.current if self.strip else None
-
         self.strings = {}
 
     def buildStrings(self):
@@ -86,6 +86,12 @@ class GLSimpleStrings():
         for specView, string in self.strings.items():
             if specView in self._GLParent._visibleOrdering and string.stringObject and not string.stringObject.isDeleted:
                 string.drawTextArrayVBO()
+
+    def clear(self):
+        """Clear the current list of strings, a bit hacky, but required to rebuild the strings when
+        changing devicePixelRatio."""
+        # clear the string dict
+        self.strings.clear()
 
     def objectText(self, obj):
         """return the string to be used for the label

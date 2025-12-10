@@ -16,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-06-07 21:57:29 +0100 (Fri, June 07, 2024) $"
-__version__ = "$Revision: 3.2.4 $"
+__dateModified__ = "$dateModified: 2024-11-26 10:38:14 +0000 (Tue, November 26, 2024) $"
+__version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -50,13 +50,13 @@ class PythonConsoleModule(CcpnModule):
 
     # _helpFilePath = ccpnModuleHelpPath / 'PythonConsoleModuleHelp.html'
 
-    def __init__(self, mainWindow, name='Python Console', closeFunc=None, **kwds):
-        CcpnModule.__init__(self, mainWindow=mainWindow, name=name, closeFunc=closeFunc)
+    def __init__(self, mainWindow, name='Python Console', **kwds):
+        super().__init__(mainWindow=mainWindow, name=name)
 
         self.mainWindow = mainWindow
         self.application = mainWindow.application
         self.pythonConsoleWidget = self.mainWindow.pythonConsole
-        if self.pythonConsoleWidget is None:  # For some reason it can get destroid!
+        if self.pythonConsoleWidget is None:  # For some reason it can get destroyed!
             self.mainWindow.pythonConsole = self.pythonConsoleWidget = IpythonConsole(self)
         self.mainWidget.getLayout().addWidget(self.pythonConsoleWidget)
 

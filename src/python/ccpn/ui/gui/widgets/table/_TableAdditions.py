@@ -4,7 +4,7 @@ Module Documentation here
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2025"
 __credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
                "Timothy J Ragan, Brian O Smith, Daniel Thompson",
                "Gary S Thompson & Geerten W Vuister")
@@ -16,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-11-01 19:40:51 +0000 (Fri, November 01, 2024) $"
-__version__ = "$Revision: 3.2.9 $"
+__dateModified__ = "$dateModified: 2025-01-13 12:40:32 +0000 (Mon, January 13, 2025) $"
+__version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -34,19 +34,20 @@ from abc import ABC, abstractmethod
 import typing
 import pandas as pd
 
-from ccpn.framework.Application import getApplication
-from ccpn.ui.gui.widgets.ColumnViewSettings import ColumnViewSettingsPopup
 from ccpn.ui.gui.widgets import MessageDialog
 from ccpn.ui.gui.widgets.SearchWidget import _SimplerDFTableFilter, _TableFilterABC
 from ccpn.ui.gui.widgets.FileDialog import TablesFileDialog
+from ccpn.ui.gui.widgets.table._TableModel import _TableModel
 from ccpn.util.Path import aPath
 from ccpn.util.Logging import getLogger
 from ccpn.util.Common import copyToClipboard, NOTHING
 from ccpn.util.OrderedSet import OrderedSet
+from ccpn.core.lib.WeakRefLib import WeakRefDescriptor
 
 
 menuItem = namedtuple('menuItem', 'name toolTip')
 TableFilterType = typing.Type[_TableFilterABC]
+TableBaseClass = typing.TypeVar('TableBaseClass', bound='TableABC')
 
 
 #=========================================================================================
@@ -57,14 +58,14 @@ class TableMenuABC(ABC):
     """Class to handle adding options to a right-mouse menu.
     """
     name: typing.Optional[str] = None
-    type: str = 'TableMenu'
+    _menuType: str = 'TableMenu'
     _enabled: bool = False
-    _parent: QtWidgets.QTableView = None
+    _parent: TableBaseClass = WeakRefDescriptor()
 
     # add internal labels here
 
-    def __init__(self, parent: QtWidgets.QTableView, enabled: bool = NOTHING):
-        """Initialise the menu object to the parent table.
+    def __init__(self, parent: TableBaseClass, enabled: bool = NOTHING):
+        """Initialise the menu object to the parent-table.
 
         :param parent: QTableView object
         :param enabled: bool
@@ -88,24 +89,24 @@ class TableMenuABC(ABC):
 
     @abstractmethod
     def setMenuOptions(self, menu: QtWidgets.QMenu):
-        """Update search options in the right-mouse menu
+        """Update options in the right-mouse menu.
         """
         # MUST BE SUBCLASSED
         raise NotImplementedError("Code error: function not implemented")
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Properties
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     @property
     def isEnabled(self) -> bool:
-        """Return True if the options are enabled in the table menu
+        """Return True if the options are enabled in the table-menu.
         """
         return self._enabled
 
     @property
     def enabled(self) -> bool:
-        """Return True if the options are enabled in the table menu
+        """Return True if the options are enabled in the table-menu.
         """
         return self._enabled
 
@@ -120,9 +121,9 @@ class TableMenuABC(ABC):
 
         self._enabled = value
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Class methods
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     # pass methods through to the QTableView/QHeaderView
 
@@ -132,30 +133,30 @@ class TableMenuABC(ABC):
     def update(self):
         return self._parent.update()
 
-    def model(self) -> QtCore.QAbstractTableModel:
+    def model(self) -> _TableModel:
         return self._parent.model()
 
     def horizontalHeader(self) -> QtWidgets.QHeaderView:
         return self._parent.horizontalHeader()
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Implementation
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     ...
 
 
-class TableHeaderABC(ABC):
+class TableHeaderMenuABC(ABC):
     """Class to handle adding options to a right-mouse menu.
     """
     name: typing.Optional[str] = None
-    type: str = 'TableHeaderMenu'
+    _menuType: str = 'TableHeaderMenu'
     _enabled: bool = True
-    _parent: QtWidgets.QTableView = None
+    _parent: TableBaseClass = WeakRefDescriptor()
 
     # add internal labels here
 
-    def __init__(self, parent: QtWidgets.QTableView, enabled: bool = NOTHING):
+    def __init__(self, parent: TableBaseClass, enabled: bool = NOTHING):
         """Initialise the menu object to the parent table.
 
         :param parent: QTableView object
@@ -171,27 +172,29 @@ class TableHeaderABC(ABC):
             # revert to the class _enabled
             self._enabled = enabled
 
+    @abstractmethod
     def addMenuOptions(self, menu):
         """Add options to the right-mouse menu on the table or headers.
         """
         # MUST BE SUBCLASSED
         raise NotImplementedError("Code error: function not implemented")
 
+    @abstractmethod
     def setMenuOptions(self, menu):
-        """Update search options in the right-mouse menu
+        """Update search options in the right-mouse menu.
         """
         # MUST BE SUBCLASSED
         raise NotImplementedError("Code error: function not implemented")
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Properties
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     # pass methods through to the QTableView/QHeaderView
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Class methods
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     # pass methods through to the QTableView/QHeaderView
 
@@ -201,7 +204,7 @@ class TableHeaderABC(ABC):
     def update(self):
         return self._parent.update()
 
-    def model(self) -> QtCore.QAbstractTableModel:
+    def model(self) -> _TableModel:
         return self._parent.model()
 
     def horizontalHeader(self) -> QtWidgets.QHeaderView:
@@ -213,9 +216,9 @@ class TableHeaderABC(ABC):
     def resizeColumnToContents(self, section):
         self._parent.resizeColumnToContents(section)
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Implementation
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     ...
 
@@ -227,36 +230,36 @@ class TableHeaderABC(ABC):
 _COPYCELL_OPTION = 'Copy clicked cell value'
 
 
-class TableCopyCell(TableMenuABC):
-    """Class to handle copy-cell option on a menu
+class TableMenuCopyCell(TableMenuABC):
+    """Class to handle copy-cell option on a menu.
     """
     name = "CopyCell"
 
     def addMenuOptions(self, menu: QtWidgets.QMenu):
-        """Add copy-cell option to the right-mouse menu
+        """Add copy-cell option to the right-mouse menu.
         """
         self._copySelectedCellAction = menu.addAction(_COPYCELL_OPTION, self._copySelectedCell)
 
     def setMenuOptions(self, menu: QtWidgets.QMenu):
-        """Update copy-cell option in the right-mouse menu
+        """Update copy-cell option in the right-mouse menu.
         """
         # disable the copyCell options if not available
         if (actions := [act for act in menu.actions() if act.text() == _COPYCELL_OPTION]):
             actions[0].setEnabled(self._enabled)
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Properties
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     @property
     def isEnabled(self) -> bool:
-        """Return True if the options are enabled in the table menu
+        """Return True if the options are enabled in the table-menu.
         """
         return self._enabled
 
     @property
     def enabled(self) -> bool:
-        """Return True if the options are enabled in the table menu
+        """Return True if the options are enabled in the table-menu.
         """
         return self._enabled
 
@@ -271,18 +274,18 @@ class TableCopyCell(TableMenuABC):
 
         self._enabled = value
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Class methods
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
-    pass
+    ...
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Implementation
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     def _copySelectedCell(self):
-        """Copy the current cell-value to the clipboard
+        """Copy the current cell-value to the clipboard.
         """
         idx = self._parent.currentIndex()
         if idx is not None and (data := idx.data()) is not None:
@@ -291,88 +294,48 @@ class TableCopyCell(TableMenuABC):
 
 
 #=========================================================================================
-# Table Header Menu
+# Table Header Menu - Columns
 #=========================================================================================
 
 _COLUMN_SETTINGS = menuItem('Column Settings...', 'Show/hide columns')
-# _SAVE = menuItem('Save hidden columns', 'Save the current visible/hidden columns;\n'
-#                                         'new tables will open from the saved state.')
-# _RESTORE = menuItem('Restore hidden columns', 'Restore the visible/hidden columns from the\n'
-#                                               'saved state for this table.')
-# _RESET = menuItem('Reset hidden columns', 'Clear the current saved visible/hidden columns;\n'
-#                                           'new tables will open with the default state for this table.')
 _TABLES = 'tables'
 _HIDDENCOLUMNS = 'hiddenColumns'
+_COLUMNHEADER = 'columnHeader'
 
 
-class TableHeaderColumns(TableHeaderABC):
-    """Class to handle column-settings on a header-menu
+class TableHeaderMenuColumns(TableHeaderMenuABC):
+    """Class to handle column-settings on a header-menu.
     """
     name = "Columns"
-    _parent = None
-    _defaultHiddenColumns = None
-    _internalColumns = None
     _menuItemVisible = True
 
-    def __init__(self, *args, **kwds):
-        super(TableHeaderColumns, self).__init__(*args, **kwds)
-
-        # initialise the hidden/internal columns
-        self._defaultHiddenColumns = set()
-        self._internalColumns = set()
-
     def addMenuOptions(self, menu):
-        """Add table-header items to the right-mouse menu
+        """Add table-header items to the right-mouse menu.
         """
         menu.addSeparator()
         self._columnSettingsAction = menu.addAction(_COLUMN_SETTINGS.name, self._showColumnsPopup)
-        # self._saveAction = menu.addAction(_SAVE.name, self._saveCurrentColumns)
-        # self._restoreAction = menu.addAction(_RESTORE.name, self.restoreColumns)
-        # self._resetAction = menu.addAction(_RESET.name, self.resetColumns)
         self._columnSettingsAction.setToolTip(_COLUMN_SETTINGS.toolTip)
-        # self._saveAction.setToolTip(_SAVE.toolTip)
-        # self._restoreAction.setToolTip(_RESTORE.toolTip)
-        # self._resetAction.setToolTip(_RESET.toolTip)
 
     def setMenuOptions(self, menu):
-        """Update the state of options in the right-mouse menu
+        """Update the state of options in the right-mouse menu.
         """
-        for itm in {self._columnSettingsAction}:  # , self._saveAction, self._restoreAction, self._resetAction}:
+        for itm in {self._columnSettingsAction}:
             itm.setEnabled(self._enabled)
             itm.setVisible(self._menuItemVisible)
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Properties
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
-    # pass methods through to the QTableView/QHeaderView
+    ...
 
-    @property
-    def hiddenColumns(self):
-        """Set/clear the hidden columns
-        """
-        header = list(self._parent._df.columns)
-        # hide _internalColumns
-        return [col for cc, col in enumerate(header)
-                if self._parent.isColumnHidden(cc) and col not in self._internalColumns]
-
-    @hiddenColumns.setter
-    def hiddenColumns(self, columns):
-        header = list(self._parent._df.columns)
-        for cc, col in enumerate(header):
-            if col in columns or col in self._internalColumns:
-                # _internalColumns are always hidden
-                self.hideColumn(cc)
-            else:
-                self.showColumn(cc)
-
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Class methods
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     # pass methods through to the QTableView/QHeaderView
 
-    def model(self) -> QtCore.QAbstractTableModel:
+    def model(self) -> QtCore.QAbstractItemModel:
         return self._parent.model()
 
     def horizontalHeader(self) -> QtWidgets.QHeaderView:
@@ -384,156 +347,54 @@ class TableHeaderColumns(TableHeaderABC):
     def hideColumn(self, col):
         self._parent.hideColumn(col)
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Implementation
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
-    def setInternalColumns(self, texts):
-        """set a list of internal column-headers that are always hidden.
-        """
-        self._internalColumns = set(texts or [])
-        self.refreshHiddenColumns()
+    ...
 
-    def setDefaultColumns(self, texts):
-        """set a list of default column-headers that are hidden when first shown.
-        """
-        self._defaultHiddenColumns = set(texts or [])
-        self.resetToDefaultHiddenColumns()
-
-    def _hideInternalColumns(self):
-        """Hide all columns in the _internal list.
-        Shouldn't need to be called.
-        """
-        for i, columnName in enumerate(self.columnTexts):
-            # remember to hide the special column
-            if columnName in self._internalColumns:
-                self.hideColumn(i)
-
-    @property
-    def columnTexts(self):
-        """Return a list of column texts.
-        """
-        try:
-            return list(self._parent._df.columns)
-        except Exception:
-            return []
-
-    def refreshHiddenColumns(self):
-        """Refresh the visible columns.
-        To be used after the _internalColumns have been changed
-        """
-        hiCols = set(self.hiddenColumns) | self._internalColumns
-        # show the columns in the list
-        for col, colName in enumerate(self.columnTexts):
-            # always hide the internal columns
-            if colName in hiCols:
-                self._hideColumnName(colName)
-            else:
-                self._showColumnName(colName)
-
-    def resetToDefaultHiddenColumns(self):
-        """Reset the hidden columns to default hidden-columns.
-        """
-        hiCols = self._internalColumns | self._defaultHiddenColumns
-        # show the columns in the list
-        for col, colName in enumerate(self.columnTexts):
-            # always hide the internal columns
-            if colName in hiCols:
-                self._hideColumnName(colName)
-            else:
-                self._showColumnName(colName)
-
-    def _showColumnName(self, name):
-        if name not in self.columnTexts:
-            return
-        if 0 <= (i := self.columnTexts.index(name)):
-            self.showColumn(i)
-
-    def _hideColumnName(self, name):
-        if name not in self.columnTexts:
-            return
-        if 0 <= (i := self.columnTexts.index(name)):
-            self.hideColumn(i)
-
-    def isColumnInternal(self, column) -> bool:
-        """Return True if the column is internal and not for external viewing.
-        """
-        if 0 <= column < len(self.columnTexts):
-            return self.columnTexts[column] in self._internalColumns
-        return False
-
-    @property
-    def _allHiddenColumns(self) -> list:
-        """Return a list of all the hidden/internal columns.
-        """
-        return [col for col in self.columnTexts if col in (set(self.hiddenColumns) | self._internalColumns)]
-
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Menu callbacks
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     def _showColumnsPopup(self):
         """Show the columns popup-menu.
         """
-        settingsPopup = ColumnViewSettingsPopup(parent=self._parent, table=self,
-                                                dataFrameObject=self._parent._df,
-                                                # NOTE:ED - need to remove dataFrameObject :|
-                                                hiddenColumns=self.hiddenColumns,
-                                                )
-        settingsPopup.exec_()  # pass exclusive control to the menu and return hidden-columns
+        # to avoid circular imports
+        from ccpn.ui.gui.widgets.ColumnViewSettings import ColumnViewSettingsPopup as Popup
 
-    def _saveCurrentColumns(self):
-        """Save the current hidden-columns to preferences.
-        """
-        self.saveColumns(self.hiddenColumns)
+        settingsPopup = Popup(parent=self._parent, tableHandler=self,
+                              dataFrameObject=self._parent._df,
+                              # NOTE:ED - need to remove dataFrameObject :|
+                              )
+        settingsPopup.exec_()  # pass exclusive control to the menu
 
-    def saveColumns(self, texts: list | None = None):
-        """Reset the hidden-columns for the default state.
-        If texts is None, will defer to the default hidden columns defined in the table-class.
-        Update the table to the default state.
-        """
-        tableName = self._parent.__class__.__name__
-        if not (app := getApplication()):
-            getLogger().debug2(f'Cannot save default hidden-columns {tableName}')
-            return
-        # store in preferences
-        tables = app.preferences.setdefault(_TABLES, {})
-        table = tables.setdefault(tableName, {})
-        table[_HIDDENCOLUMNS] = texts
 
-    def resetColumns(self):
-        """Clear the state in preferences and reset the curent columns.
-        """
-        self.saveColumns()
-        self.restoreColumns()
+#=========================================================================================
+# Table Header Menu - CoreColumns
+#=========================================================================================
 
-    def restoreColumns(self):
-        """Restore the hidden-columns from the currently saved class-state.
-        """
-        tableName = self._parent.__class__.__name__
-        if not (app := getApplication()):
-            getLogger().debug2(f'Cannot restore hidden-columns {tableName}')
-            return
-        try:
-            if (hidden := app.preferences[_TABLES][tableName][_HIDDENCOLUMNS]) is not None:
-                getLogger().debug2(f'Restoring default hidden-columns {hidden}')
-                self.hiddenColumns = hidden
-                return
-        except Exception:
-            getLogger().debug2(f'No saved state')
-        self.resetToDefaultHiddenColumns()
+class TableHeaderMenuCoreColumns(TableHeaderMenuColumns):
+    """Class to handle column-settings on a header-menu.
+    Extra functionality to allow save/restore/reset state from preferences.
+    """
+    name = "CoreColumns"
 
-    def getSavedColumns(self) -> list | None:
-        """Fetch the default hidden-columns.
+    #-----------------------------------------------------------------------------------------
+    # Menu callbacks
+    #-----------------------------------------------------------------------------------------
+
+    def _showColumnsPopup(self):
+        """Show the columns popup-menu.
         """
-        tableName = self._parent.__class__.__name__
-        if not (app := getApplication()):
-            getLogger().debug2(f'Cannot fetch hidden-columns {tableName}')
-            return
-        try:
-            return app.preferences[_TABLES][tableName][_HIDDENCOLUMNS]
-        except Exception:
-            getLogger().debug2(f'No saved default hidden-columns')
+        # to avoid circular imports
+        from ccpn.ui.gui.widgets.ColumnViewSettings import ColumnViewCoreSettingsPopup as Popup
+
+        settingsPopup = Popup(parent=self._parent, tableHandler=self,
+                              dataFrameObject=self._parent._df,
+                              # NOTE:ED - need to remove dataFrameObject :|
+                              )
+        settingsPopup.exec_()  # pass exclusive control to the menu
 
 
 #=========================================================================================
@@ -544,7 +405,7 @@ _EXPORT_OPTION_VISIBLE = 'Export Visible Table'
 _EXPORT_OPTION_ALL = 'Export All Columns'
 
 
-class TableExport(TableMenuABC):
+class TableMenuExport(TableMenuABC):
     """Class to handle export options on a menu.
     """
     name = "Export"
@@ -566,21 +427,21 @@ class TableExport(TableMenuABC):
         if (actions := [act for act in menu.actions() if act.text() == _EXPORT_OPTION_ALL]):
             actions[0].setEnabled(self._enabled)
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Properties
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     ...
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Class methods
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     ...
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Implementation
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     def _exportTableDialog(self, exportAll=True):
         """Export the contents of the table to a file.
@@ -608,9 +469,9 @@ class TableExport(TableMenuABC):
                            if not self.horizontalHeader().isSectionHidden(ii)]
             self._showExportTableDialog(df, rowList=rowList, colList=colList)
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Exporters
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     @staticmethod
     def _dataFrameToExcel(dataFrame, path, sheet_name='Table', columns=None):
@@ -651,7 +512,6 @@ class TableExport(TableMenuABC):
             ('.json', self._dataFrameToJson)
             ])
 
-        # extension = os.path.splitext(path)[1]
         extension = aPath(path).suffix
         if not extension:
             extension = '.xlsx'
@@ -690,7 +550,7 @@ _DELETE_OPTION = 'Delete Selection'
 _CLEAR_OPTION = 'Clear Selection'
 
 
-class TableDelete(TableMenuABC):
+class TableMenuDelete(TableMenuABC):
     """Class to handle delete options on a menu.
     """
     name = "Delete"
@@ -709,21 +569,21 @@ class TableDelete(TableMenuABC):
         if (actions := [act for act in menu.actions() if act.text() == _DELETE_OPTION]):
             actions[0].setEnabled(self._enabled)
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Properties
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     ...
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Class methods
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     ...
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Implementation
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     def deleteSelectionFromTable(self):
         """Delete all objects in the selection from the project.
@@ -743,7 +603,7 @@ class TableDelete(TableMenuABC):
 _SEARCH_OPTION = 'Filter...'
 
 
-class TableSearchMenu(TableMenuABC):
+class TableMenuSearch(TableMenuABC):
     """Class to handle search options from a right-mouse menu.
     """
     tableAboutToBeSearched = QtCore.pyqtSignal(list)
@@ -767,13 +627,13 @@ class TableSearchMenu(TableMenuABC):
         if (actions := [act for act in menu.actions() if act.text() == _SEARCH_OPTION]):
             actions[0].setEnabled(self._searchWidget is not None)
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Properties
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     @property
     def searchWidget(self) -> _TableFilterABC | None:
-        """Return the search-widget
+        """Return the search-widget.
         """
         return self._searchWidget
 
@@ -781,9 +641,9 @@ class TableSearchMenu(TableMenuABC):
     def searchWidget(self, value: _TableFilterABC | None):
         self._searchWidget = value
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Class methods
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     def showSearchSettings(self):
         """Display the search-frame in the table.
@@ -810,13 +670,13 @@ class TableSearchMenu(TableMenuABC):
             raise TypeError(f'{self.__class__.__name__}.setFilterKlass: klass is not of type {TableFilterType}')
         self.searchFilterKlass = klass
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Implementation
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     def _attachSearchWidget(self) -> _TableFilterABC:
-        """Attach the search widget to the bottom of the table widget
-        Search widget is applied to QTableView object
+        """Attach the search widget to the bottom of the table widget.
+        Search widget is applied to QTableView object.
         """
         try:
             parent = self._parent
@@ -905,6 +765,6 @@ class TableSearchMenu(TableMenuABC):
         # self.update()
 
     def refreshFilter(self):
-        """Refresh the search-widget if the contents of the table have changed
+        """Refresh the search-widget if the contents of the table have changed.
         """
         self._searchWidget and self._searchWidget.refreshFilter()

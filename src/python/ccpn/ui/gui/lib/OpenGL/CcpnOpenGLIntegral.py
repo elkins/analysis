@@ -4,7 +4,7 @@ Module Documentation here
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2025"
 __credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
                "Timothy J Ragan, Brian O Smith, Daniel Thompson",
                "Gary S Thompson & Geerten W Vuister")
@@ -16,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-08-07 13:10:49 +0100 (Wed, August 07, 2024) $"
-__version__ = "$Revision: 3.2.5 $"
+__dateModified__ = "$dateModified: 2025-05-02 11:23:07 +0100 (Fri, May 02, 2025) $"
+__version__ = "$Revision: 3.3.2 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -239,20 +239,18 @@ class GLintegralNdLabelling(GL1dLabelling, GLintegralListMethods, GLLabelling): 
                 # axisIndex is set when creating the labels, based on _flipped
                 if drawStr.axisIndex == 0:
                     _font = drawStr.font
-
                     # top-left of region, bound to top of screen
                     offsets = [drawStr.axisPosition + (3.0 * self._GLParent.pixelX),
-                               self._GLParent.axisT - (2 * _font.charHeight * self._GLParent.pixelY),
+                               self._GLParent.axisT - (2 * _font.height * self._GLParent.pixelY),
                                0.0, 0.0]
-
                 else:
                     # bottom-left of region, bound to left of screen - should be top-left of region?
                     offsets = [self._GLParent.axisL + (3.0 * self._GLParent.pixelX),
                                drawStr.axisPosition + (3.0 * self._GLParent.pixelY),
                                0.0, 0.0]
 
+                # CHECK:ED - need to check for split by newlines :|
                 drawStr.attribs[:] = offsets * vertices
-
                 drawStr.pushTextArrayVBOAttribs()
 
     def _buildSymbols(self, spectrumView, integralListView):
@@ -262,6 +260,8 @@ class GLintegralNdLabelling(GL1dLabelling, GLintegralListMethods, GLLabelling): 
                                                                  GLContext=self._GLParent,
                                                                  spectrumView=spectrumView,
                                                                  integralListView=integralListView)
+            # add to the current list of listViews
+            self._updateListViews()
 
         drawList = self._GLSymbols[integralListView]
 
@@ -421,7 +421,7 @@ class GLintegralNdLabelling(GL1dLabelling, GLintegralListMethods, GLLabelling): 
             textY = pos or 0.0
         else:
             textX = pos or 0.0 + (3.0 * self._GLParent.pixelX)
-            textY = self._GLParent.axisT - (2 * smallFont.charHeight * self._GLParent.pixelY)
+            textY = self._GLParent.axisT - (2 * smallFont.height * self._GLParent.pixelY)
 
         newString = GLString(text=text,
                              font=smallFont,

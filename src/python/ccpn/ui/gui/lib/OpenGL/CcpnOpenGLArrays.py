@@ -4,7 +4,7 @@ GL routines used to draw vertex buffer objects (VBOs)
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2025"
 __credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
                "Timothy J Ragan, Brian O Smith, Daniel Thompson",
                "Gary S Thompson & Geerten W Vuister")
@@ -16,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-09-13 15:11:29 +0100 (Fri, September 13, 2024) $"
-__version__ = "$Revision: 3.2.7 $"
+__dateModified__ = "$dateModified: 2025-04-09 18:06:03 +0100 (Wed, April 09, 2025) $"
+__version__ = "$Revision: 3.3.1 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -55,6 +55,7 @@ _VOIDPTR0 = ctypes.c_void_p(0)
 _VOIDPTR16 = ctypes.c_void_p(16)
 
 _DEBUG = False
+_DEBUGPUSH = False
 
 
 #=========================================================================================
@@ -245,7 +246,7 @@ class _VBOGLVertexArray:
     def pushIndexVBO(self):
         """Push Indices/Colours/Vertices to graphics card
         """
-        if _DEBUG:
+        if _DEBUGPUSH:
             getLogger().debug(f'{consoleStyle.fg.darkyellow}-->  {self.__class__.__name__}.pushIndexVBO'
                               f'   -   {id(self)}{consoleStyle.reset}')
 
@@ -273,7 +274,7 @@ class _VBOGLVertexArray:
         """Update the buffers on the graphics card.
         Only the index array.
         """
-        if _DEBUG:
+        if _DEBUGPUSH:
             getLogger().debug(f'{consoleStyle.fg.darkyellow}-->  {self.__class__.__name__}.pushIndexVBOIndices'
                               f'   -   {id(self)}{consoleStyle.reset}')
 
@@ -422,7 +423,7 @@ class _VBOGLVertexArray:
     def pushAliasedIndexVBO(self):
         """Push Indices/Colours/Vertices/attribs to graphics card
         """
-        if _DEBUG:
+        if _DEBUGPUSH:
             getLogger().debug(f'{consoleStyle.fg.darkyellow}-->  {self.__class__.__name__}.pushAliasedIndexVBO'
                               f'   -   {id(self)}{consoleStyle.reset}')
 
@@ -451,7 +452,7 @@ class _VBOGLVertexArray:
         """Update the buffers on the graphics card.
         Only the index array.
         """
-        if _DEBUG:
+        if _DEBUGPUSH:
             getLogger().debug(f'{consoleStyle.fg.darkyellow}-->  {self.__class__.__name__}.pushAliasedIndexVBOIndices'
                               f'   -   {id(self)}{consoleStyle.reset}')
 
@@ -616,7 +617,7 @@ class _VBOGLVertexArray:
     def pushVertexColorVBO(self):
         """Push Colours/Vertices to graphics card
         """
-        if _DEBUG:
+        if _DEBUGPUSH:
             getLogger().debug(f'{consoleStyle.fg.darkyellow}-->  {self.__class__.__name__}.pushVertexColorVBO'
                               f'   -   {id(self)}{consoleStyle.reset}')
 
@@ -795,7 +796,7 @@ class _VBOGLVertexArray:
     def pushTextArrayVBO(self):
         """Push vertices/colours/texture co-ordinates/attribs/indices to graphics card
         """
-        if _DEBUG:
+        if _DEBUGPUSH:
             getLogger().debug(f'{consoleStyle.fg.darkyellow}-->  {self.__class__.__name__}.pushTextArrayVBO'
                               f'   -   {id(self)}{consoleStyle.reset}')
 
@@ -825,7 +826,7 @@ class _VBOGLVertexArray:
         """Update the buffers on the graphics card.
         Only update the attributes used for moving text.
         """
-        if _DEBUG:
+        if _DEBUGPUSH:
             getLogger().debug(f'{consoleStyle.fg.darkyellow}-->  {self.__class__.__name__}.pushTextArrayVBOAttribs'
                               f'   -   {id(self)}{consoleStyle.reset}')
 
@@ -842,7 +843,7 @@ class _VBOGLVertexArray:
         """Update the buffers on the graphics card.
         Only update the colour, used for highlighting text.
         """
-        if _DEBUG:
+        if _DEBUGPUSH:
             getLogger().debug(f'{consoleStyle.fg.darkyellow}-->  {self.__class__.__name__}.pushTextArrayVBOColour'
                               f'   -   {id(self)}{consoleStyle.reset}')
 
@@ -981,7 +982,7 @@ class _VBOGLVertexArray:
     def pushIntIndexVBO(self):
         """Push Indices/Colours/Vertices to graphics card
         """
-        if _DEBUG:
+        if _DEBUGPUSH:
             getLogger().debug(f'{consoleStyle.fg.darkyellow}-->  {self.__class__.__name__}.pushIntIndexVBO'
                               f'   -   {id(self)}{consoleStyle.reset}')
 
@@ -1246,7 +1247,7 @@ class _GLVertexArray:
     def pushIndexVBO(self):
         """Push Indices/Colours/Vertices to graphics card
         """
-        if _DEBUG:
+        if _DEBUGPUSH:
             getLogger().debug(f'{consoleStyle.fg.darkyellow}-->  {self.__class__.__name__}.pushIndexVBO'
                               f'   -   {id(self)}{consoleStyle.reset}')
 
@@ -1272,7 +1273,7 @@ class _GLVertexArray:
         """Update the buffers on the graphics card.
         Only the index array.
         """
-        if _DEBUG:
+        if _DEBUGPUSH:
             getLogger().debug(f'{consoleStyle.fg.darkyellow}-->  {self.__class__.__name__}.pushIndexVBOIndices'
                               f'   -   {id(self)}{consoleStyle.reset}')
 
@@ -1418,7 +1419,7 @@ class _GLVertexArray:
     def pushAliasedIndexVBO(self):
         """Push Indices/Colours/Vertices/attribs to graphics card
         """
-        if _DEBUG:
+        if _DEBUGPUSH:
             getLogger().debug(f'{consoleStyle.fg.darkyellow}-->  {self.__class__.__name__}.pushAliasedIndexVBO'
                               f'   -   {id(self)}{consoleStyle.reset}')
 
@@ -1446,7 +1447,7 @@ class _GLVertexArray:
         """Update the buffers on the graphics card.
         Only the index array.
         """
-        if _DEBUG:
+        if _DEBUGPUSH:
             getLogger().debug(f'{consoleStyle.fg.darkyellow}-->  {self.__class__.__name__}.pushAliasedIndexVBOIndices'
                               f'   -   {id(self)}{consoleStyle.reset}')
 
@@ -1609,7 +1610,7 @@ class _GLVertexArray:
     def pushVertexColorVBO(self):
         """Push Colours/Vertices to graphics card
         """
-        if _DEBUG:
+        if _DEBUGPUSH:
             getLogger().debug(f'{consoleStyle.fg.darkyellow}-->  {self.__class__.__name__}.pushVertexColorVBO'
                               f'   -   {id(self)}{consoleStyle.reset}')
 
@@ -1784,7 +1785,7 @@ class _GLVertexArray:
     def pushTextArrayVBO(self):
         """Push vertices/colours/texture co-ordinates/attribs/indices to graphics card
         """
-        if _DEBUG:
+        if _DEBUGPUSH:
             getLogger().debug(f'{consoleStyle.fg.darkyellow}-->  {self.__class__.__name__}.pushTextArrayVBO'
                               f'   -   {id(self)}{consoleStyle.reset}')
 
@@ -1813,7 +1814,7 @@ class _GLVertexArray:
         """Update the buffers on the graphics card.
         Only update the attributes used for moving text.
         """
-        if _DEBUG:
+        if _DEBUGPUSH:
             getLogger().debug(f'{consoleStyle.fg.darkyellow}-->  {self.__class__.__name__}.pushTextArrayVBOAttribs'
                               f'   -   {id(self)}{consoleStyle.reset}')
 
@@ -1830,7 +1831,7 @@ class _GLVertexArray:
         """Update the buffers on the graphics card.
         Only update the colour, used for highlighting text.
         """
-        if _DEBUG:
+        if _DEBUGPUSH:
             getLogger().debug(f'{consoleStyle.fg.darkyellow}-->  {self.__class__.__name__}.pushTextArrayVBOColour'
                               f'   -   {id(self)}{consoleStyle.reset}')
 
@@ -1964,7 +1965,7 @@ class _GLVertexArray:
     def pushIntIndexVBO(self):
         """Push Indices/Colours/Vertices to graphics card
         """
-        if _DEBUG:
+        if _DEBUGPUSH:
             getLogger().debug(f'{consoleStyle.fg.darkyellow}-->  {self.__class__.__name__}.pushIntIndexVBO'
                               f'   -   {id(self)}{consoleStyle.reset}')
 

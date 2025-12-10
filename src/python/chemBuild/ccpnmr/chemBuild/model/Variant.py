@@ -25,6 +25,13 @@ class Variant:
     self.atomDict = {}
     self.atomGroups = set()
     self.elementDict = {}
+    self._name = None
+    self._id = None
+    self._type = None
+    self._formula = None
+    self._one_letter_code = None
+    self._three_letter_code = None
+    self._pdbx_processing_site = None
     
     compound.isModified = True
     compound.variants.add(self)
@@ -484,7 +491,10 @@ class Variant:
     tagsLink = joinStr.join(['%s%s' % x for x in tagsLink]) or 'none'
  
     return tagsProton, tagsLink, tagsStereo
-  
+
+
+
+
   def copyAtoms(self, varAtoms, coords=None, tempNames=True):
   
     if not varAtoms:

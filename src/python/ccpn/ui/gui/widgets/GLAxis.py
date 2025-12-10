@@ -4,7 +4,7 @@ Module Documentation here
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2025"
 __credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
                "Timothy J Ragan, Brian O Smith, Daniel Thompson",
                "Gary S Thompson & Geerten W Vuister")
@@ -16,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-09-25 19:14:33 +0100 (Wed, September 25, 2024) $"
-__version__ = "$Revision: 3.2.7 $"
+__dateModified__ = "$dateModified: 2025-05-12 16:12:36 +0100 (Mon, May 12, 2025) $"
+__version__ = "$Revision: 3.3.2.1 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -31,22 +31,23 @@ import math
 import time
 from contextlib import contextmanager
 from typing import Tuple
-
+from itertools import takewhile
 import numpy as np
 from OpenGL import GL
 from PyQt5 import QtWidgets, QtGui, QtCore
-from PyQt5.QtCore import pyqtSlot, Qt
+from PyQt5.QtCore import pyqtSlot as Slot, Qt
 
-from ccpn.core.lib.AxisCodeLib import getAxisCodeMatchIndices
 from ccpn.util.Constants import AXIS_MATCHATOMTYPE, AXIS_FULLATOMNAME, MOUSEDICTSTRIP
 from ccpn.util.Logging import getLogger
 from ccpn.ui.gui.guiSettings import (getColours, CCPNGLWIDGET_HEXBACKGROUND, CCPNGLWIDGET_BACKGROUND,
-    CCPNGLWIDGET_FOREGROUND, CCPNGLWIDGET_PICKCOLOUR, CCPNGLWIDGET_GRID, CCPNGLWIDGET_HIGHLIGHT,
-    CCPNGLWIDGET_LABELLING, CCPNGLWIDGET_PHASETRACE, CCPNGLWIDGET_ZOOMAREA, CCPNGLWIDGET_PICKAREA,
-    CCPNGLWIDGET_SELECTAREA, CCPNGLWIDGET_ZOOMLINE, CCPNGLWIDGET_MOUSEMOVELINE, CCPNGLWIDGET_HARDSHADE)
+                                     CCPNGLWIDGET_FOREGROUND, CCPNGLWIDGET_PICKCOLOUR, CCPNGLWIDGET_GRID,
+                                     CCPNGLWIDGET_HIGHLIGHT, CCPNGLWIDGET_LABELLING, CCPNGLWIDGET_PHASETRACE,
+                                     CCPNGLWIDGET_ZOOMAREA, CCPNGLWIDGET_PICKAREA, CCPNGLWIDGET_SELECTAREA,
+                                     CCPNGLWIDGET_ZOOMLINE, CCPNGLWIDGET_MOUSEMOVELINE, CCPNGLWIDGET_HARDSHADE,
+                                     consoleStyle)
 from ccpn.ui.gui.lib.GuiStrip import STRIP_MINIMUMHEIGHT, STRIP_MINIMUMWIDTH, AxisMenu
 from ccpn.ui.gui.lib.OpenGL import CcpnOpenGLDefs as GLDefs
-from ccpn.ui.gui.lib.OpenGL.CcpnOpenGL import (ZOOMHISTORYSTORE, CURSOR_SOURCE_NONE, CURSOR_SOURCE_OTHER,
+from ccpn.ui.gui.lib.OpenGL.CcpnOpenGL import (ZOOMHISTORYSTORE, CURSOR_SOURCE_NONE,
                                                ZOOMTIMERDELAY, CURSOR_SOURCE_SELF)
 from ccpn.ui.gui.lib.OpenGL.CcpnOpenGLArrays import GLRENDERMODE_REBUILD, GLRENDERMODE_DRAW, GLVertexArray
 from ccpn.ui.gui.lib.OpenGL.CcpnOpenGLDefs import YAXISUNITS1D, PaintModes
@@ -58,6 +59,19 @@ from ccpn.ui.gui.lib.mouseEvents import rightMouse
 
 
 AXES_MARKER_MIN_PIXEL = 10
+_DEBUG = False
+
+
+def _buildSingleWildCard(axisCodes: list[str]) -> str:
+    """Build the axisCode appending wildcard as required
+    """
+    if not axisCodes:
+        return '*'
+    shortest = min(axisCodes, key=len)
+    # Check if all words are the same
+    if all(code == shortest for code in axisCodes):
+        return shortest
+    return ''.join(c[0] for c in takewhile(lambda x: len(set(x)) == 1, zip(*axisCodes))) + '*'
 
 
 class _AxisOverlay(QtWidgets.QWidget):
@@ -119,11 +133,14 @@ class _AxisOverlay(QtWidgets.QWidget):
 
 class Gui1dWidgetAxis(QtWidgets.QOpenGLWidget):
     is1D = True
-    AXIS_MARGINRIGHT = 80
-    AXIS_MARGINBOTTOM = 25
+    # these need to be able to change as the axis font-size change
+    AXIS_MARGINRIGHT = 10  # a non-zero placeholder value
+    AXIS_MARGINBOTTOM = 10
     AXIS_LINE = 7
     AXIS_OFFSET = 3
     AXIS_INSIDE = False
+    AXIS_MOUSEYOFFSET = AXIS_MARGINBOTTOM + (0 if AXIS_INSIDE else AXIS_LINE)
+    # these should be static
     YAXISUSEEFORMAT = True
     XDIRECTION = -1.0
     YDIRECTION = -1.0
@@ -134,7 +151,11 @@ class Gui1dWidgetAxis(QtWidgets.QOpenGLWidget):
     SHOWSPECTRUMONPHASING = False
     XAXES = GLDefs.XAXISUNITS
     YAXES = GLDefs.YAXISUNITS  # YAXISUNITS1D
-    AXIS_MOUSEYOFFSET = AXIS_MARGINBOTTOM + (0 if AXIS_INSIDE else AXIS_LINE)
+
+    _shaderPixel = None
+    _shaderText = None
+    _shaderPixelAlias = None
+    _shaderTextAlias = None
 
     def __init__(self, parent, spectrumDisplay=None, mainWindow=None, antiAlias=4,
                  drawRightAxis=False, drawBottomAxis=False,
@@ -200,14 +221,8 @@ class Gui1dWidgetAxis(QtWidgets.QOpenGLWidget):
 
         # initialise all attributes
         self._initialiseAll()
-
         # set a minimum size so that the strips resize nicely
         self.setMinimumSize(self.AXIS_MARGINRIGHT + 10, self.AXIS_MARGINBOTTOM + 10)
-        # if drawRightAxis:
-        #     self.setMinimumSize(self.AXIS_MARGINRIGHT + 10, STRIP_MINIMUMHEIGHT)
-        # else:
-        #     self.setMinimumSize(STRIP_MINIMUMWIDTH, self.AXIS_MARGINBOTTOM + 10)
-
         # initialise the pyqtsignal notifier
         self.GLSignals = GLNotifier(parent=self, strip=None)
 
@@ -227,6 +242,12 @@ class Gui1dWidgetAxis(QtWidgets.QOpenGLWidget):
         self._overlayArea = _AxisOverlay(self)
         self._overlayArea.raise_()
         self._setStyle()
+
+        if _DEBUG:
+            self.aboutToResize.connect(self._aboutToResize)
+            self.resized.connect(self._resized)
+            self.frameSwapped.connect(self._frameSwapped)
+        self._testFlag = False
 
     def _setStyle(self):
         self._checkPalette(self.palette())
@@ -250,8 +271,8 @@ class Gui1dWidgetAxis(QtWidgets.QOpenGLWidget):
             return (self._tilePosition[1], self._tilePosition[0])
 
     @tilePosition.setter
-    def tilePosition(self, value):
-        """Setter for tilePosition
+    def tilePosition(self, value: tuple[int, int]):
+        """Setter for tilePosition.
         tilePosition must be a tuple of int (x, y)
         """
         if not isinstance(value, tuple):
@@ -276,6 +297,19 @@ class Gui1dWidgetAxis(QtWidgets.QOpenGLWidget):
             raise TypeError('dimension is out of range')
 
         self._axisType = _axisList[dimension]
+
+    def setAxisWidgetSize(self, dimension):
+        """Set the current axis type for the axis widget
+        0 = X Axis type, 1 = Y Axis type
+        Only the required axis is drawn and the widget dimensions are fixed in the other axis
+        """
+        _axisList = (GLDefs.BOTTOMAXIS, GLDefs.RIGHTAXIS)
+
+        if type(dimension) != int:
+            raise TypeError('dimension must be an int')
+        if not (0 <= dimension < 2):
+            raise TypeError('dimension is out of range')
+
         if dimension == 1:
             self.setFixedWidth(self.AXIS_MARGINRIGHT + (0 if self.AXIS_INSIDE else self.AXIS_LINE))
             self.setMinimumHeight(STRIP_MINIMUMHEIGHT)
@@ -287,29 +321,24 @@ class Gui1dWidgetAxis(QtWidgets.QOpenGLWidget):
         # GST tried this, it wrong sometimes, also sometimes it's a float?
         scale = self.viewports.devicePixelRatio
         size = self.globalGL.glSmallFontSize
+        # get the correct font depending on the scaling and set the scaled height/width
+        if font := list(self.globalGL.fonts.values())[0].closestFont(size * scale):
+            font.updateFromScale(round(scale))
+            return font
 
-        _font = list(self.globalGL.fonts.values())[0].closestFont(size * scale)
-
-        if not (0.9999 < scale < 1.0001):
-            _font.charHeight = _font.height / scale
-            _font.charWidth = _font.width / scale
-
-        return _font
+        raise RuntimeError(f'getSmallFont: Font not found')
 
     def getAxisFont(self, transparent=False):
         """Get the font for the axes
         """
         scale = self.viewports.devicePixelRatio
         size = self.globalGL.glAxisFontSize
-
         # get the correct font depending on the scaling and set the scaled height/width
-        _font = list(self.globalGL.fonts.values())[0].closestFont(size * scale)
+        if font := list(self.globalGL.fonts.values())[0].closestFont(size * scale):
+            font.updateFromScale(round(scale))
+            return font
 
-        if not (0.9999 < scale < 1.0001):
-            _font.charHeight = _font.height / scale
-            _font.charWidth = _font.width / scale
-
-        return _font
+        raise RuntimeError(f'getSmallFont: Font not found')
 
     def paintGL(self):
         """Handle the GL painting
@@ -318,29 +347,16 @@ class Gui1dWidgetAxis(QtWidgets.QOpenGLWidget):
             return
         if self.spectrumDisplay.isDeleted:
             return
-
-        # NOTE:ED - testing, remove later
-        self._paintMode = PaintModes.PAINT_ALL
-
         if self._paintMode == PaintModes.PAINT_NONE:
-
             # do nothing
-            pass
+            return
 
-        elif (self._paintMode == PaintModes.PAINT_ALL) or self._leavingWidget:
-
-            # check whether the visible spectra list needs updating
-            if self._visibleSpectrumViewsChange:
-                self._visibleSpectrumViewsChange = False
-                self._updateVisibleSpectrumViews()
-
+        if (self._paintMode == PaintModes.PAINT_ALL) or self._leavingWidget:
+            # with self.glBlocking():
+            # simple profile of building all
+            self._buildGL()
             # if there are no spectra then skip the paintGL event
-            if not self._ordering:
-                return
-
-            with self.glBlocking():
-                # simple profile of building all
-                self._buildGL()
+            if self._ordering:
                 self._paintGL()
 
             # make all following paint events into mouse only
@@ -355,20 +371,6 @@ class Gui1dWidgetAxis(QtWidgets.QOpenGLWidget):
 
             # only need to paint the mouse cursor
             self._paintGLMouseOnly()
-
-    @contextmanager
-    def glBlocking(self):
-        try:
-            # stop notifiers and logging interfering with paint event
-            self.project.blankNotification()
-            self.application._increaseNotificationBlocking()
-
-            yield
-
-        finally:
-            # re-enable notifiers
-            self.application._decreaseNotificationBlocking()
-            self.project.unblankNotification()
 
     @staticmethod
     def _round_sig(x, sig=6, small_value=1.0e-9):
@@ -444,6 +446,7 @@ class Gui1dWidgetAxis(QtWidgets.QOpenGLWidget):
         boundY = (self.h - self.AXIS_MOUSEYOFFSET) if self._drawBottomAxis else self.h
         scaleBounds = (boundX, boundY)
 
+        # CHECK:ED - Need to look at this, as should only be called when it needs to rebuild :|
         if gridGLList.renderMode == GLRENDERMODE_REBUILD:
 
             # get the list of visible spectrumViews, or the first in the list
@@ -594,7 +597,9 @@ class Gui1dWidgetAxis(QtWidgets.QOpenGLWidget):
                                                        abs(p1[1] - int(p1[1])) > d[1] / 2.0)
 
                                 if includeGrid:
-                                    if '%.5f' % p1[0] == '%.5f' % p2[0]:  # check whether a vertical line - x axis
+                                    if '%.5f' % float(p1[0]) == '%.5f' % float(
+                                            p2[0]):  # check whether a vertical line -
+                                        # x-axis
                                         pp = self._round_sig(p1[0], sig=10)
 
                                         # xLabel = str(int(p1[0])) if d[0] >=1 else self.XMode % p1[0]
@@ -679,6 +684,10 @@ class Gui1dWidgetAxis(QtWidgets.QOpenGLWidget):
     def buildGrid(self):
         """Build the grids for the mainGrid and the bottom/right axes
         """
+        if _DEBUG:
+            getLogger().debug(f'{consoleStyle.fg.darkgreen}buildGrid  {id(self)}   {self._ordering}  '
+                              f'{self._firstVisible}   {self.axisT}{consoleStyle.reset}')
+
         # build the axes
         if self.highlighted:
             if self._axisType == GLDefs.RIGHTAXIS:
@@ -710,6 +719,9 @@ class Gui1dWidgetAxis(QtWidgets.QOpenGLWidget):
     def drawGrid(self):
         # set to the mainView and draw the grid
         # self.buildGrid()
+        if _DEBUG:
+            getLogger().debug(f'{consoleStyle.fg.blue}DrawGrid  {id(self)}   {self._paintMode}  '
+                              f'{self.axisT}{consoleStyle.reset}')
 
         GL.glEnable(GL.GL_BLEND)
         GL.glLineWidth(GLDefs.GLDEFAULTLINETHICKNESS * self.viewports.devicePixelRatio)
@@ -748,6 +760,10 @@ class Gui1dWidgetAxis(QtWidgets.QOpenGLWidget):
 
     def _buildSpectrumSetting(self, spectrumView, stackCount=0):
 
+        if _DEBUG:
+            getLogger().debug(f'{consoleStyle.fg.blue}_buildSpectrumSetting  {id(self)}'
+                              f'{consoleStyle.reset}')
+
         delta = [self.XDIRECTION, self.YDIRECTION]
         stack = [stackCount * self._stackingValue[0],
                  stackCount * self._stackingValue[1]]
@@ -768,39 +784,41 @@ class Gui1dWidgetAxis(QtWidgets.QOpenGLWidget):
         self._maxY = max(self._maxY, specVals.maxSpectrumFrequency[1])
         self._minY = min(self._minY, specVals.minSpectrumFrequency[1])
 
-        self._buildAxisCodesWithWildCards()
-
     def buildSpectra(self):
         if self.spectrumDisplay.isDeleted:
             return
-
-        rebuildFlag = False
         for spectrumView in self._ordering:
             if spectrumView.isDeleted:
                 continue
-
             self._buildSpectrumSetting(spectrumView=spectrumView)
-            rebuildFlag = True
 
     def _buildGL(self):
         """Separate the building of the display from the paint event; not sure that this is required
         """
-        # only call if the axes have changed
-        # self._updateAxes = True
+        if _DEBUG:
+            getLogger().debug(f'{consoleStyle.fg.magenta}_buildGL  {id(self)}   '
+                              f'{self._notifySpectrumViewsChange}:{self._notifyAxesChange}{consoleStyle.reset}')
 
-        # if abs(self.axisL - self.axisR) < 1e-9 or abs(self.axisT - self.axisB) < 1e-9:
-        #     return
-
-        if self._updateAxes:
+        # check whether the visible spectra list needs updating
+        if self._notifySpectrumViewsChange:
+            self._updateVisibleSpectrumViews()
+            self._buildAxisCodesWithWildCards()
+        if self._notifyContoursChange or self._notifySpectrumViewsChange:
+            # build spectrumSettings
+            self.buildSpectra()
+        if self._notifyAxesChange:
+            self.makeCurrent()
             self.buildGrid()
-            self._updateAxes = False
 
-        self.buildSpectra()
+        # clear all flags
+        self._notifySpectrumViewsChange = False
+        self._notifyContoursChange = False
+        self._notifyAxesChange = False
 
     def _paintGLMouseOnly(self):
         """paintGL event - paint only the mouse in Xor mode
         """
-        # No mouse cursor
+        # No mouse cursor in axis
         pass
 
     def _paintGL(self):
@@ -877,7 +895,7 @@ class Gui1dWidgetAxis(QtWidgets.QOpenGLWidget):
         self.axisT = 1.0
         self.axisB = -1.0
 
-        self._zoomHistory = [None] * ZOOMHISTORYSTORE
+        self._zoomHistory: list[tuple | None] = [None for _ in range(ZOOMHISTORYSTORE)]
         self._zoomHistoryCurrent = 0
         self._zoomHistoryHead = 0
         self._zoomHistoryTail = 0
@@ -910,7 +928,7 @@ class Gui1dWidgetAxis(QtWidgets.QOpenGLWidget):
         self._mousePressed = False
         self._draggingLabel = False
 
-        self.buildMarks = True
+        self.buildMarks = False
         self._marksList = None
         self._infiniteLines = []
         self._regionList = None
@@ -922,6 +940,8 @@ class Gui1dWidgetAxis(QtWidgets.QOpenGLWidget):
         self._dottedCursorCoordinate = None
         self._dottedCursorVisible = None
         self._spectrumBordersVisible = True
+        self.buildSpectrumLabelling = False
+        self._spectrumLabelling = None
 
         self.gridList = []
         self._gridVisible = True
@@ -931,9 +951,9 @@ class Gui1dWidgetAxis(QtWidgets.QOpenGLWidget):
         self.diagonalGLList = None
         self.diagonalSideBandsGLList = None
         self.boundingBoxes = None
-        self._updateAxes = True
+        self._notifyAxesChange = True
         self.axesChanged = False
-        self.axisLabelling = {'0': [], '1': []}
+        self.axisLabelling: dict[str, dict] = {'0': {}, '1': {}}
 
         self._axesVisible = True
         self._aspectRatioMode = 0
@@ -1049,13 +1069,18 @@ class Gui1dWidgetAxis(QtWidgets.QOpenGLWidget):
         self.visiblePlaneList = {}
         self.visiblePlaneListPointValues = {}
         self.visiblePlaneDimIndices = {}
-        self._visibleSpectrumViewsChange = False
+        self._notifySpectrumViewsChange = False
+        self._notifyContoursChange = False
         self._tilePosition = (0, 0)
 
         self._matchingIsotopeCodes = False
 
         self._menuActive = False
         self._disableCursorUpdate = False
+
+        self.globalGL = GLGlobalData(parent=self)
+        self.viewports = GLViewports()
+        self._initialiseViewPorts()
 
     def _setColourScheme(self, pal: QtGui.QPalette = None):
         """Update colours from colourScheme
@@ -1097,7 +1122,7 @@ class Gui1dWidgetAxis(QtWidgets.QOpenGLWidget):
             self._minReached = False
             self._maxReached = False
 
-    @pyqtSlot(dict)
+    @Slot(dict)
     def _glXAxisChanged(self, aDict):
         if self._aspectRatioMode:
             self._glAllAxesChanged(aDict)
@@ -1147,7 +1172,7 @@ class Gui1dWidgetAxis(QtWidgets.QOpenGLWidget):
                 self._rescaleXAxis()
                 # self._storeZoomHistory()
 
-    @pyqtSlot(dict)
+    @Slot(dict)
     def _glAxisLockChanged(self, aDict):
         if self.spectrumDisplay.isDeleted:
             return
@@ -1187,16 +1212,12 @@ class Gui1dWidgetAxis(QtWidgets.QOpenGLWidget):
                 # paint to update lock button colours
                 self.update()
 
-    @pyqtSlot(dict)
+    @Slot(dict)
     def _glAxisUnitsChanged(self, aDict):
         if self.spectrumDisplay.isDeleted:
             return
 
-        # update the list of visible spectra
-        self._updateVisibleSpectrumViews()
-
         if aDict[GLNotifier.GLSOURCE] != self and aDict[GLNotifier.GLSPECTRUMDISPLAY] == self.spectrumDisplay:
-
             # read values from dataDict and set units
             if aDict[GLNotifier.GLVALUES]:  # and aDict[GLNotifier.GLVALUES][GLDefs.AXISLOCKASPECTRATIO]:
 
@@ -1220,7 +1241,7 @@ class Gui1dWidgetAxis(QtWidgets.QOpenGLWidget):
                             self._rescaleAllZoom(rescale=True)
 
             # spawn rebuild event for the grid
-            self._updateAxes = True
+            self._notifyAxesChange = True
             if self.gridList:
                 for gr in self.gridList:
                     gr.renderMode = GLRENDERMODE_REBUILD
@@ -1235,7 +1256,7 @@ class Gui1dWidgetAxis(QtWidgets.QOpenGLWidget):
             if abs(ii[0] - ii[1]) > tol:
                 return True
 
-    @pyqtSlot(dict)
+    @Slot(dict)
     def _glYAxisChanged(self, aDict):
         if self._aspectRatioMode:
             self._glAllAxesChanged(aDict)
@@ -1286,7 +1307,7 @@ class Gui1dWidgetAxis(QtWidgets.QOpenGLWidget):
                 self._rescaleYAxis()
                 # self._storeZoomHistory()
 
-    @pyqtSlot(dict)
+    @Slot(dict)
     def _glAllAxesChanged(self, aDict):
         if self.spectrumDisplay.isDeleted:
             return
@@ -1371,7 +1392,7 @@ class Gui1dWidgetAxis(QtWidgets.QOpenGLWidget):
                 self._rescaleAllAxes()
                 # self._storeZoomHistory()
 
-    @pyqtSlot(dict)
+    @Slot(dict)
     def _glMouseMoved(self, aDict):
         if self.spectrumDisplay.isDeleted:
             return
@@ -1379,41 +1400,9 @@ class Gui1dWidgetAxis(QtWidgets.QOpenGLWidget):
         if aDict[GLNotifier.GLSOURCE] != self:
             # self.cursorCoordinate = aDict[GLMOUSECOORDS]
             # self.update()
-
             mouseMovedDict = aDict[GLNotifier.GLMOUSEMOVEDDICT]
-
             if self._crosshairVisible:  # or self._updateVTrace or self._updateHTrace:
-
                 exactMatch = (self._preferences.matchAxisCode == AXIS_FULLATOMNAME)
-                # indices = getAxisCodeMatchIndices(self.spectrumDisplay.axisCodes[:2], mouseMovedDict[AXIS_ACTIVEAXES], exactMatch=exactMatch)
-                #
-                # if indices and len(indices) > 1:
-                #     for n in range(2):
-                #         if indices[n] is not None:
-                #
-                #             axis = mouseMovedDict[AXIS_ACTIVEAXES][indices[n]]
-                #             self.cursorSource = CURSOR_SOURCE_OTHER
-                #             self.cursorCoordinate[n] = mouseMovedDict[AXIS_FULLATOMNAME][axis]
-                #
-                #             # coordinates have already been flipped
-                #             self.doubleCursorCoordinate[1 - n] = self.cursorCoordinate[n]
-                #
-                #         else:
-                #             self.cursorSource = CURSOR_SOURCE_OTHER
-                #             self.cursorCoordinate[n] = None
-                #             self.doubleCursorCoordinate[1 - n] = None
-
-                # self.current.cursorPosition = (self.cursorCoordinate[0], self.cursorCoordinate[1])
-
-                # only need to redraw if we can see the cursor
-                # if self._updateVTrace or self._updateHTrace:
-                #   self.updateTraces()
-
-                # self._renderCursorOnly()
-
-                # force a redraw to only paint the cursor
-                # self._paintMode = PaintModes.PAINT_MOUSEONLY
-                # self.update(mode=PaintModes.PAINT_ALL)
                 self.update(mode=PaintModes.PAINT_MOUSEONLY)
 
     def update(self, mode=PaintModes.PAINT_ALL):
@@ -1422,14 +1411,13 @@ class Gui1dWidgetAxis(QtWidgets.QOpenGLWidget):
         self._paintMode = mode
         super().update()
 
-    @pyqtSlot(dict)
+    @Slot(dict)
     def _glEvent(self, aDict):
         """Process events from the application/popups and other strips
-        :param aDict - dictionary containing event flags:
+        :param aDict: - dictionary containing event flags
         """
         if self.spectrumDisplay.isDeleted:
             return
-
         if not self.globalGL:
             return
 
@@ -1461,7 +1449,6 @@ class Gui1dWidgetAxis(QtWidgets.QOpenGLWidget):
             return
 
         # initialise a common to all OpenGL windows
-        self.globalGL = GLGlobalData(parent=self, mainWindow=self.mainWindow)
         self.globalGL.initialiseShaders(self)
 
         # initialise the arrays for the grid and axes
@@ -1474,13 +1461,13 @@ class Gui1dWidgetAxis(QtWidgets.QOpenGLWidget):
                                                dimension=2,
                                                GLContext=self))
 
-        self.viewports = GLViewports()
-        self._initialiseViewPorts()
+        # self.viewports = GLViewports()
+        # self._initialiseViewPorts()
 
         # This is the required blend function to ignore stray surface blending functions
         #   think this was an old QT bug
         # GL.glBlendFuncSeparate(GL.GL_SRC_ALPHA, GL.GL_ONE_MINUS_SRC_ALPHA, GL.GL_ONE, GL.GL_ONE)
-        GL.glBlendFunc(GL.GL_SRC_ALPHA, GL.GL_ONE_MINUS_SRC_ALPHA)  # arbitrary order
+        GL.glBlendFunc(GL.GL_SRC_ALPHA, GL.GL_ONE_MINUS_SRC_ALPHA)
 
         self._setColourScheme()
         self.setBackgroundColour(self.background, silent=True)
@@ -1517,25 +1504,13 @@ class Gui1dWidgetAxis(QtWidgets.QOpenGLWidget):
 
     def _parentResize(self, strip, size):
         return
-        if self._axisType == GLDefs.BOTTOMAXIS:
-            # axis widget is an X widget so grab connected width
-            self.setMaximumWidth(size[0])
-
-        else:
-            # axis widget is a Y widget so grab connected height
-            self.setMaximumHeight(size[1])
-
-    # def _clearGLCursorQueue(self):
-    #     for glBuf in self._glCursorQueue:
-    #         glBuf.clearArrays()
-    #     self._glCursorHead = 0
-    #     self._glCursorTail = (self._glCursorHead - 1) % self._numBuffers
-    #
-    # def _advanceGLCursor(self):
-    #     """Advance the pointers for the cursor glLists
-    #     """
-    #     self._glCursorHead = (self._glCursorHead + 1) % self._numBuffers
-    #     self._glCursorTail = (self._glCursorHead - 1) % self._numBuffers
+        # if self._axisType == GLDefs.BOTTOMAXIS:
+        #     # axis widget is an X widget so grab connected width
+        #     self.setMaximumWidth(size[0])
+        #
+        # else:
+        #     # axis widget is a Y widget so grab connected height
+        #     self.setMaximumHeight(size[1])
 
     def initialiseAxes(self, strip=None):
         """setup the correct axis range and padding
@@ -1593,6 +1568,15 @@ class Gui1dWidgetAxis(QtWidgets.QOpenGLWidget):
         """Initialise all the viewports for the widget
         """
         self.viewports.clearViewports()
+
+        # these need to be able to change as the axis font-size change
+        smallFont = self.getAxisFont()
+        self.AXIS_INSIDE = False
+        self.AXIS_LINE = 7
+        self.AXIS_OFFSET = smallFont.base
+        self.AXIS_MARGINRIGHT = self.AXIS_LINE + (7 * smallFont.charWidth)
+        self.AXIS_MARGINBOTTOM = self.AXIS_LINE + smallFont.height
+        self.AXIS_MOUSEYOFFSET = self.AXIS_MARGINBOTTOM + (0 if self.AXIS_INSIDE else self.AXIS_LINE)
 
         # define the main viewports
         if self.AXIS_INSIDE:
@@ -1652,7 +1636,7 @@ class Gui1dWidgetAxis(QtWidgets.QOpenGLWidget):
         # define the viewports for the bottom axis bar
         if self.AXIS_INSIDE:
             self.viewports.addViewport(GLDefs.BOTTOMAXIS, self,
-                                       (0, 'a'), (self.AXIS_MARGINBOTTOM, 'a'),
+                                       (0, 'a'), (self.AXIS_MARGINBOTTOM + 1, 'a'),
                                        (-self.AXIS_MARGINRIGHT, 'w'), (self.AXIS_LINE, 'a'))
 
             self.viewports.addViewport(GLDefs.BOTTOMAXISBAR, self,
@@ -1660,7 +1644,7 @@ class Gui1dWidgetAxis(QtWidgets.QOpenGLWidget):
                                        (-self.AXIS_MARGINRIGHT, 'w'), (self.AXIS_MARGINBOTTOM, 'a'))
         else:
             self.viewports.addViewport(GLDefs.BOTTOMAXIS, self,
-                                       (0, 'a'), (self.AXIS_MARGINBOTTOM, 'a'),
+                                       (0, 'a'), (self.AXIS_MARGINBOTTOM + 1, 'a'),
                                        (-(self.AXIS_MARGINRIGHT + self.AXIS_LINE), 'w'), (self.AXIS_LINE, 'a'))
 
             self.viewports.addViewport(GLDefs.BOTTOMAXISBAR, self,
@@ -1692,8 +1676,10 @@ class Gui1dWidgetAxis(QtWidgets.QOpenGLWidget):
         newPixelRatio = self.devicePixelRatioF()
         if newPixelRatio != self.lastPixelRatio:
             self.lastPixelRatio = newPixelRatio
-            if hasattr(self, GLDefs.VIEWPORTSATTRIB):
+            if hasattr(self, GLDefs.VIEWPORTSATTRIB) and self.viewports:
                 self.viewports.devicePixelRatio = newPixelRatio
+
+                # nothing else required
             self.update()
 
     def _preferencesUpdate(self):
@@ -1706,9 +1692,10 @@ class Gui1dWidgetAxis(QtWidgets.QOpenGLWidget):
         self._applyXLimit = self._preferences.zoomXLimitApply
         self._applyYLimit = self._preferences.zoomYLimitApply
         self._intensityLimit = self._preferences.intensityLimit
-
         # set the flag to update the background in the paint event
         self._updateBackgroundColour = True
+        # update the viewports if the axis font-size has changed
+        self._initialiseViewPorts()
 
     def setBackgroundColour(self, col, silent=False, makeCurrent=False):
         """
@@ -1777,21 +1764,19 @@ class Gui1dWidgetAxis(QtWidgets.QOpenGLWidget):
                 labelColour = self.foreground
 
             smallFont = self.getAxisFont()
-
             if self._drawBottomAxis and self._axisType == GLDefs.BOTTOMAXIS:
                 # create the X axis labelling
+                yVal = self.AXIS_OFFSET
                 for axLabel in self.axisLabelling['0'].values():
                     axisX = axLabel[2]
                     axisXLabel = axLabel[3]
 
                     axisXText = self._intFormat(axisXLabel) if axLabel[4] >= 1 else self.XMode(axisXLabel)
-
                     self._axisXLabelling.append(GLString(text=axisXText,
                                                          font=smallFont,
-                                                         x=axisX - (0.4 * smallFont.charWidth * self.deltaX * len(
-                                                                 axisXText)),
-                                                         y=self.AXIS_MARGINBOTTOM - GLDefs.TITLEYOFFSET * smallFont.charHeight,
-
+                                                         x=axisX - (0.4 * smallFont.charWidth * self.deltaX *
+                                                                    len(axisXText)),
+                                                         y=yVal,
                                                          colour=labelColour, GLContext=self,
                                                          obj=None))
 
@@ -1800,15 +1785,16 @@ class Gui1dWidgetAxis(QtWidgets.QOpenGLWidget):
                         text=self._visibleOrderingAxisCodes[0] if self._visibleOrderingAxisCodes else '*',
                         font=smallFont,
                         x=GLDefs.AXISTEXTXOFFSET * self.deltaX,
-                        y=self.AXIS_MARGINBOTTOM - GLDefs.TITLEYOFFSET * smallFont.charHeight,
+                        y=yVal,
                         colour=labelColour, GLContext=self,
                         obj=None))
                 # and the axis dimensions
                 xUnitsLabels = self.XAXES[self._xUnits]
                 self._axisXLabelling.append(GLString(text=xUnitsLabels,
                                                      font=smallFont,
-                                                     x=1.0 - (self.deltaX * len(xUnitsLabels) * smallFont.charWidth),
-                                                     y=self.AXIS_MARGINBOTTOM - GLDefs.TITLEYOFFSET * smallFont.charHeight,
+                                                     x=1.0 - (self.deltaX * len(xUnitsLabels) *
+                                                              smallFont.charWidth),
+                                                     y=yVal,
                                                      colour=labelColour, GLContext=self,
                                                      obj=None))
 
@@ -1816,6 +1802,7 @@ class Gui1dWidgetAxis(QtWidgets.QOpenGLWidget):
 
             if self._drawRightAxis and self._axisType == GLDefs.RIGHTAXIS:
                 # create the Y axis labelling
+                offset = (smallFont.charHeight // 2) + smallFont.base
                 for xx, ayLabel in enumerate(self.axisLabelling['1'].values()):
                     axisY = ayLabel[2]
                     axisYLabel = ayLabel[3]
@@ -1828,7 +1815,7 @@ class Gui1dWidgetAxis(QtWidgets.QOpenGLWidget):
                     self._axisYLabelling.append(GLString(text=axisYText,
                                                          font=smallFont,
                                                          x=self.AXIS_OFFSET,
-                                                         y=axisY - (GLDefs.AXISTEXTYOFFSET * self.deltaY),
+                                                         y=axisY - (offset * self.deltaY),
                                                          colour=labelColour, GLContext=self,
                                                          obj=None))
 
@@ -1838,7 +1825,7 @@ class Gui1dWidgetAxis(QtWidgets.QOpenGLWidget):
                                                                   len(self._visibleOrderingAxisCodes) > 1 else '*',
                         font=smallFont,
                         x=self.AXIS_OFFSET,
-                        y=1.0 - (GLDefs.TITLEYOFFSET * smallFont.charHeight * self.deltaY),
+                        y=1.0 - (GLDefs.TITLEYOFFSET * smallFont.height * self.deltaY),
                         colour=labelColour, GLContext=self,
                         obj=None))
                 # and the axis dimensions
@@ -1890,7 +1877,7 @@ class Gui1dWidgetAxis(QtWidgets.QOpenGLWidget):
         # GL.glBindTexture(GL.GL_TEXTURE_2D, smallFont.textureId)
 
         GL.glActiveTexture(GL.GL_TEXTURE0)
-        GL.glBindTexture(GL.GL_TEXTURE_2D, self.getSmallFont()._parent.textureId)
+        GL.glBindTexture(GL.GL_TEXTURE_2D, self.getSmallFont().textureId)
         # GL.glActiveTexture(GL.GL_TEXTURE1)
         # GL.glBindTexture(GL.GL_TEXTURE_2D, self.getSmallFont(transparent=True).textureId)
 
@@ -1943,7 +1930,7 @@ class Gui1dWidgetAxis(QtWidgets.QOpenGLWidget):
         self._maxReached = self._maxXReached or self._maxYReached
 
     def _rescaleAllZoom(self, rescale=True):
-        """Reset the zoomto fit the spectra, including aspect checking
+        """Reset the zoom to fit the spectra, including aspect checking
         """
         _useFirstDefault = getattr(self.spectrumDisplay, '_useFirstDefault', False)
         if (self._aspectRatioMode or _useFirstDefault):
@@ -1972,7 +1959,7 @@ class Gui1dWidgetAxis(QtWidgets.QOpenGLWidget):
         self.rescale()
 
         # put stuff in here that will change on a resize
-        self._updateAxes = True
+        self._notifyAxesChange = True
         for gr in self.gridList:
             gr.renderMode = GLRENDERMODE_REBUILD
         # self._GLPeaks.rescale()
@@ -1985,8 +1972,11 @@ class Gui1dWidgetAxis(QtWidgets.QOpenGLWidget):
         self._testAxisLimits()
         self.rescale()
 
+        if _DEBUG:
+            getLogger().debug(f'{consoleStyle.fg.darkgreen}_rescaleAllAxes  {id(self)}  {update}'
+                              f'{consoleStyle.reset}')
         # spawn rebuild event for the grid
-        self._updateAxes = True
+        self._notifyAxesChange = True
         for gr in self.gridList:
             gr.renderMode = GLRENDERMODE_REBUILD
         if update:
@@ -1996,12 +1986,14 @@ class Gui1dWidgetAxis(QtWidgets.QOpenGLWidget):
         self._testAxisLimits()
         self.rescale(rescaleStaticHTraces=False)
 
+        if _DEBUG:
+            getLogger().debug(f'{consoleStyle.fg.darkgreen}_rescaleXAxis  {id(self)}'
+                              f'{consoleStyle.reset}')
         # spawn rebuild event for the grid
-        self._updateAxes = True
+        self._notifyAxesChange = True
         if self.gridList:
             for gr in self.gridList:
                 gr.renderMode = GLRENDERMODE_REBUILD
-
         if update:
             self.update()
 
@@ -2009,12 +2001,14 @@ class Gui1dWidgetAxis(QtWidgets.QOpenGLWidget):
         self._testAxisLimits()
         self.rescale(rescaleStaticVTraces=False)
 
+        if _DEBUG:
+            getLogger().debug(f'{consoleStyle.fg.darkgreen}_rescaleYAxis  {id(self)}'
+                              f'{consoleStyle.reset}')
         # spawn rebuild event for the grid
-        self._updateAxes = True
+        self._notifyAxesChange = True
         if self.gridList:
             for gr in self.gridList:
                 gr.renderMode = GLRENDERMODE_REBUILD
-
         if update:
             self.update()
 
@@ -2133,8 +2127,8 @@ class Gui1dWidgetAxis(QtWidgets.QOpenGLWidget):
 
             if menu is not None:
                 strip.viewStripMenu = menu
-            else:
-                strip.viewStripMenu = self._getCanvasContextMenu()
+            # else:
+            #     strip.viewStripMenu = self._getCanvasContextMenu()
 
             strip._raiseContextMenu(event)
 
@@ -2198,7 +2192,6 @@ class Gui1dWidgetAxis(QtWidgets.QOpenGLWidget):
             return
         if self._draggingLabel:
             return
-
         if abs(self.axisL - self.axisR) < 1.0e-6 or abs(self.axisT - self.axisB) < 1.0e-6:
             return
 
@@ -2211,6 +2204,10 @@ class Gui1dWidgetAxis(QtWidgets.QOpenGLWidget):
         dy = currentPos.y() - self.lastPos.y()
         self.lastPos = currentPos
         cursorCoordinate = self.getCurrentCursorCoordinate()
+        if not (dx or dy):
+            # ignore if the mouse hasn't moved at least 1 pixel
+            event.ignore()
+            return
 
         try:
             mouseMovedDict = self.current.mouseMovedDict
@@ -2238,21 +2235,6 @@ class Gui1dWidgetAxis(QtWidgets.QOpenGLWidget):
 
             ats.append(pos)
             atcs.append(pos)
-
-        # if self._matchingIsotopeCodes:
-        #     for n, (atomType, axis) in enumerate(zip(self.spectrumDisplay.isotopeCodes, self.spectrumDisplay.axes)):
-        #         ats = atTypes.setdefault(atomType, [])
-        #         atcs = atCodes.setdefault(axis.code, [])
-        #         if n == 0:
-        #             xPos = pos = cursorCoordinate[1]
-        #         elif n == 1:
-        #             yPos = pos = cursorCoordinate[0]
-        #         else:
-        #             # can ignore the rest
-        #             break
-        #
-        #         ats.append(pos)
-        #         atcs.append(pos)
 
         self.current.cursorPosition = (xPos, yPos)
         self.current.mouseMovedDict = mouseMovedDict
@@ -2358,6 +2340,7 @@ class Gui1dWidgetAxis(QtWidgets.QOpenGLWidget):
         return 1.0
 
     def resizeGL(self, w, h):
+        super().resizeGL(w, h)
         # must be set here to catch the change of screen
         if self.spectrumDisplay.isDeleted:
             getLogger().debug2(f'resizeGL  {self}  {self.spectrumDisplay}')
@@ -2461,16 +2444,18 @@ class Gui1dWidgetAxis(QtWidgets.QOpenGLWidget):
     def _updateVisibleSpectrumViews(self):
         """Update the list of visible spectrumViews when change occurs
         """
+        if _DEBUG:
+            getLogger().debug(f'{consoleStyle.fg.magenta}_updateVisibleSpectrumViews  {id(self)} {self._ordering}  '
+                              f'{self._firstVisible}{consoleStyle.reset}')
 
         # make the list of ordered spectrumViews
         self._ordering = []
         if self.spectrumDisplay and self.spectrumDisplay.strips and len(self.spectrumDisplay.strips) > 0:
             strip = self.spectrumDisplay.strips[0]
             if not strip.isDeleted:
-                self._ordering = strip.getSpectrumViews()
+                self._ordering = list(strip.getSpectrumViews())
 
-        self._ordering = [specView for specView in self._ordering]
-
+        # remove deleted from _spectrumSettings/_contourList
         for specView in tuple(self._spectrumSettings.keys()):
             if specView not in self._ordering:
                 getLogger().debug(f'>>>_updateVisibleSpectrumViews GLAxis     1D   delete {specView} {id(specView)}')
@@ -2480,35 +2465,27 @@ class Gui1dWidgetAxis(QtWidgets.QOpenGLWidget):
                 if specView in self._contourList:
                     self._contourList[specView]._delete()
                     del self._contourList[specView]
-                if specView in self._visibleOrdering:
-                    self._visibleOrdering.remove(specView)
-                for k in self._visibleOrderingDict:
-                    sp, _dd = k
-                    if sp == specView:
-                        self._visibleOrderingDict.remove(k)
-                        break
 
         # make a list of the visible and not-deleted spectrumViews
-        # visibleSpectra = [specView.spectrum for specView in self._ordering if not specView.isDeleted and specView.isDisplayed]
         visibleSpectrumViews = [specView for specView in self._ordering
                                 if not specView.isDeleted and specView.isDisplayed]
-
         self._visibleOrdering = visibleSpectrumViews
-
         # set the first visible, or the first in the ordered list
-        self._firstVisible = visibleSpectrumViews[0] if visibleSpectrumViews else \
-            self._ordering[0] if self._ordering and not self._ordering[0].isDeleted else None
+        self._firstVisible = (visibleSpectrumViews[0]
+                              if visibleSpectrumViews else
+                              (self._ordering[0]
+                               if (self._ordering and not self._ordering[0].isDeleted) else None))
 
     def updateVisibleSpectrumViews(self):
-        self._visibleSpectrumViewsChange = True
+        self._notifySpectrumViewsChange = True
         self.update()
 
     def wheelEvent(self, event):
         # def between(val, l, r):
         #   return (l-val)*(r-val) <= 0
 
+        event.accept()
         if self.spectrumDisplay and not self._ordering:  # strip.spectrumViews:
-            event.accept()
             return
 
         # check the movement of the wheel first
@@ -2519,7 +2496,6 @@ class Gui1dWidgetAxis(QtWidgets.QOpenGLWidget):
         zoomScale = 0.0
         scrollDirection = 0
         if numPixels:
-
             # always seems to be numPixels - check with Linux
             # the Shift key automatically returns the x-axis
             scrollDirection = numPixels.x() if self._isSHIFT else numPixels.y()
@@ -2527,46 +2503,18 @@ class Gui1dWidgetAxis(QtWidgets.QOpenGLWidget):
 
             # stop the very sensitive movements
             if abs(scrollDirection) < 1:
-                event.ignore()
                 return
 
         elif numDegrees:
-
             # this may work when using Linux
             scrollDirection = (numDegrees.x() / 4) if self._isSHIFT else (numDegrees.y() / 4)
             zoomScale = 8.0
 
             # stop the very sensitive movements
             if abs(scrollDirection) < 1:
-                event.ignore()
                 return
-
         else:
-            event.ignore()
             return
-
-        # if self._isSHIFT or self._isCTRL:
-        #
-        #     # process wheel with buttons here
-        #     # transfer event to the correct widget for changing the plane OR raising base contour level...
-        #
-        #     if self._isSHIFT:
-        #         # raise/lower base contour level - should be strip I think
-        #         if scrollDirection > 0:
-        #             self.strip.spectrumDisplay.raiseContourBase()
-        #         else:
-        #             self.strip.spectrumDisplay.lowerContourBase()
-        #
-        #     elif self._isCTRL:
-        #         # scroll through planes
-        #         pT = self.strip.planeAxisBars if hasattr(self.strip, 'planeAxisBars') else None
-        #         activePlaneAxis = self.strip.activePlaneAxis
-        #         if pT and activePlaneAxis is not None and (activePlaneAxis - 2) < len(pT):
-        #             # pass the event to the correct double spinbox
-        #             pT[activePlaneAxis - 2].scrollPpmPosition(event)
-        #
-        #     event.accept()
-        #     return
 
         # test whether the limits have been reached in either axis
         if (scrollDirection > 0 and self._minReached and self._aspectRatioMode) or \
@@ -2576,7 +2524,6 @@ class Gui1dWidgetAxis(QtWidgets.QOpenGLWidget):
 
         zoomIn = (100.0 + zoomScale) / 100.0
         zoomOut = 100.0 / (100.0 + zoomScale)
-
         h = self.h
         w = self.w
 
@@ -2603,16 +2550,13 @@ class Gui1dWidgetAxis(QtWidgets.QOpenGLWidget):
 
         mx = event.pos().x()
         my = self.height() - event.pos().y()
-
         tilePos = self.tilePosition
 
         if self.between(mx, ba[0], ba[0] + ba[2]) and self.between(my, ba[1], ba[1] + ba[3]):
 
             # in the bottomAxisBar, so zoom in the X axis
-
             # check the X limits
             if (scrollDirection > 0 and self._minXReached) or (scrollDirection < 0 and self._maxXReached):
-                event.accept()
                 return
 
             if zoomCentre == 0:  # centre on mouse
@@ -2621,7 +2565,6 @@ class Gui1dWidgetAxis(QtWidgets.QOpenGLWidget):
                 mb = 0.5
 
             mbx = self.axisL + mb * (self.axisR - self.axisL)
-
             if scrollDirection < 0:
                 self.axisL = mbx + zoomIn * (self.axisL - mbx)
                 self.axisR = mbx - zoomIn * (mbx - self.axisR)
@@ -2645,27 +2588,19 @@ class Gui1dWidgetAxis(QtWidgets.QOpenGLWidget):
                                                  axisL=self.axisL, axisR=self.axisR,
                                                  row=tilePos[0], column=tilePos[1],
                                                  aspectRatios=ratios)
-
                 self._rescaleXAxis()
-                # self._storeZoomHistory()
-
             else:
                 self._scaleToXAxis()
-
                 self.GLSignals._emitAllAxesChanged(source=self, strip=None, spectrumDisplay=self.spectrumDisplay,
                                                    axisB=self.axisB, axisT=self.axisT,
                                                    axisL=self.axisL, axisR=self.axisR,
                                                    row=tilePos[0], column=tilePos[1])
 
-                # self._storeZoomHistory()
-
         elif self.between(mx, ra[0], ra[0] + ra[2]) and self.between(my, ra[1], ra[1] + ra[3]):
 
             # in the rightAxisBar, so zoom in the Y axis
-
             # check the Y limits
             if (scrollDirection > 0 and self._minYReached) or (scrollDirection < 0 and self._maxYReached):
-                event.accept()
                 return
 
             if zoomCentre == 0:  # centre on mouse
@@ -2674,7 +2609,6 @@ class Gui1dWidgetAxis(QtWidgets.QOpenGLWidget):
                 mb = 0.5
 
             mby = self.axisB + mb * (self.axisT - self.axisB)
-
             if scrollDirection < 0:
                 self.axisB = mby + zoomIn * (self.axisB - mby)
                 self.axisT = mby - zoomIn * (mby - self.axisT)
@@ -2683,121 +2617,89 @@ class Gui1dWidgetAxis(QtWidgets.QOpenGLWidget):
                 self.axisT = mby - zoomOut * (mby - self.axisT)
 
             if not self._aspectRatioMode:
-                # ratios = None
-                # if self.spectrumDisplay and self.spectrumDisplay.strips and len(self.spectrumDisplay.strips) > 0:
-                #     strip = self.spectrumDisplay.strips[0]
-                #     if not strip.isDeleted:
-                #         ratios = strip._CcpnGLWidget._lockedAspectRatios
                 try:
                     ratios = self.spectrumDisplay.strips[0]._CcpnGLWidget._lockedAspectRatios
                 except:
                     ratios = None
-
                 self.GLSignals._emitYAxisChanged(source=self, strip=None, spectrumDisplay=self.spectrumDisplay,
                                                  axisB=self.axisB, axisT=self.axisT,
                                                  axisL=self.axisL, axisR=self.axisR,
                                                  row=tilePos[0], column=tilePos[1],
                                                  aspectRatios=ratios)
-
                 self._rescaleYAxis()
-                # self._storeZoomHistory()
-
             else:
                 self._scaleToYAxis()
-
                 self.GLSignals._emitAllAxesChanged(source=self, strip=None, spectrumDisplay=self.spectrumDisplay,
                                                    axisB=self.axisB, axisT=self.axisT,
                                                    axisL=self.axisL, axisR=self.axisR,
                                                    row=tilePos[0], column=tilePos[1])
 
-                # self._storeZoomHistory()
-
-        event.accept()
-
     def highlightCurrentStrip(self, current):
+        # handle changing the colour of the axes
         if current:
             self.highlighted = True
 
-            self._updateAxes = True
+            self._notifyAxesChange = True
             for gr in self.gridList:
                 gr.renderMode = GLRENDERMODE_REBUILD
 
         else:
             self.highlighted = False
 
-            self._updateAxes = True
+            self._notifyAxesChange = True
             for gr in self.gridList:
                 gr.renderMode = GLRENDERMODE_REBUILD
 
         self.update()
 
-    @staticmethod
-    def _buildSingleWildCard(_axisCodes):
-        """Buld the axisCode appending wildcard as required
-        """
-        _code = ''
-        if _axisCodes:
-            _maxLen = max(len(ax) for ax in _axisCodes)
-            _chs = [a for a in zip(*_axisCodes)]
-            for ch in _chs:
-                chSet = set(ch)
-                if len(chSet) == 1:
-                    _code += ch[0]
-                else:
-                    _code += '*'
-                    break
-            else:
-                if len(_code) < _maxLen:
-                    _code += '*'
-        _code = _code or '*'
-
-        return _code
-
     def _buildAxisCodesWithWildCards(self):
         """Build the visible axis codes from the visible spectra appending wildcard as required
         """
-        _visibleSpec = [(specView, self._spectrumSettings[specView]) for specView in self._ordering
-                        if not specView.isDeleted and specView.isDisplayed and
-                        specView in self._spectrumSettings]
-        _firstVisible = ((self._ordering[0], self._spectrumSettings[self._ordering[0]]),) if self._ordering and not \
-            self._ordering[0].isDeleted and self._ordering[0] in self._spectrumSettings else ()
-        self._visibleOrderingDict = _visibleSpec or _firstVisible
+        if _DEBUG:
+            getLogger().debug(f'{consoleStyle.fg.magenta}_buildAxisCodesWithWildCards  {id(self)}'
+                              f'{consoleStyle.reset}')
+        if not self._ordering:
+            self._visibleOrderingAxisCodes = None
+            return
+        specViews = self._visibleOrdering or [self._firstVisible]
+        if not self._firstVisible:
+            self._visibleOrderingAxisCodes = None
+            return
 
-        # quick fix to take the set of matching letters from the spectrum axisCodes - append a '*' to denote trailing differences
+        # take the set of matching letters from the spectrum axisCodes - append a '*' to denote trailing differences
         if self.spectrumDisplay.is1D:
             dim = self.spectrumDisplay._flipped
 
             # get the x-axis codes for 1d
-            _axisCodes = [spec.spectrum.axisCodes[0] for spec, settings in self._visibleOrderingDict]
+            _axisCodes = [specView.spectrum.axisCodes[0] for specView in specViews]
             if dim:
                 _axisWildCards = (
                     self.axisCodes[1 - dim] or '*',
-                    self._buildSingleWildCard(_axisCodes),
+                    _buildSingleWildCard(_axisCodes),
                     )
             else:
                 _axisWildCards = (
-                    self._buildSingleWildCard(_axisCodes),
+                    _buildSingleWildCard(_axisCodes),
                     self.axisCodes[1 - dim] or '*',
                     )
-
         else:
             dim = len(self.spectrumDisplay.axisCodes)
             _axisWildCards = []
             for axis in range(dim):
                 # get the correct x-axis mapped axis codes for Nd
                 _axisCodes = []
-                for spec, settings in self._visibleOrderingDict:
+                for specView in specViews:
                     try:
-                        _axisCodes.append(spec.spectrum.axisCodes[settings.dimensionIndices[axis]])
+                        _axisCodes.append(specView.spectrum.axisCodes[specView.dimensionIndices[axis]])
                     except Exception:
                         # can skip for now
                         pass
-                _code = self._buildSingleWildCard(_axisCodes)
+                _code = _buildSingleWildCard(_axisCodes)
                 _axisWildCards.append(_code)
 
         self._visibleOrderingAxisCodes = _axisWildCards
 
-    #~~~~~~~~~~~~~~~~~~~~~~~~~~
+    #-----------------------------------------------------------------------------------------
 
     def _setAxisPosition(self, axisIndex, position, rescale=True, update=True):
         if axisIndex == 0:
@@ -2856,6 +2758,30 @@ class Gui1dWidgetAxis(QtWidgets.QOpenGLWidget):
             if rescale:
                 self._rescaleYAxis(rescale=rescale, update=update)
 
+    @Slot()
+    def _aboutToResize(self):
+        if _DEBUG:
+            getLogger().debug(f'{consoleStyle.fg.magenta}Resizing  {id(self)}  {self.size()}'
+                              f'{consoleStyle.reset}')
+
+    @Slot()
+    def _resized(self):
+        if _DEBUG:
+            getLogger().debug(f'{consoleStyle.fg.magenta}_resized  {id(self)}  {self.size()}'
+                              f'{consoleStyle.reset}')
+
+    @Slot()
+    def _aboutToChangeAxes(self):
+        # not sure yet :)
+        ...
+
+    @Slot()
+    def _frameSwapped(self):
+        if _DEBUG:
+            tt = round(time.perf_counter() * 20) % 1000
+            getLogger().debug(f'{consoleStyle.fg.magenta}_frameSwapped  '
+                              f'{id(self)}  -  {tt}{consoleStyle.reset}')
+
 
 #=========================================================================================
 # GuiNdWidgetAxis
@@ -2865,22 +2791,13 @@ class GuiNdWidgetAxis(Gui1dWidgetAxis):
     """Testing a widget that only contains a right axis
     """
     is1D = False
-    AXIS_MARGINRIGHT = 50
-    AXIS_MARGINBOTTOM = 25
-    AXIS_LINE = 7
-    AXIS_OFFSET = 3
-    AXIS_INSIDE = False
+    # these need to be able to change as the axis font-size change
+    ...
+    # these should be static
     YAXISUSEEFORMAT = False
-    XDIRECTION = -1.0
-    YDIRECTION = -1.0
     AXISLOCKEDBUTTON = True
     AXISLOCKEDBUTTONALLSTRIPS = True
-    SPECTRUMXZOOM = 5.0e1
-    SPECTRUMYZOOM = 5.0e1
     SHOWSPECTRUMONPHASING = True
-    XAXES = GLDefs.XAXISUNITS
-    YAXES = GLDefs.YAXISUNITS
-    AXIS_MOUSEYOFFSET = AXIS_MARGINBOTTOM + (0 if AXIS_INSIDE else AXIS_LINE)
 
     def _buildSpectrumSetting(self, spectrumView, stackCount=0):
         delta = [self.XDIRECTION, self.YDIRECTION]
@@ -2900,4 +2817,43 @@ class GuiNdWidgetAxis(Gui1dWidgetAxis):
         self._maxY = max(self._maxY, specVals.maxSpectrumFrequency[1])
         self._minY = min(self._minY, specVals.minSpectrumFrequency[1])
 
-        self._buildAxisCodesWithWildCards()
+        # self._buildAxisCodesWithWildCards()
+
+
+#=========================================================================================
+# main
+#=========================================================================================
+
+def main():
+    import math
+
+    # Example usage
+    original_list = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17]
+    ll = len(original_list)
+    depth = math.ceil(math.log2(len(original_list)))
+
+    print(f'Generate list   {math.log2(len(original_list))}   {ll}   {depth}')
+    order = ([0] +
+             [ind
+              for dd in range(depth, 0, -1)
+              for ind in range((2**(dd - 1)), ll, (2**dd))])
+    print(order)
+
+    ww = ['ABC', 'ABC']
+    print('1', _buildSingleWildCard(ww))
+    ww = ['ABC', 'ADF']
+    print('2', _buildSingleWildCard(ww))
+    ww = ['ABC', 'ABC', 'ABCD']
+    print('3', _buildSingleWildCard(ww))
+    ww = ['ABC', 'ABC', 'ABCD', 'ABCDE']
+    print('4', _buildSingleWildCard(ww))
+    ww = ['ABC', 'AB', 'AEF', 'ABFFGR']
+    print('5', _buildSingleWildCard(ww))
+    ww = ['', 'ABFFGR']
+    print('6', _buildSingleWildCard(ww))
+    ww = ['', '', '']
+    print('7', _buildSingleWildCard(ww))
+
+
+if __name__ == '__main__':
+    main()

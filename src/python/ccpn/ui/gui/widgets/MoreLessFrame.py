@@ -4,7 +4,7 @@ Module Documentation here
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2025"
 __credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
                "Timothy J Ragan, Brian O Smith, Daniel Thompson",
                "Gary S Thompson & Geerten W Vuister")
@@ -16,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-08-23 19:27:18 +0100 (Fri, August 23, 2024) $"
-__version__ = "$Revision: 3.2.5 $"
+__dateModified__ = "$dateModified: 2025-04-16 12:49:01 +0100 (Wed, April 16, 2025) $"
+__version__ = "$Revision: 3.3.1 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -28,11 +28,11 @@ __date__ = "$Date: 2020-05-27 16:32:49 +0000 (Wed, May 27, 2020) $"
 #=========================================================================================
 
 from PyQt5 import QtCore, QtGui, QtWidgets
-from ccpn.ui.gui.widgets.Frame import Frame
+from ccpn.ui.gui.widgets.Frame import Frame, ScrollableFrame
 from ccpn.ui.gui.widgets.Icon import Icon
-from ccpn.ui.gui.widgets.Label import ActiveLabel, Label
+from ccpn.ui.gui.widgets.Label import ActiveLabel
 from ccpn.ui.gui.widgets.Font import getFontHeight
-from ccpn.ui.gui.widgets.ScrollArea import ScrollArea
+from ccpn.ui.gui.widgets.Spacer import Spacer
 
 
 class MoreLessFrame(Frame):
@@ -41,21 +41,22 @@ class MoreLessFrame(Frame):
     """
     DEFAULTMARGINS = (0, 2, 0, 0)  # l, t, r, b
 
-    def __init__(self, parent, mainWindow=None, name=None, showMore=True, scrollable=False,
+    def __init__(self, parent, name=None, showMore=True,
+                 scrollable=False, closable=False,
                  showBorder=True, borderColour=None, frameMargins=DEFAULTMARGINS, **kwds):
         """Initialise the widget
         """
         kwds.pop('setLayout', None)
         super().__init__(parent=parent, setLayout=True, **kwds)
-        self._parent = parent
-        self.mainWindow = mainWindow
         self._name = name
         self._showMore = showMore
         self._callback = None
         self._showBorder = showBorder
         self._borderColour = borderColour
+        self._closable = closable
         self._minusIcon = Icon('icons/minus-large')
         self._plusIcon = Icon('icons/plus-large')
+        self._closeIcon = Icon('icons/reset-2')  # close-icon, to the right of text
         self.PIXMAPWIDTH = getFontHeight()
         self._setWidgets(frameMargins, kwds, name, scrollable)
         self._showContents(showMore)
@@ -63,21 +64,34 @@ class MoreLessFrame(Frame):
 
     def _setWidgets(self, frameMargins, kwds, name, scrollable):
         row = 0
-        self._openButton = ActiveLabel(self, mainWindow=self.mainWindow, grid=(row, 0))
+        self._openButton = ActiveLabel(self, grid=(row, 0))
         self._openButton.setFixedSize(self.PIXMAPWIDTH + 3, self.PIXMAPWIDTH + 3)
         self._openButton.setPixmap(self._minusIcon.pixmap(self.PIXMAPWIDTH, self.PIXMAPWIDTH))
         bold = kwds.get('bold', False)
-        self._label = Label(self, text=name or '', grid=(row, 1), bold=bold)
-        self._label.setSizePolicy(QtWidgets.QSizePolicy.Ignored, QtWidgets.QSizePolicy.Fixed)
+        self._label = ActiveLabel(self, text=name or '', grid=(row, 1), bold=bold)
+        # fix to the size of its text
+        self._label.setSizePolicy(QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed)
+        if self._closable:
+            self._closeButton = ActiveLabel(self, grid=(row, 2))
+            self._closeButton.setFixedSize(self.PIXMAPWIDTH, self.PIXMAPWIDTH)
+            self._closeButton.setPixmap(self._closeIcon.pixmap(self.PIXMAPWIDTH - 5, self.PIXMAPWIDTH - 5))
+            self._closeButton.sigClicked.connect(self.close)  # noqa: pycharm can't see qt
+
         row += 1
-        self._contentsFrame = Frame(self, setLayout=True, showBorder=False, grid=(row, 0), gridSpan=(1, 2))
         self._openButton.setSelectionCallback(self._toggleContents)
-        self.scrollArea = None
+        self._label.setSelectionCallback(self._toggleContents)
+
         if scrollable:
-            self.scrollArea = ScrollArea(self, setLayout=True, grid=(row, 0), gridSpan=(1, 2))
-            self.scrollArea.setWidgetResizable(True)
-            self.scrollAreaWidgetContents = self._contentsFrame
-            self.scrollArea.setWidget(self.scrollAreaWidgetContents)
+            # add a frame with scroll-bars
+            self._contentsFrame = ScrollableFrame(self, setLayout=True, grid=(row, 0), gridSpan=(1, 4))
+            self.scrollArea = self._contentsFrame.scrollArea
+        else:
+            self._contentsFrame = Frame(self, setLayout=True, showBorder=False, grid=(row, 0), gridSpan=(1, 4))
+            self.scrollArea = None
+
+        Spacer(self, 5, 5,
+               QtWidgets.QSizePolicy.MinimumExpanding, QtWidgets.QSizePolicy.MinimumExpanding,
+               grid=(row, 0), gridSpan=(1, 4))
         self.setContentsMargins(*frameMargins)
 
     def _showContents(self, visible):
@@ -88,13 +102,10 @@ class MoreLessFrame(Frame):
             self._openButton.setPixmap(self._minusIcon.pixmap(self.PIXMAPWIDTH, self.PIXMAPWIDTH))
             # arbitrary large height
             self.setMaximumHeight(2000)
-            if self.scrollArea:
-                self.scrollArea.show()
         else:
             self._openButton.setPixmap(self._plusIcon.pixmap(self.PIXMAPWIDTH, self.PIXMAPWIDTH))
+            # collapse the contents
             self.setMaximumHeight(self.sizeHint().height())
-            if self.scrollArea:
-                self.scrollArea.hide()
 
         if self._callback:
             self._callback(self)
@@ -115,6 +126,11 @@ class MoreLessFrame(Frame):
         """Return True if the contents are visible.
         """
         return self._contentsFrame.isVisible()
+
+    def setContentsVisible(self, state: bool):
+        """Open/Close the frame.
+        """
+        self._showContents(state)
 
     @property
     def name(self):
@@ -145,7 +161,9 @@ class MoreLessFrame(Frame):
         rgn = self.rect().adjusted(0, 0, -1, -1)
         # get the size of the box to draw in and define the point list
         _size = self._label.sizeHint()
-        h, w = _size.height(), _size.width() + self._openButton.sizeHint().width()
+        h, w = _size.height(), (_size.width() +
+                                self._openButton.sizeHint().width() +
+                                (self._closeButton.sizeHint().width() if self._closable else 0))
         offset = w
         points0 = [QtCore.QPoint(0, 1),
                    QtCore.QPoint(offset + 2, 1),
@@ -165,3 +183,11 @@ class MoreLessFrame(Frame):
         p.setRenderHint(QtGui.QPainter.Antialiasing, False)
         p.drawLines(*points0)
         p.end()
+
+    def closeEvent(self, event):
+        """Clean-up and close.
+        """
+        from ccpn.ui.gui.lib.WidgetClosingLib import CloseHandler
+
+        with CloseHandler(self):
+            super().closeEvent(event)

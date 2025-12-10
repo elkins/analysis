@@ -8,7 +8,7 @@ To create a menu:
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2025"
 __credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
                "Timothy J Ragan, Brian O Smith, Daniel Thompson",
                "Gary S Thompson & Geerten W Vuister")
@@ -20,8 +20,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-08-29 11:21:26 +0100 (Thu, August 29, 2024) $"
-__version__ = "$Revision: 3.2.5 $"
+__dateModified__ = "$dateModified: 2025-05-02 17:07:59 +0100 (Fri, May 02, 2025) $"
+__version__ = "$Revision: 3.3.2 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -172,6 +172,20 @@ def _cyclePeakSymbolsItem(strip):
                     callback=strip.cyclePeakSymbols, shortcut='PS', stripMethodName='')
 
 
+def _togglePeakSymbolsItem(strip):
+    return _SCMitem(name='Peak Symbols',
+                    typeItem=ItemTypes.get(ITEM), toolTip='Toggle Peak Symbols On/Off',
+                    callback=strip.togglePeakSymbolVisibility,
+                    checkable=True, checked=True, shortcut='SX', stripMethodName='peakSymbolAction')
+
+
+def _togglePeakLabelsItem(strip):
+    return _SCMitem(name='Peak Labels',
+                    typeItem=ItemTypes.get(ITEM), toolTip='Toggle Peak Labels On/Off',
+                    callback=strip.togglePeakLabelVisibility,
+                    checkable=True, checked=True, shortcut='LX', stripMethodName='peakLabelAction')
+
+
 def _shareYAxisItem(strip):
     return _SCMitem(name='Share Last Axis',
                     typeItem=ItemTypes.get(ITEM), toolTip='Share last axis among strips', checkable=True, checked=True,
@@ -266,6 +280,12 @@ def _phasingConsoleItem(strip):
     return _SCMitem(name='Enter Phasing-Console',
                     typeItem=ItemTypes.get(ITEM), icon='icons/phase-console', toolTip='Enter Phasing-Console',
                     shortcut='PC', callback=strip.spectrumDisplay.togglePhaseConsole)
+
+
+def _reloadSpectrum(strip):
+    return _SCMitem(name='Reload Spectra',
+                    typeItem=ItemTypes.get(ITEM), icon='icons/undo', toolTip='Reload visible Spectra',
+                    shortcut='SR', callback=strip.spectrumDisplay._reloadSpectra)
 
 
 def _mouseModeItem(strip):
@@ -826,8 +846,8 @@ def _copyYAxisCodeRangeFromStripMenuItem2(strip):
 def _showSpectraOnPhasingItem(strip):
     return _SCMitem(name='Show Spectra on Phasing',
                     typeItem=ItemTypes.get(ITEM), toolTip='Show Spectra while phasing traces are visible',
-                    checkable=True, checked=strip.showSpectraOnPhasing, shortcut='CH',
-                    callback=strip._toggleShowSpectraOnPhasing, stripMethodName='spectraOnPhasingAction')
+                    checkable=True, checked=strip.showSpectraOnPhasing,
+                    callback=strip._toggleShowSpectraOnPhasingCallback, stripMethodName='spectraOnPhasingAction')
 
 
 def _showActivePhaseTraceItem(strip):
@@ -909,7 +929,7 @@ def _decreaseTraceScaleItem(strip):
 def _setPivotItem(strip):
     return _SCMitem(name='Set Pivot',
                     typeItem=ItemTypes.get(ITEM), toolTip='Set pivot value',
-                    shortcut='PV', callback=strip._setPhasingPivot)
+                    shortcut='PV', callback=strip._setPhasingPivotCallback)
 
 
 def _exitPhasingConsoleItem(strip):
@@ -928,15 +948,15 @@ def _exitMouseModeItem(strip):
 def _stackSpectraDefaultItem(strip):
     return _SCMitem(name='Stack Spectra',
                     typeItem=ItemTypes.get(ITEM), toolTip='Stack Spectra',
-                    checkable=True, checked=strip._CcpnGLWidget._stackingMode,
-                    callback=strip._toggleStack, shortcut='SK', stripMethodName='stackAction')
+                    checkable=True, checked=strip.stackingMode,
+                    callback=strip._toggleStackCallback, shortcut='SK', stripMethodName='stackAction')
 
 
 def _stackSpectraPhaseItem(strip):
     return _SCMitem(name='Stack Spectra',
                     typeItem=ItemTypes.get(ITEM), toolTip='Stack Spectra',
-                    checkable=True, checked=strip._CcpnGLWidget._stackingMode,
-                    callback=strip._toggleStackPhase, stripMethodName='stackActionPhase')
+                    checkable=True, checked=strip.stackingMode,
+                    callback=strip._togglePhaseMenuStackCallback, stripMethodName='phaseMenuStackAction')
 
 
 #=========================================================================================
@@ -956,6 +976,7 @@ def _get1dDefaultMenu(guiStrip1d) -> Menu:
         _calibrateY(guiStrip1d),
         _stackSpectraDefaultItem(guiStrip1d),
         _phasingConsoleItem(guiStrip1d),
+        _reloadSpectrum(guiStrip1d),
         _separator(),
         _mouseModeItem(guiStrip1d),
         _separator(),
@@ -996,6 +1017,7 @@ def _get1dDefaultMenu(guiStrip1d) -> Menu:
         _gridItem(guiStrip1d),
         _shareYAxisItem(guiStrip1d),
         _cyclePeakLabelsItem(guiStrip1d),
+        _togglePeakLabelsItem(guiStrip1d),
         # _cyclePeakSymbolsItem(guiStrip1d),
         ]
     items = [itm for itm in items if itm is not None]
@@ -1153,6 +1175,7 @@ def _getNdDefaultMenu(guiStripNd) -> Menu:
         _toggleHorizontalTraceItem(guiStripNd),
         _toggleVerticalTraceItem(guiStripNd),
         _phasingConsoleItem(guiStripNd),
+        _reloadSpectrum(guiStripNd),
         _separator(),
         _mouseModeItem(guiStripNd),
         _separator(),
@@ -1191,6 +1214,8 @@ def _getNdDefaultMenu(guiStripNd) -> Menu:
         _gridItem(guiStripNd),
         _sideBandsItem(guiStripNd),
         _shareYAxisItem(guiStripNd),
+        _togglePeakLabelsItem(guiStripNd),
+        _togglePeakSymbolsItem(guiStripNd),
         _cyclePeakLabelsItem(guiStripNd),
         _cyclePeakSymbolsItem(guiStripNd),
         ]

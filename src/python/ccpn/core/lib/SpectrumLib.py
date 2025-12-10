@@ -3,7 +3,7 @@
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2025"
 __credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
                "Timothy J Ragan, Brian O Smith, Daniel Thompson",
                "Gary S Thompson & Geerten W Vuister")
@@ -14,9 +14,9 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-10-10 15:45:26 +0100 (Thu, October 10, 2024) $"
-__version__ = "$Revision: 3.2.7 $"
+__modifiedBy__ = "$modifiedBy: Luca Mureddu $"
+__dateModified__ = "$dateModified: 2025-03-28 11:42:24 +0000 (Fri, March 28, 2025) $"
+__version__ = "$Revision: 3.3.1 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -885,11 +885,9 @@ def get1DdataInRange(x, y, xRange):
     """
     if xRange is None:
         return x, y
-    point1, point2 = np.max(xRange), np.min(xRange)
-    x_filtered = np.where((x <= point1) & (x >= point2))
-    y_filtered = y[x_filtered]
-
-    return x_filtered, y_filtered
+    minX, maxX = min(xRange), max(xRange)
+    mask = (x >= minX) & (x <= maxX)
+    return x[mask], y[mask]
 
 
 def _recurseData(ii, dataList, startCondition, endCondition):

@@ -4,9 +4,10 @@ Simple 1D PeakPicker; for testing only
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
-__credits__ = ("Ed Brooksbank, Joanna Fox, Morgan Hayward, Victoria A Higman, Luca Mureddu",
-               "Eliza Płoskoń, Timothy J Ragan, Brian O Smith, Gary S Thompson & Geerten W Vuister")
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2025"
+__credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
+               "Timothy J Ragan, Brian O Smith, Daniel Thompson",
+               "Gary S Thompson & Geerten W Vuister")
 __licence__ = ("CCPN licence. See http://www.ccpn.ac.uk/v3-software/downloads/license",
                )
 __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, L.G., & Vuister, G.W.",
@@ -17,8 +18,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-02-27 10:50:08 +0000 (Tue, February 27, 2024) $"
-__version__ = "$Revision: 3.2.2 $"
+__dateModified__ = "$dateModified: 2025-03-11 19:28:30 +0000 (Tue, March 11, 2025) $"
+__version__ = "$Revision: 3.3.1 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -29,7 +30,6 @@ __date__ = "$Date: 2022-02-02 14:08:56 +0000 (Wed, February 02, 2022) $"
 #=========================================================================================
 
 from ccpn.core.lib.PeakPickers.PeakPickerABC import PeakPickerABC, SimplePeak
-from numba import jit
 import numpy as np
 from scipy.integrate import trapz
 from lmfit.models import LorentzianModel, GaussianModel
@@ -37,7 +37,6 @@ from ccpn.util.UnitConverters import  _getSpUnitConversionArguments, _pnt2hz
 from scipy.integrate import quad
 from ccpn.util.Logging import getLogger
 
-# @jit(nopython=True, nogil=True)
 def _find1DMaxima(y, x, positiveThreshold, negativeThreshold=None, findNegative=False):
     """
     from https://gist.github.com/endolith/250860#file-readme-md which was translated from

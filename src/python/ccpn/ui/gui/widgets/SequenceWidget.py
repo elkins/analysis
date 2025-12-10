@@ -9,7 +9,7 @@ GWV: 22/4/2018: New handling of colours
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2025"
 __credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
                "Timothy J Ragan, Brian O Smith, Daniel Thompson",
                "Gary S Thompson & Geerten W Vuister")
@@ -21,8 +21,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-08-23 19:21:22 +0100 (Fri, August 23, 2024) $"
-__version__ = "$Revision: 3.2.5 $"
+__dateModified__ = "$dateModified: 2025-01-03 18:35:02 +0000 (Fri, January 03, 2025) $"
+__version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -37,20 +37,21 @@ import typing
 from PyQt5 import QtCore, QtGui, QtWidgets
 from collections import OrderedDict
 from collections.abc import Iterable
+
 from ccpn.core.Chain import Chain
 from ccpn.core.Residue import Residue
 from ccpn.core.NmrResidue import NmrResidue
 from ccpn.core.NmrChain import NmrChain
 from ccpn.core.lib.Notifiers import Notifier
-
+from ccpn.core.lib.WeakRefLib import WeakRefDescriptor
 from ccpn.ui.gui.guiSettings import getColours
 from ccpn.ui.gui.guiSettings import (GUICHAINRESIDUE_ASSIGNED, GUICHAINRESIDUE_POSSIBLE,
                                      GUICHAINRESIDUE_WARNING, SEQUENCEMODULE_DRAGMOVE)
 from ccpn.ui.gui.widgets.Base import Base
 from ccpn.ui.gui.widgets.MessageDialog import showYesNo
-from ccpn.util.Logging import getLogger
 from ccpn.ui.gui.widgets.MessageDialog import progressManager, showWarning
 from ccpn.ui.gui.widgets.Font import setWidgetFont, getFontHeight
+from ccpn.util.Logging import getLogger
 
 
 #==========================================================================================
@@ -158,7 +159,7 @@ class _SequenceWidgetGraphicsView(QtWidgets.QGraphicsView):
 # Sequence-widget
 #==========================================================================================
 
-class SequenceWidget():
+class SequenceWidget(QtWidgets.QWidget):
     """
     The widget displays all chains in the project as one-letter amino acids. The one letter residue
     sequence codes are all instances of the GuiChainResidue class and the style applied to a residue
@@ -166,22 +167,25 @@ class SequenceWidget():
     stretch of residues matches a given stretch of connected NmrResidues. The QGraphicsScene and
     QGraphicsView instances provide the canvas on to which the amino acids representations are drawn.
     """
+    moduleParent = WeakRefDescriptor()
+    mainWindow = WeakRefDescriptor()
+    project = WeakRefDescriptor()
 
     def __init__(self, moduleParent=None, parent=None, mainWindow=None, name='Sequence', chains=None):
         """Initialise the widget
         """
 
         self.moduleParent = moduleParent
-        self._parent = parent
         self.mainWindow = mainWindow
         self.project = mainWindow.application.project
         self._chains = chains or []
 
-        self._parent.setAcceptDrops(True)
+        super().__init__(parent)
+        parent.setAcceptDrops(True)
 
         self.scrollArea = QtWidgets.QScrollArea()
         self.scrollArea.setWidgetResizable(True)
-        self.scrollArea.scene = _SequenceWidgetScene(self._parent, moduleParent=self)
+        self.scrollArea.scene = _SequenceWidgetScene(parent, moduleParent=self)
         self.scrollContents = _SequenceWidgetGraphicsView(self.scrollArea.scene)
         self.scrollContents.setAcceptDrops(True)
         self.scrollContents.setInteractive(True)
@@ -193,7 +197,7 @@ class SequenceWidget():
         self.colours = getColours()
         self.residueCount = 0
 
-        self._parent.layout().addWidget(self.scrollArea)
+        parent.layout().addWidget(self.scrollArea)
 
         self.chainLabels = OrderedDict()
         self._highlight = None
@@ -202,7 +206,7 @@ class SequenceWidget():
         #GWV: removed fixed height restrictions but maximum height instead
         #self.setFixedHeight(2*self.widgetHeight)
         #self.scrollContents.setFixedHeight(2*self.widgetHeight)
-        # self._parent.setMaximumHeight(100)
+        # parent.setMaximumHeight(100)
         # self.scrollContents.setMaximumHeight(100)
         self._setStyle()
 
@@ -466,6 +470,7 @@ class SequenceWidget():
     def _unRegisterNotifiers(self):
         """unregister notifiers
         """
+        getLogger().debug2(f'==> _unRegisterNotifiers  {self.__class__.__name__}')
         if self._chainNotifier:
             self._chainNotifier.unRegister()
             self._chainNotifier = None
@@ -482,17 +487,14 @@ class SequenceWidget():
             self._nmrResidueNotifier.unRegister()
             self._nmrResidueNotifier = None
 
-    def _closeModule(self):
+    def closeEvent(self, event):
+        """Clean-up and close.
         """
-        CCPN-INTERNAL: used to close the module
-        """
-        self._unRegisterNotifiers()
+        from ccpn.ui.gui.lib.WidgetClosingLib import CloseHandler
 
-    def close(self):
-        """
-        Close the table from the commandline
-        """
-        self._closeModule()  # ejb - needed when closing/opening project
+        self._unRegisterNotifiers()
+        with CloseHandler(self):
+            super().closeEvent(event)
 
     def setChains(self, chains):
         self._chains = chains

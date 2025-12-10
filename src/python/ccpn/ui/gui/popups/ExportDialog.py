@@ -4,9 +4,10 @@ Module Documentation here
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
-__credits__ = ("Ed Brooksbank, Joanna Fox, Morgan Hayward, Victoria A Higman, Luca Mureddu",
-               "Eliza Płoskoń, Timothy J Ragan, Brian O Smith, Gary S Thompson & Geerten W Vuister")
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2025"
+__credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
+               "Timothy J Ragan, Brian O Smith, Daniel Thompson",
+               "Gary S Thompson & Geerten W Vuister")
 __licence__ = ("CCPN licence. See https://ccpn.ac.uk/software/licensing/")
 __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, L.G., & Vuister, G.W.",
                  "CcpNmr AnalysisAssign: a flexible platform for integrated NMR analysis",
@@ -15,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-04-04 15:19:22 +0100 (Thu, April 04, 2024) $"
-__version__ = "$Revision: 3.2.5 $"
+__dateModified__ = "$dateModified: 2025-03-21 18:56:22 +0000 (Fri, March 21, 2025) $"
+__version__ = "$Revision: 3.3.1 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -26,21 +27,21 @@ __date__ = "$Date: 2017-07-06 15:51:11 +0000 (Thu, July 06, 2017) $"
 # Start of code
 #=========================================================================================
 
-from PyQt5 import QtCore
-from typing import Optional
+from PyQt5 import QtWidgets
 from ccpn.ui.gui.widgets.Label import Label
-from ccpn.ui.gui.popups.Dialog import CcpnDialogMainWidget
 from ccpn.ui.gui.widgets.FileDialog import ExportFileDialog
 from ccpn.ui.gui.widgets.Frame import Frame
 from ccpn.ui.gui.widgets.LineEdit import LineEdit
 from ccpn.ui.gui.widgets.Icon import Icon
 from ccpn.ui.gui.widgets.Button import Button
 from ccpn.ui.gui.widgets.Spacer import Spacer
-from PyQt5 import QtWidgets
-from ccpn.ui.gui.widgets.MessageDialog import showYesNoWarning, showWarning, progressManager
-from ccpn.ui.gui.guiSettings import getColours, DIVIDER
+from ccpn.ui.gui.widgets.MessageDialog import showYesNoWarning, showWarning
 from ccpn.ui.gui.widgets.HLine import HLine
+from ccpn.ui.gui.popups.Dialog import CcpnDialogMainWidget
+from ccpn.ui.gui.guiSettings import getColours, DIVIDER
+from ccpn.core.lib.WeakRefLib import WeakRefDescriptor
 from ccpn.util.Path import Path, aPath
+from ccpn.util.Logging import getLogger
 
 
 class ExportDialogABC(CcpnDialogMainWidget):
@@ -57,6 +58,13 @@ class ExportDialogABC(CcpnDialogMainWidget):
     REJECTTEXT = None
     PATHTEXT = 'Filename'
 
+    fileSaveDialog: ExportFileDialog = None
+    _dialogPreferences = WeakRefDescriptor()
+    mainWindow = WeakRefDescriptor()
+    application = WeakRefDescriptor()
+    project = WeakRefDescriptor()
+    current = WeakRefDescriptor()
+
     def __init__(self, parent=None, mainWindow=None, title='Export to File',
                  fileMode='anyFile',
                  acceptMode='export',
@@ -71,18 +79,15 @@ class ExportDialogABC(CcpnDialogMainWidget):
             self.application = mainWindow.application
             self.project = mainWindow.application.project
             self.current = mainWindow.application.current
+            self._dialogPreferences = self.application.preferences
         else:
             from ccpn.framework.Application import getApplication
 
-            app = getApplication()
-            if app:
+            if app := getApplication():
                 self.application = app
                 self.project = app.project
                 self.current = app.current
-            else:
-                self.application = None
-                self.project = None
-                self.current = None
+                self._dialogPreferences = app.preferences
 
         if selectFile:
             if not isinstance(selectFile, (str, Path)):
@@ -91,7 +96,6 @@ class ExportDialogABC(CcpnDialogMainWidget):
             selectFile = aPath(selectFile)
 
         self._selectFile = selectFile.name if selectFile else None
-
         self._dialogFileMode = fileMode
         self._dialogAcceptMode = acceptMode
         self._dialogSelectFile = selectFile
@@ -101,30 +105,32 @@ class ExportDialogABC(CcpnDialogMainWidget):
 
         super().__init__(parent, setLayout=True, windowTitle=title, **kwds)
 
+        self._setWidgets()
+        # initialise the user frame
+        self.initialise(self.options)
+        # setup and enable buttons
+        self.actionButtons()
+
+    def _setWidgets(self):
+        """Set up the widgets in the mainWidget.
+        """
         # the top frame to contain user defined widgets
         self.options = Frame(self.mainWidget, setLayout=True, grid=(0, 0))
         self.options.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
-
         # # initialise the frame - check subclassing
         # self.initialise(self.options)
-
         # add a spacer to separate from the common save widgets
         HLine(self.mainWidget, grid=(2, 0), gridSpan=(1, 1), colour=getColours()[DIVIDER], height=20)
-
         # file directory options here
         self.openPathIcon = Icon('icons/directory')
-
         self.saveFrame = Frame(self.mainWidget, setLayout=True, grid=(3, 0))
-
         self.openPathIcon = Icon('icons/directory')
         self.saveLabel = Label(self.saveFrame, text=f'{self.PATHTEXT}', grid=(0, 0), hAlign='c')
         self.saveText = LineEdit(self.saveFrame, grid=(0, 1), textAlignment='l')
         self.saveText.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Fixed)
         self.saveText.setDisabled(False)
-
         self.pathEdited = False
         self.saveText.textEdited.connect(self._editPath)
-
         self.spacer = Spacer(self.saveFrame, 13, 3,
                              QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed,
                              grid=(0, 2), gridSpan=(1, 1))
@@ -132,17 +138,10 @@ class ExportDialogABC(CcpnDialogMainWidget):
                                  icon=self.openPathIcon,
                                  callback=self._openFileDialog,
                                  grid=(0, 3), hAlign='c')
-
         self.buttonFrame = Frame(self.mainWidget, setLayout=True, grid=(9, 0))
         self.spacer = Spacer(self.buttonFrame, 3, 3,
                              QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Fixed,
                              grid=(0, 0), gridSpan=(1, 1))
-
-        # initialise the user frame
-        self.initialise(self.options)
-
-        # setup and enable buttons
-        self.actionButtons()
 
     def _postInit(self):
         # initialise the buttons and dialog size
@@ -187,46 +186,57 @@ class ExportDialogABC(CcpnDialogMainWidget):
     def setSave(self, fileName):
         """Set the save fileName in the dialog shown form the dialog button
         """
-        if fileName:
+        if not self.fileSaveDialog:
+            getLogger().warning(f'{self.title}.setSave: no file dialog')
+            return
+        if not fileName:
+            getLogger().debug(f'{self.title}: no filename specified')
+            return
 
-            if not isinstance(fileName, (str, Path)):
-                raise TypeError('fileName must be str or Path object')
-            fileName = aPath(fileName)
+        if not isinstance(fileName, (str, Path)):
+            raise TypeError('fileName must be str or Path object')
+        fileName = aPath(fileName)
 
-            _currentPath = self.fileSaveDialog.initialPath
-            if not _currentPath.is_file():
-                if _currentPath:
-                    self._dialogSelectFile = _currentPath / fileName.name
+        _currentPath = self.fileSaveDialog.initialPath
+        if _currentPath.is_file():
+            raise RuntimeError('Path must be a folder')
 
-                    self._dialogSelectFile = self.setPathHistory(self._dialogSelectFile)
-                    self._dialogPath = self._dialogSelectFile.filepath
-                else:
-                    _currentPath = aPath(self._dialogPreferences.general.userWorkingPath if self._dialogPreferences else '~')
-                    self._dialogSelectFile = _currentPath / fileName.name
+        if _currentPath:
+            self._dialogSelectFile = _currentPath / fileName.name
 
-                    self._dialogSelectFile = self.setPathHistory(self._dialogSelectFile)
-                    self._dialogPath = self._dialogSelectFile.filepath
-                    self.fileSaveDialog.setInitialFile(self._dialogSelectFile)
+            self._dialogSelectFile = self.setPathHistory(self._dialogSelectFile)
+            self._dialogPath = self._dialogSelectFile.filepath
+        else:
+            _currentPath = aPath(self._dialogPreferences.general.userWorkingPath if self._dialogPreferences else '~')
+            self._dialogSelectFile = _currentPath / fileName.name
 
-                if hasattr(self, 'saveText'):
-                    self.setSaveTextWidget(self._dialogSelectFile)
-            else:
-                raise RuntimeError('Path must be a file')
+            self._dialogSelectFile = self.setPathHistory(self._dialogSelectFile)
+            self._dialogPath = self._dialogSelectFile.filepath
+            # self.fileSaveDialog.setInitialFile(self._dialogSelectFile)
+
+        if hasattr(self, 'saveText'):
+            self.setSaveTextWidget(self._dialogSelectFile)
 
     def updateDialog(self):
         """Create the dialog for the file button
         To be subclassed as required.
         """
-        self.fileSaveDialog = ExportFileDialog(self,
-                                            acceptMode='export',
-                                            selectFile=self._dialogSelectFile,
-                                            fileFilter=self._dialogFilter,
-                                            confirmOverwrite=False
-                                            )
+        if self.fileSaveDialog:
+            # clear the old dialog, should really use the existing one
+            self.fileSaveDialog.close()
+        self.fileSaveDialog = ExportFileDialog(self,  # parented to 'self' so deleted on 'done'
+                                               acceptMode='export',
+                                               selectFile=self._dialogSelectFile,
+                                               fileFilter=self._dialogFilter,
+                                               confirmOverwrite=False
+                                               )
 
     def _updateButtonText(self):
         """Change the text of the accept button
         """
+        if not self.fileSaveDialog:
+            getLogger().warning(f'{self.title}._updateButtonText: no file dialog')
+            return
         if self.ACCEPTTEXT is not None:
             self.fileSaveDialog.setLabelText(self.fileSaveDialog.Accept, self.ACCEPTTEXT)
         if self.REJECTTEXT is not None:
@@ -291,32 +301,34 @@ class ExportDialogABC(CcpnDialogMainWidget):
         self.exitFilename = None
         self.reject()
 
-    def closeEvent(self, QCloseEvent):
-        """Close the dialog
-        """
-        self._rejectDialog()
-
     def _exportToFile(self):
-        # build the export dict
-        with progressManager(self, 'Saving to file:\n%s' % self.exitFilename):
-            params = self.buildParameters()
+        from ccpn.core.lib.ContextManagers import busyHandler
 
+        # build the export dict
+        with busyHandler(title='Export to File', text=f'Saving to file:\n{self.exitFilename}',
+                         raiseErrors=False):
+            params = self.buildParameters()
             # do the export
             if params:
                 self.exportToFile(params=params)
-
             # return the filename
             return params
 
-    def exec_(self) -> Optional[dict]:
+    def exec_(self) -> dict | None:
         """Popup the dialog
         """
-        if super().exec_():
-            return self._exportToFile()
+        result = self._exportToFile() if super().exec_() else None
+
+        # clean up after any busy popups
+        self.deleteLater()
+        return result
 
     def _openFileDialog(self):
         """Open the save dialog
         """
+        if not self.fileSaveDialog:
+            getLogger().warning(f'{self.title}._openFileDialog: no file dialog')
+            return
         # set the path, it may have been edited
         self.fileSaveDialog._selectFile = self._dialogSelectFile
         self.fileSaveDialog.selectFile(str(self._dialogSelectFile))

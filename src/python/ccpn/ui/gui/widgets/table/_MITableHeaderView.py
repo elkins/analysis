@@ -4,7 +4,7 @@ Module Documentation here
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2025"
 __credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
                "Timothy J Ragan, Brian O Smith, Daniel Thompson",
                "Gary S Thompson & Geerten W Vuister")
@@ -16,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-09-05 18:12:52 +0100 (Thu, September 05, 2024) $"
-__version__ = "$Revision: 3.2.5 $"
+__dateModified__ = "$dateModified: 2025-01-09 20:34:21 +0000 (Thu, January 09, 2025) $"
+__version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -29,17 +29,16 @@ __date__ = "$Date: 2023-01-27 14:45:57 +0100 (Fri, January 27, 2023) $"
 
 import itertools
 import typing
-import numpy as np
 import pandas as pd
 from functools import partial
 from PyQt5 import QtWidgets, QtGui, QtCore
 from PyQt5.QtCore import Qt, QItemSelectionModel, QSize
 from PyQt5.QtWidgets import QSizePolicy
 
-from ccpn.ui.gui.guiSettings import getColours, GUITABLEHEADER_GROUP_GRIDLINES, GUITABLE_GRIDLINES
+from ccpn.core.lib.WeakRefLib import WeakRefDescriptor
+from ccpn.ui.gui.guiSettings import getColours, GUITABLEHEADER_GROUP_GRIDLINES
 from ccpn.ui.gui.widgets.table._TableCommon import MOUSE_MARGIN, ORIENTATIONS
 from ccpn.ui.gui.widgets.Font import setWidgetFont, TABLEFONT
-
 from ccpn.ui.gui.widgets.table._MITableDelegates import (_ExpandHorizontalDelegate, _ExpandVerticalDelegate,
                                                          _GridDelegate)
 from ccpn.ui.gui.widgets.table._MITableHeaderModel import _HorizontalMITableHeaderModel, _VerticalMITableHeaderModel
@@ -111,13 +110,12 @@ class _MITableHeaderViewABC(QtWidgets.QTableView):
 
     headerModelClass = None
     headerDelegateClass = None
-
-    showGroupDividers = True
+    showSectionDividers = True
+    _sectionDividers = None
     _dividerColour = None
-    _horizontalDividers = None
-    _verticalDividers = None
+    table = WeakRefDescriptor()
 
-    def __init__(self, parent: 'MITableABC', table: '_MITableView', df, orientation=Qt.Horizontal, dividerColour=None,
+    def __init__(self, parent: 'MITableABC', table: 'MITableABC', df, orientation=Qt.Horizontal, dividerColour=None,
                  gridColour=None):
         super().__init__(parent)
 
@@ -129,10 +127,8 @@ class _MITableHeaderViewABC(QtWidgets.QTableView):
             raise ValueError(f'orientation not in {list(ORIENTATIONS.keys())}')
 
         self.orientation = orientation
-        # self._df = df
-
-        self._parent = parent
         self.table = table
+        # are table and parent always the same? use WeakRefDescriptor or property table=self.parent()
         self.setModel(self.headerModelClass(self.table, df=df, orientation=orientation))
 
         # These are used during row/column resizing
@@ -191,6 +187,11 @@ class _MITableHeaderViewABC(QtWidgets.QTableView):
         QtWidgets.QApplication.instance().sigPaletteChanged.connect(
                 partial(QtCore.QTimer.singleShot, 0, self._checkPalette))
 
+    @property
+    def _parent(self):
+        # typically this a QTableView
+        return self.parent()
+
     def _checkPalette(self):
         """Update palette in response to palette change event.
         """
@@ -209,7 +210,7 @@ class _MITableHeaderViewABC(QtWidgets.QTableView):
 
     def updateDf(self, df, resize=True, setHeightToRows=False, setWidthToColumns=False, setOnHeaderOnly=False,
                  newModel=False):
-        """Initialise the dataFrame
+        """Initialise the dataFrame.
         """
         if not isinstance(df, (type(None), pd.DataFrame)):
             raise ValueError(f'data is not of type pd.DataFrame - {type(df)}')
@@ -219,22 +220,18 @@ class _MITableHeaderViewABC(QtWidgets.QTableView):
             if newModel or not (model := self.model()):
                 # create a new model if required
                 model = self.headerModelClass(self.table, df, self.orientation)
-
                 self.setModel(model)
             else:
                 model.df = df
-
         else:
             # set a default empty model
             df = pd.DataFrame({})
             if newModel or not (model := self.model()):
                 # create a new model if required
                 model = self.headerModelClass(self.table, df, self.orientation)
-
                 self.setModel(model)
             else:
                 model.df = df
-
         self._init()
 
         return model
@@ -246,12 +243,11 @@ class _MITableHeaderViewABC(QtWidgets.QTableView):
         self.blockSignals(False)
         self.selectionModel().blockSignals(False)
         self._blocking = False
-
         # refresh the display
         self.repaint()
 
     def keyPressEvent(self, event: QtGui.QKeyEvent) -> None:
-        """handle key-presss events
+        """handle key-presss events.
         """
         # reset the last-index changed to respond to selection change
         self._lastIndex = None
@@ -265,7 +261,7 @@ class _MITableHeaderViewABC(QtWidgets.QTableView):
         super().mousePressEvent(event)
 
     def mouseReleaseEvent(self, e: QtGui.QMouseEvent) -> None:
-        """Handle mouse-release event
+        """Handle mouse-release event.
         """
         super().mouseReleaseEvent(e)
 
@@ -275,86 +271,97 @@ class _MITableHeaderViewABC(QtWidgets.QTableView):
         self.setSelectionMode(self._lastMode)
 
     def mouseMoveEvent(self, event: QtGui.QMouseEvent) -> None:
-        """Handle the mouse-move event
+        """Handle the mouse-move event.
         """
         super().mouseMoveEvent(event)
 
     def initSize(self):
-        """Fit rows/columns to contents
+        """Fit rows/columns to contents.
         """
         # MUST BE SUBCLASSED
         raise NotImplementedError("Code error: function not implemented")
 
     def setDelegates(self):
-        """Set delegates for the header
+        """Set delegates for the header.
         """
         # MUST BE SUBCLASSED
         raise NotImplementedError("Code error: function not implemented")
 
-    def _setSpans(self, headers):
+    def setSpans(self):
+        """Group together all identical items in the column/index multiIndex.
+        The structure of the index/column is preserved.
+        """
+        # MUST BE SUBCLASSED
+        raise NotImplementedError("Code error: function not implemented")
+
+    def _setSpans(self, df):
+        """Set the row-spans of each column ensuring that spans to the right
+        respect the boundaries of the spans from columns on their left.
+        """
         self.clearSpans()
+        self._sectionDividers = []
 
-        self._horizontalDividers = []
-        self._verticalDividers = []
+        def _fillSpan(row, column, rSpan, cSpan):
+            self.setSpan(row, column, rSpan, cSpan)
+            for rr, cc in itertools.product(range(rSpan), range(cSpan)):
+                # store the top-left cell in all the cells of the group
+                spanDf.iat[row + rr, column + cc] = (row, column, rSpan, cSpan)
 
-        # find the horizontal spans
-        for ii in range(headers.shape[0] - 1):
-            startCol = 0
-            for col in range(1, headers.shape[1]):
-                if headers[ii, col] == headers[ii, col - 1]:
-                    if col == headers.shape[1] - 1:
-                        # last column
-                        if self.orientation == Qt.Horizontal:
-                            self.setSpan(ii, startCol, 1, col - startCol + 1)
-                            if ii == 0:
-                                self._horizontalDividers.extend([startCol, col + 1])
-                        else:
-                            self.setSpan(startCol, ii, col - startCol + 1, 1)
-                            if ii == 0:
-                                self._verticalDividers.extend([startCol, col + 1])
+        def _setSingleSpan(col, df, row):
+            rr, cc = row - 1, col
+            for _inner in range(col + 1, df.shape[1]):
+                if df.iat[rr, _inner] == df.iat[rr, _inner - 1]:
+                    if _inner == df.shape[1] - 1:
+                        _fillSpan(rr, cc, 1, _inner - cc + 1)
                 else:
-                    if col - startCol > 1:
-                        if self.orientation == Qt.Horizontal:
-                            self.setSpan(ii, startCol, 1, col - startCol)
-                            if ii == 0:
-                                self._horizontalDividers.extend([startCol, col])
-                        else:
-                            self.setSpan(startCol, ii, col - startCol, 1)
-                            if ii == 0:
-                                self._verticalDividers.extend([startCol, col])
-                    startCol = col
+                    if _inner - cc > 1:
+                        _fillSpan(rr, cc, 1, _inner - cc)
+                    cc = _inner
 
-        # find the vertical spans
-        for ii in range(headers.shape[1]):
-            startRow = 0
-            for row in range(1, headers.shape[0]):
-                if headers[row, ii] == headers[row - 1, ii]:
-                    if row == headers.shape[0] - 1:
-                        # last column
-                        if self.orientation == Qt.Vertical:
-                            self.setSpan(ii, startRow, 1, row - startRow + 1)
-                        else:
-                            self.setSpan(startRow, ii, row - startRow + 1, 1)
+        def _childSpans(col, d0, d1):
+            startRow = d0
+            for row in range(d0 + 1, d1):
+                if df.iat[row - 1, col] == df.iat[row, col]:
+                    if row == d1 - 1:
+                        # last element in the range
+                        _fillSpan(startRow, col, d1 - startRow, 1)
+                        if col < df.shape[1] - 1:
+                            _childSpans(col + 1, startRow, d1)
+                        if col == 0:
+                            self._sectionDividers.extend([startRow, d1])
                 else:
+                    # next item is different
                     if row - startRow > 1:
-                        if self.orientation == Qt.Vertical:
-                            self.setSpan(ii, startRow, 1, row - startRow)
-                        else:
-                            self.setSpan(startRow, ii, row - startRow, 1)
+                        _fillSpan(startRow, col, row - startRow, 1)
+                        if col < df.shape[1] - 1:
+                            _childSpans(col + 1, startRow, row)
+                        if col == 0:
+                            self._sectionDividers.extend([startRow, row])
+                    else:
+                        _setSingleSpan(col, df, row)
                     startRow = row
 
-    def setSpan(self, row: int, column: int, rowSpan: int, columnSpan: int) -> None:
-        """Set the span and set the top-left index for each cell in the span
-        """
-        super().setSpan(row, column, rowSpan, columnSpan)
+        if df is None or df.empty:
+            return
+        # df holding the spans for common elements
+        spanDf = pd.DataFrame([[(rr, cc, 1, 1) for cc in range(df.shape[1])]
+                               for rr in range(df.shape[0])])
 
-        model = self.model()
-        for rr, cc in itertools.product(range(rowSpan), range(columnSpan)):
-            # store the top-left cell in all the cells of the group
-            model._spanTopLeft[row + rr, column + cc] = (row, column)
+        # find the vertical spans - keep for the minute
+        _childSpans(0, 0, df.shape[0])
+        # remove any parent-items that are surplus, i.e., match higher parents, or have the same span
+        # as higher and lower tree-items
+        # if self._hideSurplus:
+        #     for rr in range(spanDf.shape[0]):
+        #         for cc in range(spanDf.shape[1] - 1):
+        #             _, cL, rspL, _ = spanDf.iat[rr, cc]
+        #             _, cR, rspR, _ = spanDf.iat[rr, cc + 1]
+        #             if (rspL == rspR and cL != cR):
+        #                 spanDf.iat[rr, cc] = None
+        return spanDf
 
     def clearSpans(self) -> None:
-        """Clear the spans
+        """Clear the spans.
         """
         super().clearSpans()
 
@@ -362,7 +369,7 @@ class _MITableHeaderViewABC(QtWidgets.QTableView):
         self.model().clearSpans()
 
     def overHeaderEdge(self, mouse_position, margin=MOUSE_MARGIN):
-        """Check whether the mouse is over a row/column-divider
+        """Check whether the mouse is over a row/column-divider.
         """
         # MUST BE SUBCLASSED
         raise NotImplementedError("Code error: function not implemented")
@@ -390,12 +397,12 @@ class _HorizontalMITableHeaderView(_MITableHeaderViewABC):
     Allows for the use of single/multiIndex columns and indexes.
 
     The HeaderView defines the communication between the cells in the header and the model.
-    This is the horizontal-header
+    This is the horizontal-header.
     """
     headerModelClass = _HorizontalMITableHeaderModel
     headerDelegateClass = _ExpandHorizontalDelegate
 
-    def __init__(self, parent: 'MITableABC', table: '_MITableView', df: typing.Optional[pd.DataFrame],
+    def __init__(self, parent: 'MITableABC', table: 'MITableABC', df: typing.Optional[pd.DataFrame],
                  dividerColour=None):
         super().__init__(parent, table, df, orientation=Qt.Horizontal, dividerColour=dividerColour)
 
@@ -416,16 +423,14 @@ class _HorizontalMITableHeaderView(_MITableHeaderViewABC):
         # Toggle level names
         if not (any(df.columns.names) or df.columns.name):
             self.verticalHeader().setFixedWidth(0)
-
         # Scrolling in headers also scrolls the main-table - hidden scroll-bars still contain the positional information
         self.horizontalScrollBar().valueChanged.connect(self._parent.horizontalScrollBar().setValue)
-
         # constrain the size of the header
         self.setSizePolicy(QSizePolicy.MinimumExpanding, QSizePolicy.Fixed)
 
     def setDelegates(self):
         """Set the delegates for the rows.
-        Upper rows need to show the expand-icons, last row needs to hold the editable and sort icons
+        Upper rows need to show the expand-icons, last row needs to hold the editable and sort icons.
         """
         ...
 
@@ -440,14 +445,11 @@ class _HorizontalMITableHeaderView(_MITableHeaderViewABC):
             if self.table.selectionBehavior() != self.SelectColumns:
                 # skip the horizontal header if not in SelectColumns mode
                 return
-
             try:
                 # block signals from the header table
                 self.blockSignals(True)
                 selModel.blockSignals(True)
-
                 self._processColumnSelection()
-
             finally:
                 # re-enable the table
                 QtCore.QTimer.singleShot(0, self._finalise)
@@ -466,7 +468,6 @@ class _HorizontalMITableHeaderView(_MITableHeaderViewABC):
         if sCol := {idx.column() for idx in indexes}:
             lastIdx = self._df.columns.nlevels - 1
             newSel = QtCore.QItemSelection()
-
             # find all the selected cell spans
             found = set()
             for idx in indexes:
@@ -475,24 +476,21 @@ class _HorizontalMITableHeaderView(_MITableHeaderViewABC):
                     rowSpan, colSpan = self.rowSpan(row, col), self.columnSpan(row, col)
                     found |= {(row + rr, col + cc) for rr in range(rowSpan) for cc in range(colSpan)
                               if not self.horizontalHeader().isSectionHidden(col + cc)}
-
             # create a merged selection of indexes
             foundCols = {col for row, col in found}
             for col in foundCols:
                 idx = self.model().index(lastIdx, col)
                 newSel.merge(QtCore.QItemSelection(idx, idx), QItemSelectionModel.Select)
-
             # set the header selection
             for row, col in found:
                 for rr in range(row + 1, lastIdx + 1):
                     idx2 = self.model().index(rr, col)
                     self.setSelection(self.visualRect(idx2), QItemSelectionModel.Select)
-
             # Select the cells in the data view - spawns single change event
             dataView.selectionModel().select(newSel, QItemSelectionModel.Columns | QItemSelectionModel.ClearAndSelect)
 
     def mouseDoubleClickEvent(self, event: QtGui.QMouseEvent) -> None:
-        """Handle double-click to minimise/maximise the width of clicked column
+        """Handle double-click to minimise/maximise the width of clicked column.
         """
         super().mouseDoubleClickEvent(event)
 
@@ -518,33 +516,28 @@ class _HorizontalMITableHeaderView(_MITableHeaderViewABC):
         if (overEdge := self.overHeaderEdge(mouse_position)) is not None:
             # mouse is over an edge
             self.header_being_resized = overEdge
-
             # get the mouse-position for the header orientation
             pos = mouse_position.x()
             self.resize_start_position = pos
             self.initial_header_size = self.columnWidth(self.header_being_resized)
-
             # remember the last mode to handle press/release selection
             self.setSelectionMode(self.NoSelection)
             self.sectionClicked.emit(overEdge)
-
         else:
             self.header_being_resized = None
 
         super().mousePressEvent(event)
 
     def mouseMoveEvent(self, event: QtGui.QMouseEvent) -> None:
-        """Handle the mouse-move event
+        """Handle the mouse-move event.
         """
         # get the mouse-position for the header orientation
         mouse_position = event.pos()
 
         # If this is None, there is no drag resize happening
         if self.header_being_resized is not None:
-
             # get the mouse-position for the header orientation
             pos = mouse_position.x()
-
             size = self.initial_header_size + (pos - self.resize_start_position)
             if size > 10:
                 self._parent.setColumnWidth(self.header_being_resized, size)
@@ -560,7 +553,6 @@ class _HorizontalMITableHeaderView(_MITableHeaderViewABC):
             if self._mousePressed:
                 self._lastIndex = ind
                 self._lastIndexChanged = True
-
             # required to handle the mouse-drag for selection, but only if cell-index has changed
             super().mouseMoveEvent(event)
 
@@ -576,10 +568,9 @@ class _HorizontalMITableHeaderView(_MITableHeaderViewABC):
         if not columns:
             self.clearSelection()
             return
-
         if not (isinstance(columns, list) and all(isinstance(val, int) for val in columns)):
-            raise TypeError(
-                    f'{self.__class__.__name__}._processSelectionFromColumns: columns is not a list of integers')
+            raise TypeError(f'{self.__class__.__name__}._processSelectionFromColumns: '
+                            f'columns is not a list of integers')
 
         # get the valid visible items
         sCol = {col for col in columns if
@@ -588,7 +579,6 @@ class _HorizontalMITableHeaderView(_MITableHeaderViewABC):
         self.clearSelection()
         if sCol:
             lastIdx = self._df.columns.nlevels - 1
-
             # find all the selected cell spans
             found = set()
             for col in sCol:
@@ -597,7 +587,6 @@ class _HorizontalMITableHeaderView(_MITableHeaderViewABC):
                     rowSpan, colSpan = self.rowSpan(row, col), self.columnSpan(row, col)
                     found |= {(row + rr, col + cc) for rr in range(rowSpan) for cc in range(colSpan)
                               if not self.horizontalHeader().isSectionHidden(col + cc)}
-
             for row in range(lastIdx - 1, -1, -1):
                 for col in sCol:
                     if (cellSpan := (self.model()._spanTopLeft[row, col] or (row, col))):
@@ -607,7 +596,6 @@ class _HorizontalMITableHeaderView(_MITableHeaderViewABC):
                         cells = {(row + 1, cellCol + cc) for cc in range(colSpan)}
                         if all(cell in found for cell in cells):
                             found |= {(row, cellCol + cc) for cc in range(colSpan)}
-
             # set the header selection
             for row, col in found:
                 for rr in range(row, lastIdx + 1):
@@ -615,7 +603,7 @@ class _HorizontalMITableHeaderView(_MITableHeaderViewABC):
                     self.setSelection(self.visualRect(idx2), QItemSelectionModel.Select)
 
     def initSize(self):
-        """Fit columns to contents
+        """Fit columns to contents.
         """
         self.resizeRowsToContents()
 
@@ -627,22 +615,24 @@ class _HorizontalMITableHeaderView(_MITableHeaderViewABC):
         self.model().layoutAboutToBeChanged.emit()
 
         df = self.model().df
-
-        # Find how many levels the MultiIndex has
-        cols = len(df.columns[0]) if type(df.columns) == pd.MultiIndex else 1
-        headers = np.empty((cols, len(df.columns)), dtype=object)
-        for level in range(cols):  # Iterates over the levels
-            # Find how many segments the MultiIndex has
-            headers[level, :] = [df.columns[i][level] for i in range(len(df.columns))] if type(
-                    df.columns) == pd.MultiIndex else df.columns
-
-        self._setSpans(headers)
+        self._setSpans(df.columns.to_frame(index=False))
 
         # signal that the header has changed
         self.model().layoutChanged.emit()
 
+    def setSpan(self, row: int, column: int, rowSpan: int, columnSpan: int) -> None:
+        """Set the span and set the top-left index for each cell in the span.
+        """
+        # flip the spans for the horizontal-header
+        super().setSpan(column, row, columnSpan, rowSpan)
+
+        model = self.model()
+        for rr, cc in itertools.product(range(rowSpan), range(columnSpan)):
+            # store the top-left cell in all the cells of the group
+            model._spanTopLeft[column + cc, row + rr] = (column, row)
+
     def overHeaderEdge(self, mouse_position, margin=MOUSE_MARGIN):
-        """Check whether the mouse is over a column-divider
+        """Check whether the mouse is over a column-divider.
         """
         # get the mouse-position
         x, y = mouse_position.x(), mouse_position.y()
@@ -650,7 +640,6 @@ class _HorizontalMITableHeaderView(_MITableHeaderViewABC):
 
         # Return the index of the column this x position is on the right edge of
         row, col1, col2 = self.rowAt(y), self.columnAt(x - margin), self.columnAt(x + margin)
-
         if (col1 != col2 and col2 == 0) or col1 == col2:
             # We're at the left edge of the first column
             return None
@@ -660,7 +649,6 @@ class _HorizontalMITableHeaderView(_MITableHeaderViewABC):
         _cellRow1, cellCol1 = model._spanTopLeft[row, col1] or (row, col1)
         _cellRow2, cellCol2 = model._spanTopLeft[row, col2] or (row, col2)
         _rowSpan, colSpan = self.rowSpan(row, col2), self.columnSpan(row, col2)
-
         if (cellCol1 == cellCol2) and (0 < col2 < cellCol2 + colSpan):
             return None
 
@@ -677,18 +665,16 @@ class _HorizontalMITableHeaderView(_MITableHeaderViewABC):
         height = 2 * self.frameWidth()  # Account for border & padding
         for i in range(_model.rowCount()):
             height += self.rowHeight(i)
-
         return QSize(width, height)
 
     def updateDf(self, df, resize=True, setHeightToRows=False, setWidthToColumns=False, setOnHeaderOnly=False,
                  newModel=False):
-        """Initialise the dataFrame
+        """Initialise the dataFrame.
         """
         super().updateDf(df, resize, setHeightToRows, setWidthToColumns, setOnHeaderOnly, newModel)
 
         self._parent.resizeRowsToContents()
         h = sum(self.rowHeight(row) for row in range(df.shape[0]))
-
         # strange - but this is needed here :|
         self.setFixedHeight(h)
 
@@ -711,13 +697,13 @@ class _HorizontalMITableHeaderView(_MITableHeaderViewABC):
         return (count < colSpan), (count > 1)
 
     def paintEvent(self, e: QtGui.QPaintEvent) -> None:
-        """Paint the border to the screen
+        """Paint the border to the screen.
         """
         super().paintEvent(e)
-        if not self.showGroupDividers:
+        if not self.showSectionDividers:
             return
 
-        if self._horizontalDividers:
+        if self._sectionDividers:
             # create a rectangle and painter over the widget - shrink by 1 pixel to draw correctly
             p = QtGui.QPainter(self.viewport())
             p.translate(0.5, 0.5)
@@ -726,7 +712,7 @@ class _HorizontalMITableHeaderView(_MITableHeaderViewABC):
             p.setPen(QtGui.QPen(self._dividerColour, 1))
             pos = offset - 1
             for col in range(self.model().columnCount()):
-                if col in self._horizontalDividers:
+                if col in self._sectionDividers:
                     p.drawLine(pos, 0, pos, h)
                 pos += self.columnWidth(col)
             p.end()
@@ -741,11 +727,11 @@ class _VerticalMITableHeaderView(_MITableHeaderViewABC):
     Allows for the use of single/multiIndex columns and indexes.
 
     The HeaderView defines the communication between the cells in the header and the model.
-    This is the vertical-header
+    This is the vertical-header.
     """
     headerModelClass = _VerticalMITableHeaderModel
 
-    def __init__(self, parent: 'MITableABC', table: '_MITableView', df: typing.Optional[pd.DataFrame],
+    def __init__(self, parent: 'MITableABC', table: 'MITableABC', df: typing.Optional[pd.DataFrame],
                  dividerColour=None):
         super().__init__(parent, table, df, orientation=Qt.Vertical, dividerColour=dividerColour)
 
@@ -768,10 +754,8 @@ class _VerticalMITableHeaderView(_MITableHeaderViewABC):
 
         # Scrolling in headers also scrolls the main-table - hidden scroll-bars still contain the positional information
         self.verticalScrollBar().valueChanged.connect(self._parent.verticalScrollBar().setValue)
-
         # constrain the size of the header
         self.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Preferred)
-
         # change ordering of the header if the row-order has changed
         self.model().layoutChanged.connect(self._changeSelectionOrderCallback)
 
@@ -783,12 +767,10 @@ class _VerticalMITableHeaderView(_MITableHeaderViewABC):
 
         if lastIdx:
             table = self.table
-
             delegate = _ExpandVerticalDelegate(self, table=table, focusBorderWidth=0)
             for col in range(lastIdx):
                 # add delegates to show expand/collapse icon
                 self.setItemDelegateForColumn(col, delegate)
-
             delegate = _GridDelegate(self)
             # add delegate to show modified grid-lines
             self.setItemDelegateForColumn(lastIdx, delegate)
@@ -800,24 +782,20 @@ class _VerticalMITableHeaderView(_MITableHeaderViewABC):
         selected = sorted({(ind.row(), ind.column()) for ind in self.selectionModel().selectedIndexes()})
 
         if self.hasFocus():
-            selModel = self.selectionModel()
-
             # Vertical index/multiIndex header
             if self.table.selectionBehavior() != self.SelectRows:
                 # skip the vertical header if not in SelectRows mode
                 return
-
             try:
                 if getattr(self, '_lastIndexChanged', None):
                     self._lastIndexChanged = False
                     self._processRowSelection(selected, deSelected)
-
             finally:
                 # re-enable the table
                 QtCore.QTimer.singleShot(QtWidgets.QApplication.instance().doubleClickInterval(), self._finalise)
 
     def mouseDoubleClickEvent(self, event: QtGui.QMouseEvent) -> None:
-        """Handle double-click to minimise/maximise the width of clicked column
+        """Handle double-click to minimise/maximise the width of clicked column.
         """
         super().mouseDoubleClickEvent(event)
 
@@ -843,34 +821,28 @@ class _VerticalMITableHeaderView(_MITableHeaderViewABC):
         if (overEdge := self.overHeaderEdge(mouse_position)) is not None:
             # mouse is over an edge
             self.header_being_resized = overEdge
-
             # get the mouse-position for the header orientation
             pos = mouse_position.y()
             self.resize_start_position = pos
-
             self.initial_header_size = self.rowHeight(self.header_being_resized)
-
             # remember the last mode to handle press/release selection
             self.setSelectionMode(self.NoSelection)
             self.sectionClicked.emit(overEdge)
-
         else:
             self.header_being_resized = None
 
         super().mousePressEvent(event)
 
     def mouseMoveEvent(self, event: QtGui.QMouseEvent) -> None:
-        """Handle the mouse-move event
+        """Handle the mouse-move event.
         """
         # get the mouse-position for the header orientation
         mouse_position = event.pos()  # .x() if self.orientation == Qt.Horizontal else event.pos().y()
 
         # If this is None, there is no drag resize happening
         if self.header_being_resized is not None:
-
             # get the mouse-position for the header orientation
             pos = mouse_position.y()
-
             size = self.initial_header_size + (pos - self.resize_start_position)
             if size > 10:
                 self._parent.setRowHeight(self.header_being_resized, size)
@@ -886,7 +858,6 @@ class _VerticalMITableHeaderView(_MITableHeaderViewABC):
             if self._mousePressed:
                 self._lastIndex = ind
                 self._lastIndexChanged = True
-
             # required to handle the mouse-drag for selection, but only if cell-index has changed
             super().mouseMoveEvent(event)
 
@@ -903,7 +874,6 @@ class _VerticalMITableHeaderView(_MITableHeaderViewABC):
         selModel = self.selectionModel()
         dataView = self._parent
         lastIdx = self._df.index.nlevels - 1
-
         indexes = {(ind.row(), ind.column()) for ind in selModel.selectedIndexes() if
                    not self.verticalHeader().isSectionHidden(ind.row())}
 
@@ -920,7 +890,6 @@ class _VerticalMITableHeaderView(_MITableHeaderViewABC):
                 newCells = {(cellRow + rr, cc) for rr in range(rowSpan) for cc in range(cellCol, lastIdx + 1)
                             if not self.verticalHeader().isSectionHidden(cellRow + rr)}
                 found |= newCells
-
             for col in range(lastIdx - 1, -1, -1):
                 for row in sRow:
                     if (cellSpan := (self.model()._spanTopLeft[row, col] or (row, col))):
@@ -935,7 +904,6 @@ class _VerticalMITableHeaderView(_MITableHeaderViewABC):
             for row, col in found:
                 idx = dataView.model().index(row, col)
                 dataViewSel.merge(QtCore.QItemSelection(idx, idx), QItemSelectionModel.Select)
-
             # set the header selection
             for row, col in found:
                 for cc in range(col, lastIdx + 1):
@@ -944,10 +912,8 @@ class _VerticalMITableHeaderView(_MITableHeaderViewABC):
 
             # select in a single operation
             selModel.select(selfSel, QItemSelectionModel.ClearAndSelect)
-
             # Select the cells in the data-view - spawns single change event
             dataView.selectionModel().select(dataViewSel, QItemSelectionModel.Rows | QItemSelectionModel.ClearAndSelect)
-
         else:
             self.clearSelection()
             dataView.clearSelection()
@@ -964,14 +930,12 @@ class _VerticalMITableHeaderView(_MITableHeaderViewABC):
         if not rows:
             self.clearSelection()
             return
-
         if not (isinstance(rows, list) and all(isinstance(val, int) for val in rows)):
             raise TypeError(f'{self.__class__.__name__}._processSelectionFromRows: rows is not a list of integers')
 
         # get the valid visible items
         sRow = {row for row in rows if
                 0 <= row < self.model().rowCount() and not self.verticalHeader().isSectionHidden(row)}
-
         self.clearSelection()
         if sRow:
             lastIdx = self._df.index.nlevels - 1
@@ -984,7 +948,6 @@ class _VerticalMITableHeaderView(_MITableHeaderViewABC):
                     rowSpan, colSpan = self.rowSpan(row, col), self.columnSpan(row, col)
                     found |= {(row + rr, col + cc) for rr in range(rowSpan) for cc in range(colSpan)
                               if not self.verticalHeader().isSectionHidden(row + rr)}
-
             for col in range(lastIdx - 1, -1, -1):
                 for row in sRow:
                     if (cellSpan := (self.model()._spanTopLeft[row, col] or (row, col))):
@@ -994,7 +957,6 @@ class _VerticalMITableHeaderView(_MITableHeaderViewABC):
                         cells = {(cellRow + rr, col + 1) for rr in range(rowSpan)}
                         if all(cell in found for cell in cells):
                             found |= {(cellRow + rr, col) for rr in range(rowSpan)}
-
             # set the header selection
             for row, col in found:
                 for cc in range(col, lastIdx + 1):
@@ -1014,7 +976,6 @@ class _VerticalMITableHeaderView(_MITableHeaderViewABC):
         # block signals from the header table
         self.blockSignals(True)
         selModel.blockSignals(True)
-
         # # Get the main dataView selected rows
         # indexes = [ind for ind in pSelModel.selectedIndexes()
         #            if not self.verticalHeader().isSectionHidden(ind.row())]
@@ -1033,13 +994,11 @@ class _VerticalMITableHeaderView(_MITableHeaderViewABC):
                         found.add((row, col))
                         found |= {(row + rr, lastIdx) for rr in range(rowSpan) if
                                   not self.verticalHeader().isSectionHidden(row + rr)}
-
             # create a merged selection of indexes
             newSel = QtCore.QItemSelection()
             for row, col in found:
                 idx = model.index(row, col)
                 newSel.merge(QtCore.QItemSelection(idx, idx), QItemSelectionModel.Select)
-
             # Select the cells in the data view
             selModel.select(newSel, QItemSelectionModel.ClearAndSelect)
 
@@ -1056,32 +1015,29 @@ class _VerticalMITableHeaderView(_MITableHeaderViewABC):
         self.model().layoutAboutToBeChanged.emit()
 
         df = self.model().df
-
         _sortIndex = self.table.model()._sortIndex
-
-        # Find how many levels the MultiIndex has
-        rows = len(df.index[0]) if type(df.index) == pd.MultiIndex else 1
-        headers = np.empty((rows, len(df.index)), dtype=object)
-        for level in range(rows):  # Iterates over the levels
-            # Find how many segments the MultiIndex has
-            headers[level, :] = [df.index[_sortIndex[i]][level] for i in range(len(df.index))] if type(
-                    df.index) == pd.MultiIndex else df.index
-
-        self._setSpans(headers)
+        self._setSpans(df.index[_sortIndex].to_frame(index=False))
 
         # signal that the header has changed
         self.model().layoutChanged.emit()
 
+    def setSpan(self, row: int, column: int, rowSpan: int, columnSpan: int) -> None:
+        """Set the span and set the top-left index for each cell in the span.
+        """
+        super().setSpan(row, column, rowSpan, columnSpan)
+        model = self.model()
+        for rr, cc in itertools.product(range(rowSpan), range(columnSpan)):
+            # store the top-left cell in all the cells of the group
+            model._spanTopLeft[row + rr, column + cc] = (row, column)
+
     def overHeaderEdge(self, mouse_position, margin=MOUSE_MARGIN):
-        """Check whether the mouse is over a row-divider
+        """Check whether the mouse is over a row-divider.
         """
         # get the mouse-position
         x, y = mouse_position.x(), mouse_position.y()
         model = self.model()
-
         # Return the index of the row this x position is above
         row1, row2, col = self.rowAt(y - margin), self.rowAt(y + margin), self.columnAt(x)
-
         if (row1 != row2 and row2 == 0) or row1 == row2:
             # We're at the top edge of the first row
             return None
@@ -1091,7 +1047,6 @@ class _VerticalMITableHeaderView(_MITableHeaderViewABC):
         cellRow1, _cellCol1 = model._spanTopLeft[row1, col] or (row1, col)
         cellRow2, _cellCol2 = model._spanTopLeft[row2, col] or (row2, col)
         rowSpan, _colSpan = self.rowSpan(row2, col), self.columnSpan(row2, col)
-
         if (cellRow1 == cellRow2) and (0 < row2 < cellRow2 + rowSpan):
             return None
 
@@ -1101,7 +1056,6 @@ class _VerticalMITableHeaderView(_MITableHeaderViewABC):
         """Return the size of the header needed to match the corresponding DataTableView.
         """
         _model = self.model()
-
         # Height of DataTableView
         height = self.table.sizeHint().height() + self.horizontalHeader().height()
         # Width
@@ -1118,23 +1072,21 @@ class _VerticalMITableHeaderView(_MITableHeaderViewABC):
         return QSize(self.sizeHint().width(), 0)
 
     def paintEvent(self, e: QtGui.QPaintEvent) -> None:
-        """Paint the border to the screen
+        """Paint the border to the screen.
         """
         super().paintEvent(e)
-        if not self.showGroupDividers:
+        if not self.showSectionDividers:
             return
 
-        if self._verticalDividers:
+        if self._sectionDividers:
             # create a rectangle and painter over the widget - shrink by 1 pixel to draw correctly
             p = QtGui.QPainter(self.viewport())
             offset = -self.verticalScrollBar().value() if self.verticalScrollBar() else 0
             w = self.rect().width()
-
             p.setPen(QtGui.QPen(self._dividerColour, 1))
             pos = offset - 1
             for row in range(self.model().rowCount()):
-                if row in self._verticalDividers:
+                if row in self._sectionDividers:
                     p.drawLine(0, pos, w, pos)
                 pos += self.rowHeight(row)
-
             p.end()

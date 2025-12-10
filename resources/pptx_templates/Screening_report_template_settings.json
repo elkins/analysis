@@ -1,0 +1,74 @@
+{
+    "_metadata": {
+        "PPTxTemplateName": "Screening_report_template",
+        "mapperClass": "ScreeningReportTemplateMapper",
+        "templateMapperName": "Screening PPTx Report",
+        "ApplicationVersion": "3.2.12"
+    },
+    "max_axes_per_slide": 4,
+    "region_data_points_width": 100,
+    "plot_settings": {
+        "font": {
+            "family": "Helvetica",
+            "size": 6
+        },
+        "spectrum_line": {
+            "linewidth": 0.5
+        },
+        "tick_params": {
+            "axis": "x",
+            "labelsize": 4,
+            "width": 0.5
+        },
+        "xlabel": {
+            "xlabel": "[ppm]",
+            "family": "Helvetica",
+            "fontsize": 4,
+            "ha": "right",
+            "x": 1.0,
+            "labelpad": -15
+        },
+        "peak_symbol": {
+            "marker": "x",
+            "s": 10,
+            "alpha": 0.8,
+            "linewidths": 0.3
+        },
+        "peak_legend_settings": {
+            "loc": 1,
+            "fontsize": 4,
+            "ncol": 1,
+            "numpoints": 3,
+            "frameon": false
+        },
+        "spine_width": 0.2,
+        "dpi": 300,
+        "format": "png",
+        "show_peak_labels": true,
+        "show_peak_symbols": true
+    },
+    "TableStyle" : {
+                            "header_row_height": 30,
+                            "header_font_size": 10,
+                            "header_font_name": "Helvetica",
+                            "header_font_color": [255, 255, 255],
+                            "header_bold": true,
+                            "header_h_alignment": "center",
+                            "header_v_alignment": "middle",
+                            "header_background_color": [106, 59, 113],
+                            "row_height": 20,
+                            "font_size": 10,
+                            "font_name": "Helvetica",
+                            "font_color": [0, 0, 0],
+                            "bold": false,
+                            "h_alignment": "center",
+                            "v_alignment": "middle",
+                            "border_color": [0, 0, 0],
+                            "border_width": 1,
+                            "cell_padding": 1,
+                            "cell_background_color": [239, 235, 240],
+                            "cell_background_alternate_color": [200, 193, 201]
+                            },
+  "substances_summary_max_rows_per_table":  15,
+  "substance_slide_include_page_number":  true
+}

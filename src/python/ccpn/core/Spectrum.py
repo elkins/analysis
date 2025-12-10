@@ -37,13 +37,13 @@ getByDimension(), setByDimension(), getByAxisCode(), setByAxisCode()
 See doc strings of these methods for detailed documentation
 
 """
-from __future__ import annotations  # pycharm still highlights as errors
+from __future__ import annotations
 
 
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2025"
 __credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
                "Timothy J Ragan, Brian O Smith, Daniel Thompson",
                "Gary S Thompson & Geerten W Vuister")
@@ -54,9 +54,9 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-10-10 13:24:29 +0100 (Thu, October 10, 2024) $"
-__version__ = "$Revision: 3.2.9.alpha $"
+__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
+__dateModified__ = "$dateModified: 2025-03-21 16:01:55 +0000 (Fri, March 21, 2025) $"
+__version__ = "$Revision: 3.3.1 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -146,6 +146,7 @@ class Spectrum(AbstractWrapperObject):
 
     # Qualified name of matching API class
     _apiClassQualifiedName = Nmr.DataSource._metaclass.qualifiedName()
+    _wrappedData: Nmr.DataSource
 
     #-----------------------------------------------------------------------------------------
     # 'local' definition of MAXDIM; defining defs in SpectrumLib to prevent circular imports
@@ -460,7 +461,7 @@ class Spectrum(AbstractWrapperObject):
         return tuple(range(0, self.dimensionCount))
 
     # legacy
-    axisIndices = dimensionIndices
+    axisIndices: tuple = dimensionIndices
 
     @property
     def dimensionTriples(self) -> tuple:
@@ -866,6 +867,14 @@ class Spectrum(AbstractWrapperObject):
 
         return self._dataStore.redirectionIdentifier == AlongsideRedirection.identifier
 
+    @property
+    def _isInside(self) -> bool:
+        """Return True if the spectrum is already defined as Inside
+        """
+        from ccpn.core.lib.DataStore import InsideRedirection
+
+        return self._dataStore.redirectionIdentifier == InsideRedirection.identifier
+
     def _makeNewRelativePath(self, newPath) -> Path:
         """Insert a possible redirection in the path, as maintained in the dataStore object
         by creating a new one with the relative path.
@@ -913,11 +922,12 @@ class Spectrum(AbstractWrapperObject):
     def dataFormat(self, value):
         self._openFile(path=self.filePath, dataFormat=value, checkParameters=True)
 
-    def _openFile(self, path: str, dataFormat: str, checkParameters: bool = True) -> bool:
+    def _openFile(self, path: str, dataFormat: str, checkParameters: bool = True, requireValid: bool = True) -> bool:
         """Open the spectrum as defined by path, creating a dataSource object
         :param path: a path to the spectrum; may contain redirections (e.g. $DATA)
         :param dataFormat: a dataFormat defined by one of the SpectrumDataSource types
-        :return True if opened succesfully
+        :param requireValid: a bool to allow the saving of invalid filepaths.
+        :return True if opened successfully
 
         CCPNMRINTERNAL: also used in nef loader; ValidateSpectraPopup
         """
@@ -931,14 +941,25 @@ class Spectrum(AbstractWrapperObject):
         newDataStore = DataStore.newFromPath(path=path, dataFormat=dataFormat)
         newDataStore.spectrum = self
 
-        if (newDataSource := self._getDataSource(dataStore=newDataStore)) is None:
-            getLogger().warning('Spectrum._openFile: unable to open "%s"' % path)
-            return False
+        try :
+            if (newDataSource := self._getDataSource(dataStore=newDataStore)) is None:
+                getLogger().warning(f'Spectrum._openFile: unable to open "{path}"')
+                return False
 
-        # optionally check the parameters
-        if checkParameters and not newDataSource.checkParameters(self):
-            getLogger().warning(f'{newDataSource.errorString}')
-            return False
+            # optionally check the parameters
+            if checkParameters and not newDataSource.checkParameters(self):
+                getLogger().warning(f'{newDataSource.errorString}')
+                return False
+        except RuntimeError as e:
+            # Allows filepaths for spectras to be saved
+            # without them being valid. As per issue #474.
+            if not requireValid:
+                self._spectrumTraits.dataStore = newDataStore
+                self._dataStore._saveInternal()
+                return False
+            else:
+                getLogger().error(f'Spectrum._openFile error: {e}')
+                return False
 
         # we defined a new file
         self._close()
@@ -1114,8 +1135,11 @@ class Spectrum(AbstractWrapperObject):
 
     @spectralWidthsHz.setter
     @checkSpectrumPropertyValue(iterable=True, types=(float, int))
+    @ccpNmrV3CoreSetter(allChanged=True, updateChemicalShifts=True)
     def spectralWidthsHz(self, value: Sequence):
         self._setDimensionalAttributes('spectralWidthHz', value)
+        if self.dimensionCount == 1 and not self.isEmptySpectrum():  # make sure the spectrum will shift correctly on the next redraw.
+            self.positions = self.getPpmArray(dimension=1)
 
     @property
     @_includeInDimensionalCopy
@@ -1125,8 +1149,11 @@ class Spectrum(AbstractWrapperObject):
 
     @spectralWidths.setter
     @checkSpectrumPropertyValue(iterable=True, types=(float, int))
+    @ccpNmrV3CoreSetter(allChanged=True, updateChemicalShifts=True)
     def spectralWidths(self, value):
         self._setDimensionalAttributes('spectralWidth', value)
+        if self.dimensionCount == 1 and not self.isEmptySpectrum():  # make sure the spectrum will shift correctly on the next redraw.
+            self.positions = self.getPpmArray(dimension=1)
 
     @property
     def ppmPerPoints(self) -> List[float]:
@@ -1252,8 +1279,11 @@ class Spectrum(AbstractWrapperObject):
 
     @spectrometerFrequencies.setter
     @checkSpectrumPropertyValue(iterable=True, types=(float, int))
+    @ccpNmrV3CoreSetter(allChanged=True, updateChemicalShifts=True)
     def spectrometerFrequencies(self, value):
         self._setDimensionalAttributes('spectrometerFrequency', value)
+        if self.dimensionCount == 1 and not self.isEmptySpectrum():  # make sure the spectrum will shift correctly on the next redraw.
+            self.positions = self.getPpmArray(dimension=1)
 
     @property
     @_includeInDimensionalCopy
@@ -1422,6 +1452,7 @@ class Spectrum(AbstractWrapperObject):
 
     @referencePoints.setter
     @checkSpectrumPropertyValue(iterable=True, allowNone=False, types=(float, int))
+    @ccpNmrV3CoreSetter(updateChemicalShifts=True)
     def referencePoints(self, value):
         self._setDimensionalAttributes('referencePoint', value)
         if self.dimensionCount == 1 and not self.isEmptySpectrum():  # make sure the spectrum will shift correctly on the next redraw.
@@ -1439,7 +1470,6 @@ class Spectrum(AbstractWrapperObject):
     @ccpNmrV3CoreSetter(updateChemicalShifts=True)
     def referenceValues(self, value):
         self._setDimensionalAttributes('referenceValue', value)
-
         if self.dimensionCount == 1 and not self.isEmptySpectrum():  # make sure the spectrum will shift correctly on the next redraw.
             self.positions = self.getPpmArray(dimension=1)
 
@@ -1591,6 +1621,7 @@ class Spectrum(AbstractWrapperObject):
     @aliasingLimits.setter
     @logCommand(get='self', isProperty=True)
     @checkSpectrumPropertyValue(iterable=True, allowNone=False, types=(tuple, list))
+    @ccpNmrV3CoreSetter(allChanged=True)
     def aliasingLimits(self, value):
         self._setDimensionalAttributes('aliasingLimits', value)
 
@@ -1611,6 +1642,7 @@ class Spectrum(AbstractWrapperObject):
 
     @aliasingIndexes.setter
     @checkSpectrumPropertyValue(iterable=True, allowNone=False, types=(tuple, list))
+    @ccpNmrV3CoreSetter(allChanged=True)
     def aliasingIndexes(self, value):
         self._setDimensionalAttributes('aliasingIndexes', value)
 
@@ -1768,7 +1800,7 @@ class Spectrum(AbstractWrapperObject):
         return self._positions
 
     @positions.setter
-    @ccpNmrV3CoreSetter(allChanged=True)
+    @ccpNmrV3CoreSetter(allChanged=True, updateChemicalShifts=True)
     def positions(self, value):
         self._positions = value
 
@@ -2122,16 +2154,13 @@ class Spectrum(AbstractWrapperObject):
             raise ValueError('Spectrum.getPpmArray: either axisCode or dimension needs to be defined')
         if dimension is not None and axisCode is not None:
             raise ValueError('Spectrum.getPpmArray: axisCode and dimension cannot be both defined')
-
         if axisCode is not None:
             dimension = self.getByAxisCodes('dimensions', [axisCode], exactMatch=False)[0]
-
         if dimension is None or dimension < 1 or dimension > self.dimensionCount:
             raise RuntimeError('Invalid dimension (%s)' % (dimension,))
 
         spectrumLimits = self.spectrumLimits[dimension - 1]
         result = np.linspace(spectrumLimits[0], spectrumLimits[1], self.pointCounts[dimension - 1])
-
         return result
 
     # def _verifyAxisCodeDimension(self, axisCode, dimension):
@@ -3012,13 +3041,17 @@ class Spectrum(AbstractWrapperObject):
         with the ppmValue supplied mapping to the closest matching axis.
         Illegal or non-matching axisCodes will return None.
 
-        Example ppmPosition dict:
+        **Example ppmPosition dict:**
+        ::
+
             {'Hn': 7.0, 'Nh': 110}
 
-        Example calling function:
-        >>> peak = spectrum.createPeak(**ppmPositions)
-        >>> peak = spectrum.createPeak(peakList, **ppmPositions)
-        >>> peak = spectrum.createPeak(peakList=peakList, Hn=7.0, Nh=110)
+        **Example calling function:**
+        ::
+
+            peak = spectrum.createPeak(**ppmPositions)
+            peak = spectrum.createPeak(peakList, **ppmPositions)
+            peak = spectrum.createPeak(peakList=peakList, Hn=7.0, Nh=110)
 
         :param peakList: peakList to create new peak in, or None for the last peakList belonging to spectrum
         :param ppmPositions: dict of (axisCode, ppmValue) key,value pairs
@@ -3037,20 +3070,24 @@ class Spectrum(AbstractWrapperObject):
         Axis codes supplied are mapped to the closest matching axis.
         Illegal or non-matching axisCodes will return None.
 
-        Example ppmRegions dict:
+        **Example ppmRegions dict:**
+        ::
+
             {'Hn': (7.0, 9.0), 'Nh': (110, 130)}
 
-        Example calling function:
-        >>> peaks = spectrum.pickPeaks(**ppmRegions)
-        >>> peaks = spectrum.pickPeaks(peakList, **ppmRegions)
-        >>> peaks = spectrum.pickPeaks(peakList=peakList, Hn=(7.0, 9.0), Nh=(110, 130))
+        **Example calling function:**
+        ::
+
+            peaks = spectrum.pickPeaks(**ppmRegions)
+            peaks = spectrum.pickPeaks(peakList, **ppmRegions)
+            peaks = spectrum.pickPeaks(peakList=peakList, Hn=(7.0, 9.0), Nh=(110, 130))
 
         :param peakList: peakList to create new peak in, or None for the last peakList belonging to spectrum
         :param positiveThreshold: float or None specifying the positive threshold above which to find peaks.
                                   if None, positive peak picking is disabled.
         :param negativeThreshold: float or None specifying the negative threshold below which to find peaks.
                                   if None, negative peak picking is disabled.
-        :param ppmRegions: dict of (axisCode, tupleValue) key, value pairs
+        :param **dict ppmRegions: dict of (axisCode, tupleValue) key, value pairs
         :return: tuple of new Peak instances
         """
         from ccpn.core.PeakList import PeakList
@@ -3101,24 +3138,20 @@ class Spectrum(AbstractWrapperObject):
         validFormats = [k.dataFormat for k in dataFormats.values() if k.hasWritingAbility]
         klass = dataFormats.get(dataFormat)
         if klass is None:
-            raise ValueError('Invalid dataFormat %r; must be one of %s' % (dataFormat, validFormats))
+            raise ValueError(f'Invalid dataFormat {dataFormat!r}; must be one of {validFormats}')
         if not klass.hasWritingAbility:
-            raise ValueError('Unable to write to dataFormat %r; must be one of %s' % (dataFormat, validFormats))
+            raise ValueError(f'Unable to write to dataFormat {dataFormat!r}; must be one of {validFormats}')
         suffix = klass.suffixes[0] if len(klass.suffixes) > 0 else '.dat'
 
-        tagStr = '%s_%s' % (tag, '_'.join(axisCodes))
+        tagStr = f'{tag}_[{"_".join(axisCodes)}]'
         if path is None:
-            appendToFilename = '_%s_%s' % (tagStr, '_'.join([str(p) for p in position]))
+            appendToFilename = f'_{tagStr}[{"_".join([str(p) for p in position])}]'
             path = self.dataSource.parentPath / self.name + appendToFilename
             path = path.withSuffix(suffix)
-
             try:
                 # try saving to the same folder as the original spectrum
-                path = aPath(getSafeFilename(path))
-                with open(path, 'w'):
-                    pass
-                path.removeFile()
-
+                path = aPath(getSafeFilename(path, endswith=appendToFilename, spacer='_', brackets=False,
+                                             mode='w', test=True))
             except (PermissionError, FileNotFoundError):
                 getLogger().debug('Folder may be read-only')
 
@@ -3131,13 +3164,9 @@ class Spectrum(AbstractWrapperObject):
                     # try saving to the default sub-folder in the project
                     path = aPath(self.project.path).filepath / CCPN_SPECTRA_DIRECTORY / self.name + appendToFilename
                     path = path.withSuffix(suffix)
-
                     # try to open and remove the file
-                    path = aPath(getSafeFilename(path))
-                    with open(path, 'w'):
-                        pass
-                    path.removeFile()
-
+                    path = aPath(getSafeFilename(path, endswith=appendToFilename, spacer='_', brackets=False,
+                                                 mode='w', test=True))
                     # It should now save the file to this folder as 'path'
 
                 except (PermissionError, FileNotFoundError):

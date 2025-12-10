@@ -16,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-08-23 19:21:55 +0100 (Fri, August 23, 2024) $"
-__version__ = "$Revision: 3.2.5 $"
+__dateModified__ = "$dateModified: 2024-12-11 19:13:09 +0000 (Wed, December 11, 2024) $"
+__version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -308,11 +308,11 @@ class ReferenceChemicalShifts(CcpnModule):  # DropBase needs to be first, else t
         self.viewBox.setMenuEnabled(enableMenu=False)
 
         # GL crossHair notifier
-        self.mousePosNotifier = Notifier(self.current,
-                                         [Notifier.CURRENT],
-                                         targetName='cursorPositions',
-                                         callback=self.mousePosNotifierCallback,
-                                         onceOnly=True)
+        self.setNotifier(self.current,
+                         [Notifier.CURRENT],
+                         targetName='cursorPositions',
+                         callback=self.mousePosNotifierCallback,
+                         onceOnly=True)
         self.GLSignals = GLNotifier(parent=self, strip=None)
         with progressManager(self, f'Loading all available reference spectra. Please wait...'):
             self._updateModule()
@@ -694,11 +694,3 @@ class ReferenceChemicalShifts(CcpnModule):  # DropBase needs to be first, else t
         if plot:
             plot.setVisible(checked)
             textItem.setVisible(checked)
-
-    def _closeModule(self):
-        """Clean up notifiers for closing
-        """
-        if self.mousePosNotifier:
-            self.mousePosNotifier.unRegister()
-
-        super()._closeModule()

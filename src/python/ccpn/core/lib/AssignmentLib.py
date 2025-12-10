@@ -4,7 +4,7 @@
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2025"
 __credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
                "Timothy J Ragan, Brian O Smith, Daniel Thompson",
                "Gary S Thompson & Geerten W Vuister")
@@ -15,9 +15,9 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-10-10 15:45:26 +0100 (Thu, October 10, 2024) $"
-__version__ = "$Revision: 3.2.7 $"
+__modifiedBy__ = "$modifiedBy: Luca Mureddu $"
+__dateModified__ = "$dateModified: 2025-03-03 14:38:47 +0000 (Mon, March 03, 2025) $"
+__version__ = "$Revision: 3.3.1 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -148,6 +148,24 @@ NEF_ATOM_NAMES_CBONDED = {'CA' : ['HA', 'HA2', 'HA3', 'HAx', 'HAy', 'HA%'],
                           'CZ3': ['HZ3'],
                           'CH2': ['HH2'],
                           }
+
+RNA_NEF_ATOM_NAMES = {
+"A":["C1'", 'C2', "C2'", "C3'", 'C4', "C4'", 'C5', "C5'", 'C6', 'C8', "H1'", 'H2', "H2'", "H3'", "H4'", "H5'", "H5'%", "H5''", "H5'x", "H5'y", 'H6%', 'H61', 'H62', 'H6x', 'H6y', 'H8', "HO2'", "HO5'", 'N1', 'N3', 'N6', 'N7', 'N9', "O2'", "O3'", "O4'", "O5'"],
+"U":["C1'", 'C2', "C2'", "C3'", 'C4', "C4'", 'C5', "C5'", 'C6', "H1'", "H2'", 'H3', "H3'", "H4'", 'H5', "H5'", "H5'%", "H5''", "H5'x", "H5'y", 'H6', "HO2'", 'N1', 'N3', 'O2', "O2'", "O3'", 'O4', "O4'", "O5'", 'OP1', 'OP2', 'P'],
+"C":["C1'", 'C2', "C2'", "C3'", 'C4', "C4'", 'C5', "C5'", 'C6', "H1'", "H2'", "H3'", 'H4%', "H4'", 'H41', 'H42', 'H4x', 'H4y', 'H5', "H5'", "H5'%", "H5''", "H5'x", "H5'y", 'H6', "HO2'", 'N1', 'N3', 'N4', 'O2', "O2'", "O3'", "O4'", "O5'", 'OP1', 'OP2', 'P'],
+"G":["C1'", 'C2', "C2'", "C3'", 'C4', "C4'", 'C5', "C5'", 'C6', 'C8', 'H1', "H1'", 'H2%', "H2'", 'H21', 'H22', 'H2x', 'H2y', "H3'", "H4'", "H5'", "H5'%", "H5''", "H5'x", "H5'y", 'H8', "HO2'", 'N1', 'N2', 'N3', 'N7', 'N9', "O2'", "O3'", "O4'", "O5'", 'O6', 'OP1', 'OP2', 'P'],
+"I":["C1'", 'C2', "C2'", "C3'", 'C4', "C4'", 'C5', "C5'", 'C6', 'C8', 'H1', "H1'", 'H2', "H2'", "H3'", "H4'", "H5'", "H5'%", "H5''", "H5'x", "H5'y", 'H8', "HO2'", 'HOP2', 'HOP3', 'N1', 'N3', 'N7', 'N9', "O2'", "O3'", "O4'", "O5'", 'O6', 'OP1', 'OP2', 'OP3', 'P']
+    }
+
+DNA_NEF_ATOM_NAMES = {
+"DA":["C1'", 'C2', "C2'", "C3'", 'C4', "C4'", 'C5', "C5'", 'C6', 'C8', "H1'", 'H2', "H2'", "H2'%", "H2''", "H2'x", "H2'y", "H3'", "H4'", "H5'", "H5'%", "H5''", "H5'x", "H5'y", 'H6%', 'H61', 'H62', 'H6x', 'H6y', 'H8', "HO5'", 'N1', 'N3', 'N6', 'N7', 'N9', "O3'", "O4'", "O5'"],
+"DI":["C1'", 'C2', "C2'", "C3'", 'C4', "C4'", 'C5', "C5'", 'C6', 'C8', 'H1', "H1'", 'H2', "H2'", "H2'%", "H2''", "H2'x", "H2'y", "H3'", "H4'", "H5'", "H5'%", "H5''", "H5'x", "H5'y", 'H8', 'HOP2', 'HOP3', 'N1', 'N3', 'N7', 'N9', "O3'", "O4'", "O5'", 'O6', 'OP1', 'OP2', 'OP3', 'P'],
+"DT":["C1'", 'C2', "C2'", "C3'", 'C4', "C4'", 'C5', "C5'", 'C6', 'C7', "H1'", "H2'", "H2'%", "H2''", "H2'x", "H2'y", 'H3', "H3'", "H4'", "H5'", "H5'%", "H5''", "H5'x", "H5'y", 'H6', 'H7%', 'H71', 'H72', 'H73', 'N1', 'N3', 'O2', "O3'", 'O4', "O4'", "O5'", 'OP1', 'OP2', 'P'],
+"DC":["C1'", 'C2', "C2'", "C3'", 'C4', "C4'", 'C5', "C5'", 'C6', "H1'", "H2'", "H2'%", "H2''", "H2'x", "H2'y", "H3'", 'H4%', "H4'", 'H41', 'H42', 'H4x', 'H4y', 'H5', "H5'", "H5'%", "H5''", "H5'x", "H5'y", 'H6', 'N1', 'N3', 'N4', 'O2', "O3'", "O4'", "O5'", 'OP1', 'OP2', 'P'],
+"DG":["C1'", 'C2', "C2'", "C3'", 'C4', "C4'", 'C5', "C5'", 'C6', 'C8', 'H1', "H1'", 'H2%', "H2'", "H2'%", "H2''", "H2'x", "H2'y", 'H21', 'H22', 'H2x', 'H2y', "H3'", "H4'", "H5'", "H5'%", "H5''", "H5'x", "H5'y", 'H8', 'N1', 'N2', 'N3', 'N7', 'N9', "O3'", "O4'", "O5'", 'O6', 'OP1', 'OP2', 'P'],
+"DU":["C1'", 'C2', "C2'", "C3'", 'C4', "C4'", 'C5', "C5'", 'C6', "H1'", "H2'", "H2'%", "H2''", "H2'x", "H2'y", 'H3', "H3'", "H4'", 'H5', "H5'", "H5'%", "H5''", "H5'x", "H5'y", 'H6', "HO3'", 'HOP2', 'HOP3', 'N1', 'N3', 'O2', "O3'", 'O4', "O4'", "O5'", 'OP1', 'OP2', 'OP3', 'P']
+    }
+
 
 from itertools import combinations
 import typing
@@ -453,9 +471,9 @@ def getAllSpinSystems(project: Project, nmrResidues: typing.List[NmrResidue],
         apiChains = [chain._wrappedData for chain in chains]
 
         shifts = [[(nmrResidue._wrappedData, [(nmrAtom._wrappedData, shift)
-                                              for nmrAtom in nmrResidue.nmrAtoms
-                                              for shift in nmrAtom.chemicalShifts if
-                                              shift.chemicalShiftList == shiftList and shift.value is not None])
+                                              for nmrAtom in nmrResidue.nmrAtoms if not nmrAtom.isDeleted
+                                              for shift in nmrAtom.chemicalShifts
+                                              if shift.chemicalShiftList == shiftList and shift.value is not None])
                    for nmrResidue in nmrResidues
                    ]
                   for shiftList in shiftLists]
@@ -618,6 +636,7 @@ def getAllSpinSystems(project: Project, nmrResidues: typing.List[NmrResidue],
         return matchesDict
 
     except Exception as es:
+        # nasty, but leave for the minute
         getLogger().warning(str(es))
         return {}
 

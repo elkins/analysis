@@ -4,7 +4,7 @@ This module implements the Button class
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2025"
 __credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
                "Timothy J Ragan, Brian O Smith, Daniel Thompson",
                "Gary S Thompson & Geerten W Vuister")
@@ -16,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-08-23 19:21:18 +0100 (Fri, August 23, 2024) $"
-__version__ = "$Revision: 3.2.5 $"
+__dateModified__ = "$dateModified: 2025-02-28 15:53:53 +0000 (Fri, February 28, 2025) $"
+__version__ = "$Revision: 3.3.1 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -28,12 +28,11 @@ __date__ = "$Date: 2017-04-07 10:28:41 +0000 (Fri, April 07, 2017) $"
 #=========================================================================================
 
 from PyQt5 import QtCore, QtWidgets, QtGui
-
 from ccpn.framework.Translation import translator
 from ccpn.ui.gui.widgets.Base import Base
 from ccpn.ui.gui.widgets.Icon import Icon
 from ccpn.ui.gui.widgets.Font import getFontHeight
-from ccpn.ui.gui.guiSettings import getColours
+from ccpn.util.Logging import getLogger
 
 
 CHECKED = QtCore.Qt.Checked
@@ -53,10 +52,6 @@ class Button(QtWidgets.QPushButton, Base):
         self.setText(text)
         self._enableFocusBorder = enableFocusBorder
 
-        # polish/unpolish required if these fields change outside __init__
-        self.setProperty('iconField', bool(icon))
-        self.setProperty('focusBorderField', bool(enableFocusBorder))
-        self.setProperty('toggleField', bool(toggle))
         if icon:  # filename or pixmap
             self.setIcon(Icon(icon))
             # this causes the button to reset its stylesheet
@@ -68,7 +63,11 @@ class Button(QtWidgets.QPushButton, Base):
             self.setCheckable(True)
             self.setSelected(toggle)
 
-        self._callback = None
+        # polish/unpolish required if these fields change outside __init__
+        self.setProperty('iconField', bool(icon and not text))
+        self.setProperty('focusBorderField', bool(enableFocusBorder))
+        self.setProperty('toggleField', bool(toggle))
+
         self.setCallback(callback)
 
         # set the initial enabled state of the button
@@ -81,8 +80,12 @@ class Button(QtWidgets.QPushButton, Base):
         self.style().polish(self)
 
     def _checkPalette(self, *args):
-        _style = """QPushButton[iconField=true] { padding: 1px 3px 1px 3px; }
-                    QPushButton { padding: 3px; }
+        _style = """QPushButton[iconField=true][focusBorderField=false] { padding: 1px 3px 1px 3px; }
+                    QPushButton[iconField=true][focusBorderField=true] {
+                        padding: 1px 3px 1px 3px;
+                        border: 0px;
+                    }
+                    QPushButton { padding: 2px 3px 2px 3px; }
                     QPushButton:focus[focusBorderField=true] {
                         padding: 0px;
                         border-color: palette(highlight);
@@ -90,8 +93,13 @@ class Button(QtWidgets.QPushButton, Base):
                         border-width: 1px;
                         border-radius: 2px;
                     }
-                    QPushButton:focus {
+                    QPushButton:focus { padding: 0px; }
+                    QPushButton:hover[iconField=true][focusBorderField=true] {
                         padding: 0px;
+                        border-color: palette(mid);
+                        border-style: solid;
+                        border-width: 1px;
+                        border-radius: 2px;
                     }
                     QPushButton:disabled {
                         color: palette(dark);
@@ -117,12 +125,15 @@ class Button(QtWidgets.QPushButton, Base):
 
     def setCallback(self, callback=None):
         """Sets callback; disconnects if callback=None"""
-        if self._callback is not None:
+        try:
+            # shouldn't be any external connections
             self.clicked.disconnect()
+        except Exception:
+            getLogger().debug2(f"No callback to disconnect {self}:{self.clicked.signal}")
+        else:
+            getLogger().debug2(f"{self}:{self.clicked.signal} disconnected")
         if callback:
             self.clicked.connect(callback)
-            # self.clicked.connect doesn't work with lambda, yet...
-        self._callback = callback
 
     def setText(self, text):
         """Set the text of the button, applying the translator first"""
@@ -149,6 +160,10 @@ class Button(QtWidgets.QPushButton, Base):
 
         if self.toggle:
             return self.set(value)
+
+    def close(self):
+        self.setCallback(None)
+        super().close()
 
 
 if __name__ == '__main__':

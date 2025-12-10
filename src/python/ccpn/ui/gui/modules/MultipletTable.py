@@ -3,7 +3,7 @@
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2025"
 __credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
                "Timothy J Ragan, Brian O Smith, Daniel Thompson",
                "Gary S Thompson & Geerten W Vuister")
@@ -15,8 +15,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-06-20 16:42:22 +0100 (Thu, June 20, 2024) $"
-__version__ = "$Revision: 3.2.3 $"
+__dateModified__ = "$dateModified: 2025-01-06 17:46:56 +0000 (Mon, January 06, 2025) $"
+__version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -171,10 +171,10 @@ class MultipletTableModule(CcpnTableModule):
         """Set the active callbacks for the module
         """
         if self.activePulldownClass:
-            self._setCurrentPulldown = Notifier(self.current,
-                                                [Notifier.CURRENT],
-                                                targetName=self.activePulldownClass._pluralLinkName,
-                                                callback=self._mainFrame._selectCurrentPulldownClass)
+            self.setNotifier(self.current,
+                             [Notifier.CURRENT],
+                             targetName=self.activePulldownClass._pluralLinkName,
+                             callback=self._mainFrame._selectCurrentPulldownClass)
 
             # set the active callback from the pulldown
             self._mainFrame.setActivePulldownClass(coreClass=self.activePulldownClass,
@@ -192,53 +192,25 @@ class MultipletTableModule(CcpnTableModule):
         """
         self._mainFrame.selectTable(table)
 
-    def _closeModule(self):
-        """CCPN-INTERNAL: used to close the module
+    def _postRestoreWidgetsState(self, **widgetsState):
+        """Restore the widgets for multiplet-table, and attached peak-table.
         """
-        if self.tableFrame:
-            self.tableFrame._cleanupWidget()
-        if self.peakListTable:
-            self.peakListTable._close()
-        if self.activePulldownClass and self._setCurrentPulldown:
-            self._setCurrentPulldown.unRegister()
-        super()._closeModule()
+        try:
+            hColumns: list[list[str]] | None
+            if (hColumns := widgetsState.get('_hiddenColumns', None)) is not None:
+                self._tableWidget.setHiddenColumns(hColumns[0])
+                self.peakListTable.setHiddenColumns(hColumns[1])
+        except Exception as es:
+            getLogger().debug(f'{self.__class__.__name__}: Could not restore hidden-column widget-state: {es}')
 
     @property
-    def _hiddenColumns(self) -> list[list[str], list[str]] | None:
+    def _hiddenColumns(self) -> list[list[str]] | None:
         """Return the hidden-columns for the multiplet-table and the attached peak-table.
         If undefined, returns None.
         """
         with contextlib.suppress(Exception):
-            return [self._tableWidget.headerColumnMenu.hiddenColumns,
-                    self.peakListTable.headerColumnMenu.hiddenColumns]
-
-    # @hiddenColumns.setter
-    def _setHiddenColumns(self, value: list[list[str], list[str]] | None = None):
-        """Set the hidden-columns for the multiplet-table and the attached peak-table.
-        """
-        if value is not None:
-            if not (isinstance(value, list) and len(value) == 2 and
-                    (isinstance(ll, list) and all(isinstance(lStr, str) for lStr in ll)
-                     for ll in value)):
-                raise TypeError(f'{self.__class__.__name__}.hiddenColumns must be list[list[str], list[str]] or None')
-            try:
-                self._tableWidget.headerColumnMenu.hiddenColumns = value[0]
-                self.peakListTable.headerColumnMenu.hiddenColumns = value[1]
-                return
-            except Exception as es:
-                getLogger().debug(f'Could not restore table columns: {es}')
-        self._tableWidget.headerColumnMenu.hiddenColumns = []
-        self.peakListTable.headerColumnMenu.hiddenColumns = []
-
-    def _setClassDefaultHidden(self, hiddenColumns: list[list[str], list[str]] | None):
-        """Copy the hidden-columns to the class; to be set when the next table is opened.
-        """
-        if hiddenColumns is not None:
-            self._tableWidget.setClassDefaultColumns(hiddenColumns[0])
-            self.peakListTable.setClassDefaultColumns(hiddenColumns[1])
-        else:
-            self._tableWidget.setClassDefaultColumns([])
-            self.peakListTable.setClassDefaultColumns([])
+            return [self._tableWidget.hiddenColumns,
+                    self.peakListTable.hiddenColumns]
 
     @QtCore.pyqtSlot(str)
     def _pulldownUnitsCallback(self, unit):
@@ -292,9 +264,9 @@ class _NewMultipletTableWidget(_CoreTableWidgetABC):
     positionsUnit = UNITS[0]  # default
     _lastPeaks = None
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Properties
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     @property
     def _sourceObjects(self):
@@ -320,9 +292,9 @@ class _NewMultipletTableWidget(_CoreTableWidgetABC):
         else:
             self.current.clearMultiplets()
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Widget callbacks
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     def actionCallback(self, selection, lastItem):
         """Notifier DoubleClick action on item in table
@@ -331,6 +303,7 @@ class _NewMultipletTableWidget(_CoreTableWidgetABC):
         from ccpn.core.PeakList import PeakList
         from ccpn.ui.gui.lib.StripLib import navigateToPositionInStrip, _getCurrentZoomRatio
 
+        objs: Multiplet | list[Multiplet]
         try:
             if not (objs := list(lastItem[self._OBJECT])):
                 return
@@ -339,9 +312,9 @@ class _NewMultipletTableWidget(_CoreTableWidgetABC):
             return
 
         if isinstance(objs, (tuple, list)):
-            multiplet = objs[0]
+            multiplet: Multiplet = objs[0]
         else:
-            multiplet = objs
+            multiplet: Multiplet = objs
 
         if multiplet:
             if len(multiplet.peaks) > 0:
@@ -353,7 +326,9 @@ class _NewMultipletTableWidget(_CoreTableWidgetABC):
                         widths = None
                         if peak.peakList.spectrum.dimensionCount <= 2:
                             widths = _getCurrentZoomRatio(self.current.strip.viewRange())
-                        navigateToPositionInStrip(strip=self.current.strip, positions=multiplet.position, widths=widths)
+                        navigateToPositionInStrip(strip=self.current.strip,
+                                                  positions=list(multiplet.position),
+                                                  widths=widths)
             else:
                 logger.warning('Impossible to navigate to peak position. No peaks in multiplet')
         else:
@@ -391,9 +366,9 @@ class _NewMultipletTableWidget(_CoreTableWidgetABC):
         # update the multiplet-peak table on changing the pulldown
         self._updateMultipletPeaksOnTable()
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Create table and row methods
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     def getCellToRows(self, cellItem, attribute=None):
         """Get the list of objects which cellItem maps to for this table
@@ -401,18 +376,18 @@ class _NewMultipletTableWidget(_CoreTableWidgetABC):
         """
         raise RuntimeError(f'{self.__class__.__name__}.getCellToRows not callable')
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Table context menu
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
-    def _setContextMenu(self):
-        """Subclass guiTable to add new items to context menu
-        """
-        super()._setContextMenu()
-        # add edit multiplet to the menu
-        self._tableMenu.insertSeparator(self._tableMenu.actions()[0])
-        a = self._tableMenu.addAction('Edit Multiplet...', self._editMultiplets)
-        self._tableMenu.insertAction(self._tableMenu.actions()[0], a)
+    # def _setContextMenu(self):
+    #     """Subclass guiTable to add new items to context menu
+    #     """
+    #     super()._setContextMenu()
+    #     # add edit multiplet to the menu
+    #     self._tableMenu.insertSeparator(self._tableMenu.actions()[0])
+    #     a = self._tableMenu.addAction('Edit Multiplet...', self._editMultiplets)
+    #     self._tableMenu.insertAction(self._tableMenu.actions()[0], a)
 
     def _editMultiplets(self):
         """Raise the edit multiplet popup
@@ -427,9 +402,9 @@ class _NewMultipletTableWidget(_CoreTableWidgetABC):
             popup = EditMultipletPopup(parent=self.mainWindow, mainWindow=self.mainWindow)
         popup.exec_()
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Table functions
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     def _getTableColumns(self, multipletList=None):
         """Add default columns plus the ones according to multipletList.spectrum dimension
@@ -493,13 +468,13 @@ class _NewMultipletTableWidget(_CoreTableWidgetABC):
 
         return ColumnClass(columnDefs)
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Updates
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Widgets callbacks
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     def _navigateToPosition(self):
         """If current strip contains the double-clicked peak will navigateToPositionInStrip
@@ -523,9 +498,9 @@ class _NewMultipletTableWidget(_CoreTableWidgetABC):
         if value in UNITS:
             self.positionsUnit = value
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # object properties
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     @staticmethod
     def _setFigureOfMerit(obj, value):
@@ -587,9 +562,9 @@ class _MultipletTableFrame(_CoreTableFrameABC):
         self.addWidgetToTop(self.posUnitPulldownLabel, 2)
         self.addWidgetToTop(self.posUnitPulldown, 3)
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Properties
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     @property
     def _tableCurrent(self):
@@ -601,9 +576,9 @@ class _MultipletTableFrame(_CoreTableFrameABC):
     def _tableCurrent(self, value):
         self.current.multipletList = value
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Widgets callbacks
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     def _pulldownUnitsCallback(self, unit):
         """Pass units change callback to the table

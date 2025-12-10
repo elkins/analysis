@@ -4,7 +4,7 @@
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2025"
 __credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
                "Timothy J Ragan, Brian O Smith, Daniel Thompson",
                "Gary S Thompson & Geerten W Vuister")
@@ -16,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-07-01 20:52:11 +0100 (Mon, July 01, 2024) $"
-__version__ = "$Revision: 3.2.4 $"
+__dateModified__ = "$dateModified: 2025-04-23 14:49:29 +0100 (Wed, April 23, 2025) $"
+__version__ = "$Revision: 3.2.12 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -278,7 +278,7 @@ class NoUi(Ui):
         from ccpn.framework.PathsAndUrls import licensePath
 
         try:
-            self.application.showLicense()
+            self.application._showLicense()
         except Exception:
             sys.stderr.write('The licence file can be found at %s\n' % licensePath)
 
@@ -631,7 +631,6 @@ class NoUi(Ui):
                 return False
 
         self.application._getRecentProjectFiles()  # this will update the preferences-list
-        self.mainWindow._fillRecentProjectsMenu()  # Update the menu
         getLogger().info(f'Project successfully saved to "{self.project.path}"')
 
         return True

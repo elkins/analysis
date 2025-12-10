@@ -1,7 +1,7 @@
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2025"
 __credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
                "Timothy J Ragan, Brian O Smith, Daniel Thompson",
                "Gary S Thompson & Geerten W Vuister")
@@ -13,8 +13,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-11-13 13:22:52 +0000 (Wed, November 13, 2024) $"
-__version__ = "$Revision: 3.2.10 $"
+__dateModified__ = "$dateModified: 2025-02-14 17:36:57 +0000 (Fri, February 14, 2025) $"
+__version__ = "$Revision: 3.3.1 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -27,6 +27,8 @@ __date__ = "$Date: 2020-05-15 09:30:25 +0000 (Fri, May 15, 2020) $"
 import sys
 from PyQt5 import QtGui, QtWidgets
 from PyQt5 import QtPrintSupport
+
+from ccpn.ui.gui.modules.macroEditorUtil.StarPyQodeModes import StarHighlighter
 from ccpn.ui.gui.widgets.Base import Base
 from ccpn.ui.gui.widgets.FileDialog import MacrosFileDialog
 from pyqode.python.widgets import PyCodeEditBase
@@ -35,17 +37,17 @@ from pyqode.core.api import ColorScheme
 from pyqode.python import modes as pymodes
 from pyqode.python import panels as pypanels
 from ccpn.ui.gui.modules.macroEditorUtil import MacroEditorServer
-from ccpn.ui.gui.modules.macroEditorUtil import MacroEditorNativeServer
+from ccpn.ui.gui.modules.macroEditorUtil import MacroEditorNativeServer, StarLexer
 from pyqode.core import modes
 from pyqode.core import panels
 from pyqode.core import api
-from pyqode.python.folding import PythonFoldDetector
 from ccpn.ui.gui.modules.macroEditorUtil.workers import CcpnQuickDocPanel, CcpnCalltipsMode
 from pyqode.core.modes.code_completion import CodeCompletionMode
-from ccpn.util.Logging import getLogger
 from ccpn.ui.gui.modules.macroEditorUtil.CompletionProviders import CcpnNameSpacesProvider
 from pyqode.core.cache import Cache
 from pyqode.python.backend.workers import defined_names
+from pygments.lexers import load_lexer_from_file
+
 
 marginColour = QtGui.QColor('lightgrey')
 marginPosition = 100
@@ -64,7 +66,7 @@ class PyCodeEditor(PyCodeEditBase, Base):
             serverScript = MacroEditorServer.__file__
 
         super().__init__(parent, create_default_actions=True)
-
+        self._starHighlighter = None
         self.modes.append(modes.SmartBackSpaceMode())
         # install those modes first as they are required by other modes/panels
         self.modes.append(modes.OutlineMode(defined_names))
@@ -98,8 +100,10 @@ class PyCodeEditor(PyCodeEditBase, Base):
         self.modes.append(pymodes.PyIndenterMode())
         self.modes.append(pymodes.GoToAssignmentsMode())
         self.modes.append(pymodes.CommentsMode())
-        self.modes.append(pymodes.PythonSH(self.document(), color_scheme=ColorScheme('qt')))
-        self.syntax_highlighter.fold_detector = PythonFoldDetector()
+        self.pythonSyntax = None
+        # self.pythonSyntax = pymodes.PythonSH(self.document(), color_scheme=ColorScheme('qt'))
+        # self.modes.append(self.pythonSyntax)
+        # self.syntax_highlighter.fold_detector = PythonFoldDetector()
         self.panels.append(pypanels.QuickDocPanel(), api.Panel.Position.BOTTOM)
         self.panels.append(panels.EncodingPanel(), api.Panel.Position.TOP)
         self.panels.append(panels.ReadOnlyPanel(), api.Panel.Position.TOP)
@@ -140,6 +144,41 @@ class PyCodeEditor(PyCodeEditBase, Base):
         self._sel_foreground = app.palette().highlightedText().color()
         self._font_size = 10
         self.font_name = ""
+
+    def _loadStarSynthax(self):
+        if self._starHighlighter is None:
+            self._starLexer = load_lexer_from_file(StarLexer.__file__, lexername='StarLexer')
+            self._starHighlighter = StarHighlighter(self.document(), self._starLexer, style='friendly')
+            self.modes.append(self._starHighlighter)
+        else:
+            modeNames = [mo.name for mo in self.modes]
+            if self._starHighlighter.name not in modeNames:
+                self.modes.append(self._starHighlighter)
+
+        self._starHighlighter.rehighlight()
+
+    def _unloadStarSynthax(self):
+        if self._starHighlighter is not None:
+            modeNames = [mo.name for mo in self.modes]
+            if self._starHighlighter.name in modeNames:
+                self.modes.remove(self._starHighlighter.name)
+
+    def _loadPySynthax(self):
+        if self.pythonSyntax is None:
+            self.pythonSyntax = pymodes.PythonSH(self.document(), color_scheme=ColorScheme('qt'))
+            self.modes.append(self.pythonSyntax)
+        else:
+            modeNames = [mo.name for mo in self.modes]
+            if self.pythonSyntax.name not in modeNames:
+                self.modes.append(self.pythonSyntax)
+
+        self.pythonSyntax.rehighlight()
+
+    def _unloadPySynthax(self):
+        if self.pythonSyntax is not None:
+            modeNames = [mo.name for mo in self.modes]
+            if self.pythonSyntax.name in modeNames:
+                self.modes.remove(self.pythonSyntax.name)
 
     def _requestCompletion(self, *args, **kwargs):
         """
@@ -201,12 +240,13 @@ class PyCodeEditor(PyCodeEditBase, Base):
         fType = '*.pdf'
         dialog = MacrosFileDialog(parent=self, acceptMode='save', selectFile=fileName, fileFilter=fType)
         dialog.exec()
-        filename = dialog.selectedFile()
-        if filename:
+        urls = dialog.selectedUrls()
+        filenames = [url.toLocalFile() for url in urls]
+        if len(filenames)>0:
             printer = QtPrintSupport.QPrinter(QtPrintSupport.QPrinter.HighResolution)
             printer.setPageSize(QtPrintSupport.QPrinter.A4)
             printer.setColorMode(QtPrintSupport.QPrinter.Color)
-            printer.setOutputFileName(filename)
+            printer.setOutputFileName(filenames[0])
             self.document().print_(printer)
 
     def enterEvent(self, event):

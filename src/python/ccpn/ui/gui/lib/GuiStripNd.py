@@ -24,7 +24,7 @@ showStripLabel(doShow:bool):  show/hide the stripLabel
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2025"
 __credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
                "Timothy J Ragan, Brian O Smith, Daniel Thompson",
                "Gary S Thompson & Geerten W Vuister")
@@ -36,8 +36,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-10-18 14:25:34 +0100 (Fri, October 18, 2024) $"
-__version__ = "$Revision: 3.2.7 $"
+__dateModified__ = "$dateModified: 2025-01-03 18:56:46 +0000 (Fri, January 03, 2025) $"
+__version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -181,12 +181,14 @@ class GuiStripNd(GuiStrip):
         # self._frameGuide.addSpacer(8, 8, grid=(1, 0))
         row = 2
 
-        self.stripLabel = StripLabelWidget(qtParent=self._frameGuide, mainWindow=self.mainWindow, strip=self, grid=(row, 1), gridSpan=(1, 1))
+        self.stripLabel = StripLabelWidget(qtParent=self._frameGuide, mainWindow=self.mainWindow, strip=self,
+                                           grid=(row, 1), gridSpan=(1, 1))
         row += 1
         # set the ID label in the new widget
         self.stripLabel._populate()
 
-        self.header = StripHeaderWidget(qtParent=self._frameGuide, mainWindow=self.mainWindow, strip=self, grid=(row, 1), gridSpan=(1, 1))
+        self.header = StripHeaderWidget(qtParent=self._frameGuide, mainWindow=self.mainWindow, strip=self,
+                                        grid=(row, 1), gridSpan=(1, 1))
         row += 1
 
         for ii, axis in enumerate(self.axisCodes[2:]):
@@ -226,7 +228,8 @@ class GuiStripNd(GuiStrip):
 
         if self.spectrumDisplay.zPlaneNavigationMode == ZPlaneNavigationModes.PERSTRIP.dataValue:
             self.zPlaneFrame.attachZPlaneWidgets(self)
-        self.zPlaneFrame.setVisible(self.spectrumDisplay.zPlaneNavigationMode == ZPlaneNavigationModes.PERSTRIP.dataValue)
+        self.zPlaneFrame.setVisible(
+            self.spectrumDisplay.zPlaneNavigationMode == ZPlaneNavigationModes.PERSTRIP.dataValue)
 
         if self.spectrumDisplay.zPlaneNavigationMode == ZPlaneNavigationModes.PERSPECTRUMDISPLAY.dataValue:
             self.spectrumDisplay.zPlaneFrame.attachZPlaneWidgets(self)
@@ -235,24 +238,13 @@ class GuiStripNd(GuiStrip):
 
         self._setStripTiling()
 
-    def close(self):
-        """Clean up and close
+    def closeEvent(self, event):
+        """Clean-up and close.
         """
-        try:
-            del self.viewStripMenu
-            del self._defaultMenu
-            del self._phasingMenu
-            del self._peakMenu
-            del self._integralMenu
-            del self._multipletMenu
-            del self._axisMenu
-            del self._contextMenus
-        except Exception:
-            getLogger().debug(f'there was a problem cleaning-up strip {self}')
-        else:
-            getLogger().debug(f'cleaning-up strip {self}')
+        from ccpn.ui.gui.lib.WidgetClosingLib import CloseHandler
 
-        super().close()
+        with CloseHandler(self):
+            super().closeEvent(event)
 
     def _resize(self):
         """Resize event to handle resizing of frames that overlay the OpenGL frame
@@ -565,8 +557,8 @@ class GuiStripNd(GuiStrip):
         """
         if stripAxisIndex < 0 or stripAxisIndex >= self.spectrumDisplay.dimensionCount:
             raise ValueError(
-                f'{self.__class__.__name__}._updatePlaneToolBarWidgets: invalid stripAxisIndex "{stripAxisIndex}"'
-            )
+                    f'{self.__class__.__name__}._updatePlaneToolBarWidgets: invalid stripAxisIndex "{stripAxisIndex}"'
+                    )
         _axis = self.axes[stripAxisIndex]
 
         # for Z,A,.. axis: update the PlaneSelectorWidget values; BUT "unit" argument is ignored (GWV)
@@ -593,8 +585,8 @@ class GuiStripNd(GuiStrip):
         """
         if stripAxisIndex < 0 or stripAxisIndex >= self.spectrumDisplay.dimensionCount:
             raise ValueError(
-                f'{self.__class__.__name__}._changePlane: invalid stripAxisIndex "{stripAxisIndex}"'
-            )
+                    f'{self.__class__.__name__}._changePlane: invalid stripAxisIndex "{stripAxisIndex}"'
+                    )
 
         if stripAxisIndex < 2:
             # X or Y; do nothing
@@ -770,7 +762,8 @@ class GuiStripNd(GuiStrip):
 
         sdWid = self.spectrumDisplay.mainWidget
         self.widgetIndex += 1
-        self.calibrateXNDWidgets = CalibrateXNDWidgets(sdWid, mainWindow=self.mainWindow, strip=self, enableClose=enableClose,
+        self.calibrateXNDWidgets = CalibrateXNDWidgets(sdWid, mainWindow=self.mainWindow, strip=self,
+                                                       enableClose=enableClose,
                                                        grid=(self.widgetIndex, 0), gridSpan=(1, 7))
 
     def toggleCalibrateX(self):

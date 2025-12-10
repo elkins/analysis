@@ -1,7 +1,7 @@
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2025"
 __credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
                "Timothy J Ragan, Brian O Smith, Daniel Thompson",
                "Gary S Thompson & Geerten W Vuister")
@@ -13,8 +13,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-11-01 19:40:51 +0000 (Fri, November 01, 2024) $"
-__version__ = "$Revision: 3.2.9 $"
+__dateModified__ = "$dateModified: 2025-04-16 12:49:01 +0100 (Wed, April 16, 2025) $"
+__version__ = "$Revision: 3.3.1 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -26,13 +26,12 @@ __date__ = "$Date: 2017-05-28 10:28:42 +0000 (Sun, May 28, 2017) $"
 
 
 from PyQt5 import QtGui, QtWidgets, QtCore
+from PyQt5.QtCore import pyqtSlot as Slot  # for upgrade to qtpy
 from functools import partial, reduce
 import pandas as pd
-import numpy as np
 import itertools
 from operator import or_
 
-from ccpn.ui.gui.widgets.Base import Base
 from ccpn.core.Chain import Chain
 from ccpn.core.ChemicalShiftList import ChemicalShiftList
 from ccpn.core.RestraintTable import RestraintTable
@@ -50,10 +49,11 @@ from ccpn.core.Note import Note
 from ccpn.core.Project import Project
 from ccpn.core.DataTable import DataTable
 from ccpn.core.Collection import Collection
-from ccpn.ui.gui.guiSettings import getColours, BORDERFOCUS, BORDERNOFOCUS
 from ccpn.util.nef import StarIo
 from ccpn.util.OrderedSet import OrderedSet
-from ccpn.framework.lib.ccpnNef.CcpnNefCommon import _traverse, nef2CcpnMap, _isALoop, nef2CcpnClassNames
+from ccpn.framework.lib.ccpnNef.CcpnNefCommon import (_traverse, nef2CcpnMap,
+                                                      _isALoop, nef2CcpnClassNames)
+from ccpn.ui.gui.widgets.Base import Base
 from ccpn.ui.gui.widgets.Menu import Menu
 
 
@@ -221,7 +221,7 @@ class ProjectTreeCheckBoxes(QtWidgets.QTreeWidget, Base):
             # set the new project if required
             self.project = project
 
-        checkable = QtCore.Qt.ItemIsTristate | QtCore.Qt.ItemIsUserCheckable
+        # checkable = QtCore.Qt.ItemIsTristate | QtCore.Qt.ItemIsUserCheckable
         if self.includeProject:
             # add the project as the top of the tree - allows to un/select all
 
@@ -381,16 +381,16 @@ class ProjectTreeCheckBoxes(QtWidgets.QTreeWidget, Base):
 
     def _itemChanged(self, item, column: int) -> None:
         if column == 0:
-            items = self.findItems('', QtCore.Qt.MatchContains | QtCore.Qt.MatchRecursive)
-            firstChecked = next((itm for itm in items
-                                 if itm.checkState(0) == QtCore.Qt.Checked and not itm.childCount()), None)
+            # items = self.findItems('', QtCore.Qt.MatchContains | QtCore.Qt.MatchRecursive)
+            # firstChecked = next((itm for itm in items
+            #                      if itm.checkState(0) == QtCore.Qt.Checked and not itm.childCount()), None)
             if hasattr(item, 'storedCheckedState') and item.storedCheckedState != item.checkState(0):
                 item.storedCheckedState = item.checkState(0)
             self.checkStateChanged.emit(item, column)
 
-            # could be nested changes
-            vis = set(id(_itm) for _itm in filter(lambda itm: itm.checkState(0) == 2 and not itm.childCount(), items))
-            firstChecked = next((itm for itm in items if itm.checkState(0) and not itm.childCount()), None)
+            # # could be nested changes
+            # vis = set(id(_itm) for _itm in filter(lambda itm: itm.checkState(0) == 2 and not itm.childCount(), items))
+            # firstChecked = next((itm for itm in items if itm.checkState(0) and not itm.childCount()), None)
 
     def _uncheckAll(self, includeRoot=False):
         """Clear all selection
@@ -560,7 +560,7 @@ class _StoredTreeWidgetItem(QtWidgets.QTreeWidgetItem):
                     ind = tree.indexOfTopLevelItem(itm)
                     row += sum((1 + self._countDescendants(tree.topLevelItem(ii))) for ii in range(ind))
                 itm = parent
-        except Exception as es:
+        except Exception:
             # there was an error, and no row can be found
             return -1
         else:
@@ -804,65 +804,66 @@ class ImportTreeCheckBoxes(ProjectTreeCheckBoxes):
         pass
 
     def _contentParent(self, project: Project, saveFrame: StarIo.NmrSaveFrame, saveFrameTag):
-        try:
-            category = saveFrameTag  #saveFrame['sf_category']
-        except Exception as es:
-            pass
+        category = saveFrameTag  #saveFrame['sf_category']
 
-        if hasattr(saveFrame, '_content') and category in saveFrame._content:
-            thisList = saveFrame._content[category]
-            treeItem, _ = self.nefToTreeViewMapping[category]
-            found = self.findItems(treeItem, QtCore.Qt.MatchExactly | QtCore.Qt.MatchRecursive)
-            if found:
-                if len(found) == 1:
-                    return found[0]
+        if (not (content := getattr(saveFrame, '_content', None)) or
+                not isinstance(content, dict) or
+                category not in content):
+            # why?
+            return
+
+        treeItem, _ = self.nefToTreeViewMapping[category]
+        found = self.findItems(treeItem, QtCore.Qt.MatchExactly | QtCore.Qt.MatchRecursive)
+        if found and len(found) == 1:
+            return found[0]
 
     def content_list(self, project: Project, saveFrame: StarIo.NmrSaveFrame, saveFrameTag):
-        try:
-            category = saveFrameTag  #saveFrame['sf_category']
-        except Exception as es:
-            pass
+        category = saveFrameTag  #saveFrame['sf_category']
 
-        if hasattr(saveFrame, '_content') and category in saveFrame._content:
-            thisList = saveFrame._content[category]
-            treeItem, _ = self.nefToTreeViewMapping[category]
-            found = self.findItems(treeItem, QtCore.Qt.MatchExactly | QtCore.Qt.MatchRecursive)
-            if found and len(found) == 1:
-                # add to the tree
+        if (not (content := getattr(saveFrame, '_content', None)) or
+                not isinstance(content, dict) or
+                category not in content):
+            return
+
+        treeItem, _ = self.nefToTreeViewMapping[category]
+        found = self.findItems(treeItem, QtCore.Qt.MatchExactly | QtCore.Qt.MatchRecursive)
+        if not found or len(found) != 1:
+            return
+
+        # add to the tree
+        if self._enableCheckBoxes:
+            found[0].setCheckState(0, QtCore.Qt.Unchecked)
+
+        # NOTE:ED - this defines the list of items that are added to each plural group in the tree
+        #           i.e. Chains = saveFrame._content['chain_code'] from nefToTreeViewMapping
+        if thisList := saveFrame._content[category]:
+            for listItem in thisList:
+                child = _StoredTreeWidgetItem(found[0])
+                if self._enableCheckBoxes:
+                    child.setFlags(child.flags() | QtCore.Qt.ItemIsUserCheckable)
+                else:
+                    child.setFlags(child.flags() & ~QtCore.Qt.ItemIsUserCheckable)
+                # child.setData(1, 0, saveFrame)
+
+                parentGroup = child.parent().data(0, 0) if child.parent() else repr(None)
+                pHandler = self.nefProjectToHandlerMapping.get(parentGroup) or saveFrame.get('sf_category')
+                ccpnClassName = nef2CcpnClassNames.get(pHandler)
+
+                # use '.' to match nef specification
+                lbl = '.' if listItem is None else str(listItem)
+                child.setData(1, 0, (lbl, saveFrame, parentGroup, pHandler, ccpnClassName))
+                child.setText(0, lbl)
 
                 if self._enableCheckBoxes:
-                    found[0].setCheckState(0, QtCore.Qt.Unchecked)
-
-                # NOTE:ED - this defines the list of items that are added to each plural group in the tree
-                #           i.e. Chains = saveFrame._content['chain_code'] from nefToTreeViewMapping
-                if thisList:
-                    for listItem in thisList:
-                        child = _StoredTreeWidgetItem(found[0])
-                        if self._enableCheckBoxes:
-                            child.setFlags(child.flags() | QtCore.Qt.ItemIsUserCheckable)
-                        else:
-                            child.setFlags(child.flags() & ~QtCore.Qt.ItemIsUserCheckable)
-                        # child.setData(1, 0, saveFrame)
-
-                        parentGroup = child.parent().data(0, 0) if child.parent() else repr(None)
-                        pHandler = self.nefProjectToHandlerMapping.get(parentGroup) or saveFrame.get('sf_category')
-                        ccpnClassName = nef2CcpnClassNames.get(pHandler)
-
-                        # use '.' to match nef specification
-                        lbl = '.' if listItem is None else str(listItem)
-                        child.setData(1, 0, (lbl, saveFrame, parentGroup, pHandler, ccpnClassName))
-                        child.setText(0, lbl)
-
-                        if self._enableCheckBoxes:
-                            child.setCheckState(0, QtCore.Qt.Unchecked)
-                # else:
-                # found[0].setHidden(False)
-                # found[0].setDisabled(False)
+                    child.setCheckState(0, QtCore.Qt.Unchecked)
+        # else:
+        # found[0].setHidden(False)
+        # found[0].setDisabled(False)
 
     def _contentLoops(self, project: Project, saveFrame: StarIo.NmrSaveFrame, saveFrameTag=None,
                       addLoopAttribs=None, excludeList=(), **kwds):
-        """Iterate over the loops in a saveFrame, and add to results"""
-        result = {}
+        """Iterate over the loops in a saveFrame, and add to results.
+        """
         mapping = nef2CcpnMap.get(saveFrame.category) or {}
         for tag, ccpnTag in mapping.items():
             if tag not in excludeList and ccpnTag == _isALoop:
@@ -1222,6 +1223,7 @@ class ColumnTreeView(ProjectTreeCheckBoxes):
     lockedItems = {}
 
     allowUncheckAll = False
+    _hideSurplus = False
 
     def __init__(self, parent=None, *, df=None, **kwds):
         self._df = df
@@ -1328,20 +1330,21 @@ class ColumnTreeView(ProjectTreeCheckBoxes):
         # df holding the spans for common elements
         spanDf = pd.DataFrame([[(rr, cc, 1, 1) for cc in range(df.shape[1])]
                                for rr in range(df.shape[0])])
-        self._horizontalDividers = []
-        self._verticalDividers = []
 
         if self._df is None or self._df.empty:
             return
 
         # find the vertical spans
         _childSpans(0, 0, df.shape[0])
-        for rr in range(spanDf.shape[0]):
-            for cc in range(spanDf.shape[1] - 1):
-                _, cL, rspL, _ = spanDf.iat[rr, cc]
-                _, cR, rspR, _ = spanDf.iat[rr, cc + 1]
-                if (rspL == rspR and cL != cR):
-                    spanDf.iat[rr, cc] = None
+        # remove any parent-items that are surplus, i.e., match higher parents, or have the same span
+        # as higher and lower tree-items
+        if self._hideSurplus:
+            for rr in range(spanDf.shape[0]):
+                for cc in range(spanDf.shape[1] - 1):
+                    _, cL, rspL, _ = spanDf.iat[rr, cc]
+                    _, cR, rspR, _ = spanDf.iat[rr, cc + 1]
+                    if (rspL == rspR and cL != cR):
+                        spanDf.iat[rr, cc] = None
         return spanDf
 
     def raiseContextMenu(self, event: QtGui.QMouseEvent):
@@ -1360,8 +1363,8 @@ class ColumnTreeView(ProjectTreeCheckBoxes):
         """
         contextMenu = Menu('', self, isFloatWidget=True)
 
-        selection = self.selectionModel().selectedIndexes()
-        newItems = [self.itemFromIndex(itm) for itm in selection]
+        # selection = self.selectionModel().selectedIndexes()
+        # newItems = [self.itemFromIndex(itm) for itm in selection]
         # everything in the tree
         allItems = self.findItems('', QtCore.Qt.MatchContains | QtCore.Qt.MatchRecursive)
         # keep these extras for clarity
@@ -1387,7 +1390,7 @@ class ColumnTreeView(ProjectTreeCheckBoxes):
         ua = contextMenu.addItem("Uncheck all columns",
                                  callback=partial(self._checkAll, False))
         contextMenu.addSeparator()
-        allowed = self.allowUncheckAll
+        # allowed = self.allowUncheckAll
         # checking
         cs.setEnabled(len(checkSelItems) < len(selItems))
         ca.setEnabled(len(checkChildItems) < len(childItems))
@@ -1440,7 +1443,8 @@ def main():
     from ccpn.ui.gui.widgets.Application import TestApplication
     from ccpn.ui.gui.widgets.table._TableCommon import ColumnGroup, ColumnItem
 
-    def _itemChecked(item, column):
+    @Slot()
+    def _itemChecked(item):
         if not bool(item.childCount()):
             # a child-item so corresponds to a real column
             print(f'==> clicked  {item.text(0)}   '
@@ -1476,21 +1480,179 @@ def main():
     popup = ColumnTreeView(df=dfCol, multiSelect=True, enableMouseMenu=True, enableCheckBoxes=True)
     popup.checkStateChanged.connect(_itemChecked)
 
-    columnFormat = ColumnGroup(ColumnItem(name='index'),
-                               ColumnItem(name='row'),
-                               ColumnItem(name='object'),
-                               ColumnGroup(ColumnItem(name='#'),
-                                           ColumnItem(name='target value'),
-                                           ColumnItem(name='lower limit'),
-                                           name='restraint-group'),
-                               movable=False, name='first-columns')
+    # clean-up the assertions
+    try:
+        ColumnGroup([ColumnItem(name='index'),
+                     ColumnItem(name='row'),
+                     ColumnItem(name='row'),
+                     ColumnGroup(ColumnItem(name='#'),
+                                 ColumnItem(locked=True, name='duplicate'),
+                                 ColumnItem(name='duplicate'),
+                                 name='restraint-group')],
+                    movable=False, name='first-columns')
+    except Exception as es:
+        print('1', es)
+    try:
+        ColumnGroup([ColumnItem(name='index'),
+                     ColumnItem(name='row'),
+                     ColumnItem(name='orange')],
+                    ColumnGroup(ColumnItem(name='#'),
+                                ColumnItem(locked=True, name='duplicate'),
+                                ColumnItem(name='not-duplicate'),
+                                name='restraint-group'),
+                    movable=False, name='first-columns')
+    except Exception as es:
+        print('2', es)
+
+    ColumnGroup(movable=False, name='first-columns')
+    ColumnGroup([ColumnItem(name='index'),
+                 ColumnItem(name='row'),
+                 ColumnItem(name='orange'),
+                 ColumnGroup(ColumnItem(name='#'),
+                             ColumnItem(locked=True, name='duplicate'),
+                             ColumnItem(name='not-duplicate'),
+                             name='restraint-group')],
+                movable=False, name='first-columns')
+    ColumnGroup(movable=False, name='first-columns',
+                children=[ColumnItem(name='index'),
+                          ColumnItem(name='row'),
+                          ColumnItem(name='orange'),
+                          ColumnGroup(ColumnItem(name='#'),
+                                      ColumnItem(locked=True, name='duplicate'),
+                                      ColumnItem(name='not-duplicate'),
+                                      name='restraint-group')], )
+    ColumnGroup(children=ColumnItem(name='index'),
+                movable=False, name='first-columns')
+    try:
+        ColumnGroup(children=42,
+                    movable=False, name='first-columns')
+    except Exception as es:
+        print('3', es)
+    try:
+        ColumnGroup(children=[ColumnItem(name='index'),
+                              42],
+                    movable=False, name='first-columns')
+    except Exception as es:
+        print('3a', es)
+    try:
+        ColumnGroup(fish=[ColumnItem(name='index'),
+                          42],
+                    chips='Help!',
+                    movable=False, name='first-columns')
+    except Exception as es:
+        print('3b', es)
+    try:
+        ColumnGroup(ColumnGroup(ColumnItem(name='#'),
+                                ColumnItem(locked=True, name='duplicate'),
+                                ColumnItem(name='not-duplicate'),
+                                name='restraint-group'),
+                    children=[ColumnItem(name='index'),
+                              ColumnItem(name='row'),
+                              ColumnItem(name='orange')],
+                    movable=False, name='first-columns')
+    except Exception as es:
+        print('4', es)
+
+    columnFormat = ColumnGroup(ColumnItem(name='  0  index'),
+                               ColumnItem(name='  1  row'),
+                               ColumnItem(name='  2  object'),
+                               ColumnGroup(ColumnItem(name=('this_group', '    3  restraint-pid'), visible=False),
+                                           testRoot := ColumnItem(locked=True, name=('this_group',
+                                                                                     '    4  target value'),
+                                                                  visible=True),
+                                           ColumnItem(name='    5  lower limit', visible=False),
+                                           name='  6  GROUP restraint-group', groupId='fish'),
+                               movable=False, name='7  GROUP  first-columns')
+    try:
+        columnFormat.addChildren([ColumnItem(name='new_thing'), 42])
+    except Exception as es:
+        print('5', es)
+    try:
+        columnFormat.addChildren(ColumnItem(name='new_thing'), 42)
+    except Exception as es:
+        print('6', es)
+    try:
+        columnFormat.addChildren(42, ColumnItem(name='new_thing'))
+    except Exception as es:
+        print('7', es)
+    try:
+        columnFormat.addChildren([ColumnItem(name='new_thing'), 42], [ColumnItem(name='new_thing'), 42])
+    except Exception as es:
+        print('8', es)
+    try:
+        columnFormat.addChildren([ColumnItem(name='new_thing'), ], [ColumnItem(name='new_thing'), ])
+    except Exception as es:
+        print('9', es)
+    columnFormat.addChildren(ColumnItem(name='  8  first_thing'))
+    columnFormat.addChildren([secondThing := ColumnItem(name='  9  second_thing'), ])
+    columnFormat.addChildren(ColumnItem(name='  10  new_thing'),
+                             ColumnItem(name='  11  old_thing'))
+    try:
+        columnFormat.addChildren((ColumnItem(name='good_thing'), ColumnItem(name='good_thing')))
+    except Exception as es:
+        print('10', es)
+    columnFormat.addChildren((ColumnItem(name='  12  good_thing'), ColumnItem(name='  13  weird_thing')))
+    try:
+        columnFormat.addChildren([ColumnItem(name='  12  good_thing'), ColumnItem(name='bad_thing')])
+    except Exception as es:
+        print('11', es)
+    secondThing.name = '  14  Help me!'
+    secondThing.locked = True
+    try:
+        secondThing.name = '  9  second_thing'
+    except Exception as es:
+        print('12', es)
+    # ColumnGroup.register()
+    # ColumnItem.register()
     val = columnFormat.toJson()
-    ColumnGroup.register()
-    ColumnItem.register()
     stuff = ColumnGroup.newObjectFromJson(jsonString=val)
     assert (noMeta := columnFormat.toJsonNoMetaData()) not in [None, False, [], '']
-    assert columnFormat.toJsonNoMetaData() == stuff.toJsonNoMetaData()
-    print(val)
+    # object recovered from json is the same as the original
+    assert noMeta == stuff.toJsonNoMetaData()
+    try:
+        secondThing.name = 'second_thing_again'
+    except Exception as es:
+        print('13', es)
+    wasEmpty = ColumnGroup(movable=False, name='empty-columns')
+    wasEmpty.addChildren(ColumnItem(name='  --  first_thing'))
+
+    def _printParent(obj, dd=0):
+        print(f'--> parent {" " * dd}  {obj.name} --> {obj._parent and obj._parent.name}   {obj.locked}')
+        if isinstance(obj, ColumnGroup):
+            for ch in obj.children:
+                _printParent(ch, dd + 2)
+
+    _printParent(columnFormat)
+    _printParent(stuff)
+    _printParent(wasEmpty)
+    print('~~~~~~~~~~~~~~~~\n', '\n'.join(map(lambda val: f'{val}  {val.name}   groupId {val.groupId}',
+                                              stuff.search(groupId='fish'))))
+    print('~~~~~~~~~~~~~~~~\n', '\n'.join(map(lambda val: f'{val}  {val.name}   groupId {val.groupId}',
+                                              stuff.search(groupIdmouse='fish'))))
+    print('~~~~~~~~~~~~~~~~\n', '\n'.join(map(lambda val: f'{val}  {val.name}   groupId {val.groupId}',
+                                              stuff.search(groupId=None))))
+    # groups are visible if any child is visible
+    print('~~~~~~~~~~~~~~~~\n', '\n'.join(map(lambda val: f'{val}  {val.name}   visible {val.visible}',
+                                              stuff.search(visible=True))))
+    print('~~~~~~~~~~~~~~~~\n', '\n'.join(map(lambda val: f'{val}  {val.name}   visible {val.visible}',
+                                              stuff.search(visible=True, name='  12  good_thing'))))
+    # object has a group container for all
+    print('~~~~~~~~~~~~~~~~\n', '\n'.join(map(lambda val: f'{val}  '
+                                                          f'{val.fullName[1:] if isinstance(val, ColumnItem) else ""}'
+                                                          f'{val.depth}  visible {val.visible}',
+                                              stuff.search(visible=True))))
+    print(f'--> root  {testRoot.root() and testRoot.root().name}   {testRoot.root() and testRoot.root().maxDepth()}')
+
+    print('~~~~~~ all')
+    print('\n'.join(str(val.name) for val in testRoot.root().traverse()))
+    print('~~~~~~ no branches')
+    print('\n'.join(str(val.name) for val in testRoot.root().traverse(includeBranches=False)))
+    print('~~~~~~ no leaves')
+    print('\n'.join(str(val.name) for val in testRoot.root().traverse(includeLeaves=False)))
+    print('~~~~~~ no recursive')
+    print('\n'.join(str(val.name) for val in testRoot.root().traverse(recursive=False)))
+    print('~~~~~~ no recursive, no branches')
+    print('\n'.join(str(val.name) for val in testRoot.root().traverse(includeBranches=False, recursive=False)))
     popup.show()
     app.start()
 

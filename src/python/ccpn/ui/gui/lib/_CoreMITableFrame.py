@@ -1,10 +1,13 @@
 """
-Module Documentation here
+Multi-index pandas dataFrame based widget.
+There is no subclassed _CoreMITableFrameABC, separate class not required.
+
+See: _CoreTableFrameABC
 """
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2025"
 __credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
                "Timothy J Ragan, Brian O Smith, Daniel Thompson",
                "Gary S Thompson & Geerten W Vuister")
@@ -16,8 +19,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-06-21 19:48:43 +0100 (Fri, June 21, 2024) $"
-__version__ = "$Revision: 3.2.4 $"
+__dateModified__ = "$dateModified: 2025-01-09 20:37:58 +0000 (Thu, January 09, 2025) $"
+__version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -29,42 +32,44 @@ __date__ = "$Date: 2023-02-07 16:38:53 +0100 (Tue, February 07, 2023) $"
 
 import pandas as pd
 from collections import OrderedDict
-from ccpn.core.lib.DataFrameObject import DataFrameObject
+from abc import ABC, abstractmethod
 from ccpn.core.lib.Notifiers import Notifier
-from ccpn.framework.Application import getApplication
-from ccpn.util.Logging import getLogger
+from ccpn.core.lib.WeakRefLib import WeakRefDescriptor
 from ccpn.ui.gui.widgets.table.MIProjectTable import _MIProjectTableABC
+from ccpn.ui.gui.widgets.table.TableABC import _TableABCMeta
+from ccpn.ui.gui.widgets.table._TableModel import _TableModel
+from ccpn.util.Logging import getLogger
 
 
-_TABLES = 'tables'
-_HIDDENCOLUMNS = 'hiddenColumns'
+_DEBUG = False
+
 
 #=========================================================================================
-# _CoreTableWidgetABC
+# _CoreMITableWidgetABC
 #=========================================================================================
 
-class _CoreMITableWidgetABC(_MIProjectTableABC):
-    """Class to present a table for core objects
+class _CoreMITableWidgetMeta(_TableABCMeta, type(ABC)):
+    """Metaclass implementing a post-initialise hook, ALWAYS called after __init__ has finished
     """
-    defaultHidden = None
-    _internalColumns = None
+    # required to resolve metaclass conflict due to the addition of ABC
+    ...
 
+
+class _CoreMITableWidgetABC(_MIProjectTableABC, ABC, metaclass=_CoreMITableWidgetMeta):
+    """Class to present a multi-index table for core objects
+    """
     # define overriding attributes here for subclassing - not setting will default to these
     _enableSearch = True
     _enableDelete = True
     _enableExport = True
     _enableCopyCell = True
+    _table = WeakRefDescriptor()
 
     def __init__(self, parent, *,
                  showHorizontalHeader=True, showVerticalHeader=False,
-                 hiddenColumns=None,
                  **kwds):
         """Initialise the widgets for the module.
         """
-
-        # _hiddenColumns = [self.columnHeaders.get(col) or col for col in hiddenColumns] if hiddenColumns else \
-        #     [self.columnHeaders.get(col) or col for col in self.defaultHidden]
-
         super().__init__(parent,
                          multiSelect=True,
                          showHorizontalHeader=showHorizontalHeader,
@@ -72,33 +77,26 @@ class _CoreMITableWidgetABC(_MIProjectTableABC):
                          setLayout=True,
                          **kwds)
 
-        self.headerColumnMenu.setInternalColumns(self._internalColumns)
-        self.headerColumnMenu.setDefaultColumns(self.defaultHidden)
-        # Initialise the notifier for processing dropped items
-        self._postInitTableCommonWidgets()
-
-    def setClassDefaultColumns(self, texts):
-        """set a list of default column-headers that are hidden when first shown.
-        """
-        self.headerColumnMenu.saveColumns(texts)
-
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Properties
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     @property
+    @abstractmethod
     def _sourceObjects(self):
-        """Return the list of source objects, e.g., _table.peaks/_table.nmrResidues
+        """Return the list of source objects, e.g., _table.peaks/_table.nmrResidues.
         """
         # MUST BE SUBCLASSED
         raise NotImplementedError(f'Code error: {self.__class__.__name__}._sourceObjects not implemented')
 
     @_sourceObjects.setter
+    @abstractmethod
     def _sourceObjects(self, value):
         # MUST BE SUBCLASSED
         raise NotImplementedError(f'Code error: {self.__class__.__name__}._sourceObjects not implemented')
 
     @property
+    @abstractmethod
     def _sourceCurrent(self):
         """Return the list of source objects in the current list, e.g., current.peaks/current.nmrResidues
         """
@@ -106,30 +104,30 @@ class _CoreMITableWidgetABC(_MIProjectTableABC):
         raise NotImplementedError(f'Code error: {self.__class__.__name__}._sourceCurrent not implemented')
 
     @_sourceCurrent.setter
+    @abstractmethod
     def _sourceCurrent(self, value):
         # MUST BE SUBCLASSED
         raise NotImplementedError(f'Code error: {self.__class__.__name__}._sourceCurrent not implemented')
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Selection/Action callbacks
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     def selectionCallback(self, selected, deselected, selection, lastItem):
-        """set as current the selected core-objects on the table
+        """set as current the selected core-objects on the table.
         """
         try:
             objs = list(selection[self._OBJECT])
             self._sourceCurrent = objs
-
         except Exception as es:
             getLogger().debug2(f'{self.__class__.__name__}.selectionCallback: No selection\n{es}')
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Create table and row methods
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     def _newRowFromUniqueId(self, df, obj, uniqueId):
-        """Create a new row to insert into the dataFrame or replace row
+        """Create a new row to insert into the dataFrame or replace row.
         """
         # generate a new row
         listItem = OrderedDict()
@@ -143,13 +141,13 @@ class _CoreMITableWidgetABC(_MIProjectTableABC):
         return list(listItem.values())
 
     def _derivedFromObject(self, obj):
-        """Get a tuple of derived values from obj
-        Not very generic yet - column class now seems redundant
+        """Get a tuple of derived values from obj.
+        Not very generic yet - column class now seems redundant.
         """
         # MUST BE SUBCLASSED
         raise NotImplementedError(f'Code error: {self.__class__.__name__}._derivedFromObject not implemented')
 
-    def buildTableDataFrame(self):
+    def buildTableDataFrame(self) -> pd.DataFrame:
         """Return a Pandas dataFrame from an internal list of objects.
         The columns are based on the 'func' functions in the columnDefinitions.
         :return pandas dataFrame
@@ -159,7 +157,6 @@ class _CoreMITableWidgetABC(_MIProjectTableABC):
             self._columnDefs = self._getTableColumns(self._table)
 
             objects = []
-
             for col, obj in enumerate(self._sourceObjects):
                 listItem = OrderedDict()
                 for header in self._columnDefs.columns:
@@ -169,32 +166,26 @@ class _CoreMITableWidgetABC(_MIProjectTableABC):
                         # NOTE:ED - catch any nasty surprises in tables
                         getLogger().debug2(f'Error creating table information {es}')
                         listItem[header.headerText] = None
-
                 allItems.append(listItem)
                 objects.append(obj)
-
             df = pd.DataFrame(allItems, columns=self._columnDefs.headings)
-
         else:
             self._columnDefs = self._getTableColumns()
             df = pd.DataFrame(columns=self._columnDefs.headings)
 
         # use the object as the index, object always exists even if isDeleted
         df.set_index(df[self.OBJECTCOLUMN], inplace=True, )
-
-        return DataFrameObject(dataFrame=df,
-                               columnDefs=self._columnDefs or [],
-                               table=self)
+        return df
 
     def getCellToRows(self, cellItem, attribute=None):
-        """Get the list of objects which cellItem maps to for this table
-        To be subclassed as required
+        """Get the list of objects which cellItem maps to for this table.
+        To be subclassed as required.
         """
         # MUST BE SUBCLASSED
         raise NotImplementedError(f'Code error: {self.__class__.__name__}.getCellToRows not implemented')
 
     def _updateCellCallback(self, data):
-        """Notifier callback for updating the table
+        """Notifier callback for updating the table.
         :param data:
         """
         # print(f'>>> _updateCellCallback')
@@ -203,25 +194,23 @@ class _CoreMITableWidgetABC(_MIProjectTableABC):
 
             rowObjs = []
             _triggerType = Notifier.CHANGE
-
             if (attr := self.cellClassNames.get(type(cellData))):
                 rowObjs, _triggerType = self.getCellToRows(cellData, attr)
-
             # update the correct row by calling row handler
             for rowObj in rowObjs:
                 rowData = {Notifier.OBJECT : rowObj,
                            Notifier.TRIGGER: _triggerType or data[Notifier.TRIGGER],
                            }
-
                 self._updateRowCallback(rowData)
 
     def _updateRowCallback(self, data):
-        """Notifier callback for updating the table for change in chemicalShifts
-        :param data: notifier content
+        """Notifier callback for updating the table for change in chemicalShifts.
+        :param data: notifier content.
         """
         # print(f'>>> _updateRowCallback')
         with self._blockTableSignals('_updateRowCallback'):
             obj = data[Notifier.OBJECT]
+            model: _TableModel = self.model()
 
             # check that the dataframe and object are valid
             if self._df is None:
@@ -241,9 +230,8 @@ class _CoreMITableWidgetABC(_MIProjectTableABC):
                     # uniqueIds in the visible table
                     if obj in (tableSet - objSet):
                         # remove from the table
-                        self.model()._deleteRow(obj)
+                        model._deleteRow(obj)
                         self._reindexTable()
-
                 elif trigger == Notifier.CREATE:
                     # uniqueIds in the visible table
                     if obj in (objSet - tableSet):
@@ -254,42 +242,38 @@ class _CoreMITableWidgetABC(_MIProjectTableABC):
                         else:
                             # insert into the table
                             newRow = self._newRowFromUniqueId(df, obj, None)
-                            self.model()._insertRow(obj, newRow)
+                            model._insertRow(obj, newRow)
                             self._reindexTable()
                         # highlight the new row
                         self._highlightRow(obj)
-
                 elif trigger == Notifier.CHANGE:
                     # uniqueIds in the visible table
                     if obj in (objSet & tableSet):
                         # visible table dataframe update - object MUST be in the table
                         newRow = self._newRowFromUniqueId(df, obj, None)
-                        self.model()._updateRow(obj, newRow)
-
+                        model._updateRow(obj, newRow)
                 elif trigger == Notifier.RENAME:
                     if obj in (objSet & tableSet):
                         # visible table dataframe update
                         newRow = self._newRowFromUniqueId(df, obj, None)
-                        self.model()._updateRow(obj, newRow)
-
+                        model._updateRow(obj, newRow)
                     elif obj in (objSet - tableSet):
                         # insert renamed object INTO the table
                         newRow = self._newRowFromUniqueId(df, obj, None)
-                        self.model()._insertRow(obj, newRow)
+                        model._insertRow(obj, newRow)
                         self._reindexTable()
                         # highlight the new row
                         self._highlightRow(obj)
-
                     elif obj in (tableSet - objSet):
                         # remove renamed object OUT of the table
-                        self.model()._deleteRow(obj)
+                        model._deleteRow(obj)
                         self._reindexTable()
 
             except Exception as es:
                 getLogger().debug2(f'{self.__class__.__name__}._updateRowCallback: Error updating row in table - {es}')
 
     def _highlightRow(self, obj):
-        """Highlight the new row if in selection
+        """Highlight the new row if in selection.
         """
         # probably not the fastest checking for current
         if obj in self._sourceCurrent:
@@ -305,8 +289,8 @@ class _CoreMITableWidgetABC(_MIProjectTableABC):
                 getLogger().debug2(f'{self.__class__.__name__}._highlightRow: Error highlighting row')
 
     def _reindexTable(self):
-        """Reset the index column for the table
-        Not required for most core-object tables, but residues and nmrResidues have an order
+        """Reset the index column for the table.
+        Not required for most core-object tables, but residues and nmrResidues have an order.
         """
         if self._INDEX is not None:
             # must be done after the insert/delete as the object-column will have changed
@@ -317,46 +301,35 @@ class _CoreMITableWidgetABC(_MIProjectTableABC):
             # table will automatically replace this on the update
             df[self._INDEX] = [objs.index(obj) if obj in objs else 0 for obj in tableObjs]
 
-    # def _searchCallBack(self, data):
-    #     # print(f'>>> _searchCallBack')
-    #     pass
-
     def _selectCurrentCallBack(self, data):
-        """Callback from a notifier to highlight the current objects
+        """Callback from a notifier to highlight the current objects.
         :param data:
         """
         if self._tableBlockingLevel:
             return
-
         objs = data['value']
         self._selectOnTableCurrent(objs)
 
-    def _selectionChangedCallback(self, selected, deselected):
-        """Handle item selection as changed in table - call user callback
-        Includes checking for clicking below last row
-        """
-        self._changeTableSelection(None)
-
     def _selectOnTableCurrent(self, objs):
-        """Highlight the list of objects on the table
+        """Highlight the list of objects on the table.
         :param objs:
         """
         self.highlightObjects(objs)
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Table context menu
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Table functions
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Updates
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     def _updateAllModule(self, data=None):
-        """Updates the table and the settings widgets
+        """Updates the table and the settings widgets.
         """
         self._update()
 
@@ -374,12 +347,16 @@ class _CoreMITableWidgetABC(_MIProjectTableABC):
         """
         self._update()
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # object properties
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
+
+    ...
+
 
 #=========================================================================================
-# _CoreTableFrameABC
+# _CoreMITableFrameABC
 #=========================================================================================
 
-# NOTE:ED - class shouldn't be needed
+# class shouldn't be needed
+...

@@ -4,9 +4,10 @@ Module Documentation here
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2022"
-__credits__ = ("Ed Brooksbank, Joanna Fox, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
-               "Timothy J Ragan, Brian O Smith, Gary S Thompson & Geerten W Vuister")
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2025"
+__credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
+               "Timothy J Ragan, Brian O Smith, Daniel Thompson",
+               "Gary S Thompson & Geerten W Vuister")
 __licence__ = ("CCPN licence. See https://ccpn.ac.uk/software/licensing/")
 __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, L.G., & Vuister, G.W.",
                  "CcpNmr AnalysisAssign: a flexible platform for integrated NMR analysis",
@@ -15,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2022-10-12 15:27:07 +0100 (Wed, October 12, 2022) $"
-__version__ = "$Revision: 3.1.0 $"
+__dateModified__ = "$dateModified: 2025-04-16 12:49:00 +0100 (Wed, April 16, 2025) $"
+__version__ = "$Revision: 3.3.1 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -46,11 +47,42 @@ from ccpn.core.RestraintTable import RestraintTable
 from ccpn.util.Logging import getLogger
 from ccpn.util.OrderedSet import OrderedSet
 from ccpn.util.AttrDict import AttrDict
-from ccpn.framework.lib.ccpnNef.CcpnNefCommon import nef2CcpnMap, _isALoop, _parametersFromLoopRow, _stripSpectrumName, _stripSpectrumSerial
+from ccpn.framework.lib.ccpnNef.CcpnNefCommon import (nef2CcpnMap, _isALoop, _parametersFromLoopRow, _stripSpectrumName,
+                                                      _stripSpectrumSerial)
+
+
+CONTENTATTR = '_content'
 
 
 class CcpnNefContent:
-    contents = {}
+    contentFuncs = {}
+    error: typing.Callable
+    _parametersFromSaveFrame: typing.Callable
+    _dataBlock: dict
+
+    def storeContent(self, source, objects: dict):
+        """Update the ccpnContent log with the contents of the saveFrames/loops
+        """
+        if getattr(source, CONTENTATTR, None) is not None:
+            # SHOULD only be called once for each saveFrame
+            self.error(f'Source {source.name} already exists in content', source, None)
+        else:
+            setattr(source, CONTENTATTR, objects)
+
+    @staticmethod
+    def updateContent(source, objects: dict):
+        """Update the ccpnContent log with the contents of the saveFrames/loops
+        """
+        if getattr(source, CONTENTATTR, None) is not None:
+            try:
+                attrib = getattr(source, CONTENTATTR, None) or AttrDict()
+                setattr(source, CONTENTATTR, attrib | objects)  # double up for the minute
+            except Exception as es:
+                raise RuntimeError(f'Error updating dict {es} ({source})')
+        else:
+            setattr(source, CONTENTATTR, objects)
+
+    #-----------------------------------------------------------------------------------------
 
     def _contentLoops(self, project: Project, saveFrame: StarIo.NmrSaveFrame, addLoopAttribs=None,
                       excludeList=(), **kwds):
@@ -59,9 +91,10 @@ class CcpnNefContent:
         mapping = nef2CcpnMap.get(saveFrame.category) or {}
         for tag, ccpnTag in mapping.items():
             if tag not in excludeList and ccpnTag == _isALoop:
-                loop = saveFrame.get(tag)
-                if loop:
-                    content = self.contents[tag]
+                if loop := saveFrame.get(tag):
+                    if not (content := self.contentFuncs.get(tag)):
+                        getLogger().debug("    unknown loop category {} {}".format(saveFrame.category, tag))
+                        continue
                     if addLoopAttribs:
                         dd = []
                         for name in addLoopAttribs:
@@ -139,10 +172,10 @@ class CcpnNefContent:
                                       nmrAtomCodeName    : nmrAtomCodes,
                                       })
 
-    contents['ccpn_assignment'] = content_ccpn_assignment
-    contents['nmr_chain'] = _noLoopContent
-    contents['nmr_residue'] = _noLoopContent
-    contents['nmr_atom'] = _noLoopContent
+    contentFuncs['ccpn_assignment'] = content_ccpn_assignment
+    contentFuncs['nmr_chain'] = _noLoopContent
+    contentFuncs['nmr_residue'] = _noLoopContent
+    contentFuncs['nmr_atom'] = _noLoopContent
 
     def content_ccpn_complex(self, project: Project, saveFrame: StarIo.NmrSaveFrame):
         """Get the contents of ccpn_complex saveFrame"""
@@ -157,7 +190,7 @@ class CcpnNefContent:
         self._contentLoops(project, saveFrame)
         self.updateContent(saveFrame, result)
 
-    contents['ccpn_complex'] = content_ccpn_complex
+    contentFuncs['ccpn_complex'] = content_ccpn_complex
 
     def content_ccpn_complex_chain(self, parent: Complex, loop: StarIo.NmrLoop, parentFrame: StarIo.NmrSaveFrame):
         """Get the contents of ccpn_complex_chain loop"""
@@ -167,7 +200,7 @@ class CcpnNefContent:
 
         return chains
 
-    contents['ccpn_complex_chain'] = content_ccpn_complex_chain
+    contentFuncs['ccpn_complex_chain'] = content_ccpn_complex_chain
 
     def content_ccpn_sample(self, project: Project, saveFrame: StarIo.NmrSaveFrame):
         # Get the contents of ccpn_sample
@@ -184,7 +217,7 @@ class CcpnNefContent:
         self.updateContent(saveFrame, result)
 
     # contents['ccpn_sample'] = partial(_contentLoops, addLoopAttribs=['name'])
-    contents['ccpn_sample'] = content_ccpn_sample
+    contentFuncs['ccpn_sample'] = content_ccpn_sample
 
     def content_ccpn_sample_component(self, parent: Sample, loop: StarIo.NmrLoop, parentFrame: StarIo.NmrSaveFrame,
                                       sampleName: str = None) -> Optional[OrderedSet]:
@@ -210,7 +243,7 @@ class CcpnNefContent:
 
         return components
 
-    contents['ccpn_sample_component'] = content_ccpn_sample_component
+    contentFuncs['ccpn_sample_component'] = content_ccpn_sample_component
 
     def content_ccpn_logging(self, project: Project, saveFrame: StarIo.NmrSaveFrame):
         # Get the contents of ccpn_logging
@@ -224,7 +257,7 @@ class CcpnNefContent:
         self._contentLoops(project, saveFrame, addLoopAttribs=['date'])
         self.updateContent(saveFrame, result)
 
-    contents['ccpn_logging'] = content_ccpn_logging
+    contentFuncs['ccpn_logging'] = content_ccpn_logging
 
     def content_ccpn_history(self, parent, loop: StarIo.NmrLoop, parentFrame: StarIo.NmrSaveFrame,
                              date: str = None) -> Optional[OrderedSet]:
@@ -247,7 +280,7 @@ class CcpnNefContent:
 
         return components
 
-    contents['ccpn_history'] = content_ccpn_history
+    contentFuncs['ccpn_history'] = content_ccpn_history
 
     def content_ccpn_dataset(self, project: Project, saveFrame: StarIo.NmrSaveFrame):
         # Get the contents of ccpn_dataset
@@ -261,7 +294,7 @@ class CcpnNefContent:
         self._contentLoops(project, saveFrame, addLoopAttribs=['id'])
         self.updateContent(saveFrame, result)
 
-    contents['ccpn_dataset'] = content_ccpn_dataset
+    contentFuncs['ccpn_dataset'] = content_ccpn_dataset
 
     def content_ccpn_calculation_step(self, parent, loop: StarIo.NmrLoop, parentFrame: StarIo.NmrSaveFrame,
                                       value: str = None) -> Optional[OrderedSet]:
@@ -284,7 +317,7 @@ class CcpnNefContent:
 
         return components
 
-    contents['ccpn_calculation_step'] = content_ccpn_calculation_step
+    contentFuncs['ccpn_calculation_step'] = content_ccpn_calculation_step
 
     def content_ccpn_calculation_data(self, parent, loop: StarIo.NmrLoop, parentFrame: StarIo.NmrSaveFrame,
                                       value: str = None) -> Optional[OrderedSet]:
@@ -307,9 +340,11 @@ class CcpnNefContent:
 
         return components
 
-    contents['ccpn_calculation_data'] = content_ccpn_calculation_data
+    contentFuncs['ccpn_calculation_data'] = content_ccpn_calculation_data
 
     def content_ccpn_parameter(self, project: Project, saveFrame: StarIo.NmrSaveFrame):
+        from ccpn.framework.lib.ccpnNef.CcpnNefIo import DATANAME
+
         # Get the contents of ccpn_parameter
         # ccpn-to-nef mapping for saveframe
         category = saveFrame['sf_category']
@@ -323,7 +358,7 @@ class CcpnNefContent:
         self._contentLoops(project, saveFrame, addLoopAttribs=[DATANAME, 'ccpn_data_id', 'ccpn_parameter_name'])
         self.updateContent(saveFrame, result)
 
-    contents['ccpn_parameter'] = content_ccpn_parameter
+    contentFuncs['ccpn_parameter'] = content_ccpn_parameter
 
     def content_ccpn_dataframe(self, parent, loop: StarIo.NmrLoop, parentFrame: StarIo.NmrSaveFrame,
                                dataSet: str, name: str, key) -> Optional[OrderedSet]:
@@ -346,7 +381,7 @@ class CcpnNefContent:
 
         return components
 
-    contents['ccpn_dataframe'] = content_ccpn_dataframe
+    contentFuncs['ccpn_dataframe'] = content_ccpn_dataframe
 
     def content_ccpn_substance(self, project: Project, saveFrame: StarIo.NmrSaveFrame):
         """Get the contents of ccpn_substance saveFrame"""
@@ -355,13 +390,14 @@ class CcpnNefContent:
         mapping = nef2CcpnMap.get(category) or {}
         parameters, loopNames = self._parametersFromSaveFrame(saveFrame, mapping)
 
-        substanceId = Pid.IDSEP.join(('' if x is None else str(x)) for x in (parameters['name'], parameters.get('labelling')))
+        substanceId = Pid.IDSEP.join(
+                ('' if x is None else str(x)) for x in (parameters['name'], parameters.get('labelling')))
         result = {category: (substanceId,)}
 
         self._contentLoops(project, saveFrame)
         self.updateContent(saveFrame, result)
 
-    contents['ccpn_substance'] = content_ccpn_substance
+    contentFuncs['ccpn_substance'] = content_ccpn_substance
 
     def content_ccpn_notes(self, project: Project, saveFrame: StarIo.NmrSaveFrame):
         notes = OrderedSet()
@@ -381,8 +417,8 @@ class CcpnNefContent:
         self._contentLoops(project, saveFrame)
         self.updateContent(saveFrame, result)
 
-    contents['ccpn_notes'] = content_ccpn_notes
-    contents['ccpn_note'] = _noLoopContent
+    contentFuncs['ccpn_notes'] = content_ccpn_notes
+    contentFuncs['ccpn_note'] = _noLoopContent
 
     def content_ccpn_integral(self, project: Project, loop: StarIo.NmrLoop, parentFrame: StarIo.NmrSaveFrame,
                               name=None, itemLength=None):
@@ -400,7 +436,7 @@ class CcpnNefContent:
 
         return integrals
 
-    contents['ccpn_integral'] = content_ccpn_integral
+    contentFuncs['ccpn_integral'] = content_ccpn_integral
 
     def content_ccpn_multiplet(self, project: Project, loop: StarIo.NmrLoop, parentFrame: StarIo.NmrSaveFrame,
                                name=None, itemLength=None):
@@ -418,7 +454,7 @@ class CcpnNefContent:
 
         return multiplets
 
-    contents['ccpn_multiplet'] = content_ccpn_multiplet
+    contentFuncs['ccpn_multiplet'] = content_ccpn_multiplet
 
     def content_ccpn_multiplet_peaks(self, project: Project, loop: StarIo.NmrLoop, parentFrame: StarIo.NmrSaveFrame):
         """Get the contents of ccpn_multiplet_peaks loop"""
@@ -436,7 +472,7 @@ class CcpnNefContent:
 
         return multipletPeaks
 
-    contents['ccpn_multiplet_peaks'] = _noLoopContent
+    contentFuncs['ccpn_multiplet_peaks'] = _noLoopContent
 
     # # def content_ccpn_peak_cluster_list(self, project: Project, saveFrame: StarIo.NmrSaveFrame):
     # #     """Get the contents ccpn_peak_cluster_list saveFrame"""
@@ -489,7 +525,8 @@ class CcpnNefContent:
     #
     # contents['ccpn_peak_cluster_peaks'] = content_ccpn_peak_cluster_peaks
 
-    def content_ccpn_group_spectrum(self, parent: SpectrumGroup, loop: StarIo.NmrLoop, parentFrame: StarIo.NmrSaveFrame):
+    def content_ccpn_group_spectrum(self, parent: SpectrumGroup, loop: StarIo.NmrLoop,
+                                    parentFrame: StarIo.NmrSaveFrame):
         """Get the contents of ccpn_group_spectrum loop"""
         spectra = OrderedSet()
         for row in loop.data:
@@ -497,7 +534,7 @@ class CcpnNefContent:
 
         return spectra
 
-    contents['ccpn_group_spectrum'] = content_ccpn_group_spectrum
+    contentFuncs['ccpn_group_spectrum'] = content_ccpn_group_spectrum
 
     def content_ccpn_integral_list(self, project: Project, loop: StarIo.NmrLoop, parentFrame: StarIo.NmrSaveFrame,
                                    name=None, itemLength=None):
@@ -513,7 +550,7 @@ class CcpnNefContent:
 
         return integralLists
 
-    contents['ccpn_integral_list'] = content_ccpn_integral_list
+    contentFuncs['ccpn_integral_list'] = content_ccpn_integral_list
 
     def content_ccpn_multiplet_list(self, project: Project, loop: StarIo.NmrLoop, parentFrame: StarIo.NmrSaveFrame,
                                     name=None, itemLength=None):
@@ -529,7 +566,7 @@ class CcpnNefContent:
 
         return multipletLists
 
-    contents['ccpn_multiplet_list'] = content_ccpn_multiplet_list
+    contentFuncs['ccpn_multiplet_list'] = content_ccpn_multiplet_list
 
     def content_ccpn_peak_list(self, project: Project, loop: StarIo.NmrLoop, parentFrame: StarIo.NmrSaveFrame,
                                name=None, itemLength=None):
@@ -545,7 +582,7 @@ class CcpnNefContent:
 
         return peakLists
 
-    contents['ccpn_peak_list'] = content_ccpn_peak_list
+    contentFuncs['ccpn_peak_list'] = content_ccpn_peak_list
 
     def content_ccpn_spectrum_group(self, project: Project, saveFrame: StarIo.NmrSaveFrame):
         """Get the contents of ccpn_spectrum_group saveFrame"""
@@ -560,9 +597,10 @@ class CcpnNefContent:
         self._contentLoops(project, saveFrame)
         self.updateContent(saveFrame, result)
 
-    contents['ccpn_spectrum_group'] = content_ccpn_spectrum_group
+    contentFuncs['ccpn_spectrum_group'] = content_ccpn_spectrum_group
 
-    def content_nef_chemical_shift(self, parent: ChemicalShiftList, loop: StarIo.NmrLoop, parentFrame: StarIo.NmrSaveFrame) -> OrderedSet:
+    def content_nef_chemical_shift(self, parent: ChemicalShiftList, loop: StarIo.NmrLoop,
+                                   parentFrame: StarIo.NmrSaveFrame) -> OrderedSet:
         """Get the contents of nef_chemical_shift loop"""
         nmrAtoms = OrderedSet()
 
@@ -576,7 +614,7 @@ class CcpnNefContent:
 
         return nmrAtoms
 
-    contents['nef_chemical_shift'] = content_nef_chemical_shift
+    contentFuncs['nef_chemical_shift'] = content_nef_chemical_shift
 
     def content_nef_chemical_shift_list(self, project: Project, saveFrame: StarIo.NmrSaveFrame):
         """Get the contents of nef_chemical_shift_list saveFrame"""
@@ -590,7 +628,7 @@ class CcpnNefContent:
         self._contentLoops(project, saveFrame)
         self.updateContent(saveFrame, result)
 
-    contents['nef_chemical_shift_list'] = content_nef_chemical_shift_list
+    contentFuncs['nef_chemical_shift_list'] = content_nef_chemical_shift_list
 
     def content_ccpn_datatable(self, project: Project, saveFrame: StarIo.NmrSaveFrame):
         """Get the contents of ccpn_datatable saveFrame"""
@@ -604,9 +642,10 @@ class CcpnNefContent:
         self._contentLoops(project, saveFrame)
         self.updateContent(saveFrame, result)
 
-    contents['ccpn_datatable'] = content_ccpn_datatable
+    contentFuncs['ccpn_datatable'] = content_ccpn_datatable
 
-    def content_nef_covalent_links(self, project: Project, loop: StarIo.NmrLoop, parentFrame: StarIo.NmrSaveFrame) -> OrderedSet:
+    def content_nef_covalent_links(self, project: Project, loop: StarIo.NmrLoop,
+                                   parentFrame: StarIo.NmrSaveFrame) -> OrderedSet:
         """get the contents of nef_covalent_links loop"""
         covalentLinks = OrderedSet()
 
@@ -619,7 +658,7 @@ class CcpnNefContent:
 
         return covalentLinks
 
-    contents['nef_covalent_links'] = content_nef_covalent_links
+    contentFuncs['nef_covalent_links'] = content_nef_covalent_links
 
     def content_nef_molecular_system(self, project: Project, saveFrame: StarIo.NmrSaveFrame):
         """Get the contents nef_molecular_system saveFrame"""
@@ -643,7 +682,7 @@ class CcpnNefContent:
         self._contentLoops(project, saveFrame)
         self.updateContent(saveFrame, results)
 
-    contents['nef_molecular_system'] = content_nef_molecular_system
+    contentFuncs['nef_molecular_system'] = content_nef_molecular_system
 
     def content_nef_nmr_spectrum(self, project: Project, saveFrame: StarIo.NmrSaveFrame):
         # Get ccpn-to-nef mapping for saveframe
@@ -675,7 +714,7 @@ class CcpnNefContent:
                                         ))
         self.updateContent(saveFrame, result)
 
-    contents['nef_nmr_spectrum'] = content_nef_nmr_spectrum
+    contentFuncs['nef_nmr_spectrum'] = content_nef_nmr_spectrum
 
     def content_nef_peak(self, peakList: PeakList, loop: StarIo.NmrLoop, parentFrame: StarIo.NmrSaveFrame,
                          name=None, itemLength: int = None):
@@ -708,17 +747,14 @@ class CcpnNefContent:
             listName = Pid.IDSEP.join(('' if x is None else str(x)) for x in [name, peakListSerial])
             result.add(listName)
 
-            ATTRIB = '_content'
-            _content = getattr(self._dataBlock, ATTRIB, None)
-            if not _content:
+            if (attrib := getattr(self._dataBlock, CONTENTATTR, None)) is None:
                 # create a new temporary saveFrame
-                setattr(self._dataBlock, ATTRIB, AttrDict())
+                attrib = AttrDict()
+                setattr(self._dataBlock, CONTENTATTR, attrib)
 
-            attrib = getattr(self._dataBlock, ATTRIB)
             if not attrib.get('loop'):
                 attrib.loop = StarIo.NmrLoop(name='_ccpn_peak_list', columns=('pid',))
                 attrib.loopSet = OrderedSet()
-
             if listName not in attrib.loopSet:
                 attrib.loopSet.add(listName)
                 attrib.loop.newRow((listName,))
@@ -789,9 +825,9 @@ class CcpnNefContent:
 
         return result
 
-    contents['nef_peak'] = content_nef_peak
-    contents['nef_peaks'] = content_nef_peaks
-    contents['nef_peak_assignments'] = content_nef_peak_assignments
+    contentFuncs['nef_peak'] = content_nef_peak
+    contentFuncs['nef_peaks'] = content_nef_peaks
+    contentFuncs['nef_peak_assignments'] = content_nef_peak_assignments
 
     def content_ccpn_spectrum_reference_substances(self, parent: Spectrum, loop: StarIo.NmrLoop,
                                                    parentFrame: StarIo.NmrSaveFrame, **kwargs):
@@ -801,7 +837,7 @@ class CcpnNefContent:
             substances.add(row.get('serial'))
         return substances
 
-    contents['ccpn_spectrum_reference_substances'] = content_ccpn_spectrum_reference_substances
+    contentFuncs['ccpn_spectrum_reference_substances'] = content_ccpn_spectrum_reference_substances
 
     def content_ccpn_substance_reference_spectra(self, parent: Substance, loop: StarIo.NmrLoop,
                                                  parentFrame: StarIo.NmrSaveFrame, **kwargs):
@@ -811,9 +847,10 @@ class CcpnNefContent:
             spectra.add(row.get('nmr_spectrum_id'))
         return spectra
 
-    contents['ccpn_substance_reference_spectra'] = content_ccpn_substance_reference_spectra
+    contentFuncs['ccpn_substance_reference_spectra'] = content_ccpn_substance_reference_spectra
 
-    def content_nef_restraint(self, restraintTable: RestraintTable, loop: StarIo.NmrLoop, parentFrame: StarIo.NmrSaveFrame,
+    def content_nef_restraint(self, restraintTable: RestraintTable, loop: StarIo.NmrLoop,
+                              parentFrame: StarIo.NmrSaveFrame,
                               itemLength: int = None) -> Optional[OrderedSet]:
         """Get the contents for nef_distance_restraint, nef_dihedral_restraint,
         nef_rdc_restraint and ccpn_restraint loops"""
@@ -849,12 +886,18 @@ class CcpnNefContent:
 
         return result
 
-    contents['nef_distance_restraint'] = partial(content_nef_restraint, itemLength=coreConstants.constraintListType2ItemLength.get('Distance'))
-    contents['nef_dihedral_restraint'] = partial(content_nef_restraint, itemLength=coreConstants.constraintListType2ItemLength.get('Dihedral'))
-    contents['nef_rdc_restraint'] = partial(content_nef_restraint, itemLength=coreConstants.constraintListType2ItemLength.get('Rdc'))
+    contentFuncs['nef_distance_restraint'] = partial(content_nef_restraint,
+                                                     itemLength=coreConstants.constraintListType2ItemLength.get(
+                                                             'Distance'))
+    contentFuncs['nef_dihedral_restraint'] = partial(content_nef_restraint,
+                                                     itemLength=coreConstants.constraintListType2ItemLength.get(
+                                                             'Dihedral'))
+    contentFuncs['nef_rdc_restraint'] = partial(content_nef_restraint,
+                                                itemLength=coreConstants.constraintListType2ItemLength.get('Rdc'))
 
     # NOTE:ED - need to check this one
-    contents['ccpn_restraint'] = partial(content_nef_restraint, itemLength=coreConstants.constraintListType2ItemLength.get('Distance'))
+    contentFuncs['ccpn_restraint'] = partial(content_nef_restraint,
+                                             itemLength=coreConstants.constraintListType2ItemLength.get('Distance'))
 
     def content_nef_restraint_list(self, project: Project, saveFrame: StarIo.NmrSaveFrame):
         """Get the contents of nef_restraint_list saveFrame"""
@@ -882,14 +925,15 @@ class CcpnNefContent:
         self._contentLoops(project, saveFrame)
         self.updateContent(saveFrame, result)
 
-    contents['nef_distance_restraint_list'] = content_nef_restraint_list  # could be _contentLoops
-    contents['nef_dihedral_restraint_list'] = content_nef_restraint_list
-    contents['nef_rdc_restraint_list'] = content_nef_restraint_list
-    contents['ccpn_restraint_list'] = content_nef_restraint_list
+    contentFuncs['nef_distance_restraint_list'] = content_nef_restraint_list  # could be _contentLoops
+    contentFuncs['nef_dihedral_restraint_list'] = content_nef_restraint_list
+    contentFuncs['nef_rdc_restraint_list'] = content_nef_restraint_list
+    contentFuncs['ccpn_restraint_list'] = content_nef_restraint_list
 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-    def content_ccpn_restraint_violation(self, restraintTable: RestraintTable, loop: StarIo.NmrLoop, parentFrame: StarIo.NmrSaveFrame,
+    def content_ccpn_restraint_violation(self, restraintTable: RestraintTable, loop: StarIo.NmrLoop,
+                                         parentFrame: StarIo.NmrSaveFrame,
                                          itemLength: int = None) -> Optional[OrderedSet]:
         """Get the contents for ccpn_restraint_violation loops
         """
@@ -915,12 +959,15 @@ class CcpnNefContent:
 
         return result
 
-    contents['ccpn_distance_restraint_violation'] = partial(content_ccpn_restraint_violation,
-                                                            itemLength=coreConstants.constraintListType2ItemLength.get('Distance'))
-    contents['ccpn_dihedral_restraint_violation'] = partial(content_ccpn_restraint_violation,
-                                                            itemLength=coreConstants.constraintListType2ItemLength.get('Dihedral'))
-    contents['ccpn_rdc_restraint_violation'] = partial(content_ccpn_restraint_violation,
-                                                       itemLength=coreConstants.constraintListType2ItemLength.get('Rdc'))
+    contentFuncs['ccpn_distance_restraint_violation'] = partial(content_ccpn_restraint_violation,
+                                                                itemLength=coreConstants.constraintListType2ItemLength.get(
+                                                                        'Distance'))
+    contentFuncs['ccpn_dihedral_restraint_violation'] = partial(content_ccpn_restraint_violation,
+                                                                itemLength=coreConstants.constraintListType2ItemLength.get(
+                                                                        'Dihedral'))
+    contentFuncs['ccpn_rdc_restraint_violation'] = partial(content_ccpn_restraint_violation,
+                                                           itemLength=coreConstants.constraintListType2ItemLength.get(
+                                                                   'Rdc'))
 
     def content_ccpn_restraint_violation_list(self, project: Project, saveFrame: StarIo.NmrSaveFrame):
         """Get the contents of ccpn_distance_restraint_violation_list saveFrame
@@ -949,15 +996,18 @@ class CcpnNefContent:
         self._contentLoops(project, saveFrame)
         self.updateContent(saveFrame, result)
 
-    contents['ccpn_distance_restraint_violation_list'] = content_ccpn_restraint_violation_list  # could be _contentLoops
-    contents['ccpn_dihedral_restraint_violation_list'] = content_ccpn_restraint_violation_list  # could be _contentLoops
-    contents['ccpn_rdc_restraint_violation_list'] = content_ccpn_restraint_violation_list  # could be _contentLoops
+    contentFuncs[
+        'ccpn_distance_restraint_violation_list'] = content_ccpn_restraint_violation_list  # could be _contentLoops
+    contentFuncs[
+        'ccpn_dihedral_restraint_violation_list'] = content_ccpn_restraint_violation_list  # could be _contentLoops
+    contentFuncs['ccpn_rdc_restraint_violation_list'] = content_ccpn_restraint_violation_list  # could be _contentLoops
 
-    contents['ccpn_restraint_violation_list_metadata'] = _noLoopContent
+    contentFuncs['ccpn_restraint_violation_list_metadata'] = _noLoopContent
 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-    def content_nef_sequence(self, project: Project, loop: StarIo.NmrLoop, parentFrame: StarIo.NmrSaveFrame) -> OrderedSet:
+    def content_nef_sequence(self, project: Project, loop: StarIo.NmrLoop,
+                             parentFrame: StarIo.NmrSaveFrame) -> OrderedSet:
         """get contents of the nef_sequence loop"""
         residues = OrderedSet()
 
@@ -991,7 +1041,8 @@ class CcpnNefContent:
                 if row.get('linking') == 'dummy':
                     row['residue_name'] = 'dummy.' + row['residue_name']
 
-                residues.add((chainCode, row.get('sequence_code'), row.get('residue_name')))  #, row.get('ccpn_compound_name')))
+                residues.add((chainCode, row.get('sequence_code'),
+                              row.get('residue_name')))  #, row.get('ccpn_compound_name')))
 
         # for row in loop.data:
         #     chainCode = row['chain_code']
@@ -1002,7 +1053,7 @@ class CcpnNefContent:
 
         return residues
 
-    contents['nef_sequence'] = content_nef_sequence
+    contentFuncs['nef_sequence'] = content_nef_sequence
 
     def content_nef_peak_restraint_links(self, project: Project, saveFrame: StarIo.NmrSaveFrame):
         category = saveFrame['sf_category']
@@ -1015,13 +1066,12 @@ class CcpnNefContent:
         self._contentLoops(project, saveFrame)
         self.updateContent(saveFrame, result)
 
-    contents['nef_peak_restraint_links'] = content_nef_peak_restraint_links
-    contents['nef_peak_restraint_link'] = _noLoopContent
+    contentFuncs['nef_peak_restraint_links'] = content_nef_peak_restraint_links
+    contentFuncs['nef_peak_restraint_link'] = _noLoopContent
 
     def traverseDataBlock(self, project: Project, dataBlock: StarIo.NmrDataBlock,
-                          projectIsEmpty: bool = True,
-                          selection: typing.Optional[dict] = None,
-                          traverseFunc=None):
+                          traverseFunc: typing.Callable,
+                          *, selection: dict | None = None):
         """Traverse the saveFrames in the correct order
         """
         # MUST BE SUBCLASSED
@@ -1034,10 +1084,7 @@ class CcpnNefContent:
         """
         saveFrameName = saveFrame.name
         sf_category = saveFrame['sf_category']
-        saveFrame._contents = {}
-
-        content = self.contents.get(sf_category)
-        if content is None:
+        if (content := self.contentFuncs.get(sf_category)) is None:
             getLogger().debug("    unknown saveframe category {} {}".format(sf_category, saveFrameName))
         else:
             return content(self, project, saveFrame)
@@ -1055,8 +1102,7 @@ class CcpnNefContent:
 
         self.project = project
         self.defaultChainCode = None
-        dataBlock._contents = {}
-
+        dataBlock._content = AttrDict()
         return self.traverseDataBlock(project, dataBlock, traverseFunc=partial(self._getContents,
                                                                                projectIsEmpty=projectIsEmpty,
                                                                                selection=selection))
@@ -1078,8 +1124,8 @@ class CcpnNefContent:
         self._contentLoops(project, saveFrame)
         self.updateContent(saveFrame, result)
 
-    contents['ccpn_additional_data'] = content_ccpn_additional_data
-    contents['ccpn_internal_data'] = _noLoopContent
+    contentFuncs['ccpn_additional_data'] = content_ccpn_additional_data
+    contentFuncs['ccpn_internal_data'] = _noLoopContent
 
     def content_ccpn_collections(self, project: Project, saveFrame: StarIo.NmrSaveFrame):
         collections = OrderedSet()
@@ -1100,20 +1146,20 @@ class CcpnNefContent:
         self._contentLoops(project, saveFrame)
         self.updateContent(saveFrame, result)
 
-    contents['ccpn_collections'] = content_ccpn_collections
-    contents['ccpn_collection'] = _noLoopContent
+    contentFuncs['ccpn_collections'] = content_ccpn_collections
+    contentFuncs['ccpn_collection'] = _noLoopContent
 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # these are the empty ones that need methods adding as required
 
-    contents['nef_nmr_meta_data'] = _contentLoops
-    contents['nef_related_entries'] = _noLoopContent
-    contents['nef_program_script'] = _noLoopContent
-    contents['nef_run_history'] = _noLoopContent
-    contents['nef_spectrum_dimension_transfer'] = _noLoopContent
-    contents['ccpn_spectrum_dimension'] = _noLoopContent
-    contents['nef_spectrum_dimension'] = _noLoopContent
-    contents['ccpn_substance_synonym'] = _noLoopContent
+    contentFuncs['nef_nmr_meta_data'] = _contentLoops
+    contentFuncs['nef_related_entries'] = _noLoopContent
+    contentFuncs['nef_program_script'] = _noLoopContent
+    contentFuncs['nef_run_history'] = _noLoopContent
+    contentFuncs['nef_spectrum_dimension_transfer'] = _noLoopContent
+    contentFuncs['ccpn_spectrum_dimension'] = _noLoopContent
+    contentFuncs['nef_spectrum_dimension'] = _noLoopContent
+    contentFuncs['ccpn_substance_synonym'] = _noLoopContent
 
-    contents['ccpn_datatable_data'] = _noLoopContent
-    contents['ccpn_datatable_metadata'] = _noLoopContent
+    contentFuncs['ccpn_datatable_data'] = _noLoopContent
+    contentFuncs['ccpn_datatable_metadata'] = _noLoopContent

@@ -4,7 +4,7 @@
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2025"
 __credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
                "Timothy J Ragan, Brian O Smith, Daniel Thompson",
                "Gary S Thompson & Geerten W Vuister")
@@ -16,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-08-23 19:21:22 +0100 (Fri, August 23, 2024) $"
-__version__ = "$Revision: 3.2.5 $"
+__dateModified__ = "$dateModified: 2025-01-06 17:36:50 +0000 (Mon, January 06, 2025) $"
+__version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -85,10 +85,10 @@ class SpectrumGroupToolBar(ToolBar):
                             }
                             """
         self._currentSpectrumNotifier = Notifier(getCurrent(),
-                                  [Notifier.CURRENT],
-                                  targetName=SpectrumGroup._pluralLinkName,
-                                  callback=self._onCurrentNotifier,
-                                  onceOnly=True),
+                                                 [Notifier.CURRENT],
+                                                 targetName=SpectrumGroup._pluralLinkName,
+                                                 callback=self._onCurrentNotifier,
+                                                 onceOnly=True)
 
         # self._spectrumGroups = []
 
@@ -137,7 +137,7 @@ class SpectrumGroupToolBar(ToolBar):
     def _removeAction(self, action, spectrumGroup):
         _spectrumGroups = OrderedSet(self.spectrumDisplay._getSpectrumGroups())
         if spectrumGroup.pid in _spectrumGroups:
-            _spectrumGroups = _spectrumGroups - {spectrumGroup.pid,}
+            _spectrumGroups = _spectrumGroups - {spectrumGroup.pid, }
 
             self.removeAction(action)
             action.setEnabled(False)
@@ -247,8 +247,8 @@ class SpectrumGroupToolBar(ToolBar):
         # check whether the delete request has come from the parent
         if not action:
             if not (action := next((action for action in self.actions()
-                               if getattr(action, '_spectrumGroup', None) == spectrumGroup),
-                              None)):
+                                    if getattr(action, '_spectrumGroup', None) == spectrumGroup),
+                                   None)):
                 # unrecognised spectrumGroup fom the parent
                 return
 
@@ -263,7 +263,9 @@ class SpectrumGroupToolBar(ToolBar):
                     return
 
                 # remove the spectrumGroup
-                _spectra = [sp for group in [strip.project.getByPid(gr) for gr in strip.spectrumDisplay._getSpectrumGroups() if strip.project.getByPid(gr)]
+                _spectra = [sp for group in
+                            [strip.project.getByPid(gr) for gr in strip.spectrumDisplay._getSpectrumGroups() if
+                             strip.project.getByPid(gr)]
                             for sp in group.spectra
                             if not sp.isDeleted]
 
@@ -319,6 +321,17 @@ class SpectrumGroupToolBar(ToolBar):
     def _getPeakListViews(spectrumGroup):
         spectrumGroupPeakLists = [peakList for spectrum in spectrumGroup.spectra for peakList in spectrum.peakLists]
         return [plv for peakList in spectrumGroupPeakLists for plv in peakList.peakListViews]
+
+    def closeEvent(self, event):
+        """Clean-up and close.
+        """
+        from ccpn.ui.gui.lib.WidgetClosingLib import CloseHandler
+
+        if self._currentSpectrumNotifier:
+            self._currentSpectrumNotifier.unRegister()
+            self._currentSpectrumNotifier = None
+        with CloseHandler(self):
+            super().closeEvent(event)
 
 
 def _spectrumGroupViewHasChanged(data):

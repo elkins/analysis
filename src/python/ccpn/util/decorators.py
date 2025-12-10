@@ -15,8 +15,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-11-19 19:37:24 +0000 (Tue, November 19, 2024) $"
+__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
+__dateModified__ = "$dateModified: 2024-11-20 13:19:04 +0000 (Wed, November 20, 2024) $"
 __version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
@@ -28,10 +28,6 @@ __date__ = "$Date: 2017-04-07 10:28:41 +0000 (Fri, April 07, 2017) $"
 #=========================================================================================
 
 
-#===========================================================================================================
-# Decorators
-#===========================================================================================================
-
 import sys
 import os
 import linecache
@@ -40,13 +36,12 @@ import cProfile
 import decorator
 import inspect
 import time
-from functools import partial
+import pandas as pd
+from functools import partial, wraps
 from ccpn.util.SafeFilename import getSafeFilename
 from ccpn.util.Path import aPath, Path
 import ccpn.util.Logging as Logging
-import pandas as pd
-from functools import wraps
-from ccpn.util.Logging import getLogger
+
 
 def trace(f):
     def globaltrace(frame, why, arg):
@@ -271,9 +266,9 @@ def callList(func):
     return inner
 
 
-#----------------------------------------------------------------------------------------------
+#=========================================================================================
 # Adapted from from sandbox.Geerten.Refactored.decorators to fit current setup
-#----------------------------------------------------------------------------------------------
+#=========================================================================================
 
 def _obj2pid(obj):
     """
@@ -449,6 +444,7 @@ def logCommand(prefix='', get=None, isProperty=False):
             if isProperty:
                 from ccpn.core._implementation.AbstractWrapperObject import AbstractWrapperObject
                 from ccpn.core._implementation.V3CoreObjectABC import V3CoreObjectABC
+
                 ##could replace these imports with hasattr(args[1], 'pid')
                 if isinstance(args[1], (AbstractWrapperObject, V3CoreObjectABC)):
                     logS = f"{_pref}{func.__name__} = get({args[1].pid})"
@@ -473,6 +469,7 @@ def logCommand(prefix='', get=None, isProperty=False):
 
     return theDecorator
 
+
 def deprecated(arg):
     """Define a deprecation decorator.
     An optional string should refer to the new API to be used instead.
@@ -481,17 +478,19 @@ def deprecated(arg):
       def old_func(): ...
 
       @deprecated('new_func')
-      def old_func(): ..."""
+      def old_func(): ...
+    """
+    from ccpn.ui.gui.guiSettings import consoleStyle
 
     subst = arg if isinstance(arg, str) else None
 
     def decorator(func):
         def wrapper(*args, **kwargs):
-            msg = "Call to deprecated function \"{}\"."
+            msg = f"{consoleStyle.fg.red}Call to deprecated function {func.__name__!r}."
             if subst:
-                msg += "\n Use \"{}\" instead."
-            getLogger().warn(msg.format(func.__name__, subst),
-                          category=DeprecationWarning, stacklevel=2)
+                msg += f"\n Use \"{subst}\" instead."
+            msg += f"{consoleStyle.reset}"
+            Logging.getLogger().warning(msg, stacklevel=2)
             return func(*args, **kwargs)
 
         return wraps(func)(wrapper)
@@ -500,6 +499,7 @@ def deprecated(arg):
         return decorator(arg)
     else:
         return decorator
+
 
 def timeDecorator(method):
     """calculate execution time of a function/method
@@ -534,8 +534,10 @@ def timeitDecorator(method):
 
     return timed
 
-######### Memory leak inspection ###########
 
+#=========================================================================================
+# Memory leak inspection
+#=========================================================================================
 
 def _startInspectMemory():
     """  Call this before a suspected leaking bit.
@@ -543,14 +545,16 @@ def _startInspectMemory():
     return tracemalloc, snapshot
     """
     import tracemalloc
+
     tracemalloc.start()
     snapshot = tracemalloc.take_snapshot()
     return tracemalloc, snapshot
 
+
 def _closeInspectMemory(tracemalloc, snapshot, savingPath=None, topCount=20):
     """  Call this after  a suspected leaking bit  and pass
     :param tracemalloc, snapshot from the _startInspectMemory func.
-    :param SavingPath: a global path for a csv if you want save the result to file.
+    :param savingPath: a global path for a csv if you want save the result to file.
     :return a dataFrame containing the top results,
       including file name, line number  and memory usage in KiB per call
 
@@ -562,6 +566,7 @@ def _closeInspectMemory(tracemalloc, snapshot, savingPath=None, topCount=20):
       """
 
     import pandas as pd
+
     snapshotCurrent = tracemalloc.take_snapshot()
     stats = snapshotCurrent.compare_to(snapshot, 'lineno')
     df = pd.DataFrame()
@@ -579,11 +584,11 @@ def _closeInspectMemory(tracemalloc, snapshot, savingPath=None, topCount=20):
     tracemalloc.stop()
     return df
 
-def _getObjectCountInMemory(savingPath=None, topCount=100):
 
-    """ Create a DataFrame with a count of the most seen
+def _getObjectCountInMemory(savingPath=None, topCount=100):
+    """Create a DataFrame with a count of the most seen
     Object types held in memory.
-    :param SavingPath: str, a global path for a csv if you want save the result to file.
+    :param savingPath: str, a global path for a csv if you want save the result to file.
     :param  topCount: int. Number of obj to consider in the most common
     :return pd.DataFrame.
     """
@@ -591,6 +596,7 @@ def _getObjectCountInMemory(savingPath=None, topCount=100):
     import pandas as pd
     from collections import Counter
     import gc
+
     df = pd.DataFrame()
     obs = gc.get_objects()
     obs = [type(i) for i in obs]
@@ -605,6 +611,7 @@ def _getObjectCountInMemory(savingPath=None, topCount=100):
             raise UserWarning('FilePath must be a valid *.csv path.')
         df.to_csv(savingPath)
     return df
+
 
 def debugEnter(verbosityLevel=Logging.DEBUG1):
     """A decorator to log the invocation of the call
@@ -707,19 +714,19 @@ def debug3Leave():
     return debugLeave(verbosityLevel=Logging.DEBUG3)
 
 
-#==========================================================================================================================
+#=========================================================================================
 # testing
-#==========================================================================================================================
+#=========================================================================================
 
 
-if __name__ == '__main__':
-
+def main():
     def func(par, *args, flag=False, **kwds):
 
         sig = inspect.signature(func)  # get the signature
         ba = sig.bind(par, *args, flag=flag, **kwds)
         ba.apply_defaults()  # fill in the missing parameters
-        kinds = dict([(pName, p.kind) for pName, p in sig.parameters.items()])  # get the parameters kinds that determine
+        kinds = dict(
+                [(pName, p.kind) for pName, p in sig.parameters.items()])  # get the parameters kinds that determine
         # how to print them
 
         pStrings = []
@@ -740,5 +747,8 @@ if __name__ == '__main__':
 
         print(', '.join(pStrings))
 
-
     func('test', 1, 2, myPar='myValue')
+
+
+if __name__ == '__main__':
+    main()

@@ -15,6 +15,9 @@ def getAutoScalingFactor1D(controlSpectrum, targetSpectrum, controlSpectrumWeigh
     :param targetSpectrum: Spectrum object
     :param controlSpectrumWeight: a weighting factor for the control spectrum intensities. Default 1.1 (arbitrary)
     :return: float. a scaling factor from the intensities std-ratio
+    The scaling factor is defined as the ratio of the standard deviation of intensities in the Target Spectrum to that of the weighted Control Spectrum.
+    Latex:  \text{factor} = \frac{\sigma{I}_{target}}{\sigma{I}_{control} \cdot C_{weight}}
+
     """
     controlSpectrumWeight = controlSpectrumWeight if controlSpectrumWeight !=0 else 1
     factor = np.std(targetSpectrum.intensities) / (np.std(controlSpectrum.intensities) * controlSpectrumWeight)

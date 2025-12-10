@@ -4,7 +4,7 @@ Module Documentation here
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2025"
 __credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
                "Timothy J Ragan, Brian O Smith, Daniel Thompson",
                "Gary S Thompson & Geerten W Vuister")
@@ -16,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-10-22 15:38:13 +0100 (Tue, October 22, 2024) $"
-__version__ = "$Revision: 3.2.7 $"
+__dateModified__ = "$dateModified: 2025-01-09 20:33:19 +0000 (Thu, January 09, 2025) $"
+__version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -31,9 +31,8 @@ import numpy as np
 import pandas as pd
 from pandas.api.types import is_float_dtype
 from PyQt5 import QtCore, QtGui
-from ccpn.util.floatUtils import numZeros
 from ccpn.core.lib.CcpnSorting import universalSortKey
-from ccpn.ui.gui.guiSettings import getColours, GUITABLE_ITEM_FOREGROUND, consoleStyle
+from ccpn.core.lib.WeakRefLib import WeakRefDescriptor
 from ccpn.ui.gui.widgets.Icon import Icon
 from ccpn.ui.gui.widgets.table._TableCommon import (
     EDIT_ROLE, DISPLAY_ROLE, TOOLTIP_ROLE,
@@ -41,6 +40,7 @@ from ccpn.ui.gui.widgets.table._TableCommon import (
     ALIGNMENT_ROLE, FONT_ROLE, CHECKABLE, ENABLED, SELECTABLE, EDITABLE, CHECKED,
     UNCHECKED, VALUE_ROLE, INDEX_ROLE, BORDER_ROLE, ORIENTATIONS
     )
+from ccpn.util.floatUtils import numZeros
 from ccpn.util.Logging import getLogger
 
 
@@ -174,10 +174,11 @@ class _TableModel(QtCore.QAbstractTableModel):
     _enableCheckBoxes = False
 
     _guiState = None
+    _view = WeakRefDescriptor()
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Attribute handling
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     getAttribRole = {DISPLAY_ROLE   : _getDisplayRole,
                      VALUE_ROLE     : _getValueRole,
@@ -193,9 +194,9 @@ class _TableModel(QtCore.QAbstractTableModel):
                      # ALIGNMENT_ROLE : _getAlignmentRole,
                      }
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Class definitions
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     def __init__(self, df, parent=None, view=None):
         """Initialise the pandas model.
@@ -214,9 +215,6 @@ class _TableModel(QtCore.QAbstractTableModel):
             test = 'WMB'  # Selection of wider letters to prevent collapsing column
             self._chrWidth = bbox(test).width() / len(test)
             self._chrHeight = bbox('A').height() + self._chrPixelPadding
-
-        # set default colours
-        # self._defaultForegroundColour = QtGui.QColor(getColours()[GUITABLE_ITEM_FOREGROUND])
 
         # initialise sorting/filtering
         self._sortColumn = None
@@ -248,9 +246,8 @@ class _TableModel(QtCore.QAbstractTableModel):
 
         # create numpy arrays to match the data that will hold fore/background-colour, and other info
         self._guiState = np.full(value.shape, None, dtype=object)
-        self._headerToolTips = {orient: np.empty(value.shape[ii], dtype=object)
+        self._headerToolTips = {orient: np.empty(value.shape[ii], dtype=str)
                                 for ii, orient in enumerate([QtCore.Qt.Vertical, QtCore.Qt.Horizontal])}
-
         # set the dataFrame
         self._df = value
 
@@ -317,11 +314,11 @@ class _TableModel(QtCore.QAbstractTableModel):
             raise ValueError('values must be a list|tuple of str|None')
 
         try:
-            self._headerToolTips[orientation] = values
+            self._headerToolTips[orientation] = np.array(values, dtype=str)  # values
 
         except Exception as es:
-            raise ValueError(
-                    f'{self.__class__.__name__}.setToolTips: Error setting values {orientation} -> {values}\n{es}') from es
+            raise ValueError(f'{self.__class__.__name__}.setToolTips: '
+                             f'Error setting values {orientation} -> {values}\n{es}') from es
 
     def _insertRow(self, row, newRow):
         """Insert a new row into the table.
@@ -391,7 +388,7 @@ class _TableModel(QtCore.QAbstractTableModel):
                 self.layoutChanged.emit()
 
             else:
-                # NOTE:ED - not checked
+                # NOTE:ED - not checked - keep for reference
                 pass
                 # # print(f'>>>   _updateRow    {newRow}')
                 # iLoc = self._df.index.get_loc(row)
@@ -490,102 +487,6 @@ class _TableModel(QtCore.QAbstractTableModel):
                     if self._filterIndex is not None and 0 <= row < len(self._filterIndex) else row)
             return func(self, self._sortIndex[fRow], index.column())
 
-    # def data(self, index, role=DISPLAY_ROLE):
-    #     """Return the data/roles for the model.
-    #     """
-    #     if not index.isValid():
-    #         return
-    #     row = index.row()
-    #     if role == SIZE_ROLE:
-    #         # sorting filter not really important, just need to grab a few rows
-    #         return QtCore.QSizeF(self._cellRightBorder +
-    #                              self._hAdvance(str(self._df.iat[row, index.column()])),
-    #                              self._chrHeight)
-    #
-    #     # try:
-    #     # get the source cell
-    #     fRow = self._filterIndex[row] if self._filterIndex is not None and 0 <= row < len(
-    #             self._filterIndex) else row
-    #     row, col = self._sortIndex[fRow], index.column()
-    #
-    #     if role == DISPLAY_ROLE:
-    #         # need to discard columns that include check-boxes
-    #         val = self._df.iat[row, col]
-    #         try:
-    #             # try and get the function from the column-definitions
-    #             fmt = self._view._columnDefs._columns[col].format
-    #             return fmt % val
-    #         except Exception:
-    #             # fallback - float/np.float - round to 3 decimal places. This should be settable, ideally even by the user,
-    #             if isinstance(val, (float, np.floating)):
-    #                 if abs(val) > 1e6 or numZeros(val) >= 3:
-    #                     # make it scientific annotation if a huge/tiny number
-    #                     #e.g.:  if is 0.0001 will show as 1e-4 instead of 0.000
-    #                     val = f'{val:.3e}'
-    #                 else:
-    #                     # just rounds to the third decimal
-    #                     val = f'{val:.3f}'
-    #             elif isinstance(val, bool) and self._enableCheckBoxes:
-    #                 # an empty cell with a checkbox - allow other text?
-    #                 return None
-    #         return str(val)
-    #
-    #     elif role == VALUE_ROLE:
-    #         val = self._df.iat[row, col]
-    #         try:
-    #             # convert np.types to python types
-    #             return val.item()  # type np.generic
-    #         except Exception:
-    #             return val
-    #
-    #     elif role == BACKGROUND_ROLE:
-    #         if (indexGui := self._guiState[row, col]):
-    #             # get the colour from the dict
-    #             return indexGui.get(role)
-    #
-    #     elif role == FOREGROUND_ROLE:
-    #         if (indexGui := self._guiState[row, col]):
-    #             # get the colour from the dict
-    #             return indexGui.get(role)
-    #
-    #     elif role == BORDER_ROLE:
-    #         if (indexGui := self._guiState[row, col]):
-    #             # get the colour from the dict
-    #             return bool(indexGui.get(role))
-    #
-    #     elif role == TOOLTIP_ROLE:
-    #         if self._view._toolTipsEnabled:
-    #             data = self._df.iat[row, col]
-    #             return str(data)
-    #
-    #     elif role == EDIT_ROLE:
-    #         data = self._df.iat[row, col]
-    #         # float/np.float - return float
-    #         if isinstance(data, (float, np.floating)):
-    #             return float(data)
-    #         elif isinstance(data, bool):
-    #             # need to check before int - int also includes bool :|
-    #             return data
-    #         # int/np.integer - return int
-    #         elif isinstance(data, (int, np.integer)):
-    #             return int(data)
-    #         return data
-    #
-    #     elif role == INDEX_ROLE:
-    #         # return a dict of item-data?
-    #         return (row, col)
-    #
-    #     elif role == FONT_ROLE:
-    #         if (indexGui := self._guiState[row, col]):
-    #             # get the font from the dict
-    #             return indexGui.get(role)
-    #
-    #     elif role == CHECK_ROLE and self._enableCheckBoxes:
-    #         if isinstance((val := self._df.iat[row, col]), bool):
-    #             # bool to checkbox state
-    #             return CHECKED if val else UNCHECKED
-    #         return None
-
     def setData(self, index, value, role=EDIT_ROLE) -> bool:
         """Set data in the DataFrame. Required if table is editable.
         """
@@ -652,41 +553,7 @@ class _TableModel(QtCore.QAbstractTableModel):
         # NOTE:ED - if SIZE_ROLE is defined in both data and headerData, the larger of the two is used for the row/column/cell size
         #           assuming that both always return a QSize, otherwise QT defaults to calculating the bbox for the cell
         # elif role == SIZE_ROLE:
-        #     print('==> HELP')
-        #     # process the heights/widths of the headers
-        #     if orientation == QtCore.Qt.Horizontal:
-        #         try:
-        #             # get the cell height from the number of lines in the header data
-        #             txt = str(self.headerData(col, orientation, role=DISPLAY_ROLE))
-        #             height = len(txt.split('\n')) * int(self._chrHeight)
-        #
-        #             # get the estimated width of the column, also for the last visible column
-        #             if (self._view._columnDefs and self._view._columnDefs._columns):
-        #                 colObj = self._view._columnDefs._columns[col]
-        #                 width = colObj.columnWidth
-        #                 if width is not None:
-        #                     return QtCore.QSize(width, height)
-        #
-        #             width = self._estimateColumnWidth(col) + \
-        #                     (self._editableIcon.width() if (self._isColumnEditable(col) and self.showEditIcon) else 0)
-        #
-        #             # return the size
-        #             return QtCore.QSize(width, height)
-        #
-        #         except Exception:
-        #             # return the default QSize
-        #             return QtCore.QSize(int(self._chrWidth), int(self._chrHeight))
-        #
-        #     # vertical-header
-        #     # get the cell height from the number of lines in the header data
-        #     txts = str(self.headerData(col, orientation, role=DISPLAY_ROLE)).split('\n')
-        #     height = int(len(txts) * self._chrHeight)
-        #
-        #     maxLen = max(len(txt) for txt in txts) + 1
-        #     width = int(min(self._MAXCHARS, maxLen) * self._chrWidth) + 2
-        #
-        #     # return the default QSize for vertical header
-        #     return QtCore.QSize(width, height)
+        #    ...
 
     def _estimateColumnWidth(self, col):
         """Estimate the width for the column from the header and fixed number of rows
@@ -964,55 +831,3 @@ class _TableObjectModel(_TableModel):
                 return True
 
         return False
-
-
-#=========================================================================================
-
-def main():
-    # Create a Pandas DataFrame.
-    import pandas as pd
-
-    technologies = {
-        'Courses': ['a', 'b', 'b', 'c', 'd', 'c', 'a', 'b', 'd', 'd', 'a', 'c', 'e', 'f'],
-        'Fee'    : [1, 8, 3, 6, 12, 89, 12, 5, 9, 34, 15, 65, 60, 20],
-        }
-    df = pd.DataFrame(technologies)
-    print(df)
-
-    # print('Group by: Courses, Fee')
-    # df2=df.sort_values(['Courses','Fee'], ascending=False).groupby('Courses').head()
-    # print(df2)
-
-    print('Group by: Courses, Fee  -  max->min by max of each group')
-    # max->min by max of each group
-    df2 = df.copy()
-    df2['max'] = df2.groupby('Courses')['Fee'].transform('max')
-    df2 = df2.sort_values(['max', 'Fee'], ascending=False).drop('max', axis=1)
-    print(df2)
-
-    print('Group by: Courses, Fee  -  min->max by min of each group')
-    # min->max by min of each group
-    df2 = df.copy()
-    df2['min'] = df2.groupby('Courses')['Fee'].transform('min')
-    df2 = df2.sort_values(['min', 'Fee'], ascending=True).drop('min', axis=1)
-    print(df2)
-
-    print('Group by: Courses, Fee  -  min->max of each group / max->min within group')
-    # min->max of each group / max->min within group
-    df2 = df.copy()
-    df2['max'] = df2.groupby('Courses')['Fee'].transform('max')
-    df2['diff'] = df2['max'] - df2['Fee']
-    df2 = df2.sort_values(['max', 'diff'], ascending=True)  # .drop(['max', 'diff'], axis=1)
-    print(df2)
-
-    print('Group by: Courses, Fee  -  max->min of each group / min->max within group')
-    # max->min of each group / min->max within group
-    df2 = df.copy()
-    df2['min'] = df2.groupby('Courses')['Fee'].transform('min')
-    df2['diff'] = df2['min'] - df2['Fee']
-    df2 = df2.sort_values(['min', 'diff'], ascending=False).drop(['min', 'diff'], axis=1)
-    print(df2)
-
-
-if __name__ == '__main__':
-    main()

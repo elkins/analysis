@@ -5,8 +5,9 @@
 # Licence, Reference and Credits
 #=========================================================================================
 __copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
-__credits__ = ("Ed Brooksbank, Joanna Fox, Morgan Hayward, Victoria A Higman, Luca Mureddu",
-               "Eliza Płoskoń, Timothy J Ragan, Brian O Smith, Gary S Thompson & Geerten W Vuister")
+__credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
+               "Timothy J Ragan, Brian O Smith, Daniel Thompson",
+               "Gary S Thompson & Geerten W Vuister")
 __licence__ = ("CCPN licence. See https://ccpn.ac.uk/software/licensing/")
 __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, L.G., & Vuister, G.W.",
                  "CcpNmr AnalysisAssign: a flexible platform for integrated NMR analysis",
@@ -15,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2024-03-04 14:52:52 +0000 (Mon, March 04, 2024) $"
-__version__ = "$Revision: 3.2.2 $"
+__dateModified__ = "$dateModified: 2024-12-18 12:35:43 +0000 (Wed, December 18, 2024) $"
+__version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -116,6 +117,38 @@ class Pipeline(object):
     def _updateRunArgs(self, arg, value):
         self._kwargs[arg] = value
 
+    @staticmethod
+    def _convertKwargsToHumanReadable(inputDict):
+        """
+        Converts only the keys of a dictionary to human-readable format.
+        Removes keys that end with 'label' (case-insensitive).
+        Example: 'DataTable_Type' -> 'Data Table Type'
+        """
+
+        def humanise(key):
+            """Converts a single key to human-readable format while maintaining original case."""
+            words = key.split('_')
+            return " ".join(words[:1] + [word for word in words[1:]])
+
+        def processDict(d):
+            """Processes the dictionary, converting keys and filtering out unwanted keys."""
+            if not isinstance(d, dict):
+                return d
+            return {
+                humanise(key): processDict(value) if isinstance(value, dict) else value
+                for key, value in d.items()
+                if not key.lower().endswith('label')
+                }
+
+        return processDict(inputDict)
+
+    def _getRunPipesSettings(self):
+        """ Get the run pipes as a dictionary, key: the pipe name, value: the user's settings."""
+        dd = {}
+        for pipe in self.queue:
+            dd.update({pipe.pipeName: self._convertKwargsToHumanReadable(pipe._kwargs)})
+        return {self.pipelineName: dd}
+
     def _set1DRawDataDict(self, force=True):
         from ccpn.core.lib.SpectrumLib import _1DRawDataDict
         if force or self._rawDataDict is None:
@@ -124,7 +157,7 @@ class Pipeline(object):
 
     def runPipeline(self):
         '''Run all pipes in the specified order '''
-        from ccpn.core.lib.ContextManagers import undoBlock, notificationEchoBlocking, undoBlockWithoutSideBar
+        from ccpn.core.lib.ContextManagers import notificationEchoBlocking, undoBlockWithoutSideBar
 
         with undoBlockWithoutSideBar():
             with notificationEchoBlocking():

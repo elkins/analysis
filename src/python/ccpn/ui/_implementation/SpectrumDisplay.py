@@ -4,7 +4,7 @@
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2025"
 __credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
                "Timothy J Ragan, Brian O Smith, Daniel Thompson",
                "Gary S Thompson & Geerten W Vuister")
@@ -16,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-09-25 18:53:58 +0100 (Wed, September 25, 2024) $"
-__version__ = "$Revision: 3.2.5 $"
+__dateModified__ = "$dateModified: 2025-05-02 11:23:05 +0100 (Fri, May 02, 2025) $"
+__version__ = "$Revision: 3.3.2 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -75,6 +75,7 @@ class SpectrumDisplay(AbstractWrapperObject):
 
     # Qualified name of matching API class
     _apiClassQualifiedName = ApiBoundDisplay._metaclass.qualifiedName()
+    _wrappedData: ApiBoundDisplay
 
     # Internal namespace
     _ISOTOPECODES_KEY = '_isotopeCodes'
@@ -269,9 +270,6 @@ class SpectrumDisplay(AbstractWrapperObject):
         # update the plane axes settings
         for strip in _strips:
             strip._updatePlaneAxes()
-
-        if not self.is1D:
-            self.setVisibleAxes()
 
         # check that the spectrumView indexing has been set, or is populated correctly
         if len(_strips) > 0 and \
@@ -527,13 +525,13 @@ class SpectrumDisplay(AbstractWrapperObject):
 
         try:
             self._validateStringValue('name', name)
-            del self.project._pid2Obj[self.shortClassName][self._id]
             apiDisplay = self._wrappedData
             apiTask = apiDisplay.parent
             apiModules = apiTask.__dict__.get('modules')
             apiModules[name] = apiModules.pop(self._id)
             apiDisplay.__dict__['name'] = name
-            self._id = name
+            # del self.project._pid2Obj[self.shortClassName][self._id]
+            # self._id = name
             return (oldName,)
 
         except Exception as err:

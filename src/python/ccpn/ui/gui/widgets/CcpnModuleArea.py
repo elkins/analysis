@@ -1,7 +1,7 @@
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2025"
 __credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
                "Timothy J Ragan, Brian O Smith, Daniel Thompson",
                "Gary S Thompson & Geerten W Vuister")
@@ -13,8 +13,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-06-26 11:56:03 +0100 (Wed, June 26, 2024) $"
-__version__ = "$Revision: 3.2.4 $"
+__dateModified__ = "$dateModified: 2025-05-02 17:07:59 +0100 (Fri, May 02, 2025) $"
+__version__ = "$Revision: 3.3.2 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -102,7 +102,8 @@ class TempAreaWindow(Shortcuts, MainWindow):
             setCurrentMouseMode(mode)
             for sd in self.project.spectrumDisplays:
                 for strp in sd.strips:
-                    strp.mouseModeAction.setChecked(mode == PICK)
+                    strp.updateMouseMode(mode == PICK)
+                QtCore.QTimer().singleShot(0, sd.update)
             mouseModeText = ' Mouse Mode: '
             self.mainWindow.statusBar().showMessage(mouseModeText + mode)
 
@@ -118,16 +119,16 @@ class TempAreaWindow(Shortcuts, MainWindow):
         for spectrumDisplay in project.spectrumDisplays:
             if spectrumDisplay.isDeleted:
                 continue
-
             for strip in spectrumDisplay.strips:
                 if not strip.isDeleted:
                     strip.refreshDevicePixelRatio()
-
             # NOTE:ED - set pixel-ratio for extra axes
             if hasattr(spectrumDisplay, '_rightGLAxis'):
                 spectrumDisplay._rightGLAxis.refreshDevicePixelRatio()
             if hasattr(spectrumDisplay, '_bottomGLAxis'):
                 spectrumDisplay._bottomGLAxis.refreshDevicePixelRatio()
+            # force the spectrumDisplay to repaint
+            QtCore.QTimer().singleShot(0, spectrumDisplay.update)
 
     def closeEvent(self, *args, **kwargs):
         from ccpn.ui.gui.modules.PythonConsoleModule import PythonConsoleModule
@@ -169,9 +170,7 @@ class CcpnModuleArea(ModuleArea, DropBase):
         self.setContentsMargins(0, 0, 0, 0)
         self.currentModuleNames = []
         self._modulesNames = {}
-        self._ccpnModules = []
         self._modules = {}  # don't use self.docks, is not updated when removing docks
-        self._openedSpectrumDisplays = []  # keep track of the order of opened spectrumDisplays
         self._seenModuleStates = {}  # {className: {moduleName:'', state:widgetsState}}
         # self.setAcceptDrops(True) GWV not needed; handled by DropBase init
 
@@ -339,7 +338,7 @@ class CcpnModuleArea(ModuleArea, DropBase):
     @property
     def ccpnModules(self) -> list:
         """return all current modules in area"""
-        return self._ccpnModules
+        ...
 
     @ccpnModules.getter
     def ccpnModules(self):
@@ -350,7 +349,7 @@ class CcpnModuleArea(ModuleArea, DropBase):
     @property
     def modules(self) -> dict:
         """return all current modules in area as a dictionary. Don't use self.docks"""
-        return self._modules
+        return ...
 
     @ccpnModules.getter
     def modules(self):
@@ -365,7 +364,8 @@ class CcpnModuleArea(ModuleArea, DropBase):
         Return the list of opened spectrumDisplays in the order of their opening.
         Contrary to mainWindow.spectrumDisplays that return in alphabetical order.
         """
-        return [x for x in self._openedSpectrumDisplays if not x.isDeleted]
+        return sorted((x for x in self.mainWindow.spectrumDisplays if not x.isDeleted),
+                      key=lambda sp: sp._uniqueId)
 
     def repopulateModules(self):
         """
@@ -406,10 +406,6 @@ class CcpnModuleArea(ModuleArea, DropBase):
                     module.renameModule(nextAvailableName)
                     ## reset  widgets  as last time the module was opened
                     self._restoreAsTheLastSeenModule(module)
-
-
-            else:
-                self._openedSpectrumDisplays.append(module)
 
         # test that only one instance of the module is opened
         if hasattr(type(module), '_alreadyOpened'):
@@ -528,10 +524,6 @@ class CcpnModuleArea(ModuleArea, DropBase):
                 if module.label.nameEditor.isVisible():
                     modules.append(module)
         return modules
-
-    def _updateSpectrumDisplays(self):
-        self._openedSpectrumDisplays = [x for x in self._openedSpectrumDisplays if
-                                        x in self.mainWindow.spectrumDisplays]
 
     def _isNameEditing(self):
         """

@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>AnalysisScreen Demo</title>
+    <link rel="stylesheet" href="CcpnVideoTutorials.css">
+</head>
+<body>
+<div class="header"><a href="https://www.ccpn.ac.uk/"><img src="CCPN.png" alt="CCPN Logo" height="50"></a><a
+        href="index.html" class="button">Video<br> Tutorials<br> & Manual</a><a href="https://forums.ccpn.ac.uk"><img
+        src="CCPNForumLogo.png" alt="CCPN Logo" height="50" style="padding-left: 15px"></a></div>
+<br>
+<div class="headerBar">AnalysisScreen Demo</div>
+<div class="tutorial">
+
+    <div class="videoContainer">
+        <div class="videoWrapper">
+            <iframe src="https://www.youtube.com/embed/qNsWtYHK2I4" frameborder="0"
+                    allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture"
+                    allowfullscreen></iframe>
+        </div>
+    </div>
+
+    <h2>AnalysisScreen Demo</h2>
+    <p>This demo video essentially takes you through all the steps in our <a href="https://ccpn.ac.uk/support/tutorials/#screening">AnalysisScreen Introductory Tutorial</a>. It uses a simulated <sup>19</sup>F dataset, but similar steps and tools in AnalysisScreen can also be applied to other experiment type analyses, such as <sup>1</sup>H relaxation-edited, WaterLOGSY and STD experiments.</p>
+
+    <p>We start with a set of individual spectra for each Substance (or compound) in the library. We refer to these as <span class="action">Reference Singleton Spectra</span>. There is then a set of <span class="action">Control Mixture Spectra</span>, which are control spectra of only the <span class="action">Substance Mixtures</span>. The <span class="action">Target Mixture Spectra</span> then additionally contain the (protein) target of interest and the <span class="action">Displacer Mixture Spectra</span> also contain a small displacer/competitor compound (used to try and displace any fragments identified as hits, and thus indentify whether they bind at the desired site or not). The displacer spectra are optional, but are included here for completeness.</p>
+
+    <p>The main steps involved and described are as follows:
+        <ol style="list-style-position: outside;">
+            <li>Importing the data</li>
+            <li>Peak Picking the Reference Spectra using a pipeline</li>
+            <li>Copying the peaks to the Control, Target and Displacer Mixture Spectra and creating a new screening dataset using a pipeline
+                <br>As part of this process, equivalent peaks arising from the same moiety are matched and grouped together across the different spectrum groups.</li>
+            <li>Inspection of the data via tables, filters and graph plotting tools in the Hit Analysis Module</li>
+            <li>Exporting the data and creating reports</li>
+        </ol>
+        </p>
+</div>
+</body>
+</html>

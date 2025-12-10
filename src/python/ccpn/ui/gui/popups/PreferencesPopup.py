@@ -4,7 +4,7 @@ Module Documentation here
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2025"
 __credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
                "Timothy J Ragan, Brian O Smith, Daniel Thompson",
                "Gary S Thompson & Geerten W Vuister")
@@ -16,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-10-09 19:49:20 +0100 (Wed, October 09, 2024) $"
-__version__ = "$Revision: 3.2.7 $"
+__dateModified__ = "$dateModified: 2025-05-02 11:23:08 +0100 (Fri, May 02, 2025) $"
+__version__ = "$Revision: 3.3.2 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -369,9 +369,9 @@ class PreferencesPopup(CcpnDialogMainWidget):
             prefs = self.application.preferences
             # change the colour theme
             if pal := setColourScheme(Theme.getByDataValue(prefs.appearance.themeStyle),
-                            prefs.appearance.themeColour,
-                            Theme.getByDataValue(prefs.general.colourScheme),
-                            force=True):
+                                      prefs.appearance.themeColour,
+                                      Theme.getByDataValue(prefs.general.colourScheme),
+                                      force=True):
                 self.application.ui.qtApp.setPalette(pal)
                 QtCore.QTimer.singleShot(0, partial(self.application.ui.qtApp.sigPaletteChanged.emit, pal,
                                                     prefs.appearance.themeStyle,
@@ -465,11 +465,6 @@ class PreferencesPopup(CcpnDialogMainWidget):
         self._revertButton.setEnabled(True)
         return True
 
-    def _cleanupDialog(self):
-        super()._cleanupDialog()
-        if self._availableFontTable:
-            self._availableFontTable.close()
-
     def reject(self) -> None:
         # revert the dialog paths
         self._tempDialog._restorePaths()
@@ -495,8 +490,10 @@ class PreferencesPopup(CcpnDialogMainWidget):
                     specDisplay.zPlaneNavigationMode = ZPlaneNavigationModes(
                             self.application.preferences.general.zPlaneNavigationMode).dataValue
                     specDisplay.attachZPlaneWidgets()
-                specDisplay._stripDirectionChangedInSettings(self.application.preferences.general.stripArrangement)
-                # specDisplay.setVisibleAxes()
+                    # don't want to change unless updated :|
+                # specDisplay._stripDirectionChangedInSettings(self.application.preferences.general.stripArrangement)
+                # should on call if the font-size has changed?
+                specDisplay.setVisibleAxes()
 
                 # update the ratios from preferences
                 specDisplay.strips[0].updateAxisRatios()
@@ -2062,7 +2059,7 @@ class PreferencesPopup(CcpnDialogMainWidget):
 
         self.userWorkingPathData.set(self.workingPathDataStore.path.asString())
 
-    def _setWorkingPathDataStore(self, option: str = None, path: str|Path = None):
+    def _setWorkingPathDataStore(self, option: str = None, path: str | Path = None):
         """Set the dataStore to path based on option
 
         If option is user-defined and path is provided workingPathDataStore
@@ -3001,4 +2998,3 @@ class PreferencesPopup(CcpnDialogMainWidget):
 
     def _changeThemeColour(self, value):
         self.preferences.appearance.themeColour = value
-

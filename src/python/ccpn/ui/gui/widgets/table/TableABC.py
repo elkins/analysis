@@ -4,7 +4,7 @@ Module Documentation here
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2025"
 __credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
                "Timothy J Ragan, Brian O Smith, Daniel Thompson",
                "Gary S Thompson & Geerten W Vuister")
@@ -16,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-11-01 19:40:51 +0000 (Fri, November 01, 2024) $"
-__version__ = "$Revision: 3.2.9 $"
+__dateModified__ = "$dateModified: 2025-04-16 12:49:01 +0100 (Wed, April 16, 2025) $"
+__version__ = "$Revision: 3.3.1 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -29,18 +29,20 @@ __date__ = "$Date: 2022-09-08 17:12:49 +0100 (Thu, September 08, 2022) $"
 
 import pandas as pd
 from PyQt5 import QtWidgets, QtCore, QtGui
+from PyQt5.QtCore import pyqtSlot as Slot
 from dataclasses import dataclass
 from contextlib import contextmanager, suppress
 import typing
-from functools import partial
+from functools import partial, singledispatchmethod
 
 from ccpn.ui.gui.widgets.Font import setWidgetFont, TABLEFONT, getFontHeight
 from ccpn.ui.gui.widgets.Frame import ScrollableFrame
 from ccpn.ui.gui.widgets.Menu import Menu
 from ccpn.ui.gui.widgets.table._TableModel import _TableModel
 from ccpn.ui.gui.widgets.table._TableCommon import INDEX_ROLE
-from ccpn.ui.gui.widgets.table._TableAdditions import TableHeaderColumns, \
-    TableCopyCell, TableExport, TableSearchMenu, TableDelete, TableMenuABC, TableHeaderABC
+from ccpn.ui.gui.widgets.table._TableAdditions import (TableHeaderMenuColumns, TableMenuCopyCell, TableMenuExport,
+                                                       TableMenuSearch, TableMenuDelete, TableMenuABC,
+                                                       TableHeaderMenuABC)
 from ccpn.ui.gui.widgets.table._TableDelegates import _TableDelegateABC
 from ccpn.util.OrderedSet import OrderedSet
 from ccpn.util.Logging import getLogger
@@ -54,11 +56,65 @@ class _BlockingContent:
     rootBlocker = None
 
 
+_DEBUG = False
+_POSTINIT = '_postInit'
+
+
 #=========================================================================================
 # TableABC
 #=========================================================================================
 
-class TableABC(QtWidgets.QTableView):
+class _TableABCMeta(type(QtWidgets.QTableView)):
+    """
+    Metaclass for enforcing attribute validation and implementing a post-initialisation hook.
+
+    This metaclass ensures that subclasses of `_TableABC` define the required attributes
+    and calls a `_postInit` method, if it is defined, on the instance immediately after it is created.
+
+    **Required Class Attributes**:
+        - ``TableModelClass``: The class used for the table's data model.
+        - ``TableDelegateClass``: The default delegate used for the table's display customization.
+
+    **Post-Initialisation**:
+        The `_postInit` method of the instance is invoked after its creation, if it is defined and callable.
+        Subclasses should implement this method to define post-construction logic.
+
+    :ivar _DEBUG: Optional debug flag to enable verbose logging during instance creation.
+    :ivar _POSTINIT: Constant (or attribute) expected to define the name of the post-initialisation hook method.
+    """
+
+    def __call__(cls, *args, **kwargs):
+        """
+        Overrides the default behavior for instance creation.
+
+        This method performs validation to ensure that all required class attributes
+        are defined, and calls the `_postInit` method, if it is defined, on the instance after creation.
+
+        :param args: Positional arguments for the class constructor.
+        :param kwargs: Keyword arguments for the class constructor.
+        :raises AttributeError: If any required class attribute is not defined or is `None`.
+        :return: The newly created and fully initialised instance.
+        """
+        # Log pre-creation debug information, if enabled
+        if _DEBUG: getLogger().debug2(f'--> pre-create table-widget {cls}')
+        # Validate that required attributes are defined
+        required_attrs = ['TableModelClass', 'TableDelegateClass']
+        for attr in required_attrs:
+            if not hasattr(cls, attr) or getattr(cls, attr) is None:
+                raise AttributeError(f"{cls.__name__} must define {attr} in its class body.")
+        # Create the class instance
+        instance = super().__call__(*args, **kwargs)
+        if (_postInit := getattr(instance, _POSTINIT, None)) and callable(_postInit):
+            # call the post-initialisation hook
+            if _DEBUG: getLogger().debug2(f'--> _postInit {instance}')
+            _postInit()
+        # Log post-creation debug information, if enabled
+        if _DEBUG: getLogger().debug2(f'--> post-create table-widget {instance}')
+        # Return the newly created instance
+        return instance
+
+
+class TableABC(QtWidgets.QTableView, metaclass=_TableABCMeta):
     """A model/view to show pandas DataFrames as a table.
 
     The view defines the communication between the display and the model.
@@ -92,10 +148,12 @@ class TableABC(QtWidgets.QTableView):
                     }
                     """
 
-    # NOTE:ED overrides QtCore.Qt.ForegroundRole - keep
+    # this overrides QtCore.Qt.ForegroundRole - keep for the minute
     # QTableView::item - color: %(GUITABLE_ITEM_FOREGROUND)s;
     # QTableView::item:selected - color: %(GUITABLE_SELECTED_FOREGROUND)s;
     # cell uses alternate-background-role for unselected-focused cell
+
+    # set up the pointers to the standard table-/table-header menus
     _tableMenuOptions = None
     searchMenu = None
     copyCellMenu = None
@@ -109,6 +167,11 @@ class TableABC(QtWidgets.QTableView):
     _enableExport = False
     _enableCopyCell = False
 
+    # hidden-column defaults
+    defaultHidden = None
+    _internalColumns = None  # internal columns are always hidden
+
+    # handle single/double-click events
     _columnDefs = None
     _enableSelectionCallback = False
     _enableActionCallback = False
@@ -120,11 +183,10 @@ class TableABC(QtWidgets.QTableView):
     _toolTipsEnabled = True
     _enableCheckBoxes = False
 
-    # define the default TableModel class
-    tableModelClass = _TableModel
-    defaultTableDelegate = _TableDelegateABC
-
-    _droppedNotifier = None
+    # define the default TableModel/Header classes
+    TableHeaderMenuClass = TableHeaderMenuColumns
+    TableModelClass = _TableModel
+    TableDelegateClass = _TableDelegateABC
 
     defaultSortColumn = 0  # allow the use of integer or string/tuple values here
     defaultSortOrder = QtCore.Qt.AscendingOrder
@@ -178,7 +240,6 @@ class TableABC(QtWidgets.QTableView):
         if self.className is None:
             self.className = self.__class__.__name__
         super().__init__(parent)
-        self._parent = parent
         if df is None:
             # make sure it's not empty
             df = pd.DataFrame({})
@@ -203,14 +264,16 @@ class TableABC(QtWidgets.QTableView):
         # set up the menus
         self.setTableMenu(tableMenuEnabled)
         self.setHeaderMenu()
-
         self.setToolTipsEnabled(toolTipsEnabled)
-
-        self.setItemDelegate(self.defaultTableDelegate(parent=self, focusBorderWidth=focusBorderWidth))
+        self.setItemDelegate(self.TableDelegateClass(parent=self, focusBorderWidth=focusBorderWidth))
 
         # initialise the table
         self.updateDf(df, _resize, setHeightToRows, setWidthToColumns, setOnHeaderOnly=setOnHeaderOnly)
         self._setStyle()
+
+    @property
+    def _parent(self):
+        return self.parent()
 
     # pyqt5.15 does not allow setting by float
     def setFixedHeight(self, p_int):
@@ -279,14 +342,15 @@ class TableABC(QtWidgets.QTableView):
         self.setStyleSheet(self.styleSheet % self._colours)
 
     def _setMenuProperties(self, enableCopyCell, enableDelete, enableExport, enableSearch):
-        """Add the required menus to the table
+        """Add the required menus to the table.
         """
         # create the individual table-menu and table-header-menu options
-        self.searchMenu = TableSearchMenu(self, enableSearch if enableSearch != NOTHING else self._enableSearch)
-        self.copyCellMenu = TableCopyCell(self, enableCopyCell if enableCopyCell != NOTHING else self._enableCopyCell)
-        self.deleteMenu = TableDelete(self, enableDelete if enableDelete != NOTHING else self._enableDelete)
-        self.exportMenu = TableExport(self, enableExport if enableExport != NOTHING else self._enableExport)
-        self.headerColumnMenu = TableHeaderColumns(self, True)
+        self.searchMenu = TableMenuSearch(self, enableSearch if enableSearch is not NOTHING else self._enableSearch)
+        self.copyCellMenu = TableMenuCopyCell(self,
+                                              enableCopyCell if enableCopyCell is not NOTHING else self._enableCopyCell)
+        self.deleteMenu = TableMenuDelete(self, enableDelete if enableDelete is not NOTHING else self._enableDelete)
+        self.exportMenu = TableMenuExport(self, enableExport if enableExport is not NOTHING else self._enableExport)
+        self.headerColumnMenu = self.TableHeaderMenuClass(self, True)
 
         # add options to the table-menu and table-header-menu
         self.tableMenuOptions = [self.searchMenu,
@@ -297,7 +361,7 @@ class TableABC(QtWidgets.QTableView):
 
     def updateDf(self, df, resize=True, setHeightToRows=False, setWidthToColumns=False, setOnHeaderOnly=False,
                  newModel=False):
-        """Initialise the dataFrame
+        """Initialise the dataFrame.
         """
         if not isinstance(df, (type(None), pd.DataFrame)):
             raise ValueError(f'data is not of type pd.DataFrame - {type(df)}')
@@ -306,7 +370,7 @@ class TableABC(QtWidgets.QTableView):
             # set the model
             if newModel or not (model := self.model()):
                 # create a new model if required
-                model = self.tableModelClass(df, view=self)
+                model = self.TableModelClass(df, view=self)
                 self.setModel(model)
             else:
                 model.df = df
@@ -330,7 +394,7 @@ class TableABC(QtWidgets.QTableView):
             df = pd.DataFrame({})
             if newModel or not (model := self.model()):
                 # create a new model if required
-                model = self.tableModelClass(df, view=self)
+                model = self.TableModelClass(df, view=self)
                 self.setModel(model)
             else:
                 model.df = df
@@ -340,14 +404,28 @@ class TableABC(QtWidgets.QTableView):
     def postUpdateDf(self):
         """Actions to be performed after the dataFrame has been updated for the table
         """
-        # update the visible columns
-        self.headerColumnMenu.restoreColumns()
+        # update the search filter
+        self.searchMenu.refreshFilter()
+        self.resetHiddenColumns()
 
-    def setModel(self, model: QtCore.QAbstractItemModel) -> None:
+    def model(self) -> _TableModel:
+        """
+        Retrieve the model for the table.
+
+        This method overrides the base class method to return the model
+        cast to the specific type `_TableModel`.
+
+        :return: The table model cast to `_TableModel`.
+        :rtype: _TableModel
+        """
+        # Cast the model returned by the superclass to _TableModel
+        return typing.cast(_TableModel, super().model())
+
+    def setModel(self, model: TableModelClass) -> None:
         """Set the model for the view
         """
         super().setModel(model)
-        getLogger().debug(f'==> set model {model.__class__.__name__}')
+        getLogger().debug2(f'==> set model {model.__class__.__name__}')
 
         # attach a handler for updating the selection on sorting
         model.layoutAboutToBeChanged.connect(self._preChangeSelectionOrderCallback)
@@ -370,23 +448,11 @@ class TableABC(QtWidgets.QTableView):
                     margin-left : 2px;
                     margin-right : 2px;''')
 
-    def _postInitTableCommonWidgets(self):
-        from ccpn.ui.gui.widgets.DropBase import DropBase
-        from ccpn.ui.gui.lib.GuiNotifier import GuiNotifier
+    def _postInit(self):
         from ccpn.ui.gui.widgets.ScrollBarVisibilityWatcher import ScrollBarVisibilityWatcher
-
-        # add a dropped notifier to all tables
-        if self.moduleParent is not None:
-            # set the dropEvent to the mainWidget of the module, otherwise the event gets stolen by Frames
-            self.moduleParent.mainWidget._dropEventCallback = self._processDroppedItems
-
-        self._droppedNotifier = GuiNotifier(self,
-                                            [GuiNotifier.DROPEVENT], [DropBase.PIDS],
-                                            self._processDroppedItems)
 
         # add a widget handler to give a clean corner widget for the scroll area
         self._cornerDisplay = ScrollBarVisibilityWatcher(self)
-
         try:
             # may refactor the remaining modules so this isn't needed
             self._widgetScrollArea.setFixedHeight(self._widgetScrollArea.sizeHint().height())
@@ -432,6 +498,20 @@ class TableABC(QtWidgets.QTableView):
 
         _header.setDefaultSectionSize(int(_height))
         _header.setMinimumSectionSize(int(_height))
+        # allow double-clicking on the vertical-header to resize-to-contents
+        _header.sectionDoubleClicked.connect(self._resizeHeaderRowToContents)
+
+    @Slot(int)
+    def _resizeHeaderRowToContents(self, rowIndex: int):
+        if rowIndex < 0:
+            # -1 for illegal index
+            return
+        header = self.verticalHeader()
+        mode = header.sectionResizeMode(rowIndex)
+        header.setSectionResizeMode(rowIndex, QtWidgets.QHeaderView.ResizeToContents)
+        self.resizeRowToContents(rowIndex)
+        # restore mode
+        header.setSectionResizeMode(rowIndex, mode)
 
     def _preChangeSelectionOrderCallback(self, *args):
         """Handle updating the selection when the table is about to change, i.e., before sorting
@@ -441,7 +521,7 @@ class TableABC(QtWidgets.QTableView):
     def _postChangeSelectionOrderCallback(self, *args):
         """Handle updating the selection when the table has been sorted
         """
-        model = self.model()
+        model: _TableModel = self.model()
         selModel = self.selectionModel()
         selection = self.selectionModel().selectedIndexes()
 
@@ -472,7 +552,8 @@ class TableABC(QtWidgets.QTableView):
 
             sortColumnName = None
             if model._sortColumn is not None:
-                sortColumnName = self.headerColumnMenu.columnTexts[model._sortColumn]
+                # sortColumnName = self.headerColumnMenu.columnTexts[model._sortColumn]
+                sortColumnName = self.columns[model._sortColumn]
             self.sortingChanged.emit({
                 'sortColumnName' : sortColumnName,
                 'sortColumnIndex': model._sortColumn,
@@ -481,15 +562,11 @@ class TableABC(QtWidgets.QTableView):
                 'order'          : model._sortOrder,
                 })
 
-    def _close(self):
-        self.close()
+    def _preClose(self):
+        from ccpn.ui.gui.lib.WidgetClosingLib import _debugAttrib, _PRECLOSE as MSG
 
-    def close(self):
-        """Clean up the notifiers
-        """
-        if self._droppedNotifier:
-            self._droppedNotifier.unRegister()
-            self._droppedNotifier = None
+        _debugAttrib(self, MSG)
+
         # remove signals from header/table
         if header := self.horizontalHeader():
             with suppress(Exception):
@@ -498,11 +575,18 @@ class TableABC(QtWidgets.QTableView):
             self.customContextMenuRequested.disconnect(self._raiseTableContextMenu)
         with suppress(Exception):
             QtWidgets.QApplication.instance().sigPaletteChanged.disconnect(self._signalTarget)
-        super().close()
 
-    #=========================================================================================
+    def closeEvent(self, event):
+        """Clean-up and close.
+        """
+        from ccpn.ui.gui.lib.WidgetClosingLib import CloseHandler
+
+        with CloseHandler(self):
+            super().closeEvent(event)
+
+    #-----------------------------------------------------------------------------------------
     # Properties
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     @property
     def _df(self):
@@ -536,9 +620,9 @@ class TableABC(QtWidgets.QTableView):
             # keep the model in-sync with the view
             self.model()._defaultEditable = value
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Selection callbacks
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     def setSelectionCallback(self, selectionCallback):
         """Set the selection-callback for the table.
@@ -601,9 +685,9 @@ class TableABC(QtWidgets.QTableView):
                 else:
                     self._selectionCallback(new, old, sel, last)
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Action callbacks
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     def setActionCallback(self, actionCallback):
         """Set the action-callback for the table.
@@ -663,9 +747,15 @@ class TableABC(QtWidgets.QTableView):
                 else:
                     self._actionCallback(sel, last)
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Selection/Action methods
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
+
+    def deleteSelectionFromTable(self):
+        """Delete selection from table.
+        """
+        # MUST BE SUBCLASSED
+        raise NotImplementedError(f'Code error: {self.__class__.__name__}.deleteSelectionFromTable not implemented')
 
     def selectionCallback(self, selected, deselected, selection, lastItem):
         """Handle item selection has changed in table - call user callback
@@ -721,7 +811,7 @@ class TableABC(QtWidgets.QTableView):
             selectionModel = self.selectionModel()
             model = self.model()
             selectionModel.clearSelection()
-            columnTextIx = self.headerColumnMenu.columnTexts.index(headerName)
+            columnTextIx = self.columns.index(headerName)
             for i in model._sortIndex:
                 cell = model.index(i, columnTextIx)
                 if cell is None:
@@ -754,9 +844,9 @@ class TableABC(QtWidgets.QTableView):
             # simulate event clicked in the empty space, with last selection
             self._selectionConnect([], deselection)
 
-    #=========================================================================================
-    # keyboard and mouse handling - modified to allow double-click to keep current selection
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
+    # keyboard and mouse handling - modified to allow doubleclick to keep current selection
+    #-----------------------------------------------------------------------------------------
 
     @staticmethod
     def _keyModifierPressed():
@@ -791,7 +881,7 @@ class TableABC(QtWidgets.QTableView):
         super().mousePressEvent(event)
         if row < 0 or col < 0 and event.button() == QtCore.Qt.LeftButton:
             #     # clicked outside the valid cells of the table
-            #     #   catches singleSelect if doesn't fire from super() - weird
+            #     #   catches singleSelect if it doesn't fire from super() - weird
             #     self.clearSelection()
             deselection = []
             if inds := self.selectedIndexes():
@@ -853,11 +943,6 @@ class TableABC(QtWidgets.QTableView):
             # press the escape-key to clear the selection
             self.clearSelection()
 
-    def _processDroppedItems(self, data):
-        """CallBack for Drop events
-        """
-        pass
-
     def _handleDroppedItems(self, pids, objType, pulldown):
         """Handle dropped items.
         
@@ -879,9 +964,9 @@ class TableABC(QtWidgets.QTableView):
                     self.scrollTo(selection[0], self.EnsureVisible)  # doesn't dance around so much
                     return
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Block table signals
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     def _blockTableEvents(self, blanking=True, disableScroll=False, tableState=None):
         """Block all updates/signals/notifiers in the table.
@@ -890,16 +975,11 @@ class TableABC(QtWidgets.QTableView):
         if self._tableBlockingLevel == 0:
             if disableScroll:
                 self._scrollOverride = True
-
             # use the Qt widget to block signals - selectionModel must also be blocked
             tableState.modelBlocker = QtCore.QSignalBlocker(self.selectionModel())
             tableState.rootBlocker = QtCore.QSignalBlocker(self)
             # tableState.enabledState = self.updatesEnabled()
             # self.setUpdatesEnabled(False)
-
-            if blanking and self.project:
-                self.project.blankNotification()
-
             # list to store any deferred functions until blocking has finished
             self._deferredFuncs = []
 
@@ -912,22 +992,15 @@ class TableABC(QtWidgets.QTableView):
             raise RuntimeError('Error: tableBlockingLevel already at 0')
 
         self._tableBlockingLevel -= 1
-
         # unblock all signals on last exit
         if self._tableBlockingLevel == 0:
-            if blanking and self.project:
-                self.project.unblankNotification()
-
             tableState.modelBlocker = None
             tableState.rootBlocker = None
             # self.setUpdatesEnabled(tableState.enabledState)
             # tableState.enabledState = None
-
             if disableScroll:
                 self._scrollOverride = False
-
             self.update()
-
             for func in self._deferredFuncs:
                 # process simple deferred functions - required so that qt signals are not blocked
                 func()
@@ -946,9 +1019,9 @@ class TableABC(QtWidgets.QTableView):
         finally:
             self._unblockTableEvents(blanking, disableScroll=disableScroll, tableState=tableState)
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Other methods
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     def rowCount(self):
         """Return the number of rows in the table
@@ -999,9 +1072,9 @@ class TableABC(QtWidgets.QTableView):
                    len(pos) == 2 and isinstance(pos[0], int) and isinstance(pos[1], int) for pos in positions):
             raise TypeError(f'{self.__class__.__name__}.mapToSource: '
                             f'positions must be an iterable of list|tuples of the form [row, col]')
-
-        sortIndex = self.model()._sortIndex
-        df = self.model().df
+        model: _TableModel = self.model()
+        sortIndex = model._sortIndex
+        df = model.df
         if not all((0 <= pos[0] < df.shape[0]) and (0 <= pos[1] < df.shape[1]) for pos in positions):
             raise TypeError(f'{self.__class__.__name__}.mapToSource: positions contains invalid values')
 
@@ -1016,22 +1089,23 @@ class TableABC(QtWidgets.QTableView):
         :param rows: iterable of ints
         :return: tuple of ints
         """
-        sortIndex = self.model()._sortIndex
+        model: _TableModel = self.model()
+        sortIndex = model._sortIndex
         if rows is None:
-            return tuple(self.model()._sortIndex)
+            return tuple(model._sortIndex)
 
         if not isinstance(rows, typing.Iterable):
             raise TypeError(f'{self.__class__.__name__}.mapRowsToSource: rows must be an iterable of ints')
         if not all(isinstance(row, int) for row in rows):
             raise TypeError(f'{self.__class__.__name__}.mapRowsToSource: rows must be an iterable of ints')
 
-        df = self.model().df
+        df = model.df
         if not all((0 <= row < df.shape[0]) for row in rows):
             raise TypeError(f'{self.__class__.__name__}.mapToSource: rows contains invalid values')
 
         return tuple(sortIndex[row] if 0 <= row < len(sortIndex) else None for row in rows)
 
-    def setForeground(self, row: int, column: int, colour: QtGui.QColor | str):
+    def setForeground(self, row: int, column: int, colour: QtGui.QColor | QtCore.Qt.GlobalColor | str):
         """Set the foreground colour for cell at position (row, column).
 
         :param int row: row as integer
@@ -1041,7 +1115,7 @@ class TableABC(QtWidgets.QTableView):
         if (model := self.model()):
             model.setForeground(row, column, colour)
 
-    def setBackground(self, row: int, column: int, colour: QtGui.QColor | str):
+    def setBackground(self, row: int, column: int, colour: QtGui.QColor | QtCore.Qt.GlobalColor | str):
         """Set the background colour for cell at position (row, column).
 
         :param int row: row as integer
@@ -1098,12 +1172,8 @@ class TableABC(QtWidgets.QTableView):
                     startRow = row
 
         self.clearSpans()
-        self._horizontalDividers = []
-        self._verticalDividers = []
-
         if self._df is None or self._df.empty:
             return
-
         # find the vertical spans
         _childSpans(0, 0, self.rowCount())
 
@@ -1144,53 +1214,31 @@ class TableABC(QtWidgets.QTableView):
                     startCol = col
 
         self.clearSpans()
-        self._horizontalDividers = []
-        self._verticalDividers = []
-
         if self._df is None or self._df.empty:
             return
-
         # find the vertical spans
         _childSpans(0, 0, self.columnCount())
 
-    # def setSpan(self, row: int, column: int, rowSpan: int, columnSpan: int) -> None:
-    #     """Set the span and set the top-left index for each cell in the span
-    #     """
-    #     super().setSpan(row, column, rowSpan, columnSpan)
-    # 
-    #     model = self.model()
-    #     for rr, cc in itertools.product(range(rowSpan), range(columnSpan)):
-    #         # store the top-left cell in all the cells of the group
-    #         model._spanTopLeft[row + rr, column + cc] = (row, column)
-    # 
-    # def clearSpans(self) -> None:
-    #     """Clear the spans
-    #     """
-    #     super().clearSpans()
-    # 
-    #     # clear the span information held in the header
-    #     self.model().clearSpans()
-
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Table context menu
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     @property
     def tableMenuOptions(self):
-        """Return the list of table options attached to the table
+        """Return the list of table options attached to the table.
         """
         return self._tableMenuOptions
 
     @tableMenuOptions.setter
     def tableMenuOptions(self, value):
         for tt in value:
-            if not isinstance(tt, (TableMenuABC, TableHeaderABC)):
+            if not isinstance(tt, (TableMenuABC, TableHeaderMenuABC)):
                 raise RuntimeError(f'{self.__class__.__name__}.tableMenuOptions are incorrect.')
 
         self._tableMenuOptions = value
 
-    def setTableMenu(self, tableMenuEnabled=NOTHING) -> typing.Optional[Menu]:
-        """Set up the context menu for the main table
+    def setTableMenu(self, tableMenuEnabled: bool = NOTHING) -> Menu | None:
+        """Set up the context menu for the main table.
         """
         if tableMenuEnabled is not NOTHING:
             self._tableMenuEnabled = bool(tableMenuEnabled)
@@ -1198,25 +1246,22 @@ class TableABC(QtWidgets.QTableView):
             # revert to the super-class setting
             with suppress(AttributeError):
                 del self._tableMenuEnabled
-
         if not self._tableMenuEnabled:
             self._thisTableMenu = None
             # disconnect any previous menus
             with suppress(TypeError):
                 self.customContextMenuRequested.disconnect(self._raiseTableContextMenu)
-            return
+            return None
 
         self._thisTableMenu = menu = Menu('', self, isFloatWidget=True)
         setWidgetFont(menu, )
-
         self.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
         self.customContextMenuRequested.connect(self._raiseTableContextMenu)
-
         self.addTableMenuOptions(menu)
 
         return menu
 
-    def setToolTipsEnabled(self, toolTipsEnabled=NOTHING):
+    def setToolTipsEnabled(self, toolTipsEnabled: bool = NOTHING):
         """Enable/disable the individual tooltips for the items in the table.
         Call without parameters to revert to the class setting.
         :param toolTipsEnabled:
@@ -1228,8 +1273,8 @@ class TableABC(QtWidgets.QTableView):
             with suppress(AttributeError):
                 del self._toolTipsEnabled
 
-    def addTableMenuOptions(self, menu):
-        """Add options to the right-mouse menu
+    def addTableMenuOptions(self, menu: Menu):
+        """Add options to the right-mouse menu.
         """
         # NOTE:ED - call additional addMenuOptions here to add options to the table menu
         for tableOption in self._tableMenuOptions:
@@ -1237,14 +1282,14 @@ class TableABC(QtWidgets.QTableView):
                 # add the specific options to the menu
                 tableOption.addMenuOptions(menu)
 
-    def setTableMenuOptions(self, menu):
-        """Update options in the right-mouse menu
+    def setTableMenuOptions(self, menu: Menu):
+        """Update options in the right-mouse menu.
         """
         # Subclass to add extra options
         pass
 
-    def _raiseTableContextMenu(self, pos):
-        """Create a new menu and popup at cursor position
+    def _raiseTableContextMenu(self, pos: QtCore.QPoint):
+        """Create a new menu and popup at cursor-position.
         """
         if not (menu := self._thisTableMenu):
             getLogger().debug('menu is not defined')
@@ -1267,40 +1312,38 @@ class TableABC(QtWidgets.QTableView):
         """
         self.searchMenu and self.searchMenu.showSearchSettings()
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Header context menu
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     def setHeaderMenu(self) -> Menu:
         """Set up the context menu for the table header
         """
         self._thisTableHeaderMenu = menu = Menu('', self, isFloatWidget=True)
         setWidgetFont(menu, )
-
         headers = self.horizontalHeader()
         headers.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
         headers.customContextMenuRequested.connect(self._raiseHeaderContextMenu)
-
         self.addHeaderMenuOptions(menu)
 
         return menu
 
-    def addHeaderMenuOptions(self, menu):
+    def addHeaderMenuOptions(self, menu: Menu):
         """Add options to the right-mouse menu
         """
         # NOTE:ED - call additional setHeaderMenu here to add options to the header menu
         for tableOption in self._tableMenuOptions:
-            if isinstance(tableOption, TableHeaderABC):
+            if isinstance(tableOption, TableHeaderMenuABC):
                 # add the specific options to the menu
                 tableOption.addMenuOptions(menu)
 
-    def setHeaderMenuOptions(self, menu):
+    def setHeaderMenuOptions(self, menu: Menu):
         """Update options in the right-mouse menu
         """
         # Subclass to add extra options
         pass
 
-    def _raiseHeaderContextMenu(self, pos):
+    def _raiseHeaderContextMenu(self, pos: QtCore.QPoint):
         """Raise the menu on the header
         """
         if not (menu := self._thisTableHeaderMenu):
@@ -1311,23 +1354,59 @@ class TableABC(QtWidgets.QTableView):
 
         # move the popup a bit down; otherwise can trigger an event if the pointer is just on top the first item
         pos = QtCore.QPoint(pos.x() + 5, pos.y())
-
         # call the class setup
         self.setHeaderMenuOptions(menu)
-
         # NOTE:ED - call additional setHeaderMenuOptions here to add enable/disable/hide options in the header menu
         for tableOption in self._tableMenuOptions:
-            if isinstance(tableOption, TableHeaderABC):
+            if isinstance(tableOption, TableHeaderMenuABC):
                 # enable/disable/hide the specific options in the menu
                 tableOption.setMenuOptions(menu)
-
         if len(menu.actions()):
             menu.exec_(self.mapToGlobal(pos))
 
-    def isColumnInternal(self, column: int):
-        """Return True if the column is internal and not for external viewing
+    #-----------------------------------------------------------------------------------------
+    # Table functions
+    #-----------------------------------------------------------------------------------------
+
+    def setSearchEnabled(self, value: bool):
+        """Enable/disable the search option in the right-mouse menu.
+
+        :param bool value: enabled True/False
         """
-        return self.headerColumnMenu.isColumnInternal(column)
+        if not isinstance(value, bool):
+            raise TypeError(f'{self.__class__.__name__}.setSearchEnabled: value must be True/False')
+        self.searchMenu.enabled = value
+
+    def setExportEnabled(self, value: bool):
+        """Enable/disable the export option in the right-mouse menu.
+
+        :param bool value: enabled True/False
+        """
+        if not isinstance(value, bool):
+            raise TypeError(f'{self.__class__.__name__}.setExportEnabled: value must be True/False')
+        self.exportMenu.enabled = value
+
+    def setDeleteEnabled(self, value: bool):
+        """Enable/disable the delete option in the right-mouse menu.
+
+        :param bool value: enabled True/False
+        """
+        if not isinstance(value, bool):
+            raise TypeError(f'{self.__class__.__name__}.setDeleteEnabled: value must be True/False')
+        self.deleteMenu.enabled = value
+
+    def setCopyCellEnabled(self, value: bool):
+        """Enable/disable the copyCell option in the right-mouse menu.
+
+        :param bool value: enabled True/False
+        """
+        if not isinstance(value, bool):
+            raise TypeError(f'{self.__class__.__name__}.setCopyCellEnabled: value must be True/False')
+        self.copyCellMenu.enabled = value
+
+    #-----------------------------------------------------------------------------------------
+    # Table column/hidden-column functions
+    #-----------------------------------------------------------------------------------------
 
     def showColumn(self, column: int) -> None:
         width = self.columnWidth(column)
@@ -1335,46 +1414,83 @@ class TableABC(QtWidgets.QTableView):
         if not width:
             self.resizeColumnToContents(column)
 
-    #=========================================================================================
-    # Table functions
-    #=========================================================================================
-
-    def setSearchEnabled(self, value):
-        """Enable/disable the search option in the right-mouse menu.
-
-        :param bool value: enabled True/False
+    @property
+    def columns(self) -> list[str]:
+        """Return a list of all the column-names.
         """
-        if not isinstance(value, bool):
-            raise TypeError(f'{self.__class__.__name__}.setSearchEnabled: value must be True/False')
+        return list(self._df.columns)
 
-        self.searchMenu.enabled = value
-
-    def setExportEnabled(self, value):
-        """Enable/disable the export option in the right-mouse menu.
-
-        :param bool value: enabled True/False
+    @property
+    def hiddenColumns(self) -> list[str]:
+        """Set/clear the hidden-columns.
         """
-        if not isinstance(value, bool):
-            raise TypeError(f'{self.__class__.__name__}.setExportEnabled: value must be True/False')
+        header = list(self._df.columns)
+        internal = set(self._internalColumns or [])
+        # hide _internalColumns
+        return [col for cc, col in enumerate(header) if self.isColumnHidden(cc) and col not in internal]
 
-        self.exportMenu.enabled = value
+    def setHiddenColumns(self, columns: list[str]):
+        header = list(self._df.columns)
+        internal = set(self._internalColumns or [])
+        # show/hide the columns - _internalColumns are always hidden
+        for cc, col in enumerate(header):
+            self.setColumnHidden(cc, col in set(columns) | internal)
 
-    def setDeleteEnabled(self, value):
-        """Enable/disable the delete option in the right-mouse menu.
-
-        :param bool value: enabled True/False
+    @property
+    def _allHiddenColumns(self) -> list:
+        """Return a list of all the hidden/internal columns.
         """
-        if not isinstance(value, bool):
-            raise TypeError(f'{self.__class__.__name__}.setDeleteEnabled: value must be True/False')
+        return [col for col in list(self._df.columns)
+                if col in (set(self.hiddenColumns) | set(self._internalColumns or []))]
 
-        self.deleteMenu.enabled = value
-
-    def setCopyCellEnabled(self, value):
-        """Enable/disable the copyCell option in the right-mouse menu.
-
-        :param bool value: enabled True/False
+    @singledispatchmethod
+    def isColumnInternal(self, column) -> bool:
+        """Return True if the column is internal and not for external viewing.
         """
-        if not isinstance(value, bool):
-            raise TypeError(f'{self.__class__.__name__}.setCopyCellEnabled: value must be True/False')
+        raise TypeError(f'{self.__class__.__name__}.isColumnInternal: column must be int|str')
 
-        self.copyCellMenu.enabled = value
+    @isColumnInternal.register(int)
+    def _isColumnInternal(self, column: int) -> bool:
+        """Column is referenced by column-number.
+        """
+        if 0 <= column < len(self.columns):
+            return self.columns[column] in set(self._internalColumns or [])
+        raise ValueError(f'{self.__class__.__name__}.isColumnInternal: Invalid column {column}')
+
+    @isColumnInternal.register(str)
+    def _isColumnInternal(self, column: str) -> bool:
+        """Column is referenced by column-name.
+        """
+        if column in self.columns:
+            return column in set(self._internalColumns or [])
+        raise ValueError(f'{self.__class__.__name__}.isColumnInternal: Invalid column-name {column}')
+
+    def setInternalColumns(self, texts: list[str]):
+        """Set a list of internal column-headers that are always hidden.
+        """
+        header = list(self._df.columns)
+        internal = self._internalColumns = set(texts or [])
+        for col, colName in enumerate(header):
+            # hide the new internal columns
+            # original internal columns will still be hidden
+            if colName in internal:
+                self.hideColumn(col)
+
+    def setDefaultColumns(self, texts: list[str]):
+        """Set a list of default column-headers that are always hidden.
+        """
+        header = list(self._df.columns)
+        hidden = self.defaultHidden = set(texts or [])
+        for col, colName in enumerate(header):
+            # hide the new internal columns
+            # original default-columns will still be hidden
+            if colName in hidden:
+                self.hideColumn(col)
+
+    def resetHiddenColumns(self):
+        """Reset the visibility to original default and internal-columns.
+        """
+        hiCols = set(self.defaultHidden or []) | set(self._internalColumns or [])
+        # update the hidden-columns, always hiding _internalColumns
+        for col, colName in enumerate(self._df.columns):
+            self.setColumnHidden(col, colName in hiCols)

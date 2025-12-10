@@ -5,7 +5,7 @@ List widget
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2025"
 __credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
                "Timothy J Ragan, Brian O Smith, Daniel Thompson",
                "Gary S Thompson & Geerten W Vuister")
@@ -17,8 +17,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-08-23 19:21:20 +0100 (Fri, August 23, 2024) $"
-__version__ = "$Revision: 3.2.5 $"
+__dateModified__ = "$dateModified: 2025-02-28 15:53:53 +0000 (Fri, February 28, 2025) $"
+__version__ = "$Revision: 3.3.1 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -41,6 +41,8 @@ from ccpn.ui.gui.widgets.Icon import Icon
 from ccpn.ui.gui.widgets.ButtonList import ButtonList
 from ccpn.ui.gui.widgets.Spacer import Spacer
 from ccpn.ui.gui.widgets.Widget import Widget
+from ccpn.util.Logging import getLogger
+
 
 # GST is this really a WrapperObject ListWidget because there appear to be some
 # methods and features that are possibly quite coupled to them or some defined
@@ -58,7 +60,7 @@ class ListWidget(QtWidgets.QListWidget, Base):
                  acceptDrops=False,
                  sortOnDrop=False,
                  allowDuplicates=False,
-                 allowSelections =True,
+                 allowSelections=True,
                  copyDrop=True,
                  infiniteHeight=False,
                  minRowsVisible=4,
@@ -451,7 +453,8 @@ class ListWidget(QtWidgets.QListWidget, Base):
                                 for text in texts:
                                     self.addItem(str(text))
                             else:
-                                raise TypeError('mimeData.{} must be a list/None: {}'.format(ccpnmrModelDataList, repr(texts)))
+                                raise TypeError(f'mimeData.{ccpnmrModelDataList} must be a list/None: '
+                                                f'{repr(texts)}')
 
                     self.dropped.emit(data)
                     if not self.allowDuplicates:
@@ -476,7 +479,8 @@ class ListWidget(QtWidgets.QListWidget, Base):
                                 for text in texts:
                                     self.addItem(str(text))
                             else:
-                                raise TypeError('mimeData.{} must be a list/None: {}'.format(ccpnmrModelDataList, repr(texts)))
+                                raise TypeError(f'mimeData.{ccpnmrModelDataList} must be a list/None: '
+                                                f'{repr(texts)}')
 
                     self.dropped.emit(data)
                     if self.sortOnDrop is True:
@@ -529,6 +533,21 @@ class ListWidget(QtWidgets.QListWidget, Base):
         """
         return self.setTexts(value)
 
+    def close(self):
+        signals = {self.itemClicked,
+                   self.itemDoubleClicked,
+                   self.model().dataChanged,
+                   self.model().rowsRemoved,
+                   self.model().rowsInserted,
+                   self.model().rowsMoved}
+        for sgnl in signals:
+            try:
+                sgnl.disconnect()
+            except Exception:
+                getLogger().debug2(f"No callback to disconnect {self}:{sgnl.signal}")
+            else:
+                getLogger().debug2(f"{self}:{sgnl.signal} disconnected")
+        super().close()
 
 
 class ListWidgetPair(Widget):
@@ -537,7 +556,7 @@ class ListWidgetPair(Widget):
     to the other and vise-versa
     """
 
-    def __init__(self,  parent=None,
+    def __init__(self, parent=None,
                  leftObjects=None,
                  rightObjects=None,
                  callback=None,
@@ -551,20 +570,19 @@ class ListWidgetPair(Widget):
                  rightLabel='Included',
                  setLayout=True,
                  copyDrop=False,
-                 objAttr = 'pid',
+                 objAttr='pid',
                  **kwds):
         """
         """
         Widget.__init__(self, parent, setLayout=setLayout, **kwds)
 
-
-        self.leftLabel = Label(self, text=leftLabel, grid=(0, 0),  hAlign='l')
+        self.leftLabel = Label(self, text=leftLabel, grid=(0, 0), hAlign='l')
         self.leftList = ListWidget(self, contextMenu=contextMenu,
                                    acceptDrops=acceptDrops,
                                    copyDrop=copyDrop,
-                                   sortOnDrop=False, multiSelect=multiSelect, grid=(1, 0),)
+                                   sortOnDrop=False, multiSelect=multiSelect, grid=(1, 0), )
 
-        self.rightLabel = Label(self, text=rightLabel,  grid=(0, 1),  hAlign='l')
+        self.rightLabel = Label(self, text=rightLabel, grid=(0, 1), hAlign='l')
         self.rightList = ListWidget(self, contextMenu=contextMenu, grid=(1, 1),
                                     acceptDrops=acceptDrops,
                                     copyDrop=copyDrop,
@@ -641,7 +659,6 @@ class ListWidgetPair(Widget):
         self.leftList._removeDuplicate()
         self.rightList._removeDuplicate()
 
-
     def _moveLeft(self):  # not needed now
         """
         Move contents of the right window to the left window
@@ -694,7 +711,6 @@ class ListWidgetPair(Widget):
 
     def getRightList(self):
         return self.rightList.getTexts()
-
 
 
 class ListWidgetSelector(Frame):
@@ -888,7 +904,7 @@ if __name__ == '__main__':
 
     lst = ['pid', 'comment', ]
     MockPeakList = namedtuple('PeakList', lst)
-    peakLists = [MockPeakList('PL:%s'%i, 'comment_%s' %i)  for i in range(10)]
+    peakLists = [MockPeakList('PL:%s' % i, 'comment_%s' % i) for i in range(10)]
 
 
     def droppedCallback(*r):
@@ -908,7 +924,7 @@ if __name__ == '__main__':
     # for i in ['a', 'a', 'c']:
     #     widget.addItem(i)
 
-    w= ListWidgetPair(popup, leftObjects = peakLists, grid=(1,0))
+    w = ListWidgetPair(popup, leftObjects=peakLists, grid=(1, 0))
     popup.show()
     popup.raise_()
     app.start()

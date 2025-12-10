@@ -4,7 +4,7 @@ This file contains the MainWindow class
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2025"
 __credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
                "Timothy J Ragan, Brian O Smith, Daniel Thompson",
                "Gary S Thompson & Geerten W Vuister")
@@ -16,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-10-14 19:13:39 +0100 (Mon, October 14, 2024) $"
-__version__ = "$Revision: 3.2.7 $"
+__dateModified__ = "$dateModified: 2025-05-02 17:07:58 +0100 (Fri, May 02, 2025) $"
+__version__ = "$Revision: 3.3.2 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -30,25 +30,28 @@ __date__ = "$Date: 2023-01-24 10:28:48 +0000 (Tue, January 24, 2023) $"
 import os
 import time
 from functools import partial, partialmethod
+import weakref
+from typing import TypeVar
 
 from PyQt5 import QtWidgets, QtCore, QtGui
 from PyQt5.QtGui import QKeySequence
 from PyQt5.QtCore import pyqtSlot
 
-from ccpn.core import Multiplet
+from ccpn.core.lib.WeakRefLib import WeakRefDescriptor
 from ccpn.util import Logging
 from ccpn.core.Project import Project
 
 from ccpn.core.lib.Notifiers import Notifier
 from ccpn.core.lib.ContextManagers import undoBlock, undoBlockWithoutSideBar, notificationEchoBlocking
+from ccpn.core.lib.Pid import Pid
 
 ## MainWindow class
 from ccpn.ui._implementation.Window import Window as _CoreClassMainWindow
 
 from ccpn.ui.gui import guiSettings
 
-from ccpn.ui.gui.lib.mouseEvents import SELECT, PICK, MouseModes, \
-    setCurrentMouseMode, getCurrentMouseMode
+from ccpn.ui.gui.lib.mouseEvents import (SELECT, PICK, MouseModes,
+                                         setCurrentMouseMode, getCurrentMouseMode)
 from ccpn.ui.gui.lib import GuiStrip
 from ccpn.ui.gui.lib.Shortcuts import Shortcuts
 from ccpn.ui.gui.guiSettings import (getColours, GUITABLE_SELECTED_BACKGROUND, consoleStyle)
@@ -61,9 +64,9 @@ from ccpn.ui.gui.widgets.Icon import Icon
 from ccpn.ui.gui.widgets import MessageDialog
 from ccpn.ui.gui.widgets.Action import Action
 from ccpn.ui.gui.widgets.IpythonConsole import IpythonConsole
-from ccpn.ui.gui.widgets.Menu import Menu, MenuBar, SHOWMODULESMENU, CCPNMACROSMENU, \
-    USERMACROSMENU, TUTORIALSMENU, PLUGINSMENU, CCPNPLUGINSMENU, HOWTOSMENU
-from ccpn.ui.gui.widgets.SideBar import SideBar  #,SideBar
+from ccpn.ui.gui.widgets.Menu import (Menu, MenuBar, SHOWMODULESMENU, CCPNMACROSMENU,
+                                      USERMACROSMENU, TUTORIALSMENU, PLUGINSMENU, CCPNPLUGINSMENU, HOWTOSMENU)
+from ccpn.ui.gui.widgets.SideBar import SideBar
 from ccpn.ui.gui.widgets.Frame import Frame
 from ccpn.ui.gui.widgets.CcpnModuleArea import CcpnModuleArea
 from ccpn.ui.gui.widgets.Splitter import Splitter
@@ -75,11 +78,13 @@ from ccpn.util.Logging import getLogger
 from ccpn.util.decorators import logCommand
 from ccpn.util.Colour import colorSchemeTable
 
-#from collections import OrderedDict
 from ccpn.ui.gui.widgets.DropBase import DropBase
 from ccpn.ui.gui.lib.MenuActions import _openItemObject
 
 from ccpn.framework.lib.DataLoaders.DirectoryDataLoader import DirectoryDataLoader
+from ccpn.framework.Application import getApplication
+from ccpn.core._implementation.AbstractWrapperObject import AbstractWrapperObject
+from ccpn.core._implementation.V3CoreObjectABC import V3CoreObjectABC
 
 
 # For readability there should be a class:
@@ -99,7 +104,6 @@ _MULTIPLET_PEAKS = 16
 
 READONLYCHANGED = 'readOnlyChanged'
 _transparent = QtGui.QColor('orange')
-
 
 # def _paintEvent(widget: QtWidgets.QWidget, event: QtGui.QPaintEvent, func=None) -> None:
 #     result = func(widget, event)
@@ -129,10 +133,150 @@ _transparent = QtGui.QColor('orange')
 # QtWidgets.QToolButton.paintEvent = partialmethod(_paintEvent, func=_pp)
 
 
+V3CoreInstance = TypeVar('V3CoreInstance', bound=AbstractWrapperObject | V3CoreObjectABC)  # could be mixed
+TypeV3Core = V3CoreInstance.__bound__
+
+
+def getFunction(identifier: str | Pid) -> V3CoreInstance:
+    """General method to obtain object (either gui or data) from identifier (pid, gid,
+    obj-string)
+    :param identifier: a Pid, Gid or string object identifier
+    :return a Version-3 core data or graphics object
+    """
+    if app := getApplication():
+        return app.get(identifier)
+
+
+def getByPidFunction(pid: str | Pid) -> V3CoreInstance:
+    """Legacy; obtain data object from identifier (pid or obj-string)
+    replaced by get(identifier).
+    :param pid: a Pid or string object identifier
+    :return a Version-3 core data object
+    """
+    if app := getApplication():
+        return app.get(pid)
+
+
+def getByGidFunction(gid: str | Pid) -> V3CoreInstance:
+    """Legacy; obtain graphics object from identifier (gid or obj-string)
+    replaced by get(identifier).
+    :param gid: a Gid or string object identifier
+    :return a Version-3 graphics object
+    """
+    if app := getApplication():
+        return app.ui.getByGid(gid)
+
+
+def infoFunction(msg: str, *args, includeInspection: bool = True, stacklevel: int = 1, **kwargs):
+    """
+    Logs a formatted message using the specified logger.
+
+    This function constructs a message with the provided `msg`, optional arguments (`args`, `kwargs`),
+    and logs it using the given logger. If `includeInspection` is True, the message includes additional
+    caller inspection information. The `stacklevel` can be adjusted to control the stack trace depth.
+
+    :param msg: The main message to be logged.
+    :type msg: str
+    :param args: Optional positional arguments that are formatted and appended to the message.
+    :param includeInspection: Whether to include inspection details in the message. Defaults to True.
+    :type includeInspection: bool, optional
+    :param stacklevel: The stack level to include in the log entry. Defaults to 1.
+    :type stacklevel: Optional int
+    :param kwargs: Optional keyword arguments that are formatted as key-value pairs and appended to the message.
+    :type kwargs: dict, optional
+
+    :return: None
+
+    :note:
+        If `logger._loggingCommandBlock` is True, the message will not be logged to prevent nested logging.
+        If `includeInspection` is False, no additional caller inspection details are included in the message.
+    """
+    if logger := getLogger():
+        logger.info(msg, *args, includeInspection=includeInspection, stacklevel=stacklevel, **kwargs)
+
+
+def warningFunction(msg: str, *args, includeInspection: bool = True, stacklevel: int = 1, **kwargs):
+    """
+    Logs a formatted message using the specified logger.
+
+    This function constructs a message with the provided `msg`, optional arguments (`args`, `kwargs`),
+    and logs it using the given logger. If `includeInspection` is True, the message includes additional
+    caller inspection information. The `stacklevel` can be adjusted to control the stack trace depth.
+
+    :param msg: The main message to be logged.
+    :type msg: str
+    :param args: Optional positional arguments that are formatted and appended to the message.
+    :param includeInspection: Whether to include inspection details in the message. Defaults to True.
+    :type includeInspection: bool, optional
+    :param stacklevel: The stack level to include in the log entry. Defaults to 1.
+    :type stacklevel: Optional int
+    :param kwargs: Optional keyword arguments that are formatted as key-value pairs and appended to the message.
+    :type kwargs: dict, optional
+
+    :return: None
+
+    :note:
+        If `logger._loggingCommandBlock` is True, the message will not be logged to prevent nested logging.
+        If `includeInspection` is False, no additional caller inspection details are included in the message.
+    """
+    if logger := getLogger():
+        logger.warning(msg, *args, includeInspection=includeInspection, stacklevel=stacklevel, **kwargs)
+
+
+def undoFunction():
+    """Undo one operation - or one waypoint if waypoints are set
+    """
+    if app := getApplication():
+        app.undo()
+
+
+def redoFunction():
+    """Redo one operation - or one waypoint if waypoints are set
+    """
+    if app := getApplication():
+        app.redo()
+
+
+def newProjectFunction(name: str = 'default') -> Project:
+    """Create new, empty project with name
+    :return a Project instance
+    """
+    if app := getApplication():
+        result = app.newProject(name)
+        return result
+
+
+def loadProjectFunction(path=None) -> Project:
+    """Load project defined by path
+    :return a Project instance
+    """
+    if app := getApplication():
+        result = app.loadProject(path)
+        return result
+
+
+def runMacroFunction(path: str = None, extraCommands=None):
+    """Runs a macro file defined by path
+    :param path: path to Python macro file
+    :param extraCommands:
+    """
+    if app := getApplication():
+        app.runMacro(path, extraCommands=extraCommands)
+
+
+#=========================================================================================
+# GuiMainWindow
+#=========================================================================================
+
 class GuiMainWindow(QtWidgets.QMainWindow, Shortcuts):
     # inherits NotifierBase from _Implementation.Window
 
     WindowMaximiseMinimise = QtCore.pyqtSignal(bool)
+
+    # allows type-checking to recognise attributes
+    application = WeakRefDescriptor()
+    current = WeakRefDescriptor()
+    namespace: weakref.WeakValueDictionary | None = None
 
     def __init__(self, application=None):
 
@@ -163,9 +307,6 @@ class GuiMainWindow(QtWidgets.QMainWindow, Shortcuts):
 
         # Module area
         self.moduleArea = CcpnModuleArea(mainWindow=self)
-        self._hiddenModules = CcpnModuleArea(mainWindow=self)
-        self._hiddenModules.setVisible(False)
-
         self.pythonConsoleModule = None  # Python console module; defined upon first time Class initialisation. Either by toggleConsole or Restoring layouts
         self.namespace = None
 
@@ -209,6 +350,22 @@ class GuiMainWindow(QtWidgets.QMainWindow, Shortcuts):
         # hide the window here and make visible later
         self.hide()
 
+    @property
+    def moduleArea(self):
+        return self._moduleAreaRef()
+
+    @moduleArea.setter
+    def moduleArea(self, value):
+        import weakref
+
+        def remove(wref, selfref=weakref.ref(self)):
+            getLogger().debug(f'{consoleStyle.fg.darkred}Clearing moduleArea '
+                              f'{wref}:{selfref()} {consoleStyle.reset}')
+
+        self._moduleAreaRef = weakref.ref(value, remove)
+        getLogger().debug(f'{consoleStyle.fg.darkgreen}Setting moduleArea '
+                          f'{self._moduleAreaRef()}{consoleStyle.reset}')
+
     def show(self):
         # self._checkPalette(self.palette())
         # self.application.ui._changeThemeInstant()
@@ -221,10 +378,7 @@ class GuiMainWindow(QtWidgets.QMainWindow, Shortcuts):
 
     def _checkPalette(self, pal: QtGui.QPalette, theme: str = None, themeColour: str = None, themeSD: str = None):
         # test the stylesheet of the QTableView
-        styleSheet = """
-                        QPushButton {
-                            color: palette(text);
-                        }
+        styleSheet = """QPushButton { color: palette(text); }
                         QToolTip {
                             background-color: %(TOOLTIP_BACKGROUND)s;
                             color: %(TOOLTIP_FOREGROUND)s;
@@ -232,9 +386,7 @@ class GuiMainWindow(QtWidgets.QMainWindow, Shortcuts):
                             border: 1px solid %(TOOLTIP_FOREGROUND)s;
                             qproperty-margin: 4; 
                         }
-                        QMenu::item:disabled {
-                            color: palette(dark);
-                        }
+                        QMenu::item:disabled { color: palette(dark); }
                         QMenu::separator {
                             height: 1px;
                             background: qlineargradient(
@@ -243,16 +395,9 @@ class GuiMainWindow(QtWidgets.QMainWindow, Shortcuts):
                                             stop: 1 palette(text)
                                         );
                         }
-                        QMenuBar {
-                            color: palette(text);
-                        }
-                        QMenuBar::item:disabled {
-                            color: palette(dark);
-                        }
-                        QProgressBar {
-                            color: palette(text);
-                            text-align: center;
-                        }
+                        QMenuBar { color: palette(text); }
+                        QMenuBar::item:disabled { color: palette(dark); }
+                        QProgressBar { text-align: center; }
                         """
         # there is also some weird stuff with the qprogressbar text-colour:
         #   the left-edge of the text-label is its local 0%, the right-edge its local 100%,
@@ -387,14 +532,6 @@ class GuiMainWindow(QtWidgets.QMainWindow, Shortcuts):
         else:
             self.setWindowFilePath("")
 
-        ## Why do we need to set this icons? Very odd behaviour.
-        # if self.project.isTemporary:
-        #     self.setWindowIcon(QtGui.QIcon())
-        # elif amDirty:
-        #     self.setWindowIcon(self.disabledFileIcon)
-        # else:
-        #     self.setWindowIcon(self.fileIcon)
-
     @pyqtSlot()
     def _screenChangedEvent(self, *args):
         self._screenChanged(*args)
@@ -404,14 +541,18 @@ class GuiMainWindow(QtWidgets.QMainWindow, Shortcuts):
         getLogger().debug2('mainWindow screenchanged')
         project = self.application.project
         for spectrumDisplay in project.spectrumDisplays:
+            if spectrumDisplay.isDeleted:
+                continue
             for strip in spectrumDisplay.strips:
-                strip.refreshDevicePixelRatio()
-
-            # NOTE:ED - set pixelratio for extra axes
+                if not strip.isDeleted:
+                    strip.refreshDevicePixelRatio()
+            # NOTE:ED - set pixel-ratio for extra axes
             if hasattr(spectrumDisplay, '_rightGLAxis'):
                 spectrumDisplay._rightGLAxis.refreshDevicePixelRatio()
             if hasattr(spectrumDisplay, '_bottomGLAxis'):
                 spectrumDisplay._bottomGLAxis.refreshDevicePixelRatio()
+            # force the spectrumDisplay to repaint
+            QtCore.QTimer().singleShot(0, spectrumDisplay.update)
 
     @property
     def modules(self):
@@ -468,7 +609,7 @@ class GuiMainWindow(QtWidgets.QMainWindow, Shortcuts):
 
         path = project.path
         self.namespace['project'] = project
-        self.namespace['runMacro'] = self.pythonConsole._runMacro
+        # self.namespace['runMacro'] = self.pythonConsole._runMacro
 
         msg = path + (' created' if isNew else ' opened')
         self.statusBar().showMessage(msg)
@@ -567,30 +708,31 @@ class GuiMainWindow(QtWidgets.QMainWindow, Shortcuts):
         Sets up SideBar, python console and splitters to divide up main window properly.
 
         """
-        self.namespace = {'application'             : self.application,
-                          'current'                 : self.application.current,
-                          'preferences'             : self.application.preferences,
-                          'redo'                    : self.application.redo,
-                          'undo'                    : self.application.undo,
-                          'get'                     : self.application.get,
-                          'getByPid'                : self.application.get,
-                          'getByGid'                : self.application.ui.getByGid,
-                          'ui'                      : self.application.ui,
-                          'mainWindow'              : self,
-                          'project'                 : self.application.project,
-                          'loadProject'             : self.application.loadProject,
-                          # 'newProject' : self.application.newProject, this is a crash!
-                          'info'                    : getLogger().info,
-                          'warning'                 : getLogger().warning,
-                          'showWarning'             : showWarning,
-                          'showInfo'                : showInfo,
-                          'showError'               : showError,
-
-                          #### context managers
-                          'undoBlock'               : undoBlockWithoutSideBar,
-                          'notificationEchoBlocking': notificationEchoBlocking,
-                          'plotter'                 : plotter
-                          }
+        self.namespace = weakref.WeakValueDictionary({'application'             : self.application,
+                                                      'current'                 : self.application.current,
+                                                      'preferences'             : self.application.preferences,
+                                                      'ui'                      : self.application.ui,
+                                                      'mainWindow'              : self,
+                                                      'project'                 : self.application.project,
+                                                      # application functions
+                                                      'redo'                    : redoFunction,
+                                                      'undo'                    : undoFunction,
+                                                      'get'                     : getFunction,
+                                                      'getByPid'                : getByPidFunction,
+                                                      'getByGid'                : getByGidFunction,
+                                                      'newProject'              : newProjectFunction,
+                                                      'loadProject'             : loadProjectFunction,
+                                                      'runMacro'                : runMacroFunction,
+                                                      'info'                    : infoFunction,
+                                                      'warning'                 : warningFunction,
+                                                      'showWarning'             : showWarning,
+                                                      'showInfo'                : showInfo,
+                                                      'showError'               : showError,
+                                                      # context managers
+                                                      'undoBlock'               : undoBlockWithoutSideBar,
+                                                      'notificationEchoBlocking': notificationEchoBlocking,
+                                                      'plotter'                 : plotter
+                                                      })
         self.pythonConsole = IpythonConsole(self)
 
         # create the sidebar
@@ -777,7 +919,8 @@ class GuiMainWindow(QtWidgets.QMainWindow, Shortcuts):
                                 project=self.project,
                                 dataLoader=dataLoader,
                                 )
-        if dialog.exec_():
+        # dialog could now be None for bad instantiation
+        if dialog and dialog.exec_():
             _nefReader = dialog.getActiveNefReader()
             dataLoader.createNewProject = False
             dataLoader._nefReader = _nefReader
@@ -1509,7 +1652,9 @@ class GuiMainWindow(QtWidgets.QMainWindow, Shortcuts):
             # try finding a data loader, catch any errors for recognised but
             # incomplete/invalid url's (i.e. incomplete spectral data)
             try:
-                dataLoader, createsNewProject, ignore = self.ui._getDataLoader(url)
+                if not (gotLoader := self.ui._getDataLoader(url)):
+                    continue
+                dataLoader, createsNewProject, ignore = gotLoader
                 dataLoaders.append((url, dataLoader, createsNewProject, ignore))
                 # NOTE:ED - hack to get recursive dataLoaders to check valid new-projects first
                 _loaders.append(dataLoader)
@@ -1662,7 +1807,6 @@ class GuiMainWindow(QtWidgets.QMainWindow, Shortcuts):
             ## This shortcut should be removed from here, and enabled only on displays/tables as a localised shortcut
             popup = DeleteItemsPopup(parent=self, mainWindow=self, items=deleteItems)
             popup.exec()
-
 
     @logCommand('mainWindow.')
     def propagateAssignments(self):
@@ -2058,13 +2202,13 @@ class GuiMainWindow(QtWidgets.QMainWindow, Shortcuts):
     def stackSpectra(self):
         strip = self.application.current.strip
         if strip:  # and (strip.spectrumDisplay.window is self):
-            strip._toggleStackPhaseFromShortCut()
+            strip._toggleStackingFromShortCut()
 
     def setPhasingPivot(self):
 
         strip = self.application.current.strip
         if strip:  # and (strip.spectrumDisplay.window is self):
-            strip._setPhasingPivot()
+            strip._setPhasingPivotCallback()
 
     def removePhasingTraces(self):
         """
@@ -2457,7 +2601,7 @@ class GuiMainWindow(QtWidgets.QMainWindow, Shortcuts):
 
     def cycleSymbolLabelling(self):
         """
-        restore the zoom of the currently selected strip to the top item of the queue
+        Cycles the peak labels in the current Spectrum Display
         """
         if self.current.strip:
             self.current.strip.spectrumDisplay._cycleSymbolLabelling()
@@ -2466,10 +2610,28 @@ class GuiMainWindow(QtWidgets.QMainWindow, Shortcuts):
 
     def cyclePeakSymbols(self):
         """
-        restore the zoom of the currently selected strip to the top item of the queue
+        Cycles the peak symbols in the current Spectrum Display
         """
         if self.current.strip:
             self.current.strip.spectrumDisplay._cyclePeakSymbols()
+        else:
+            getLogger().warning('No current strip. Select a strip first.')
+
+    def togglePeakSymbolVisibility(self):
+        """
+        Toggles visibility of the peak symbols in the current Spectrum Display
+        """
+        if self.current.strip:
+            self.current.strip.spectrumDisplay._togglePeakSymbolVisibility()
+        else:
+            getLogger().warning('No current strip. Select a strip first.')
+
+    def togglePeakLabelVisibility(self):
+        """
+        Toggles visibility of the peak labels in the current Spectrum Display
+        """
+        if self.current.strip:
+            self.current.strip.spectrumDisplay._togglePeakLabelVisibility()
         else:
             getLogger().warning('No current strip. Select a strip first.')
 
@@ -2479,7 +2641,8 @@ class GuiMainWindow(QtWidgets.QMainWindow, Shortcuts):
             setCurrentMouseMode(mode)
             for sd in self.project.spectrumDisplays:
                 for strp in sd.strips:
-                    strp.mouseModeAction.setChecked(mode == PICK)
+                    strp.updateMouseMode(mode == PICK)
+                QtCore.QTimer().singleShot(0, sd.update)
             mouseModeText = ' Mouse Mode: '
             self.statusBar().showMessage(mouseModeText + mode)
 

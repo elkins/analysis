@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>AnalysisScreen Reports</title>
+    <link rel="stylesheet" href="CcpnVideoTutorials.css">
+</head>
+<body>
+<div class="header"><a href="https://www.ccpn.ac.uk/"><img src="CCPN.png" alt="CCPN Logo" height="50"></a><a
+        href="index.html" class="button">Video<br> Tutorials<br> & Manual</a><a href="https://forums.ccpn.ac.uk"><img
+        src="CCPNForumLogo.png" alt="CCPN Logo" height="50" style="padding-left: 15px"></a></div>
+<br>
+<div class="headerBar">AnalysisScreen Reports</div>
+<div class="tutorial">
+
+    <h2>AnalysisScreen Reports</h2>
+    <p>You can generate reports as PowerPoint slides. In the <span class="action">Substances table</span> of the Hit Analysis Module, simply select the Substances for which you would like to generate the report, <span class="action">right-click</span> and select <span class="action">Create Report for Selected Substances</span>. Alternatively select <span class="action">Create Report for Visible Substances</span> to create a report for all Substances currently in the table following filtering.</p>
+
+    <h3>The Report</h3>
+    <p>This <a href="files/ScreenIntroTutorial_report.pptx">example PowerPoint report</a> shows the three different slide types prduced:</p>
+    <p>A cover slide provides information about the date, time, user, data, pipeline settings etc.</p>
+    <img src="./graphics/ScreenReportCoverSlide.png" alt="Screen report example cover slide" width="100%">
+    <p>A summary slide provides a table of all Substances included in the report, with key pieces of data and links to the individual Substance slides.</p>
+    <img src="./graphics/ScreenReportSummarySlide.png" alt="Screen report example summary slide" width="100%">
+    <p>The Substance slides provide information about the substance, including its structure (if a SMILES strings have been added to the project), the spectra and a table showing the binding, displacement and matching scores, signal/noise etc.</p>
+    <img src="./graphics/ScreenReportSubstanceSlide.png" alt="Screen report example substance slide" width="100%">
+
+    <h3>Customisation</h3>
+    <p>Several layers of customization are possible for reports:
+        <ol>
+            <li>The general slide layout, text colors, sizes of various placeholders etc. can be altered by making changes to the .pptx slide master template.</li>
+            <li>Table colors, row heights, spectrum plot configurations (limits) etc. can be altered by making changes to the .json settings file.</li>
+            <li>Changes to the way in which data is added to the PowerPoint slide (e.g. adding new data, table columns, images, logos etc.) require advanced editing of a .py mapper file.</li>
+        </ol></p>
+    <p>The <span class="action">Screening_report_template.pptx</span> and <span class="action">Screening_report_template_setting.json</span> files can be found in the <span class="action">ccpnmr/resources/pptx_templates</span> folder. Modified versions of these files can be placed either within the project (<span class="action">project.ccpn/resources/pptx_templates</span> folder) or the user profile folder (<span class="action">~/.ccpn/resources/pptx_templates</span>).</p>
+    <p>The program will preferentially load the files present within the project resources folder. If none are present, it will load the files in the user <span class="action">.ccpn/resources</span> folder. And if this, too, has no files, the program will default to the files provided as part of the program distribution.</p>
+    <p>An altered <span class="action">ccpnmr/src/python/ccpn/util/pptx/pptx_templateMappers/ScreeningReportPPTxMapper.py</span> file may be placed in the user profile folder (<span class="action">~/.ccpn/resources/pptx_templates</span>) and, if present, will be used in preference to the default file in the program distribution.</p>
+
+</div>
+</body>
+</html>
