@@ -78,6 +78,29 @@ def fit_parabolic_1d(v_left: float, v_middle: float, v_right: float) -> Tuple[fl
 
 
 @njit(cache=True)
+def get_value_1d(data: np.ndarray, point: np.ndarray) -> float:
+    """Get value at 1D point."""
+    return data[point[0]]
+
+
+@njit(cache=True)
+def get_value_2d(data: np.ndarray, point: np.ndarray) -> float:
+    """Get value at 2D point."""
+    return data[point[0], point[1]]
+
+
+@njit(cache=True)
+def get_value_3d(data: np.ndarray, point: np.ndarray) -> float:
+    """Get value at 3D point."""
+    return data[point[0], point[1], point[2]]
+
+
+@njit(cache=True)
+def get_value_4d(data: np.ndarray, point: np.ndarray) -> float:
+    """Get value at 4D point."""
+    return data[point[0], point[1], point[2], point[3]]
+
+
 def get_value_at_point(data: np.ndarray, point: np.ndarray) -> float:
     """Get value at N-dimensional point in data array.
 
@@ -91,24 +114,137 @@ def get_value_at_point(data: np.ndarray, point: np.ndarray) -> float:
     Returns:
         Value at the specified point
     """
-    # Numba doesn't support tuple(array) conversion
-    # Handle common cases explicitly for efficiency
-    ndim = len(point)
+    # Dispatch to specialized function based on dimensionality
+    # This avoids Numba's type inference issues with dynamic indexing
+    ndim = data.ndim
 
     if ndim == 1:
-        return data[point[0]]
+        return get_value_1d(data, point)
     elif ndim == 2:
-        return data[point[0], point[1]]
+        return get_value_2d(data, point)
     elif ndim == 3:
-        return data[point[0], point[1], point[2]]
+        return get_value_3d(data, point)
     elif ndim == 4:
-        return data[point[0], point[1], point[2], point[3]]
+        return get_value_4d(data, point)
     else:
-        # For higher dimensions (rare in NMR), raise error
-        raise ValueError("Dimensions > 4 not supported")
+        raise ValueError(f"Dimensions > 4 not supported, got {ndim}")
 
 
 @njit(cache=True)
+def fit_parabolic_to_ndim_1d(
+    data: np.ndarray,
+    point: np.ndarray,
+    dim: int
+) -> Tuple[float, float, float]:
+    """Fit parabola along one dimension of 1D data."""
+    npts = data.shape[dim]
+
+    if point[dim] <= 0 or point[dim] >= npts - 1:
+        raise ValueError(f"Point at boundary in dimension {dim}")
+
+    v_left = data[point[0] - 1] if dim == 0 else data[point[0]]
+    v_middle = data[point[0]]
+    v_right = data[point[0] + 1] if dim == 0 else data[point[0]]
+
+    peak_offset, height, linewidth = fit_parabolic_1d(v_left, v_middle, v_right)
+    peak_position = float(point[dim]) + peak_offset
+
+    return peak_position, height, linewidth
+
+
+@njit(cache=True)
+def fit_parabolic_to_ndim_2d(
+    data: np.ndarray,
+    point: np.ndarray,
+    dim: int
+) -> Tuple[float, float, float]:
+    """Fit parabola along one dimension of 2D data."""
+    npts = data.shape[dim]
+
+    if point[dim] <= 0 or point[dim] >= npts - 1:
+        raise ValueError(f"Point at boundary in dimension {dim}")
+
+    if dim == 0:
+        v_left = data[point[0] - 1, point[1]]
+        v_middle = data[point[0], point[1]]
+        v_right = data[point[0] + 1, point[1]]
+    else:  # dim == 1
+        v_left = data[point[0], point[1] - 1]
+        v_middle = data[point[0], point[1]]
+        v_right = data[point[0], point[1] + 1]
+
+    peak_offset, height, linewidth = fit_parabolic_1d(v_left, v_middle, v_right)
+    peak_position = float(point[dim]) + peak_offset
+
+    return peak_position, height, linewidth
+
+
+@njit(cache=True)
+def fit_parabolic_to_ndim_3d(
+    data: np.ndarray,
+    point: np.ndarray,
+    dim: int
+) -> Tuple[float, float, float]:
+    """Fit parabola along one dimension of 3D data."""
+    npts = data.shape[dim]
+
+    if point[dim] <= 0 or point[dim] >= npts - 1:
+        raise ValueError(f"Point at boundary in dimension {dim}")
+
+    if dim == 0:
+        v_left = data[point[0] - 1, point[1], point[2]]
+        v_middle = data[point[0], point[1], point[2]]
+        v_right = data[point[0] + 1, point[1], point[2]]
+    elif dim == 1:
+        v_left = data[point[0], point[1] - 1, point[2]]
+        v_middle = data[point[0], point[1], point[2]]
+        v_right = data[point[0], point[1] + 1, point[2]]
+    else:  # dim == 2
+        v_left = data[point[0], point[1], point[2] - 1]
+        v_middle = data[point[0], point[1], point[2]]
+        v_right = data[point[0], point[1], point[2] + 1]
+
+    peak_offset, height, linewidth = fit_parabolic_1d(v_left, v_middle, v_right)
+    peak_position = float(point[dim]) + peak_offset
+
+    return peak_position, height, linewidth
+
+
+@njit(cache=True)
+def fit_parabolic_to_ndim_4d(
+    data: np.ndarray,
+    point: np.ndarray,
+    dim: int
+) -> Tuple[float, float, float]:
+    """Fit parabola along one dimension of 4D data."""
+    npts = data.shape[dim]
+
+    if point[dim] <= 0 or point[dim] >= npts - 1:
+        raise ValueError(f"Point at boundary in dimension {dim}")
+
+    if dim == 0:
+        v_left = data[point[0] - 1, point[1], point[2], point[3]]
+        v_middle = data[point[0], point[1], point[2], point[3]]
+        v_right = data[point[0] + 1, point[1], point[2], point[3]]
+    elif dim == 1:
+        v_left = data[point[0], point[1] - 1, point[2], point[3]]
+        v_middle = data[point[0], point[1], point[2], point[3]]
+        v_right = data[point[0], point[1] + 1, point[2], point[3]]
+    elif dim == 2:
+        v_left = data[point[0], point[1], point[2] - 1, point[3]]
+        v_middle = data[point[0], point[1], point[2], point[3]]
+        v_right = data[point[0], point[1], point[2] + 1, point[3]]
+    else:  # dim == 3
+        v_left = data[point[0], point[1], point[2], point[3] - 1]
+        v_middle = data[point[0], point[1], point[2], point[3]]
+        v_right = data[point[0], point[1], point[2], point[3] + 1]
+
+    peak_offset, height, linewidth = fit_parabolic_1d(v_left, v_middle, v_right)
+    peak_position = float(point[dim]) + peak_offset
+
+    return peak_position, height, linewidth
+
+
 def fit_parabolic_to_ndim(
     data: np.ndarray,
     point: np.ndarray,
@@ -118,6 +254,8 @@ def fit_parabolic_to_ndim(
 
     This implements the C function fitParabolicToNDim() from npy_peak.c
     lines 395-435.
+
+    Dispatcher function that calls specialized versions based on dimensionality.
 
     Args:
         data: N-dimensional array
@@ -133,31 +271,15 @@ def fit_parabolic_to_ndim(
     Raises:
         ValueError: If point is at array boundary or parabola fit fails
     """
-    ndim = len(data.shape)
-    npts = data.shape[dim]
+    ndim = data.ndim
 
-    # Check if we're at a boundary (need neighbors on both sides)
-    if point[dim] <= 0 or point[dim] >= npts - 1:
-        raise ValueError(f"Point at boundary in dimension {dim}: cannot fit parabola")
-
-    # Get three values along this dimension
-    # Create neighbor points
-    pnt_left = point.copy()
-    pnt_middle = point.copy()
-    pnt_right = point.copy()
-
-    pnt_left[dim] = point[dim] - 1
-    pnt_middle[dim] = point[dim]
-    pnt_right[dim] = point[dim] + 1
-
-    v_left = get_value_at_point(data, pnt_left)
-    v_middle = get_value_at_point(data, pnt_middle)
-    v_right = get_value_at_point(data, pnt_right)
-
-    # Fit parabola to these three points
-    peak_offset, height, linewidth = fit_parabolic_1d(v_left, v_middle, v_right)
-
-    # Convert offset to absolute position
-    peak_position = float(point[dim]) + peak_offset
-
-    return peak_position, height, linewidth
+    if ndim == 1:
+        return fit_parabolic_to_ndim_1d(data, point, dim)
+    elif ndim == 2:
+        return fit_parabolic_to_ndim_2d(data, point, dim)
+    elif ndim == 3:
+        return fit_parabolic_to_ndim_3d(data, point, dim)
+    elif ndim == 4:
+        return fit_parabolic_to_ndim_4d(data, point, dim)
+    else:
+        raise ValueError(f"Dimensions > 4 not supported, got {ndim}")

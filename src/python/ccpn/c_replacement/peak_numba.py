@@ -10,7 +10,6 @@ from typing import List, Tuple
 from .peak_models import fit_parabolic_to_ndim, get_value_at_point
 
 
-@njit(cache=True)
 def _fit_parabolic_peaks_impl(
     data: np.ndarray,
     region_array: np.ndarray,
@@ -19,6 +18,9 @@ def _fit_parabolic_peaks_impl(
     """Internal implementation of parabolic peak fitting.
 
     This implements the C function fit_parabolic() from npy_peak.c lines 664-765.
+
+    Note: Not JIT-compiled itself, but calls JIT-compiled specialized functions
+    based on data dimensionality.
 
     Args:
         data: N-dimensional float32 array
@@ -58,21 +60,14 @@ def _fit_parabolic_peaks_impl(
         current_height = get_value_at_point(data, grid_posn)
 
         for i in range(ndim):
-            fit_success = True
             try:
                 peak_fit, fitted_height, lw = fit_parabolic_to_ndim(
                     data, grid_posn, i
                 )
-            except ValueError:
-                fit_success = False
-            except ZeroDivisionError:
-                fit_success = False
-
-            if fit_success:
                 positions[j, i] = peak_fit
                 linewidths[j, i] = lw
                 current_height = fitted_height  # Update height with each dimension
-            else:
+            except (ValueError, ZeroDivisionError):
                 # If parabolic fit fails, use grid position
                 positions[j, i] = float(grid_posn[i])
                 linewidths[j, i] = 1.0  # Default linewidth
