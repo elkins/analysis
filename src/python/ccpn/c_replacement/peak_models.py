@@ -283,3 +283,133 @@ def fit_parabolic_to_ndim(
         return fit_parabolic_to_ndim_4d(data, point, dim)
     else:
         raise ValueError(f"Dimensions > 4 not supported, got {ndim}")
+
+
+# Peak finding helper functions
+
+@njit(cache=True)
+def half_max_position_2d(
+    data: np.ndarray,
+    point: np.ndarray,
+    points: np.ndarray,
+    dim: int,
+    direction: int,
+    v_peak: float,
+    find_maximum: bool
+) -> float:
+    """Find half-max position (2D version)."""
+    v_half = 0.5 * v_peak
+    v_prev = v_peak
+
+    if direction == 1:
+        i_start = point[dim] + 1
+        i_end = points[dim]
+        i_step = 1
+    else:
+        i_start = point[dim] - 1
+        i_end = -1
+        i_step = -1
+
+    for i in range(i_start, i_end, i_step):
+        if dim == 0:
+            v_this = data[i, point[1]]
+        else:
+            v_this = data[point[0], i]
+
+        if find_maximum:
+            if v_this < v_half:
+                return float(i - i_step * (v_half - v_this) / (v_prev - v_this))
+        else:
+            if v_this > v_half:
+                return float(i - i_step * (v_half - v_this) / (v_prev - v_this))
+
+        v_prev = v_this
+
+    if direction == 1:
+        return float(points[dim] - 1)
+    else:
+        return 1.0
+
+
+@njit(cache=True)
+def half_max_position_3d(
+    data: np.ndarray,
+    point: np.ndarray,
+    points: np.ndarray,
+    dim: int,
+    direction: int,
+    v_peak: float,
+    find_maximum: bool
+) -> float:
+    """Find half-max position (3D version)."""
+    v_half = 0.5 * v_peak
+    v_prev = v_peak
+
+    if direction == 1:
+        i_start = point[dim] + 1
+        i_end = points[dim]
+        i_step = 1
+    else:
+        i_start = point[dim] - 1
+        i_end = -1
+        i_step = -1
+
+    for i in range(i_start, i_end, i_step):
+        if dim == 0:
+            v_this = data[i, point[1], point[2]]
+        elif dim == 1:
+            v_this = data[point[0], i, point[2]]
+        else:
+            v_this = data[point[0], point[1], i]
+
+        if find_maximum:
+            if v_this < v_half:
+                return float(i - i_step * (v_half - v_this) / (v_prev - v_this))
+        else:
+            if v_this > v_half:
+                return float(i - i_step * (v_half - v_this) / (v_prev - v_this))
+
+        v_prev = v_this
+
+    if direction == 1:
+        return float(points[dim] - 1)
+    else:
+        return 1.0
+
+
+def calculate_linewidth_at_point(
+    data: np.ndarray,
+    point: np.ndarray,
+    points: np.ndarray,
+    dim: int,
+    v_peak: float,
+    find_maximum: bool
+) -> float:
+    """Calculate FWHM linewidth along one dimension.
+
+    This implements the C function half_max_linewidth() from npy_peak.c lines 383-393.
+
+    Args:
+        data: N-dimensional array
+        point: Peak position
+        points: Array shape
+        dim: Dimension to measure
+        v_peak: Peak height
+        find_maximum: True for maxima, False for minima
+
+    Returns:
+        Full width at half maximum (FWHM)
+    """
+    ndim = data.ndim
+
+    if ndim == 2:
+        a = half_max_position_2d(data, point, points, dim, 1, v_peak, find_maximum)
+        b = half_max_position_2d(data, point, points, dim, -1, v_peak, find_maximum)
+    elif ndim == 3:
+        a = half_max_position_3d(data, point, points, dim, 1, v_peak, find_maximum)
+        b = half_max_position_3d(data, point, points, dim, -1, v_peak, find_maximum)
+    else:
+        raise ValueError(f"Linewidth calculation only supports 2D and 3D, got {ndim}D")
+
+    linewidth = a - b
+    return linewidth
