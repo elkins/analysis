@@ -74,11 +74,18 @@ class TestParabolicFittingPerformance:
             regions.append([int(cx) + 3, int(cy) + 3])
             peak_positions.append([float(cx), float(cy)])
 
-        region = np.array(regions[:20]).reshape(10, 2, 2).astype(np.int32)
-        peak_array = np.array(peak_positions, dtype=np.float32)
+        # For multiple peaks, call fit_parabolic_peaks for each region
+        def benchmark_multiple():
+            results = []
+            for i in range(10):
+                region = np.array(regions[i*2:(i*2)+2], dtype=np.int32)
+                peak = np.array([peak_positions[i]], dtype=np.float32)
+                result = fit_parabolic_peaks(data, region, peak)
+                results.append(result)
+            return results
 
         # Benchmark
-        result = benchmark(fit_parabolic_peaks, data, region, peak_array)
+        result = benchmark(benchmark_multiple)
 
         # Validate
         assert len(result) == 10
