@@ -37,7 +37,7 @@ from ccpn.util import Colour
 from ccpn.util.Logging import getLogger
 from ccpn.core.Spectrum import MAXALIASINGRANGE
 from ccpn.core.lib.ContextManagers import notificationEchoBlocking
-from ccpnc.contour import Contourer2d
+from ccpn.c_replacement.contour_compat import Contourer2d
 
 
 AxisPlaneData = namedtuple('AxisPlaneData', 'startPoint endPoint pointCount')

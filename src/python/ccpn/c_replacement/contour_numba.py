@@ -368,8 +368,169 @@ def calculate_contours(data: np.ndarray, levels: np.ndarray) -> List[List[np.nda
     return contours_list
 
 
+def contourerGLList(dataArrays, posLevels, negLevels, posColour, negColour, flatten=0):
+    """
+    Convert 2D contours to GL-formatted arrays (API-compatible with C extension).
+
+    This function matches the C extension API from npy_contourer2d.c exactly.
+
+    Args:
+        dataArrays: Tuple of 2D numpy arrays (float32)
+        posLevels: 1D array of positive contour levels (float32)
+        negLevels: 1D array of negative contour levels (float32)
+        posColour: 1D array of RGBA colors for positive contours (4 floats: r, g, b, a)
+        negColour: 1D array of RGBA colors for negative contours (4 floats: r, g, b, a)
+        flatten: Boolean (0 or 1) - whether to flatten multiple arrays (default 0)
+
+    Returns:
+        List containing [numIndices, numVertices, indexing, vertices, colours]:
+            - numIndices: int - total number of indices
+            - numVertices: int - total number of vertices
+            - indexing: uint32 array of vertex indices for GL drawing
+            - vertices: float32 array [x0, y0, x1, y1, ...] of vertex positions
+            - colours: float32 array [r0, g0, b0, a0, r1, ...] of RGBA values
+
+    Example:
+        >>> dataArrays = (data1, data2)  # Tuple of 2D arrays
+        >>> posLevels = np.array([0.3, 0.5, 0.7], dtype=np.float32)
+        >>> negLevels = np.array([], dtype=np.float32)
+        >>> posColour = np.array([1.0, 0.0, 0.0, 1.0], dtype=np.float32)  # Red
+        >>> negColour = np.array([0.0, 0.0, 1.0, 1.0], dtype=np.float32)  # Blue
+        >>> result = contourerGLList(dataArrays, posLevels, negLevels, posColour, negColour)
+        >>> numIndices, numVertices, indexing, vertices, colours = result
+    """
+    # Input validation (matching C code)
+    if not isinstance(dataArrays, tuple):
+        raise TypeError("dataArrays must be a tuple")
+
+    if not isinstance(posLevels, np.ndarray):
+        raise TypeError("posLevels must be a NumPy array")
+
+    if not isinstance(negLevels, np.ndarray):
+        raise TypeError("negLevels must be a NumPy array")
+
+    if not isinstance(posColour, np.ndarray):
+        raise TypeError("posColour must be a NumPy array")
+
+    if not isinstance(negColour, np.ndarray):
+        raise TypeError("negColour must be a NumPy array")
+
+    if posLevels.ndim != 1:
+        raise ValueError("posLevels needs to be NumPy array with ndim 1")
+
+    if negLevels.ndim != 1:
+        raise ValueError("negLevels needs to be NumPy array with ndim 1")
+
+    if posColour.ndim != 1:
+        raise ValueError("posColour needs to be NumPy array with ndim 1")
+
+    if negColour.ndim != 1:
+        raise ValueError("negColour needs to be NumPy array with ndim 1")
+
+    if flatten not in (0, 1):
+        raise ValueError("flatten must be 0 or 1")
+
+    # Convert to float32 if needed
+    if posLevels.dtype != np.float32:
+        posLevels = posLevels.astype(np.float32)
+
+    if negLevels.dtype != np.float32:
+        negLevels = negLevels.astype(np.float32)
+
+    if posColour.dtype != np.float32:
+        posColour = posColour.astype(np.float32)
+
+    if negColour.dtype != np.float32:
+        negColour = negColour.astype(np.float32)
+
+    # Initialize accumulators
+    all_indices = []
+    all_vertices = []
+    all_colours = []
+    vertex_offset = 0
+
+    # Process each data array
+    num_arrays = len(dataArrays)
+
+    for arr_idx in range(num_arrays):
+        data = dataArrays[arr_idx]
+
+        if not isinstance(data, np.ndarray):
+            raise TypeError(f"dataArray {arr_idx} must be a NumPy array")
+
+        if data.ndim != 2:
+            raise ValueError(f"dataArray {arr_idx} needs to be NumPy array with ndim 2")
+
+        # Convert to float32 if needed
+        if data.dtype != np.float32:
+            data = data.astype(np.float32)
+
+        # Calculate positive contours
+        if len(posLevels) > 0:
+            pos_contours = calculate_contours(data, posLevels)
+
+            for level_contours in pos_contours:
+                for polyline in level_contours:
+                    # polyline is [x0, y0, x1, y1, ...]
+                    num_points = len(polyline) // 2
+
+                    if num_points < 2:
+                        continue
+
+                    # Add vertices
+                    all_vertices.extend(polyline)
+
+                    # Add colors (RGBA for each vertex)
+                    for _ in range(num_points):
+                        all_colours.extend(posColour)
+
+                    # Add indices (line strip: 0-1, 1-2, 2-3, ...)
+                    for i in range(num_points - 1):
+                        all_indices.append(vertex_offset + i)
+                        all_indices.append(vertex_offset + i + 1)
+
+                    vertex_offset += num_points
+
+        # Calculate negative contours
+        if len(negLevels) > 0:
+            neg_contours = calculate_contours(data, negLevels)
+
+            for level_contours in neg_contours:
+                for polyline in level_contours:
+                    # polyline is [x0, y0, x1, y1, ...]
+                    num_points = len(polyline) // 2
+
+                    if num_points < 2:
+                        continue
+
+                    # Add vertices
+                    all_vertices.extend(polyline)
+
+                    # Add colors (RGBA for each vertex)
+                    for _ in range(num_points):
+                        all_colours.extend(negColour)
+
+                    # Add indices (line strip: 0-1, 1-2, 2-3, ...)
+                    for i in range(num_points - 1):
+                        all_indices.append(vertex_offset + i)
+                        all_indices.append(vertex_offset + i + 1)
+
+                    vertex_offset += num_points
+
+    # Convert to NumPy arrays
+    num_indices = len(all_indices)
+    num_vertices = vertex_offset
+
+    indexing = np.array(all_indices, dtype=np.uint32)
+    vertices = np.array(all_vertices, dtype=np.float32)
+    colours = np.array(all_colours, dtype=np.float32)
+
+    # Return list matching C extension format
+    return [num_indices, num_vertices, indexing, vertices, colours]
+
+
 # Module-level exports
-__all__ = ['calculate_contours']
+__all__ = ['calculate_contours', 'contourerGLList']
 
 
 if __name__ == '__main__':
