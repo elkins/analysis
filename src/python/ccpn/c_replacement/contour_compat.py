@@ -175,27 +175,44 @@ class Contourer2d:
         return impl.calculate_contours(data, levels)
 
     @staticmethod
-    def contourerGLList(*args, **kwargs):
+    def contourerGLList(dataArrays, posLevels, negLevels, posColour, negColour, flatten=0):
         """
-        Generate OpenGL display lists for contours.
+        Convert 2D contours to GL-formatted arrays.
 
-        NOTE: This function currently falls back to C extension.
-        Python implementation of contourerGLList is planned for future release.
+        API-compatible with C extension ccpnc.contour.Contourer2d.contourerGLList.
 
-        For now, this ensures backward compatibility while the core algorithm
-        (calculate_contours) uses the optimized Python implementation.
+        Args:
+            dataArrays: Tuple of 2D numpy arrays (float32)
+            posLevels: 1D array of positive contour levels (float32)
+            negLevels: 1D array of negative contour levels (float32)
+            posColour: 1D array of RGBA colors for positive contours (4 floats)
+            negColour: 1D array of RGBA colors for negative contours (4 floats)
+            flatten: Boolean (0 or 1) - whether to flatten multiple arrays
+
+        Returns:
+            List containing [numIndices, numVertices, indexing, vertices, colours]
         """
-        # For now, always use C extension for GL-specific code
+        impl = _load_implementation()
+
+        # Try Python implementation first
+        if hasattr(impl, 'contourerGLList'):
+            return impl.contourerGLList(dataArrays, posLevels, negLevels,
+                                        posColour, negColour, flatten)
+
+        # Fallback to C extension if Python doesn't have it
         try:
             from ccpnc import contour as c_contour
             if hasattr(c_contour.Contourer2d, 'contourerGLList'):
-                return c_contour.Contourer2d.contourerGLList(*args, **kwargs)
+                return c_contour.Contourer2d.contourerGLList(
+                    dataArrays, posLevels, negLevels, posColour, negColour, flatten
+                )
             else:
                 raise AttributeError("C extension does not have contourerGLList method")
         except ImportError as e:
             raise NotImplementedError(
-                "contourerGLList is not yet implemented in Python. "
-                "C extension (ccpnc.contour) is required for this function. "
+                "contourerGLList is not available in current implementation. "
+                "Neither Python (contour_numba.contourerGLList) nor "
+                "C extension (ccpnc.contour) is available. "
                 f"Error: {e}"
             ) from e
 
