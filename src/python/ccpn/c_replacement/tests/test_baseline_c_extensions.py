@@ -156,7 +156,7 @@ class TestPeakFittingBaseline:
         region = np.array([[5, 5], [15, 15]], dtype=np.int32)
 
         # Call C extension (method 0 = Gaussian)
-        result = Peak.fitPeaks(data, region, peak_pos, method=0)
+        result = Peak.fitPeaks(data, region, peak_pos, 0)
 
         # VALIDATION
         assert len(result) == 1, "Should return one fit result"
@@ -204,7 +204,7 @@ class TestPeakFittingBaseline:
         region = np.array([[5, 5], [15, 15]], dtype=np.int32)
 
         # Call C extension (method 1 = Lorentzian)
-        result = Peak.fitPeaks(data, region, peak_pos, method=1)
+        result = Peak.fitPeaks(data, region, peak_pos, 1)
 
         # VALIDATION
         assert len(result) == 1, "Should return one fit result"
