@@ -94,10 +94,10 @@ Development of a Software Pipeline. Proteins 59, 687 - 696.
 #define  NEAREST_INTEGER(a)  (FLOOR((a) + 0.5))
 
 #define  SWAP(a, b, type) \
-	 {   type  I;  I = a;  a = b;  b = I;  }
+	 {   type  SWAP_TMP;  SWAP_TMP = a;  a = b;  b = SWAP_TMP;  }
 
 #define  SWAP3(a, b, c, type) \
-	 {   type  I;  I = a;  a = b;  b = c;  c = I;  }
+	 {   type  SWAP_TMP;  SWAP_TMP = a;  a = b;  b = c;  c = SWAP_TMP;  }
 
 #define  FLUSH  {   fflush(stdout);  fflush(stderr);   }
 
@@ -164,16 +164,16 @@ Development of a Software Pipeline. Proteins 59, 687 - 696.
 	     strcpy(string1, string2);   }
 
 #define  MALLOC2(ptr, type, num1, num2) \
-	 {   int I; \
+	 {   int LOOP_IDX; \
 	     MALLOC(ptr, type *, num1); \
-	     for (I = 0; I < num1; I++) \
-		 MALLOC((ptr)[I], type, num2);   }
+	     for (LOOP_IDX = 0; LOOP_IDX < num1; LOOP_IDX++) \
+		 MALLOC((ptr)[LOOP_IDX], type, num2);   }
 
 #define  MALLOC_ZERO(ptr, type, num) \
-	 {   int I; \
+	 {   int LOOP_IDX; \
 	     if ( ((ptr)=(type *) malloc((unsigned) ((num)*sizeof(type)))) \
 	           				== NULL )  return  CCPN_ERROR; \
-	     for (I = 0; I < (num); I++)  (ptr)[I] = (type) NULL;   }
+	     for (LOOP_IDX = 0; LOOP_IDX < (num); LOOP_IDX++)  (ptr)[LOOP_IDX] = (type) NULL;   }
 
 #define  MALLOC2_ZERO(ptr, type, num1, num2) \
 	 {   int J; \
@@ -189,10 +189,10 @@ Development of a Software Pipeline. Proteins 59, 687 - 696.
 	     {   free((type *) (ptr));  (ptr) = (type *) NULL;   }   }
 
 #define  FREE2(ptr, type, num) \
-	 {   int I; \
+	 {   int LOOP_IDX; \
 	     if ((ptr) != (type **) NULL) \
-	     {   for (I = 0; I < num; I++) \
-	             FREE((ptr)[I], type); \
+	     {   for (LOOP_IDX = 0; LOOP_IDX < num; LOOP_IDX++) \
+	             FREE((ptr)[LOOP_IDX], type); \
 	     	 FREE(ptr, type *);   }   }
 
 #ifdef  REALLOC
@@ -211,24 +211,24 @@ Development of a Software Pipeline. Proteins 59, 687 - 696.
 	               == NULL )  return  NULL;  else  ptr = Ptr;   }
 
 #define  ZERO_VECTOR(v, n) \
-	 {   int  I;  for (I = 0; I < (n); I++)  (v)[I] = 0;   }
+	 {   int  LOOP_IDX;  for (LOOP_IDX = 0; LOOP_IDX < (n); LOOP_IDX++)  (v)[LOOP_IDX] = 0;   }
 
 #define  SUBTRACT_VECTORS(v1, v2, v3, n) \
-	 {   int  I;  for (I = 0; I < (n); I++)  (v1)[I] = (v2)[I]-(v3)[I];   }
+	 {   int  LOOP_IDX;  for (LOOP_IDX = 0; LOOP_IDX < (n); LOOP_IDX++)  (v1)[LOOP_IDX] = (v2)[LOOP_IDX]-(v3)[LOOP_IDX];   }
 
 #define  ADD_VECTORS(v1, v2, v3, n) \
-	 {   int  I;  for (I = 0; I < (n); I++)  (v1)[I] = (v2)[I]+(v3)[I];   }
+	 {   int  LOOP_IDX;  for (LOOP_IDX = 0; LOOP_IDX < (n); LOOP_IDX++)  (v1)[LOOP_IDX] = (v2)[LOOP_IDX]+(v3)[LOOP_IDX];   }
 
 #define  SCALE_VECTOR(v1, v2, s, n) \
-	 {   int  I;  for (I = 0; I < (n); I++)  (v1)[I] = (s)*(v2)[I];   }
+	 {   int  LOOP_IDX;  for (LOOP_IDX = 0; LOOP_IDX < (n); LOOP_IDX++)  (v1)[LOOP_IDX] = (s)*(v2)[LOOP_IDX];   }
 
 #define  INNER_PRODUCT(d, v1, v2, n) \
-	 {   int  I;  d = 0; \
-	     for (I = 0; I < (n); I++)  d += (v1)[I]*(v2)[I];   }
+	 {   int  LOOP_IDX;  d = 0; \
+	     for (LOOP_IDX = 0; LOOP_IDX < (n); LOOP_IDX++)  d += (v1)[LOOP_IDX]*(v2)[LOOP_IDX];   }
 
 #define  VECTOR_PRODUCT(d, v, n) \
-	 {   int  I;  d = 1; \
-	     for (I = 0; I < (n); I++)  d *= (v)[I];   }
+	 {   int  LOOP_IDX;  d = 1; \
+	     for (LOOP_IDX = 0; LOOP_IDX < (n); LOOP_IDX++)  d *= (v)[LOOP_IDX];   }
 
 #define  CROSS_PRODUCT(v1, v2, v3) \
 	 {   (v1)[0] = (v2)[1]*(v3)[2] - (v2)[2]*(v3)[1]; \
@@ -236,33 +236,33 @@ Development of a Software Pipeline. Proteins 59, 687 - 696.
 	     (v1)[2] = (v2)[0]*(v3)[1] - (v2)[1]*(v3)[0];   }
 
 #define  NEGATE_VECTOR(v1, v2, n) \
-	 {   int  I;  for (I = 0; I < (n); I++)  (v1)[I] = - (v2)[I];   }
+	 {   int  LOOP_IDX;  for (LOOP_IDX = 0; LOOP_IDX < (n); LOOP_IDX++)  (v1)[LOOP_IDX] = - (v2)[LOOP_IDX];   }
 
 #define  COPY_VECTOR(v1, v2, n) \
-	 {   int  I;  for (I = 0; I < (n); I++)  (v1)[I] = (v2)[I];   }
+	 {   int  LOOP_IDX;  for (LOOP_IDX = 0; LOOP_IDX < (n); LOOP_IDX++)  (v1)[LOOP_IDX] = (v2)[LOOP_IDX];   }
 
 #define  COPY_VECTOR_FROM_TOP(v1, v2, n) \
-	 {   int  I;  for (I = (n)-1; I >= 0; I--)  (v1)[I] = (v2)[I];   }
+	 {   int  LOOP_IDX;  for (LOOP_IDX = (n)-1; LOOP_IDX >= 0; LOOP_IDX--)  (v1)[LOOP_IDX] = (v2)[LOOP_IDX];   }
 
 #define  INDEX_OF_ARRAY(index, array, cumul, n) \
 	 {   INNER_PRODUCT(index, array, cumul, n);  }
 
 #define  ARRAY_OF_INDEX(array, index, cumul, n) \
-	 {   int I; long Ind = index; \
-	     for (I = (n)-1; I >= 0; I--) \
-	     {   array[I] = Ind / cumul[I];  Ind %= cumul[I];   }   }
+	 {   int LOOP_IDX; long Ind = index; \
+	     for (LOOP_IDX = (n)-1; LOOP_IDX >= 0; LOOP_IDX--) \
+	     {   array[LOOP_IDX] = Ind / cumul[LOOP_IDX];  Ind %= cumul[LOOP_IDX];   }   }
 
 #define  CUMULATIVE(cumul, array, total, n) \
-	 {   int I;  total = 1; \
-	     for (I = 0; I < n; I++) \
-	     {   (cumul)[I] = total;  total *= (array)[I];   }   }
+	 {   int LOOP_IDX;  total = 1; \
+	     for (LOOP_IDX = 0; LOOP_IDX < n; LOOP_IDX++) \
+	     {   (cumul)[LOOP_IDX] = total;  total *= (array)[LOOP_IDX];   }   }
 
 #define  BLOCK(point, size)  ((int) (1 + ((point) - 1)/(size)))
 
 #define  BLOCKS(blocks, points, size, n) \
-	 {   int I; \
-	     for (I = 0; I < n; I++) \
-	     {   (blocks)[I] = BLOCK((points)[I], (size)[I]);   }   }
+	 {   int LOOP_IDX; \
+	     for (LOOP_IDX = 0; LOOP_IDX < n; LOOP_IDX++) \
+	     {   (blocks)[LOOP_IDX] = BLOCK((points)[LOOP_IDX], (size)[LOOP_IDX]);   }   }
 
 #define  STRIP_LEADING_SPACE(string) \
 	 {   char *Ptr1 = string, *Ptr2 = string; \

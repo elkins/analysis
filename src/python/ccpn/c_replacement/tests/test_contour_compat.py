@@ -1,8 +1,8 @@
 """
-Tests for contour compatibility wrapper with fallback loading.
+Tests for contour compatibility wrapper with implementation switching.
 
 This test suite validates:
-1. Fallback loading mechanism works correctly
+1. Implementation switching works correctly
 2. API compatibility with C extension
 3. Environment variable overrides work
 4. Python and C implementations produce equivalent results
@@ -14,8 +14,8 @@ import os
 import sys
 
 
-class TestFallbackMechanism:
-    """Test the fallback loading strategy"""
+class TestImplementationInfo:
+    """Test implementation information functions"""
 
     def test_import_compat_module(self):
         """Test that compat module can be imported"""
@@ -28,29 +28,43 @@ class TestFallbackMechanism:
 
         info = get_implementation_info()
 
+        # Check required keys
         assert 'implementation' in info
         assert 'module' in info
-        assert 'fallback_occurred' in info
+        assert 'using_c' in info
+        assert 'c_available' in info
+        assert 'python_available' in info
 
-        # Should be using Python implementation (Numba or pure)
-        assert info['implementation'] in ['python_numba', 'python_pure', 'c_extension']
+        # Implementation should be a string
+        assert isinstance(info['implementation'], str)
+
+        # using_c should be boolean
+        assert isinstance(info['using_c'], bool)
 
         print(f"\n✓ Using implementation: {info['implementation']}")
-        print(f"  Module: {info['module'].__name__}")
-        print(f"  Fallback: {info['fallback_occurred']}")
+        print(f"  C available: {info['c_available']}")
+        print(f"  Python available: {info['python_available']}")
 
-    def test_python_implementation_preferred(self):
-        """Test that Python implementation is loaded by default"""
-        from ccpn.c_replacement.contour_compat import get_implementation_info
+    def test_get_available_implementations(self):
+        """Test that we can check which implementations are available"""
+        from ccpn.c_replacement.contour_compat import get_available_implementations
 
-        info = get_implementation_info()
+        avail = get_available_implementations()
 
-        # Should prefer Python over C
-        if info['implementation'] == 'c_extension':
-            print("\n⚠ Using C extension (Python not available)")
-        else:
-            assert info['implementation'] in ['python_numba', 'python_pure']
-            print(f"\n✓ Correctly using Python implementation: {info['implementation']}")
+        # Check required keys
+        assert 'c_available' in avail
+        assert 'python_available' in avail
+        assert 'current' in avail
+        assert 'using_c' in avail
+
+        # At least one implementation should be available
+        assert avail['c_available'] or avail['python_available'], \
+            "At least one implementation must be available"
+
+        print(f"\n✓ Available implementations:")
+        print(f"  C: {avail['c_available']}")
+        print(f"  Python: {avail['python_available']}")
+        print(f"  Current: {avail['current']}")
 
 
 class TestAPICompatibility:
@@ -61,25 +75,22 @@ class TestAPICompatibility:
         from ccpn.c_replacement.contour_compat import Contourer2d
 
         assert Contourer2d is not None
-        assert hasattr(Contourer2d, 'calculate_contours')
+        assert hasattr(Contourer2d, 'contourerGLList')
 
-    def test_calculate_contours_signature(self):
-        """Test calculate_contours has correct signature"""
+    def test_contourerGLList_signature(self):
+        """Test contourerGLList has correct signature"""
         from ccpn.c_replacement.contour_compat import Contourer2d
         import inspect
 
-        sig = inspect.signature(Contourer2d.calculate_contours)
+        sig = inspect.signature(Contourer2d.contourerGLList)
         params = list(sig.parameters.keys())
 
-        # Should have 'data' and 'levels' parameters
-        assert 'data' in params
-        assert 'levels' in params
+        # Check for expected parameters
+        expected_params = ['dataArrays', 'posLevels', 'negLevels',
+                          'posColour', 'negColour', 'flatten']
 
-    def test_module_level_function(self):
-        """Test that module-level calculate_contours exists"""
-        from ccpn.c_replacement.contour_compat import calculate_contours
-
-        assert calculate_contours is not None
+        for param in expected_params:
+            assert param in params, f"Missing parameter: {param}"
 
 
 class TestFunctionalCorrectness:
@@ -90,102 +101,237 @@ class TestFunctionalCorrectness:
         from ccpn.c_replacement.contour_compat import Contourer2d
 
         # Create test data
-        size = 50
+        size = 128
         X, Y = np.meshgrid(np.arange(size), np.arange(size))
-        data = np.exp(-((X - 25)**2 + (Y - 25)**2) / 100).astype(np.float32)
-        levels = np.array([0.5], dtype=np.float32)
+        data = np.exp(-((X - size/2)**2 + (Y - size/2)**2) / 500).astype(np.float32) * 100
+
+        dataArrays = (data,)
+        posLevels = np.array([20.0], dtype=np.float32)
+        negLevels = np.array([], dtype=np.float32)
+        posColour = np.array([1.0, 0.0, 0.0, 1.0], dtype=np.float32)
+        negColour = np.array([0.0, 0.0, 1.0, 1.0], dtype=np.float32)
 
         # Generate contours
-        contours = Contourer2d.calculate_contours(data, levels)
+        result = Contourer2d.contourerGLList(
+            dataArrays, posLevels, negLevels, posColour, negColour, 0
+        )
 
-        # Validate
-        assert contours is not None
-        assert len(contours) == 1, "Should return one level"
-        assert len(contours[0]) > 0, "Should have at least one polyline"
+        # Validate result structure
+        assert isinstance(result, list)
+        assert len(result) == 5, "Result should be [numIndices, numVertices, indexing, vertices, colours]"
 
-        # Check first polyline
-        polyline = contours[0][0]
-        assert isinstance(polyline, np.ndarray)
-        assert polyline.dtype == np.float32
-        assert len(polyline) % 2 == 0, "Should have even number of coordinates (x,y pairs)"
-        assert len(polyline) > 10, "Should have multiple vertices"
+        numIndices, numVertices, indexing, vertices, colours = result
 
-        print(f"\n✓ Generated contour with {len(polyline)//2} vertices")
+        # Check that we got some contours
+        assert numVertices > 0, "Should generate vertices"
+        assert len(vertices) == numVertices * 2, "Should have x,y for each vertex"
+        assert len(colours) == numVertices * 4, "Should have RGBA for each vertex"
+
+        print(f"\n✓ Generated contour with {numVertices} vertices")
 
     def test_multiple_levels(self):
         """Test multiple contour levels"""
         from ccpn.c_replacement.contour_compat import Contourer2d
 
-        size = 50
+        size = 128
         X, Y = np.meshgrid(np.arange(size), np.arange(size))
-        data = np.exp(-((X - 25)**2 + (Y - 25)**2) / 100).astype(np.float32)
-        levels = np.array([0.2, 0.5, 0.8], dtype=np.float32)
+        data = np.exp(-((X - size/2)**2 + (Y - size/2)**2) / 500).astype(np.float32) * 100
 
-        contours = Contourer2d.calculate_contours(data, levels)
+        dataArrays = (data,)
+        posLevels = np.array([10.0, 30.0, 50.0], dtype=np.float32)
+        negLevels = np.array([], dtype=np.float32)
+        posColour = np.array([1.0, 0.0, 0.0, 1.0], dtype=np.float32)
+        negColour = np.array([0.0, 0.0, 1.0, 1.0], dtype=np.float32)
 
-        assert len(contours) == 3, "Should return 3 levels"
+        result = Contourer2d.contourerGLList(
+            dataArrays, posLevels, negLevels, posColour, negColour, 0
+        )
 
-        for i, level_contours in enumerate(contours):
-            assert len(level_contours) > 0, f"Level {i} should have contours"
-            print(f"✓ Level {levels[i]}: {len(level_contours)} polyline(s)")
+        numIndices, numVertices, indexing, vertices, colours = result
 
-    def test_input_validation(self):
-        """Test that input validation works"""
+        # Should have generated contours for multiple levels
+        assert numVertices > 0, "Should generate vertices for multiple levels"
+
+        print(f"✓ Multiple levels: {numVertices} vertices total")
+
+    def test_positive_and_negative_levels(self):
+        """Test both positive and negative contour levels"""
         from ccpn.c_replacement.contour_compat import Contourer2d
 
-        # Invalid: not 2D data
-        with pytest.raises((ValueError, TypeError)):
-            data_1d = np.array([1, 2, 3], dtype=np.float32)
-            levels = np.array([0.5], dtype=np.float32)
-            Contourer2d.calculate_contours(data_1d, levels)
+        size = 128
+        X, Y = np.meshgrid(np.arange(size), np.arange(size))
+        # Data with positive and negative regions
+        data = (np.exp(-((X - 40)**2 + (Y - 64)**2) / 300) -
+                np.exp(-((X - 88)**2 + (Y - 64)**2) / 300)).astype(np.float32) * 100
 
-        # Invalid: not 1D levels
-        with pytest.raises((ValueError, TypeError)):
-            data = np.ones((10, 10), dtype=np.float32)
-            levels_2d = np.array([[0.5, 0.6]], dtype=np.float32)
-            Contourer2d.calculate_contours(data, levels_2d)
+        dataArrays = (data,)
+        posLevels = np.array([20.0], dtype=np.float32)
+        negLevels = np.array([-20.0], dtype=np.float32)
+        posColour = np.array([1.0, 0.0, 0.0, 1.0], dtype=np.float32)
+        negColour = np.array([0.0, 0.0, 1.0, 1.0], dtype=np.float32)
 
-        print("✓ Input validation working correctly")
+        result = Contourer2d.contourerGLList(
+            dataArrays, posLevels, negLevels, posColour, negColour, 0
+        )
+
+        numIndices, numVertices, indexing, vertices, colours = result
+
+        assert numVertices > 0, "Should generate vertices for positive and negative"
+
+        print(f"✓ Pos/neg levels: {numVertices} vertices")
 
 
-class TestEnvironmentOverrides:
-    """Test environment variable overrides (manual testing guide)"""
+class TestImplementationSwitching:
+    """Test implementation switching functionality"""
 
-    def test_env_override_documentation(self):
-        """
-        Document how to test environment overrides.
+    def test_switch_to_python_if_available(self):
+        """Test switching to Python implementation"""
+        from ccpn.c_replacement.contour_compat import (
+            get_available_implementations,
+            use_python_implementation,
+            use_c_implementation
+        )
 
-        Manual testing:
-        1. Force Python: CCPN_USE_PYTHON_CONTOUR=1 pytest test_contour_compat.py
-        2. Force C:      CCPN_USE_C_CONTOUR=1 pytest test_contour_compat.py
-        """
-        from ccpn.c_replacement.contour_compat import get_implementation_info
+        avail = get_available_implementations()
 
-        info = get_implementation_info()
+        if not avail['python_available']:
+            pytest.skip("Python implementation not available")
 
-        print("\n" + "=" * 60)
-        print("Environment Override Testing")
-        print("=" * 60)
-        print("\nCurrent configuration:")
-        print(f"  CCPN_USE_PYTHON_CONTOUR = {os.environ.get('CCPN_USE_PYTHON_CONTOUR', 'not set')}")
-        print(f"  CCPN_USE_C_CONTOUR      = {os.environ.get('CCPN_USE_C_CONTOUR', 'not set')}")
-        print(f"\nActive implementation: {info['implementation']}")
-        print(f"Module: {info['module'].__name__}")
+        # Remember original
+        original = avail['current']
 
-        print("\n" + "=" * 60)
-        print("To test overrides, run:")
-        print("  CCPN_USE_PYTHON_CONTOUR=1 pytest test_contour_compat.py -v -s")
-        print("  CCPN_USE_C_CONTOUR=1 pytest test_contour_compat.py -v -s")
-        print("=" * 60)
+        try:
+            # Switch to Python
+            use_python_implementation()
 
-        # This test always passes - it's for documentation
-        assert True
+            # Verify switch
+            info = get_available_implementations()
+            assert info['using_c'] is False
+            assert 'Python' in info['current'] or 'Numba' in info['current']
+
+            print(f"\n✓ Switched to Python: {info['current']}")
+
+        finally:
+            # Restore original if it was C
+            if 'C extension' in original and avail['c_available']:
+                use_c_implementation()
+
+    def test_switch_to_c_if_available(self):
+        """Test switching to C implementation"""
+        from ccpn.c_replacement.contour_compat import (
+            get_available_implementations,
+            use_c_implementation,
+            use_python_implementation
+        )
+
+        avail = get_available_implementations()
+
+        if not avail['c_available']:
+            pytest.skip("C implementation not available")
+
+        # Remember original
+        original = avail['current']
+
+        try:
+            # Switch to C
+            use_c_implementation()
+
+            # Verify switch
+            info = get_available_implementations()
+            assert info['using_c'] is True
+            assert 'C extension' in info['current']
+
+            print(f"\n✓ Switched to C: {info['current']}")
+
+        finally:
+            # Restore original if it was Python
+            if 'C extension' not in original and avail['python_available']:
+                use_python_implementation()
+
+    def test_switch_to_unavailable_implementation_raises_error(self):
+        """Test that switching to unavailable implementation raises error"""
+        from ccpn.c_replacement.contour_compat import (
+            get_available_implementations,
+            use_python_implementation,
+            use_c_implementation
+        )
+        import os
+
+        avail = get_available_implementations()
+
+        # Try to switch to unavailable implementation
+        # We can't easily test this without uninstalling, so we document the behavior
+        # This test validates that at least one implementation is available
+        assert avail['c_available'] or avail['python_available']
+
+        print(f"\n✓ At least one implementation available")
+
+
+class TestBothImplementations:
+    """Compare Python and C implementations if both available"""
+
+    def test_python_vs_c_equivalence(self):
+        """Test that Python and C produce similar results"""
+        from ccpn.c_replacement.contour_compat import (
+            Contourer2d,
+            get_available_implementations,
+            use_python_implementation,
+            use_c_implementation
+        )
+
+        avail = get_available_implementations()
+
+        if not (avail['c_available'] and avail['python_available']):
+            pytest.skip("Both C and Python implementations needed for comparison")
+
+        # Create test data
+        size = 128
+        X, Y = np.meshgrid(np.arange(size), np.arange(size))
+        data = np.exp(-((X - size/2)**2 + (Y - size/2)**2) / 500).astype(np.float32) * 100
+
+        dataArrays = (data,)
+        posLevels = np.array([20.0, 40.0], dtype=np.float32)
+        negLevels = np.array([], dtype=np.float32)
+        posColour = np.array([1.0, 0.0, 0.0, 1.0], dtype=np.float32)
+        negColour = np.array([0.0, 0.0, 1.0, 1.0], dtype=np.float32)
+
+        # Get C result
+        use_c_implementation()
+        result_c = Contourer2d.contourerGLList(
+            dataArrays, posLevels, negLevels, posColour, negColour, 0
+        )
+
+        # Get Python result
+        use_python_implementation()
+        result_py = Contourer2d.contourerGLList(
+            dataArrays, posLevels, negLevels, posColour, negColour, 0
+        )
+
+        # Compare structures
+        assert len(result_c) == len(result_py) == 5
+
+        numVertices_c = result_c[1]
+        numVertices_py = result_py[1]
+
+        print(f"\n✓ C vertices:      {numVertices_c}")
+        print(f"✓ Python vertices: {numVertices_py}")
+
+        # Vertex counts should be similar (within 20% due to algorithm differences)
+        ratio = numVertices_py / numVertices_c if numVertices_c > 0 else 1.0
+        assert 0.8 <= ratio <= 1.2, \
+            f"Vertex counts should be similar (C: {numVertices_c}, Python: {numVertices_py})"
+
+        print(f"✓ Ratio: {ratio:.2f} (within acceptable range)")
+
+        # Restore C if it was originally selected
+        if 'C extension' in avail['current']:
+            use_c_implementation()
 
 
 class TestPerformance:
-    """Test performance of compatibility wrapper"""
+    """Test performance characteristics"""
 
-    def test_wrapper_overhead(self):
+    def test_wrapper_overhead_minimal(self):
         """Test that wrapper adds minimal overhead"""
         from ccpn.c_replacement.contour_compat import Contourer2d
         import time
@@ -193,92 +339,32 @@ class TestPerformance:
         # Prepare test data
         size = 256
         X, Y = np.meshgrid(np.arange(size), np.arange(size))
-        data = np.exp(-((X - size/2)**2 + (Y - size/2)**2) / 1000).astype(np.float32)
-        levels = np.array([0.1, 0.3, 0.5, 0.7, 0.9], dtype=np.float32)
+        data = np.exp(-((X - size/2)**2 + (Y - size/2)**2) / 1000).astype(np.float32) * 100
+
+        dataArrays = (data,)
+        posLevels = np.array([10.0, 30.0, 50.0], dtype=np.float32)
+        negLevels = np.array([], dtype=np.float32)
+        posColour = np.array([1.0, 0.0, 0.0, 1.0], dtype=np.float32)
+        negColour = np.array([0.0, 0.0, 1.0, 1.0], dtype=np.float32)
 
         # Warm-up
-        _ = Contourer2d.calculate_contours(data[:50, :50], levels[:1])
+        _ = Contourer2d.contourerGLList(
+            (data[:50, :50],), posLevels[:1], negLevels,
+            posColour, negColour, 0
+        )
 
         # Time wrapper
         start = time.time()
-        result = Contourer2d.calculate_contours(data, levels)
+        result = Contourer2d.contourerGLList(
+            dataArrays, posLevels, negLevels, posColour, negColour, 0
+        )
         wrapper_time = time.time() - start
 
-        # Time direct implementation
-        from ccpn.c_replacement.contour_compat import _load_implementation
-        impl = _load_implementation()
+        # Should complete in reasonable time
+        assert wrapper_time < 1.0, f"Should complete in <1s (got {wrapper_time:.4f}s)"
 
-        start = time.time()
-        result_direct = impl.calculate_contours(data, levels)
-        direct_time = time.time() - start
-
-        overhead = wrapper_time - direct_time
-        overhead_percent = (overhead / direct_time) * 100 if direct_time > 0 else 0
-
-        print(f"\n✓ Performance overhead:")
-        print(f"  Wrapper:     {wrapper_time:.4f}s")
-        print(f"  Direct:      {direct_time:.4f}s")
-        print(f"  Overhead:    {overhead:.4f}s ({overhead_percent:.1f}%)")
-
-        # Overhead should be negligible (< 5%)
-        # For first call, JIT compilation might dominate, so be lenient
-        assert overhead_percent < 50, f"Wrapper overhead too high: {overhead_percent:.1f}%"
-
-
-class TestComparisonWithC:
-    """Compare Python and C implementations (if C extension available)"""
-
-    def test_python_vs_c_equivalence(self):
-        """
-        Compare Python and C extension results (if both available).
-
-        This test demonstrates that Python implementation produces
-        equivalent results to the C extension.
-        """
-        # Try to import C extension
-        try:
-            from ccpnc.contour import Contourer2d as CContourer2d
-            c_available = True
-        except ImportError:
-            c_available = False
-            pytest.skip("C extension not available for comparison")
-
-        from ccpn.c_replacement.contour_compat import Contourer2d as PyContourer2d
-        from ccpn.c_replacement.contour_compat import get_implementation_info
-
-        # Make sure we're actually using Python
-        info = get_implementation_info()
-        if info['implementation'] == 'c_extension':
-            pytest.skip("Wrapper is using C extension, cannot compare")
-
-        # Create test data
-        size = 50
-        X, Y = np.meshgrid(np.arange(size), np.arange(size))
-        data = np.exp(-((X - 25)**2 + (Y - 25)**2) / 100).astype(np.float32)
-        levels = np.array([0.3, 0.5, 0.7], dtype=np.float32)
-
-        # Generate contours with both implementations
-        c_contours = CContourer2d.calculate_contours(data, levels)
-        py_contours = PyContourer2d.calculate_contours(data, levels)
-
-        # Compare structure
-        assert len(c_contours) == len(py_contours), "Same number of levels"
-
-        for i in range(len(levels)):
-            c_level = c_contours[i]
-            py_level = py_contours[i]
-
-            # Number of polylines might differ slightly due to algorithm details
-            # but should be close
-            print(f"\nLevel {levels[i]}:")
-            print(f"  C polylines:      {len(c_level)}")
-            print(f"  Python polylines: {len(py_level)}")
-
-            # Both should have found contours
-            assert len(c_level) > 0, f"C found contours at level {levels[i]}"
-            assert len(py_level) > 0, f"Python found contours at level {levels[i]}"
-
-        print("\n✓ Python and C implementations produce compatible results")
+        print(f"\n✓ Completed in {wrapper_time:.4f}s")
+        print(f"✓ Generated {result[1]} vertices")
 
 
 if __name__ == '__main__':

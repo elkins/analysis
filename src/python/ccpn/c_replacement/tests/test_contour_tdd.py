@@ -85,7 +85,9 @@ class TestContourSimpleCircle:
         assert len(main_contour) > 10, "Contour should have multiple vertices"
 
         # Check that vertices form approximate circle around origin
-        vertices = np.array(main_contour)
+        # Vertices are stored as flat array [x0, y0, x1, y1, ...], reshape to [[x0, y0], [x1, y1], ...]
+        vertices_flat = np.array(main_contour)
+        vertices = vertices_flat.reshape(-1, 2)
         center_x = vertices[:, 0].mean()
         center_y = vertices[:, 1].mean()
 
@@ -135,7 +137,9 @@ class TestContourSimpleCircle:
         # Validate they are concentric (higher level = smaller radius)
         radii = []
         for level_contours in result:
-            vertices = np.array(level_contours[0])
+            # Vertices are stored as flat array [x0, y0, x1, y1, ...], reshape to [[x0, y0], [x1, y1], ...]
+            vertices_flat = np.array(level_contours[0])
+            vertices = vertices_flat.reshape(-1, 2)
             center_x = vertices[:, 0].mean()
             center_y = vertices[:, 1].mean()
             distances = np.sqrt((vertices[:, 0] - center_x)**2 +
