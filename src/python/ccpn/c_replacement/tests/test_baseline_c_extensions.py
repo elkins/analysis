@@ -243,8 +243,8 @@ class TestContourBaseline:
         levels = np.array([0.2, 0.5, 0.8], dtype=np.float32)
 
         try:
-            # Call C extension
-            contours = Contourer2d.calculate_contours(data, levels)
+            # Call C extension (use correct function name)
+            contours = Contourer2d.contourer2d(data, levels)
 
             # VALIDATION
             assert contours is not None, "Should return contours"
