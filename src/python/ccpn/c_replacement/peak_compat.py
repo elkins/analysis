@@ -87,6 +87,9 @@ def use_python_implementation():
     """
     global _implementation, _using_c, _impl_name
 
+    import os
+    if os.environ.get('CCPN_DISABLE_PYTHON', '0') == '1':
+        raise RuntimeError("Python implementation is disabled by CCPN_DISABLE_PYTHON")
     if _python_implementation is None:
         raise RuntimeError("Python implementation not available")
 
@@ -104,6 +107,9 @@ def use_c_implementation():
     """
     global _implementation, _using_c, _impl_name
 
+    import os
+    if os.environ.get('CCPN_DISABLE_C', '0') == '1':
+        raise RuntimeError("C extension is disabled by CCPN_DISABLE_C")
     if _c_implementation is None:
         raise RuntimeError("C extension not available")
 
@@ -122,9 +128,14 @@ def get_available_implementations() -> dict:
         - 'python_available': bool
         - 'current': str (name of current implementation)
     """
+    # Check environment variables at runtime to allow dynamic disabling
+    c_disabled = os.environ.get('CCPN_DISABLE_C', '0') == '1'
+    python_disabled = os.environ.get('CCPN_DISABLE_PYTHON', '0') == '1'
+    c_avail = (_c_implementation is not None) and not c_disabled
+    py_avail = (_python_implementation is not None) and not python_disabled
     return {
-        'c_available': _c_implementation is not None,
-        'python_available': _python_implementation is not None,
+        'c_available': c_avail,
+        'python_available': py_avail,
         'current': _impl_name,
         'using_c': _using_c,
     }

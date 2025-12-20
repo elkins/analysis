@@ -341,43 +341,45 @@ class TestIndependentSwitching:
 class TestErrorHandling:
     """Test error handling for switching"""
 
-    def test_switch_to_unavailable_python_raises(self):
+
+    def test_switch_to_unavailable_python_raises(self, monkeypatch):
         """Test that switching to unavailable Python raises error"""
         from ccpn.c_replacement.peak_compat import (
             get_available_implementations,
             use_python_implementation
         )
 
+        # Force Python implementation to be unavailable
+        monkeypatch.setenv("CCPN_DISABLE_PYTHON", "1")
         avail = get_available_implementations()
-
-        if avail['python_available']:
-            # Can't test this case - Python is available
-            pytest.skip("Python implementation is available")
-
-        # If we get here, Python is not available
+        assert not avail['python_available'], "Python implementation should be unavailable when CCPN_DISABLE_PYTHON is set"
         with pytest.raises(RuntimeError) as excinfo:
             use_python_implementation()
+        msg = str(excinfo.value).lower()
+        assert (
+            "not available" in msg
+            or "disabled by ccpn_disable_python" in msg
+        )
 
-        assert "not available" in str(excinfo.value).lower()
 
-    def test_switch_to_unavailable_c_raises(self):
+    def test_switch_to_unavailable_c_raises(self, monkeypatch):
         """Test that switching to unavailable C raises error"""
         from ccpn.c_replacement.peak_compat import (
             get_available_implementations,
             use_c_implementation
         )
 
+        # Force C implementation to be unavailable
+        monkeypatch.setenv("CCPN_DISABLE_C", "1")
         avail = get_available_implementations()
-
-        if avail['c_available']:
-            # Can't test this case - C is available
-            pytest.skip("C implementation is available")
-
-        # If we get here, C is not available
+        assert not avail['c_available'], "C implementation should be unavailable when CCPN_DISABLE_C is set"
         with pytest.raises(RuntimeError) as excinfo:
             use_c_implementation()
-
-        assert "not available" in str(excinfo.value).lower()
+        msg = str(excinfo.value).lower()
+        assert (
+            "not available" in msg
+            or "disabled by ccpn_disable_c" in msg
+        )
 
 
 class TestStatePersistence:
