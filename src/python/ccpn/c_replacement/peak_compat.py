@@ -41,7 +41,7 @@ _impl_name = None
 # Try to load C extension
 if not _FORCE_PYTHON:
     try:
-        from ccpnc import Peak as _c_implementation
+        from ccpnc.peak import Peak as _c_implementation
     except ImportError:
         _c_implementation = None
 
@@ -146,13 +146,7 @@ def get_implementation_info() -> dict:
     if hasattr(_implementation, 'fitParabolicPeaks'):
         available_funcs.append('fitParabolicPeaks')
     if hasattr(_implementation, 'fitPeaks'):
-        try:
-            # Check if it's actually implemented
-            _implementation.fit_peaks()
-        except NotImplementedError:
-            pass  # Not available
-        except TypeError:
-            available_funcs.append('fitPeaks')  # Available but needs args
+        available_funcs.append('fitPeaks')
 
     return {
         'implementation': _impl_name,
@@ -161,7 +155,7 @@ def get_implementation_info() -> dict:
         'available_functions': available_funcs,
         'phase_1_complete': True,  # Parabolic fitting
         'phase_2_complete': True,  # Peak finding
-        'phase_3_complete': False,  # Levenberg-Marquardt (future)
+        'phase_3_complete': _using_c,  # Levenberg-Marquardt only in C extension
     }
 
 
@@ -226,11 +220,18 @@ class Peak:
         if diagonalExclusionTransform is None:
             diagonalExclusionTransform = []
 
-        return _implementation.find_peaks(
-            dataArray, haveLow, haveHigh, low, high,
-            buffer, nonadjacent, dropFactor, minLinewidth,
-            excludedRegions, diagonalExclusionDims, diagonalExclusionTransform
-        )
+        if _using_c:
+            return _implementation.findPeaks(
+                dataArray, haveLow, haveHigh, low, high,
+                buffer, nonadjacent, dropFactor, minLinewidth,
+                excludedRegions, diagonalExclusionDims, diagonalExclusionTransform
+            )
+        else:
+            return _implementation.find_peaks(
+                dataArray, haveLow, haveHigh, low, high,
+                buffer, nonadjacent, dropFactor, minLinewidth,
+                excludedRegions, diagonalExclusionDims, diagonalExclusionTransform
+            )
 
     @staticmethod
     def fitParabolicPeaks(
@@ -265,9 +266,14 @@ class Peak:
             >>> height, position, linewidth = results[0]
             >>> print(f"Peak at {position} with height {height}")
         """
-        return _implementation.fit_parabolic_peaks(
-            dataArray, regionArray, peakArray
-        )
+        if _using_c:
+            return _implementation.fitParabolicPeaks(
+                dataArray, regionArray, peakArray
+            )
+        else:
+            return _implementation.fit_parabolic_peaks(
+                dataArray, regionArray, peakArray
+            )
 
     @staticmethod
     def fitPeaks(
