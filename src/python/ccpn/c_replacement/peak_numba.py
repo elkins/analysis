@@ -8,6 +8,12 @@ import numpy as np
 from numba import njit
 from typing import List, Tuple
 from .peak_models import fit_parabolic_to_ndim, get_value_at_point
+import logging
+import os
+
+# Configure logging
+logger = logging.getLogger(__name__)
+_debug_enabled = os.environ.get('CCPN_DEBUG', '0') == '1'
 
 
 def _fit_parabolic_peaks_impl(
@@ -167,6 +173,9 @@ def find_peaks(
     Returns:
         List of ((x, y, ...), height) tuples for each peak found
     """
+    logger.debug(f"find_peaks: data shape={data_array.shape}, "
+                f"thresholds=[{low:.3f}, {high:.3f}], nonadjacent={nonadjacent}")
+
     from .peak_finding import (
         check_adjacent_extremum,
         check_nonadjacent_extremum,
@@ -257,6 +266,7 @@ def find_peaks(
         peak_height = float(v)
         peak_list.append((peak_position, peak_height))
 
+    logger.debug(f"find_peaks complete: {len(peak_list)} peaks found")
     return peak_list
 
 

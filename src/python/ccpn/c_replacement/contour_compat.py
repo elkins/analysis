@@ -29,6 +29,15 @@ import sys
 import numpy as np
 from typing import List, Optional, Tuple
 import warnings
+import logging
+
+# Configure logging
+logger = logging.getLogger(__name__)
+_debug_enabled = os.environ.get('CCPN_DEBUG', '0') == '1'
+if _debug_enabled:
+    logging.basicConfig(level=logging.DEBUG, format='[CCPN Contour] %(message)s')
+else:
+    logging.basicConfig(level=logging.INFO, format='[CCPN Contour] %(message)s')
 
 
 # Configuration: Check environment variables
@@ -46,15 +55,19 @@ _impl_name = None
 if not _FORCE_PYTHON:
     try:
         from ccpnc.contour import Contourer2d as _c_implementation
-    except ImportError:
+        logger.debug("C extension loaded successfully")
+    except ImportError as e:
         _c_implementation = None
+        logger.debug(f"C extension not available: {e}")
 
 # Try to load Python implementation
 if not _FORCE_C:
     try:
         from . import contour_numba as _python_implementation
-    except ImportError:
+        logger.debug("Python implementation loaded successfully")
+    except ImportError as e:
         _python_implementation = None
+        logger.debug(f"Python implementation not available: {e}")
 
 # Select implementation based on configuration
 if _FORCE_PYTHON:
@@ -63,22 +76,26 @@ if _FORCE_PYTHON:
     _implementation = _python_implementation
     _using_c = False
     _impl_name = 'Pure Python (Numba JIT) [FORCED]'
+    logger.info(f"Selected: {_impl_name}")
 elif _FORCE_C:
     if _c_implementation is None:
         raise ImportError("CCPN_FORCE_C=1 but C extension not available")
     _implementation = _c_implementation
     _using_c = True
     _impl_name = 'C extension [FORCED]'
+    logger.info(f"Selected: {_impl_name}")
 else:
     # Auto-select: prefer C, fallback to Python
     if _c_implementation is not None:
         _implementation = _c_implementation
         _using_c = True
         _impl_name = 'C extension'
+        logger.info(f"Auto-selected: {_impl_name}")
     elif _python_implementation is not None:
         _implementation = _python_implementation
         _using_c = False
         _impl_name = 'Pure Python (Numba JIT)'
+        logger.info(f"Auto-selected: {_impl_name} (C extension not available)")
     else:
         raise ImportError("Neither C extension nor Python implementation available")
 
@@ -97,6 +114,7 @@ def use_python_implementation():
     _implementation = _python_implementation
     _using_c = False
     _impl_name = 'Pure Python (Numba JIT) [RUNTIME SWITCH]'
+    logger.info(f"Switched to {_impl_name}")
     print(f"Contour module: Switched to {_impl_name}", file=sys.stderr)
 
 
@@ -114,6 +132,7 @@ def use_c_implementation():
     _implementation = _c_implementation
     _using_c = True
     _impl_name = 'C extension [RUNTIME SWITCH]'
+    logger.info(f"Switched to {_impl_name}")
     print(f"Contour module: Switched to {_impl_name}", file=sys.stderr)
 
 
@@ -176,16 +195,34 @@ class Contourer2d:
         Returns:
             List containing [numIndices, numVertices, indexing, vertices, colours]
         """
+        num_arrays = len(dataArrays) if isinstance(dataArrays, tuple) else 1
+        num_pos = len(posLevels) if hasattr(posLevels, '__len__') else 0
+        num_neg = len(negLevels) if hasattr(negLevels, '__len__') else 0
+
+        logger.debug(f"contourerGLList called: {num_arrays} arrays, "
+                    f"{num_pos} pos levels, {num_neg} neg levels, "
+                    f"implementation={_impl_name}")
+
+        import time
+        start_time = time.time()
+
         if _using_c:
             # C implementation is the Contourer2d class itself
-            return _implementation.contourerGLList(
+            result = _implementation.contourerGLList(
                 dataArrays, posLevels, negLevels, posColour, negColour, flatten
             )
         else:
             # Python implementation is the module
-            return _implementation.contourerGLList(
+            result = _implementation.contourerGLList(
                 dataArrays, posLevels, negLevels, posColour, negColour, flatten
             )
+
+        elapsed = time.time() - start_time
+        num_indices, num_vertices = result[0], result[1]
+        logger.debug(f"Contour generation complete: {num_vertices} vertices, "
+                    f"{num_indices} indices, {elapsed:.4f}s")
+
+        return result
 
 
 # Export public API

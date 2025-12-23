@@ -26,6 +26,16 @@ Configuration:
 import numpy as np
 import os
 from typing import List, Tuple, Optional
+import logging
+import sys
+
+# Configure logging
+logger = logging.getLogger(__name__)
+_debug_enabled = os.environ.get('CCPN_DEBUG', '0') == '1'
+if _debug_enabled:
+    logging.basicConfig(level=logging.DEBUG, format='[CCPN Peak] %(message)s')
+else:
+    logging.basicConfig(level=logging.INFO, format='[CCPN Peak] %(message)s')
 
 # Configuration: Check environment variables
 _FORCE_PYTHON = os.environ.get('CCPN_FORCE_PYTHON', '0') == '1'
@@ -42,15 +52,19 @@ _impl_name = None
 if not _FORCE_PYTHON:
     try:
         from ccpnc.peak import Peak as _c_implementation
-    except ImportError:
+        logger.debug("C extension loaded successfully")
+    except ImportError as e:
         _c_implementation = None
+        logger.debug(f"C extension not available: {e}")
 
 # Try to load Python implementation
 if not _FORCE_C:
     try:
         from . import peak_numba as _python_implementation
-    except ImportError:
+        logger.debug("Python implementation loaded successfully")
+    except ImportError as e:
         _python_implementation = None
+        logger.debug(f"Python implementation not available: {e}")
 
 # Select implementation based on configuration
 if _FORCE_PYTHON:
@@ -59,22 +73,26 @@ if _FORCE_PYTHON:
     _implementation = _python_implementation
     _using_c = False
     _impl_name = 'Pure Python (Numba JIT) [FORCED]'
+    logger.info(f"Selected: {_impl_name}")
 elif _FORCE_C:
     if _c_implementation is None:
         raise ImportError("CCPN_FORCE_C=1 but C extension not available")
     _implementation = _c_implementation
     _using_c = True
     _impl_name = 'C extension [FORCED]'
+    logger.info(f"Selected: {_impl_name}")
 else:
     # Auto-select: prefer C, fallback to Python
     if _c_implementation is not None:
         _implementation = _c_implementation
         _using_c = True
         _impl_name = 'C extension'
+        logger.info(f"Auto-selected: {_impl_name}")
     elif _python_implementation is not None:
         _implementation = _python_implementation
         _using_c = False
         _impl_name = 'Pure Python (Numba JIT)'
+        logger.info(f"Auto-selected: {_impl_name} (C extension not available)")
     else:
         raise ImportError("Neither C extension nor Python implementation available")
 
@@ -96,6 +114,7 @@ def use_python_implementation():
     _implementation = _python_implementation
     _using_c = False
     _impl_name = 'Pure Python (Numba JIT) [RUNTIME SWITCH]'
+    logger.info(f"Switched to {_impl_name}")
     print(f"Peak module: Switched to {_impl_name}")
 
 
@@ -116,6 +135,7 @@ def use_c_implementation():
     _implementation = _c_implementation
     _using_c = True
     _impl_name = 'C extension [RUNTIME SWITCH]'
+    logger.info(f"Switched to {_impl_name}")
     print(f"Peak module: Switched to {_impl_name}")
 
 
@@ -231,18 +251,29 @@ class Peak:
         if diagonalExclusionTransform is None:
             diagonalExclusionTransform = []
 
+        logger.debug(f"findPeaks: data shape={dataArray.shape}, "
+                    f"thresholds=[{low:.3f}, {high:.3f}], "
+                    f"implementation={_impl_name}")
+
+        import time
+        start = time.time()
+
         if _using_c:
-            return _implementation.findPeaks(
+            result = _implementation.findPeaks(
                 dataArray, haveLow, haveHigh, low, high,
                 buffer, nonadjacent, dropFactor, minLinewidth,
                 excludedRegions, diagonalExclusionDims, diagonalExclusionTransform
             )
         else:
-            return _implementation.find_peaks(
+            result = _implementation.find_peaks(
                 dataArray, haveLow, haveHigh, low, high,
                 buffer, nonadjacent, dropFactor, minLinewidth,
                 excludedRegions, diagonalExclusionDims, diagonalExclusionTransform
             )
+
+        elapsed = time.time() - start
+        logger.debug(f"findPeaks complete: {len(result)} peaks found ({elapsed:.4f}s)")
+        return result
 
     @staticmethod
     def fitParabolicPeaks(
@@ -277,14 +308,24 @@ class Peak:
             >>> height, position, linewidth = results[0]
             >>> print(f"Peak at {position} with height {height}")
         """
+        logger.debug(f"fitParabolicPeaks: data shape={dataArray.shape}, "
+                    f"{peakArray.shape[0]} peaks, implementation={_impl_name}")
+
+        import time
+        start = time.time()
+
         if _using_c:
-            return _implementation.fitParabolicPeaks(
+            result = _implementation.fitParabolicPeaks(
                 dataArray, regionArray, peakArray
             )
         else:
-            return _implementation.fit_parabolic_peaks(
+            result = _implementation.fit_parabolic_peaks(
                 dataArray, regionArray, peakArray
             )
+
+        elapsed = time.time() - start
+        logger.debug(f"fitParabolicPeaks complete: {len(result)} peaks fitted ({elapsed:.4f}s)")
+        return result
 
     @staticmethod
     def fitPeaks(

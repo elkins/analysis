@@ -19,6 +19,12 @@ import numpy as np
 from typing import List, Tuple
 from numba import jit, prange
 import numba
+import logging
+import os
+
+# Configure logging
+logger = logging.getLogger(__name__)
+_debug_enabled = os.environ.get('CCPN_DEBUG', '0') == '1'
 
 
 # Marching squares lookup table (must be module-level for Numba)
@@ -358,6 +364,8 @@ def calculate_contours(data: np.ndarray, levels: np.ndarray) -> List[List[np.nda
         ValueError: If data is not 2D or levels not 1D
         ValueError: If levels are not monotonic
     """
+    logger.debug(f"calculate_contours: data shape={data.shape}, {len(levels)} levels")
+
     # Input validation (matching C code and contour.py)
     if not isinstance(data, np.ndarray):
         raise TypeError("data must be a NumPy array")
@@ -409,8 +417,12 @@ def calculate_contours(data: np.ndarray, levels: np.ndarray) -> List[List[np.nda
     contours_list = []
 
     # Process each level with Numba-optimized functions
+    import time
     for l in range(nlevels):
         level = float(levels[l])
+
+        if _debug_enabled:
+            start = time.time()
 
         # Find vertices using Numba-optimized marching squares
         x_coords, y_coords, edge_types, cell_ids = \
@@ -419,8 +431,16 @@ def calculate_contours(data: np.ndarray, levels: np.ndarray) -> List[List[np.nda
         # Link vertices into polylines
         polylines = _build_polylines_python(x_coords, y_coords, edge_types, cell_ids)
 
+        if _debug_enabled:
+            elapsed = time.time() - start
+            num_polylines = len(polylines)
+            num_vertices = len(x_coords)
+            logger.debug(f"  Level {l+1}/{nlevels} (value={level:.3f}): "
+                        f"{num_vertices} vertices → {num_polylines} polylines ({elapsed:.4f}s)")
+
         contours_list.append(polylines)
 
+    logger.debug(f"calculate_contours complete: {nlevels} levels processed")
     return contours_list
 
 
@@ -455,6 +475,10 @@ def contourerGLList(dataArrays, posLevels, negLevels, posColour, negColour, flat
         >>> result = contourerGLList(dataArrays, posLevels, negLevels, posColour, negColour)
         >>> numIndices, numVertices, indexing, vertices, colours = result
     """
+    num_arrays = len(dataArrays)
+    logger.debug(f"contourerGLList: {num_arrays} arrays, "
+                f"{len(posLevels)} pos levels, {len(negLevels)} neg levels")
+
     # Input validation (matching C code)
     if not isinstance(dataArrays, tuple):
         raise TypeError("dataArrays must be a tuple")
