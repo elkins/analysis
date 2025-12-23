@@ -18,6 +18,15 @@ Uses pytest-benchmark for reliable performance measurements.
 
 import numpy as np
 import pytest
+import warnings
+@pytest.fixture(autouse=True)
+def suppress_optimize_warning():
+    warnings.filterwarnings(
+        "ignore",
+        message="Covariance of the parameters could not be estimated",
+        category=UserWarning,
+        module="scipy.optimize"
+    )
 from ccpn.c_replacement.tests.test_peak_data import (
     generate_gaussian_peak,
     generate_lorentzian_peak,

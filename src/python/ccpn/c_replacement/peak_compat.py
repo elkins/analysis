@@ -9,31 +9,136 @@ Usage:
     # Use exactly like the C extension
     peaks = Peak.findPeaks(dataArray, haveLow, haveHigh, low, high, ...)
     results = Peak.fitParabolicPeaks(dataArray, regionArray, peakArray)
+
+Configuration:
+    You can force a specific implementation using environment variables:
+
+    export CCPN_FORCE_PYTHON=1    # Force pure Python (disable C)
+    export CCPN_FORCE_C=1          # Force C (error if not available)
+
+    Or at runtime:
+
+    import ccpn.c_replacement.peak_compat as peak_compat
+    peak_compat.use_python_implementation()  # Switch to Python
+    peak_compat.use_c_implementation()        # Switch to C
 """
 
 import numpy as np
+import os
 from typing import List, Tuple, Optional
 
-# Try to import C extension, fall back to Python implementation
+# Configuration: Check environment variables
+_FORCE_PYTHON = os.environ.get('CCPN_FORCE_PYTHON', '0') == '1'
+_FORCE_C = os.environ.get('CCPN_FORCE_C', '0') == '1'
+
+# Store both implementations if available
+_c_implementation = None
+_python_implementation = None
 _implementation = None
 _using_c = False
+_impl_name = None
 
-try:
-    from ccpnc import Peak as _c_peak
-    _implementation = _c_peak
-    _using_c = True
-    _impl_name = 'C extension'
-except ImportError:
+# Try to load C extension
+if not _FORCE_PYTHON:
     try:
-        # Use pure Python implementation
-        from . import peak_numba as _implementation
+        from ccpnc.peak import Peak as _c_implementation
+    except ImportError:
+        _c_implementation = None
+
+# Try to load Python implementation
+if not _FORCE_C:
+    try:
+        from . import peak_numba as _python_implementation
+    except ImportError:
+        _python_implementation = None
+
+# Select implementation based on configuration
+if _FORCE_PYTHON:
+    if _python_implementation is None:
+        raise ImportError("CCPN_FORCE_PYTHON=1 but Python implementation not available")
+    _implementation = _python_implementation
+    _using_c = False
+    _impl_name = 'Pure Python (Numba JIT) [FORCED]'
+elif _FORCE_C:
+    if _c_implementation is None:
+        raise ImportError("CCPN_FORCE_C=1 but C extension not available")
+    _implementation = _c_implementation
+    _using_c = True
+    _impl_name = 'C extension [FORCED]'
+else:
+    # Auto-select: prefer C, fallback to Python
+    if _c_implementation is not None:
+        _implementation = _c_implementation
+        _using_c = True
+        _impl_name = 'C extension'
+    elif _python_implementation is not None:
+        _implementation = _python_implementation
         _using_c = False
         _impl_name = 'Pure Python (Numba JIT)'
-    except ImportError as e:
-        raise ImportError(
-            "Neither C extension nor Python implementation available. "
-            f"Error: {e}"
-        )
+    else:
+        raise ImportError("Neither C extension nor Python implementation available")
+
+
+def use_python_implementation():
+    """Force use of pure Python implementation.
+
+    Raises:
+        RuntimeError: If Python implementation is not available
+    """
+    global _implementation, _using_c, _impl_name
+
+    import os
+    if os.environ.get('CCPN_DISABLE_PYTHON', '0') == '1':
+        raise RuntimeError("Python implementation is disabled by CCPN_DISABLE_PYTHON")
+    if _python_implementation is None:
+        raise RuntimeError("Python implementation not available")
+
+    _implementation = _python_implementation
+    _using_c = False
+    _impl_name = 'Pure Python (Numba JIT) [RUNTIME SWITCH]'
+    print(f"Peak module: Switched to {_impl_name}")
+
+
+def use_c_implementation():
+    """Force use of C extension.
+
+    Raises:
+        RuntimeError: If C extension is not available
+    """
+    global _implementation, _using_c, _impl_name
+
+    import os
+    if os.environ.get('CCPN_DISABLE_C', '0') == '1':
+        raise RuntimeError("C extension is disabled by CCPN_DISABLE_C")
+    if _c_implementation is None:
+        raise RuntimeError("C extension not available")
+
+    _implementation = _c_implementation
+    _using_c = True
+    _impl_name = 'C extension [RUNTIME SWITCH]'
+    print(f"Peak module: Switched to {_impl_name}")
+
+
+def get_available_implementations() -> dict:
+    """Get information about which implementations are available.
+
+    Returns:
+        Dictionary with availability information:
+        - 'c_available': bool
+        - 'python_available': bool
+        - 'current': str (name of current implementation)
+    """
+    # Check environment variables at runtime to allow dynamic disabling
+    c_disabled = os.environ.get('CCPN_DISABLE_C', '0') == '1'
+    python_disabled = os.environ.get('CCPN_DISABLE_PYTHON', '0') == '1'
+    c_avail = (_c_implementation is not None) and not c_disabled
+    py_avail = (_python_implementation is not None) and not python_disabled
+    return {
+        'c_available': c_avail,
+        'python_available': py_avail,
+        'current': _impl_name,
+        'using_c': _using_c,
+    }
 
 
 def get_implementation_info() -> dict:
@@ -52,13 +157,7 @@ def get_implementation_info() -> dict:
     if hasattr(_implementation, 'fitParabolicPeaks'):
         available_funcs.append('fitParabolicPeaks')
     if hasattr(_implementation, 'fitPeaks'):
-        try:
-            # Check if it's actually implemented
-            _implementation.fit_peaks()
-        except NotImplementedError:
-            pass  # Not available
-        except TypeError:
-            available_funcs.append('fitPeaks')  # Available but needs args
+        available_funcs.append('fitPeaks')
 
     return {
         'implementation': _impl_name,
@@ -67,7 +166,7 @@ def get_implementation_info() -> dict:
         'available_functions': available_funcs,
         'phase_1_complete': True,  # Parabolic fitting
         'phase_2_complete': True,  # Peak finding
-        'phase_3_complete': False,  # Levenberg-Marquardt (future)
+        'phase_3_complete': _using_c,  # Levenberg-Marquardt only in C extension
     }
 
 
@@ -132,11 +231,18 @@ class Peak:
         if diagonalExclusionTransform is None:
             diagonalExclusionTransform = []
 
-        return _implementation.find_peaks(
-            dataArray, haveLow, haveHigh, low, high,
-            buffer, nonadjacent, dropFactor, minLinewidth,
-            excludedRegions, diagonalExclusionDims, diagonalExclusionTransform
-        )
+        if _using_c:
+            return _implementation.findPeaks(
+                dataArray, haveLow, haveHigh, low, high,
+                buffer, nonadjacent, dropFactor, minLinewidth,
+                excludedRegions, diagonalExclusionDims, diagonalExclusionTransform
+            )
+        else:
+            return _implementation.find_peaks(
+                dataArray, haveLow, haveHigh, low, high,
+                buffer, nonadjacent, dropFactor, minLinewidth,
+                excludedRegions, diagonalExclusionDims, diagonalExclusionTransform
+            )
 
     @staticmethod
     def fitParabolicPeaks(
@@ -171,9 +277,14 @@ class Peak:
             >>> height, position, linewidth = results[0]
             >>> print(f"Peak at {position} with height {height}")
         """
-        return _implementation.fit_parabolic_peaks(
-            dataArray, regionArray, peakArray
-        )
+        if _using_c:
+            return _implementation.fitParabolicPeaks(
+                dataArray, regionArray, peakArray
+            )
+        else:
+            return _implementation.fit_parabolic_peaks(
+                dataArray, regionArray, peakArray
+            )
 
     @staticmethod
     def fitPeaks(
@@ -246,6 +357,9 @@ __all__ = [
     'fit_parabolic_peaks',
     'fit_peaks',
     'get_implementation_info',
+    'get_available_implementations',
+    'use_python_implementation',
+    'use_c_implementation',
 ]
 
 

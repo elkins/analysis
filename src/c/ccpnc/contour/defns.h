@@ -94,10 +94,10 @@ Development of a Software Pipeline. Proteins 59, 687 - 696.
 #define  NEAREST_INTEGER(a)  (FLOOR((a) + 0.5))
 
 #define  SWAP(a, b, type) \
-	 {   type  I;  I = a;  a = b;  b = I;  }
+	 {   type  SWAP_TMP;  SWAP_TMP = a;  a = b;  b = SWAP_TMP;  }
 
 #define  SWAP3(a, b, c, type) \
-	 {   type  I;  I = a;  a = b;  b = c;  c = I;  }
+	 {   type  SWAP3_TMP;  SWAP3_TMP = a;  a = b;  b = c;  c = SWAP3_TMP;  }
 
 #define  FLUSH  {   fflush(stdout);  fflush(stderr);   }
 
@@ -189,10 +189,10 @@ Development of a Software Pipeline. Proteins 59, 687 - 696.
 	     {   free((type *) (ptr));  (ptr) = (type *) NULL;   }   }
 
 #define  FREE2(ptr, type, num) \
-	 {   int I; \
+	 {   int FREE2_I; \
 	     if ((ptr) != (type **) NULL) \
-	     {   for (I = 0; I < num; I++) \
-	             FREE((ptr)[I], type); \
+	     {   for (FREE2_I = 0; FREE2_I < num; FREE2_I++) \
+	             FREE((ptr)[FREE2_I], type); \
 	     	 FREE(ptr, type *);   }   }
 
 #ifdef  REALLOC

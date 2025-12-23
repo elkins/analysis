@@ -1,3 +1,4 @@
+"""
 Test suite for C replacement modules.
 
 Follows Test-Driven Development (TDD) principles:
@@ -12,3 +13,4 @@ Test categories:
 - Integration tests: Module interactions
 - Numerical validation: Match C extension outputs
 - Performance benchmarks: Compare speed vs C
+"""

@@ -36,7 +36,13 @@ class TestCompatibilityWrapper:
         assert 'phase_3_complete' in info
 
         # Implementation should be either C or Python
-        assert info['implementation'] in ['C extension', 'Pure Python (Numba JIT)']
+        valid_impls = [
+            'C extension',
+            'C extension [RUNTIME SWITCH]',
+            'Pure Python (Numba JIT)',
+            'Pure Python (Numba JIT) [RUNTIME SWITCH]'
+        ]
+        assert info['implementation'] in valid_impls
 
         # using_c should be boolean
         assert isinstance(info['using_c'], bool)
